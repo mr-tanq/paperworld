@@ -264,3 +264,49 @@ test('cloud schema is owner-scoped and leaves approval writes unavailable to bro
  assert.match(sql,/using \(\(select auth\.uid\(\)\) = owner_id\)/);
  assert.doesNotMatch(sql,/security definer/i);
 });
+
+test('live cloud rooms keep local tasks separate and include auth plus import controls',()=>{
+ const html=read('preview-010/index.html');
+ const base=read('preview-010/rooms-ui.js');
+ const cloud=read('preview-010/cloud.js');
+ const ui=read('preview-010/cloud-ui.js');
+ for(const p of ['cloud.js','cloud-ui.js'])assert.ok(html.includes(p));
+ assert.ok(html.indexOf('rooms-ui.js') < html.indexOf('cloud.js'));
+ assert.ok(html.indexOf('cloud.js') < html.indexOf('cloud-ui.js'));
+ assert.match(base,/Open cloud workspace/);
+ assert.match(base,/PaperworldCloudUI\.open/);
+ assert.match(ui,/Create account/);
+ assert.match(ui,/Preview and copy/);
+ assert.match(ui,/Originals will remain/);
+ assert.match(ui,/confirm\(/);
+ assert.match(cloud,/sb_publishable_/);
+ assert.doesNotMatch(cloud,/service_role|sb_secret_/);
+});
+test('cloud client validates rooms and avoids duplicate local import IDs',()=>{
+ const cloud=require('../preview-010/cloud.js');
+ const requests=[];
+ const storage=new Map();
+ const adapter={getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)};
+ const fetcher=async (url,options)=>{
+  requests.push({url,options});
+  let data={};
+  if(url.includes('grant_type=password'))data={access_token:'test-access',refresh_token:'test-refresh',expires_in:3600,user:{email:'test@example.invalid'}};
+  if(url.includes('/rest/v1/'))data=options.method==='POST'?[{id:'11111111-1111-4111-8111-111111111111',...JSON.parse(options.body)}]:[];
+  return {ok:true,status:200,text:async()=>JSON.stringify(data)};
+ };
+ return (async()=>{
+  const c=cloud.createClient({fetcher,storage:adapter});
+  assert.equal(c.signedIn(),false);
+  await c.login('test@example.invalid','example-password');
+  assert.equal(c.signedIn(),true);
+  await c.list('studio');
+  await c.add('studio','An original song');
+  const plan=c.prepareImport([{id:'local-1',title:'Work',room:'studio'}],[{local_task_id:'local-1'}]);
+  assert.equal(plan.incoming.length,0);
+  assert.equal(plan.duplicates,1);
+  await assert.rejects(()=>c.add('invalid','bad'));
+  assert.ok(requests.slice(1).every(r=>r.options.headers.Authorization==='Bearer test-access'));
+  await c.signout();
+  assert.equal(c.signedIn(),false);
+ })();
+});
