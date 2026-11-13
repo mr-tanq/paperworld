@@ -5,16 +5,33 @@ const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const read=name=>fs.readFileSync(path.join(root,name),'utf8');
-test('entrypoint references local offline assets',()=>{
+test('main entrypoint runs the promoted village with local assets',()=>{
  const html=read('index.html');
- for(const name of ['style.css','village.js','manifest.webmanifest']) assert.ok(html.includes(name),name);
- for(const name of ['style.css','village.js','manifest.webmanifest']) assert.ok(fs.existsSync(path.join(root,name)),name);
+ const scripts=['navigation.js','depth.js','projects.js','rooms-ui.js','cloud.js','cloud-ui.js','app.js'];
+ for(const name of scripts){
+  assert.ok(html.includes('src="./js/'+name+'"'),name);
+  assert.ok(fs.existsSync(path.join(root,'js',name)),'missing js/'+name);
+ }
+ for(const id of ['map','name','desc','project-room','open-projects','depth-demo'])assert.ok(html.includes('id="'+id+'"'),id);
+ assert.ok(html.includes('href="./style.css"'));
  assert.doesNotMatch(html,/<script[^>]+src=["']https?:/i);
  assert.doesNotMatch(html,/<link[^>]+href=["']https?:/i);
 });
-test('all required controls exist',()=>{
- const html=read('index.html');
- for(const id of ['scene','title','dialog','zoom-in','zoom-out','reset','chief','workshop','town']) assert.ok(html.includes('id="'+id+'"'),id);
+test('previous main entrypoint stays available under archive',()=>{
+ const html=read('archive/prototype-002/index.html');
+ for(const id of ['scene','title','dialog','zoom-in','zoom-out','reset','chief','workshop','town'])assert.ok(html.includes('id="'+id+'"'),id);
+ for(const name of ['style.css','village.js'])assert.ok(fs.existsSync(path.join(root,'archive/prototype-002',name)));
+});
+test('promoted app uses correct root-relative assets and shares local task state with preview',()=>{
+ const main=read('js/app.js'),preview=read('preview-010/app.js');
+ const cloud=read('js/cloud.js'),projects=read('js/projects.js');
+ assert.ok(main.includes("file:'./assets/town-hall.png'"));
+ assert.ok(main.includes("file:'./assets/lost-wanderer-studio.png'"));
+ assert.ok(!main.includes("../assets/"));
+ assert.ok(preview.includes("../assets/"));
+ assert.equal(cloud,read('preview-010/cloud.js'));
+ assert.equal(projects,read('preview-010/projects.js'));
+ assert.match(main,/PaperworldRooms\?\.open\('town'\)/);
 });
 test('no network integrations in prototype JavaScript',()=>{
  const js=read('village.js');

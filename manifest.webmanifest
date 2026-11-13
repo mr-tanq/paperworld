@@ -1,8 +1,9 @@
 {
-  "name": "PAPERWORLD Prototype 001",
+  "name": "PAPERWORLD — Your Village",
   "short_name": "PAPERWORLD",
-  "start_url": "./index.html",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#eee5d4",
-  "theme_color": "#eee5d4"
+  "background_color": "#f1e9db",
+  "theme_color": "#181d20"
 }
