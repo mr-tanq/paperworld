@@ -3,11 +3,11 @@ const canvas=document.querySelector('#map'),ctx=canvas.getContext('2d'),nameEl=d
 const W=1671,H=941;
 const state={width:0,height:0,dpr:1,scale:1,fit:1,x:0,y:0,pointer:null,chosen:null,walker:{x:835,y:854},route:[],destination:null};
 const defs=[
-{id:'town',name:'Town Hall',file:'../assets/town-hall.png',x:535,bottom:476,width:356,entrance:[542,425],approach:[535,520],desc:'The future approval and budget hub. All operations remain disabled.'},
-{id:'workshop',name:'Listening Mirror Workshop',file:'../assets/listening-mirror-workshop.png',x:1125,bottom:468,width:358,entrance:[1175,419],approach:[1125,515],desc:'The music discovery project workspace. No real tasks are connected.'},
+{id:'town',name:'Town Hall',file:'../assets/town-hall.png',x:535,bottom:476,width:356,entrance:[355,547],approach:[535,520],desc:'The future approval and budget hub. All operations remain disabled.'},
+{id:'workshop',name:'Listening Mirror Workshop',file:'../assets/listening-mirror-workshop.png',x:1125,bottom:468,width:358,entrance:[1153,358],approach:[1125,515],desc:'The music discovery project workspace. No real tasks are connected.'},
 {id:'pokemon',name:'Pokémon Hub',file:'../assets/pokemon-hub.png',x:330,bottom:646,width:370,entrance:[343,561],approach:[385,665],desc:'Future home of Pokémon: Echoes development.'},
 {id:'wellbeing',name:'Wellbeing & Training Center',file:'../assets/wellbeing-training-center.png',x:1325,bottom:645,width:366,entrance:[1330,574],approach:[1240,690],desc:'Future training, nutrition, habits and progress workspace.'},
-{id:'studio',name:'The Lost Wanderer Studio',file:'../assets/lost-wanderer-studio.png',x:835,bottom:801,width:438,entrance:[855,733],approach:[835,854],desc:'Future music writing and production studio.'}
+{id:'studio',name:'The Lost Wanderer Studio',file:'../assets/lost-wanderer-studio.png',x:835,bottom:801,width:438,entrance:[872,679],approach:[835,854],desc:'Future music writing and production studio.'}
 ];
 // Preview-only marker offsets are local to the user's browser; no GitHub writes.
 const markerKey='paperworld-preview-010-marker-calibration-v1';
@@ -18,7 +18,7 @@ const resetMarkerButton=document.querySelector('#reset-marker');
 const exportMarkerButton=document.querySelector('#export-markers');
 const markerExportOutput=document.querySelector('#marker-export-output');
 const markerText=document.querySelector('#marker-status');
-const defaultEntrances={"town":[542,425],"workshop":[1175,419],"pokemon":[343,561],"wellbeing":[1330,574],"studio":[855,733]};
+const defaultEntrances={"town":[355,547],"workshop":[1153,358],"pokemon":[343,561],"wellbeing":[1330,574],"studio":[872,679]};
 function setCalibrating(value){calibrating=value;calibrateButton.textContent=value?'Cancel marker placement':'Place marker on door';markerText.textContent=value?'Tap the actual doorway in the village. The marker will move exactly there.':'Choose a building, then place its marker on the doorway.'}
 function updateMarkerControls(){const selected=!!state.chosen;calibrateButton.disabled=!selected;resetMarkerButton.disabled=!selected;markerText.textContent=selected?'Marker: '+state.chosen.entrance.map(v=>Math.round(v)).join(', ')+' (world coordinates)':'Select a building to adjust its marker.'}
 function saveMarker(d){try{const saved=JSON.parse(localStorage.getItem(markerKey)||'{}');saved[d.id]=d.entrance;localStorage.setItem(markerKey,JSON.stringify(saved))}catch(_){markerText.textContent='Marker moved. Browser local storage was unavailable.'}}
