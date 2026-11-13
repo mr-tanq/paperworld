@@ -1,0 +1,28 @@
+name: PAPERWORLD Worker offline safety tests
+on:
+  pull_request:
+    paths:
+      - 'scripts/worker/**'
+      - '.github/workflows/worker-review.yml'
+      - '.github/workflows/worker-safety-tests.yml'
+      - 'tests/smoke.test.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  worker-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout for offline tests only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test controller, filesystem guards and PAPERWORLD regression
+        run: node --test scripts/worker/worker.test.mjs tests/smoke.test.cjs
