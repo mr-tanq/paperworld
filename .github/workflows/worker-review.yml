@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "Prepare only (free) or run GitHub Copilot (AI credits may be consumed)"
+        description: "Prepare only (no AI credits) or run Copilot (AI credits may be consumed)"
         required: true
         type: choice
         default: prepare-only
@@ -93,6 +93,8 @@ jobs:
             > ../worker-output/analysis.md
       - name: Check allowed files and capture uncommitted patch
         run: node controller/scripts/worker/worker.mjs ticketswap-diagnostics collect
+      - name: Check isolated worker controller rules (no AI credits)
+        run: node --test controller/scripts/worker/worker.test.mjs
       - name: Run offline regression tests without AI token
         working-directory: target
         shell: bash
