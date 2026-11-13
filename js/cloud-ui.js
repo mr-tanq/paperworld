@@ -89,6 +89,25 @@ if(chief){
      if(navigator.clipboard?.writeText)navigator.clipboard.writeText(mission.brief).then(()=>note('Review brief copied. No worker started.')).catch(()=>note('Clipboard unavailable.',true));
      else note('Clipboard unavailable.',true)
    }));
+   if(mission.status==='ready_for_review' && mission.repository==='mr-tanq/concerts' && /ticketswap/i.test(mission.title)){
+     buttons.append(btn('Prepare-only in GitHub',()=>work(async()=>{
+       if(!confirm('Request the TicketSwap prepare-only workflow? This creates a scope artifact without running AI or consuming AI inference credits.')){
+         message='Prepare-only request cancelled.';return
+       }
+       const response=await client.prepareWorkerMission(mission.id);
+       message=response.accepted?'GitHub accepted the prepare-only job. Use Check worker run to see the latest status.':'No workflow was started.'
+     }),'primary'))
+   }
+   if(mission.status!=='cancelled'){
+     buttons.append(btn('Check worker run',()=>work(async()=>{
+       const status=await client.workerStatus();
+       const run=status.latestRun;
+       message=(status.connected?'Secure bridge connected. ':'Secure bridge not connected. ')+
+         (run?'Latest workflow: '+run.status+(run.conclusion?' / '+run.conclusion:'')+' · '+run.url:
+           'No manual worker workflow runs found.')+
+         ' This is the latest repository run, not proof of this mission being executed.'
+     })))
+   }
    if(mission.status==='draft')buttons.append(btn('Ready for MY review',()=>work(async()=>{
      await client.setMissionStatus(mission.id,'ready_for_review');await reload();
      message='Marked ready for your review only. This does not authorize execution.'
