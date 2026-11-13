@@ -250,3 +250,17 @@ test('project room UI is attached to each building, is editable, and warns about
  assert.match(ui,/saved only in this browser/i);
  assert.match(ui,/window\.confirm\(/);
 });
+
+test('cloud schema is owner-scoped and leaves approval writes unavailable to browser clients',()=>{
+ const sql=read('supabase/paperworld_schema_draft.sql');
+ for(const table of ['paperworld_tasks','paperworld_approval_requests'])assert.match(sql,new RegExp('alter table public\\.'+table+' enable row level security'));
+ assert.match(sql,/grant select,insert,update,delete on table public\.paperworld_tasks to authenticated/i);
+ assert.match(sql,/revoke all on table public\.paperworld_tasks from anon/i);
+ assert.match(sql,/revoke all on table public\.paperworld_approval_requests from anon/i);
+ assert.match(sql,/grant select on table public\.paperworld_approval_requests to authenticated/i);
+ assert.doesNotMatch(sql,/grant (?:insert|update|delete|all) on table public\.paperworld_approval_requests to authenticated/i);
+ for(const cmd of ['select','insert','update','delete'])assert.match(sql,new RegExp('for '+cmd+' to authenticated'));
+ assert.match(sql,/with check \(\(select auth\.uid\(\)\) = owner_id\)/);
+ assert.match(sql,/using \(\(select auth\.uid\(\)\) = owner_id\)/);
+ assert.doesNotMatch(sql,/security definer/i);
+});
