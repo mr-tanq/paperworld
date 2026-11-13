@@ -83,3 +83,25 @@ test('listening mirror workshop loads local artwork with a procedural fallback',
  assert.match(js,/ctx\.drawImage\(workshopArt/);
  assert.match(js,/function hitObject\(/);
 });
+
+test('preview path graph excludes building bases and connects all five entrances',()=>{
+ const nav=require('../preview-010/navigation.js');
+ for(const [a,b] of nav.safeConnections){
+  assert.ok(nav.clearSegment(nav.nodes[a],nav.nodes[b]),'unsafe edge '+a+'-'+b);
+ }
+ assert.ok(nav.safeConnections.length>=12,'too many edges removed by collision detection');
+ for(const endpoint of [3,4,7,8,13]){
+  assert.ok(nav.findRoute(13,endpoint).length>0,'no safe path to entrance '+endpoint);
+ }
+ for(const obstacle of nav.obstacles){
+  assert.ok(nav.blockedPoint([obstacle.x,obstacle.y]),'building center must be blocked');
+ }
+});
+test('preview controls load collision rules and place walker on studio entrance path',()=>{
+ const html=read('preview-010/index.html'),js=read('preview-010/app.js');
+ assert.ok(html.indexOf('navigation.js')<html.indexOf('app.js'));
+ assert.match(js,/navigation\.findRoute\(/);
+ assert.match(js,/navigation\.clearSegment\(/);
+ assert.match(js,/walker:\{x:835,y:870\}/);
+ assert.match(js,/layers\.sort\(/);
+});
