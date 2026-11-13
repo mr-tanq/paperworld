@@ -37,3 +37,8 @@
 .room-backup{border-top:1px solid #d3c7b6;padding-top:12px}
 .room-notice,.room-error{padding:9px;border-radius:7px;font-size:12px;line-height:1.4}
 .room-notice{background:#e6f0dd;color:#416044}.room-error{background:#f5e3da;color:#7a413b}
+
+.cloud-login{display:flex;flex-direction:column;gap:10px;padding:10px;margin:10px 0;background:#f0e8db;border-radius:10px}
+.cloud-login input,.cloud-login~input,.cloud-import input{padding:10px;border:1px solid #c2b29c;border-radius:8px;max-width:100%;font:inherit}
+.cloud-import{margin-top:18px}
+.project-room button.primary{margin:8px 0}

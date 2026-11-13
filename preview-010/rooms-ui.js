@@ -69,7 +69,7 @@ function render(){
  header.append(make('h2','','Project Rooms'),button('Back to village',()=>close()));
  host.append(header);
  const subtitle=make('p','room-subtitle','Real, editable task lists saved only in this browser. No AI agents or online sync.');
- host.append(subtitle,roomSelect());
+ host.append(subtitle,button('☁ Open cloud workspace',()=>window.PaperworldCloudUI.open(active),'primary'),roomSelect());
  const r=roomById(active);if(!r){host.append(make('p','','Unknown room'));return}
  host.append(make('h3','room-title',r.name),make('p','room-description',r.description));
  if(!store){host.append(make('p','room-error','Browser storage is unavailable. This workspace cannot save tasks.'));return}
@@ -96,7 +96,7 @@ function render(){
  host.append(backups);
  host.append(make('p','room-footnote','Tasks are private to this browser/device. Export a backup before clearing browser data or switching devices.'));
 }
-function open(id='town'){if(!roomById(id))id='town';active=id;showEditor=false;notice='';error='';render();host.scrollIntoView?.({behavior:'smooth',block:'nearest'})}
+function open(id='town'){if(!roomById(id))id='town';if(window.PaperworldCloudUI?.isActive())return window.PaperworldCloudUI.open(id);active=id;showEditor=false;notice='';error='';render();host.scrollIntoView?.({behavior:'smooth',block:'nearest'})}
 function close(){host.hidden=true;host.replaceChildren();showEditor=false}
 window.PaperworldRooms={open,close};
 })();
