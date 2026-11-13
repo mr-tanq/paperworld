@@ -431,7 +431,7 @@ test('first AI Worker requires explicit credit approval and cannot push or deplo
  assert.match(workflow,/copilot-requests: write/);
  assert.match(workflow,/contents: read/);
  assert.doesNotMatch(workflow,/contents: write|--allow-all|--yolo|git push|gh pr create/i);
- assert.match(workflow,/available-tools='read,write'/);
+ assert.match(workflow,/available-tools='view,grep,glob,edit,create,apply_patch'/);
  assert.match(workflow,/--deny-tool=shell/);
  assert.match(workflow,/--deny-tool=url/);
  assert.match(workflow,/upload-artifact/);
