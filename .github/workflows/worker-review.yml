@@ -1,0 +1,114 @@
+name: PAPERWORLD Worker — review-only sandbox
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Prepare only (free) or run GitHub Copilot (AI credits may be consumed)"
+        required: true
+        type: choice
+        default: prepare-only
+        options:
+          - prepare-only
+          - run-ai
+      approve_credits:
+        description: "For run-ai only, type I_APPROVE_AI_CREDITS after checking GitHub Copilot billing"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paperworld-worker-review
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout trusted PAPERWORLD controller
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: controller
+      - name: Create a review-only mission pack
+        run: node controller/scripts/worker/worker.mjs ticketswap-diagnostics prepare
+      - name: Publish scope for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: paperworld-worker-scope
+          path: worker-output/
+          retention-days: 7
+
+  worker:
+    if: inputs.mode == 'run-ai'
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      copilot-requests: write
+    steps:
+      - name: Fail closed without explicit credit acknowledgement
+        env:
+          CREDIT_APPROVAL: ${{ inputs.approve_credits }}
+        run: |
+          if [ "$CREDIT_APPROVAL" != 'I_APPROVE_AI_CREDITS' ]; then
+            echo 'Blocked: GitHub AI credit usage was not explicitly approved.'
+            exit 1
+          fi
+      - name: Checkout trusted PAPERWORLD controller
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: controller
+      - name: Checkout read-only target repository
+        uses: actions/checkout@v4
+        with:
+          repository: mr-tanq/concerts
+          ref: main
+          persist-credentials: false
+          path: target
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare mission scope
+        run: node controller/scripts/worker/worker.mjs ticketswap-diagnostics prepare
+      - name: Install GitHub Copilot CLI
+        run: npm install --global --ignore-scripts @github/copilot
+      - name: Run AI Developer Worker in disposable checkout
+        working-directory: target
+        timeout-minutes: 8
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          COPILOT_AUTO_UPDATE: 'false'
+        run: |
+          copilot -p "$(cat ../worker-output/prompt.txt)" -s --no-ask-user \
+            --available-tools='read,write' \
+            --allow-tool=read --allow-tool=write \
+            --deny-tool=shell --deny-tool=url --deny-tool=memory \
+            > ../worker-output/analysis.md
+      - name: Check allowed files and capture uncommitted patch
+        run: node controller/scripts/worker/worker.mjs ticketswap-diagnostics collect
+      - name: Run offline regression tests without AI token
+        working-directory: target
+        shell: bash
+        run: |
+          set +e
+          node --test scripts/ticketswap-matching.test.mjs scripts/ticketswap-confirmation.test.mjs scripts/ticketswap-diagnostics.test.mjs > ../worker-output/tests.log 2>&1
+          status=$?
+          if [ "$status" -eq 1 ] && ! test -f scripts/ticketswap-diagnostics.test.mjs; then
+            node --test scripts/ticketswap-matching.test.mjs scripts/ticketswap-confirmation.test.mjs >> ../worker-output/tests.log 2>&1
+          fi
+          echo "Regression test outcome requires human review; no push or deploy." >> ../worker-output/tests.log
+          exit 0
+      - name: Upload review artifact — never push or merge
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paperworld-worker-review
+          path: worker-output/
+          retention-days: 7
