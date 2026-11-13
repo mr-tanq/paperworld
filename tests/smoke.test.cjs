@@ -73,3 +73,13 @@ test('town hall supports a local high-quality asset and safe offline fallback',(
  assert.match(js,/function hitObject\(/);
  assert.match(js,/function bfs\(/);
 });
+
+test('listening mirror workshop loads local artwork with a procedural fallback',()=>{
+ const js=read('village.js');
+ assert.match(js,/workshopArt\.src='\.\/assets\/listening-mirror-workshop\.png'/);
+ assert.match(js,/workshopArt\.onerror=/);
+ assert.match(js,/function workshop\(/);
+ assert.match(js,/if\(!workshopReady\)\{building/);
+ assert.match(js,/ctx\.drawImage\(workshopArt/);
+ assert.match(js,/function hitObject\(/);
+});
