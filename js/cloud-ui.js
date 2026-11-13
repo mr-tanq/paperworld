@@ -1,6 +1,7 @@
 (()=>{'use strict';
 const host=document.querySelector('#project-room'),model=window.PaperworldProjects,client=window.PaperworldCloud.createClient();
 let room='town',tasks=[],allTasks=[],missions=[],busy=false,message='',edit=null,active=false;
+const workerReports=new Map();
 const el=(tag,text,cls)=>{let e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
 const btn=(text,fn,cls)=>{let b=el('button',text,cls);b.type='button';b.disabled=busy;b.addEventListener('click',fn);return b};
 const note=(s,isError=false)=>{message=(isError?'Error: ':'')+s;render()};
@@ -99,14 +100,40 @@ if(chief){
      }),'primary'))
    }
    if(mission.status!=='cancelled'){
-     buttons.append(btn('Check worker run',()=>work(async()=>{
-       const status=await client.workerStatus();
-       const run=status.latestRun;
+     buttons.append(btn('Check this mission',()=>work(async()=>{
+       const status=await client.workerStatus(mission.id);
+       workerReports.set(mission.id,status);
+       const run=status.run;
        message=(status.connected?'Secure bridge connected. ':'Secure bridge not connected. ')+
-         (run?'Latest workflow: '+run.status+(run.conclusion?' / '+run.conclusion:'')+' · '+run.url:
-           'No manual worker workflow runs found.')+
-         ' This is the latest repository run, not proof of this mission being executed.'
-     })))
+         (run?'This mission: '+run.status+(run.conclusion?' / '+run.conclusion:''):'No run yet for this mission.');
+     })));
+     const saved=workerReports.get(mission.id);
+     if(saved?.run?.status==='completed'){
+       buttons.append(btn('View worker result',()=>work(async()=>{
+         const report=await client.workerStatus(mission.id,true);
+         workerReports.set(mission.id,report);
+         message=report.report?'Worker report loaded from GitHub Actions.':'No report artifact available for this mission.';
+       })));
+     }
+     if(saved){
+       const info=el('div',undefined,'worker-result');
+       const run=saved.run;
+       info.append(el('p',run?'This mission: '+run.status+(run.conclusion?' · '+run.conclusion:''):'No tagged run yet.','room-footnote'));
+       if(run?.url){
+         const link=el('a','Open matching GitHub run');
+         link.href=run.url;link.target='_blank';link.rel='noopener noreferrer';
+         info.append(link);
+       }
+       if(saved.report?.files){
+         for(const name of ['scope.json','audit.json','analysis.md','tests.log','worker.patch','prompt.txt']){
+           const content=saved.report.files[name];if(!content)continue;
+           const detail=el('details',undefined,'worker-report-file');
+           detail.append(el('summary',name),el('pre',content,'mission-brief'));
+           info.append(detail);
+         }
+       }
+       card.append(info);
+     }
    }
    if(mission.status==='draft')buttons.append(btn('Ready for MY review',()=>work(async()=>{
      await client.setMissionStatus(mission.id,'ready_for_review');await reload();
