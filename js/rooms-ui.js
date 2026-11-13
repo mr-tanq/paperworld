@@ -96,7 +96,7 @@ function render(){
  host.append(backups);
  host.append(make('p','room-footnote','Tasks are private to this browser/device. Export a backup before clearing browser data or switching devices.'));
 }
-function open(id='town'){if(!roomById(id))id='town';if(window.PaperworldCloudUI?.isActive())return window.PaperworldCloudUI.open(id);active=id;showEditor=false;notice='';error='';render();host.scrollIntoView?.({behavior:'smooth',block:'nearest'})}
+function open(id='town',forceLocal=false){if(!roomById(id))id='town';if(!forceLocal&&(window.PaperworldCloudUI?.signedIn()||window.PaperworldCloudUI?.isActive()))return window.PaperworldCloudUI.open(id);active=id;showEditor=false;notice='';error='';render();host.scrollIntoView?.({behavior:'smooth',block:'nearest'})}
 function close(){host.hidden=true;host.replaceChildren();showEditor=false}
 window.PaperworldRooms={open,close};
 })();
