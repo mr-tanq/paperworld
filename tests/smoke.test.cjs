@@ -410,7 +410,7 @@ test('human-review TicketSwap mission brief references real repository paths',()
 });
 test('cloud mission UI does not execute workers and retains privacy',()=>{
  const html=read('index.html'),cloud=read('js/cloud.js'),ui=read('js/cloud-ui.js'),sql=read('supabase/paperworld_missions_reference.sql');
- for(const src of ['cloud.js?v=31','cloud-ui.js?v=31','chief.js?v=28'])assert.ok(html.includes(src),src);
+ for(const src of ['cloud.js?v=32','cloud-ui.js?v=32','chief.js?v=28'])assert.ok(html.includes(src),src);
  for(const phrase of ['Prepare worker mission','Worker mission drafts','Ready for MY review','Copy handoff','No worker has started'])assert.ok(ui.includes(phrase),phrase);
  for(const fn of ['listMissions','createMission','setMissionStatus','deleteMission'])assert.ok(cloud.includes(fn),fn);
  assert.ok(cloud.includes("mode:'analysis_only'"));
