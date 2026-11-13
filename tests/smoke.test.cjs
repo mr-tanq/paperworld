@@ -395,3 +395,27 @@ test('Chief is immediately discoverable and cache-busted on tablet',()=>{
  assert.match(ui,/querySelector\('\.chief-desk'\)/);
  assert.match(css,/\.chief-launch/);
 });
+
+test('human-review TicketSwap mission brief references real repository paths',()=>{
+ const chief=require('../js/chief.js');
+ const task={id:'11111111-1111-4111-8111-111111111111',title:'Ticketswap fix',room:'workshop',status:'todo',notes:'check failing'};
+ const draft=chief.missionFor(task);
+ assert.equal(draft.repository,'mr-tanq/concerts');
+ assert.equal(draft.mode,'analysis_only');
+ for(const file of ['js/concert-ticketswap.js','js/ticketswap-check.js','scripts/lib/ticketswap-matching.mjs','scripts/lib/ticketswap-going.mjs','scripts/test-ticketswap.mjs'])assert.ok(draft.brief.includes(file),file);
+ assert.ok(draft.brief.includes('DO NOT modify files'));
+ assert.ok(draft.brief.includes('NOT STARTED'));
+ assert.throws(()=>chief.missionFor({room:'pokemon',title:'Task'}));
+});
+test('cloud mission UI does not execute workers and retains privacy',()=>{
+ const html=read('index.html'),cloud=read('js/cloud.js'),ui=read('js/cloud-ui.js'),sql=read('supabase/paperworld_missions_reference.sql');
+ for(const src of ['cloud.js?v=28','cloud-ui.js?v=28','chief.js?v=28'])assert.ok(html.includes(src),src);
+ for(const phrase of ['Prepare worker mission','Worker mission drafts','Ready for MY review','Copy handoff','No worker has started'])assert.ok(ui.includes(phrase),phrase);
+ for(const fn of ['listMissions','createMission','setMissionStatus','deleteMission'])assert.ok(cloud.includes(fn),fn);
+ assert.ok(cloud.includes("mode:'analysis_only'"));
+ assert.ok(cloud.includes("['draft','ready_for_review','cancelled']"));
+ assert.ok(sql.includes('enable row level security'));
+ assert.ok(sql.includes('revoke all privileges on table public.paperworld_missions from public, anon, authenticated'));
+ assert.ok(sql.includes('(select auth.uid())=owner_id'));
+ assert.doesNotMatch(sql,/service_role|security definer/i);
+});
