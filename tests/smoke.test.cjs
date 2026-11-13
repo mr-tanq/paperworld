@@ -208,3 +208,45 @@ test('prototype 011 preview has foreground tree and isolated depth-demo controls
  assert.match(js,/calibrate-marker/);
  assert.match(js,/navigation\.routeBetween\(/);
 });
+
+test('project rooms store persists real task CRUD and offline JSON backups',()=>{
+ const {createStore,ROOMS,KEY}=require('../preview-010/projects.js');
+ assert.equal(ROOMS.length,5);
+ const disk=new Map(),adapter={getItem:k=>disk.get(k)||null,setItem:(k,v)=>disk.set(k,v)};
+ const store=createStore(adapter);
+ assert.equal(store.list().length,0);
+ const task=store.add('pokemon','Build next Echoes map','Godot 4');
+ assert.equal(task.status,'todo');
+ store.update(task.id,{status:'doing',notes:'Route 2 draft'});
+ assert.equal(createStore(adapter).list('pokemon')[0].status,'doing');
+ assert.equal(store.list('studio').length,0);
+ const backup=store.exportJSON();
+ const after=store.add('studio','Write next Lost Wanderer track');
+ assert.equal(store.list().length,2);
+ store.remove(after.id);
+ assert.equal(store.list().length,1);
+ const emptyDisk=new Map(),newStore=createStore({getItem:k=>emptyDisk.get(k)||null,setItem:(k,v)=>emptyDisk.set(k,v)});
+ newStore.importJSON(backup);
+ assert.equal(newStore.list('pokemon')[0].notes,'Route 2 draft');
+ newStore.importJSON(backup);
+ assert.equal(newStore.list().length,1,'re-import must not duplicate tasks');
+ assert.ok(disk.has(KEY));
+ assert.throws(()=>store.add('invalid','task'));
+ assert.throws(()=>store.update(task.id,{status:'not-real'}));
+ assert.throws(()=>newStore.importJSON(JSON.stringify({version:1,tasks:[{id:'x',room:'fake',title:'unsafe',status:'todo',created:1}]})));
+});
+test('project room UI is attached to each building, is editable, and warns about local-only data',()=>{
+ const html=read('preview-010/index.html'),js=read('preview-010/app.js'),ui=read('preview-010/rooms-ui.js');
+ assert.ok(html.indexOf('projects.js')<html.indexOf('rooms-ui.js'));
+ assert.ok(html.indexOf('rooms-ui.js')<html.indexOf('app.js'));
+ assert.match(html,/id="project-room"/);
+ assert.match(html,/id="open-projects"/);
+ assert.match(js,/PaperworldRooms\?\.open\(d\.id\)/);
+ assert.match(ui,/store\.add\(/);
+ assert.match(ui,/store\.update\(/);
+ assert.match(ui,/store\.remove\(/);
+ assert.match(ui,/store\.exportJSON\(/);
+ assert.match(ui,/store\.importJSON\(/);
+ assert.match(ui,/saved only in this browser/i);
+ assert.match(ui,/window\.confirm\(/);
+});
