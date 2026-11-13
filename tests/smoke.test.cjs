@@ -354,3 +354,31 @@ test('main PAPERWORLD prioritizes cloud workspaces and hides diagnostics',()=>{
  assert.match(cloud,/Preview and copy/);
  assert.match(cloud,/Originals will remain on this device/);
 });
+
+test('Chief of Staff makes transparent, safe recommendations without side effects',()=>{
+ const engine=require('../js/chief.js');
+ const tasks=[
+  {id:'a',title:'Fix setlist',room:'workshop',status:'todo',created_at:'2026-11-12T00:00:00Z'},
+  {id:'b',title:'Review PAPERWORLD map',room:'town',status:'doing',created_at:'2026-11-13T00:00:00Z'},
+  {id:'c',title:'Finish song',room:'studio',status:'done',created_at:'2026-11-10T00:00:00Z'},
+  {id:'d',title:'Route 2',room:'pokemon',status:'todo',created_at:'2026-11-11T00:00:00Z'}
+ ];
+ const result=engine.summarize(tasks);
+ assert.equal(result.open,3);assert.equal(result.doing,1);assert.equal(result.done,1);
+ assert.equal(result.review[0].id,'b','in progress reviewed first');
+ assert.equal(result.review[1].id,'d','oldest todo reviewed before newer todo');
+ assert.match(result.guidance,/Review/);
+ assert.match(engine.brief(tasks[0]),/No automatic code changes are authorized/);
+ assert.match(engine.issueDraftUrl(tasks[0]),/^https:\/\/github.com\/mr-tanq\/concerts\/issues\/new\?/);
+ assert.equal(engine.issueDraftUrl(tasks[3]),null);
+ assert.deepEqual(tasks[0],{id:'a',title:'Fix setlist',room:'workshop',status:'todo',created_at:'2026-11-12T00:00:00Z'});
+});
+test('Chief review UI exposes human-only work controls',()=>{
+ const html=read('index.html'),ui=read('js/cloud-ui.js'),css=read('style.css');
+ assert.ok(html.indexOf('js/chief.js')<html.indexOf('js/cloud-ui.js'));
+ for(const label of ['Chief of Staff','Start task','Copy brief','Draft GitHub issue','RULE-BASED · NO AI'])assert.ok(ui.includes(label),label);
+ assert.match(ui,/client\.update\(original\.id,\{status:'doing'\}\)/);
+ assert.match(ui,/window\.open\(link,'_blank','noopener,noreferrer'\)/);
+ assert.match(ui,/No autonomous work is running/);
+ assert.match(css,/\.chief-desk/);
+});
