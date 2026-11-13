@@ -72,3 +72,13 @@ aside{min-width:0;min-height:0;overscroll-behavior:contain}
 .project-room .overview-project{text-align:left;line-height:1.3;white-space:normal;font-size:11px}
 .project-room .overview-project.selected{background:#dfeadb;border-color:#789675;font-weight:700}
 @media(max-width:460px){.overview-projects{grid-template-columns:1fr}}
+
+/* Chief of Staff review desk: explicit, inspectable human actions. */
+.chief-desk{margin:14px 0;padding:13px;background:#f1ece0;border:1px solid #d4c7ae;border-radius:13px}
+.chief-heading{display:flex;align-items:center;gap:9px;justify-content:space-between;flex-wrap:wrap}
+.chief-heading h3{font-size:17px;margin:0}
+.chief-tag{font-size:9px;letter-spacing:.08em;border:1px solid #b9aa93;border-radius:7px;padding:4px 6px;color:#746a5c}
+.chief-item{padding:10px 0;border-top:1px solid #ded3c1}
+.chief-item strong{font-size:13px;overflow-wrap:anywhere}
+.chief-item .room-footnote{margin:5px 0}
+.chief-item .room-ops{margin:7px 0 2px}
