@@ -1,0 +1,8 @@
+{
+  "name": "PAPERWORLD Prototype 001",
+  "short_name": "PAPERWORLD",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#eee5d4",
+  "theme_color": "#eee5d4"
+}
