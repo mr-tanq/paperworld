@@ -37,5 +37,50 @@
     const title=String(task.title||'').trim();if(!title)return null;
     return 'https://github.com/'+repo+'/issues/new?title='+encodeURIComponent(title.slice(0,160))+'&body='+encodeURIComponent(brief(task));
   }
-  return {PROJECTS,REPOS,summarize,brief,issueDraftUrl};
+
+  const ticketSwapFiles=[
+    'js/concert-ticketswap.js',
+    'js/ticketswap-check.js',
+    'scripts/lib/ticketswap-matching.mjs',
+    'scripts/lib/ticketswap-going.mjs',
+    'scripts/test-ticketswap.mjs'
+  ];
+  function missionFor(task){
+    if(!task||!REPOS[task.room]||!String(task.title||'').trim())throw Error('Unsupported mission project');
+    const repo=REPOS[task.room];
+    const isTicketSwap=task.room==='workshop'&&/ticket\s*swap|ticketswap/i.test(task.title+' '+(task.notes||''));
+    const references=isTicketSwap?ticketSwapFiles:[];
+    const heading=isTicketSwap?'TicketSwap fallback investigation':'Task investigation';
+    const steps=isTicketSwap?[
+      'Reproduce the failure when the user presses the TicketSwap check or search fallback and no matching ticket is found.',
+      'Trace the frontend render/check flow, the request queue and event matching; distinguish no matching event, no tickets, stale snapshot and API/network error.',
+      'Preserve safe TicketSwap URL validation and avoid reporting availability unless confirmed by the source.',
+      'Add or update deterministic regression tests for the observed failure before proposing a code change.',
+      'Prepare a scoped patch on a new branch and draft PR only after separate explicit authorization.'
+    ]:[
+      'Read the relevant files and reproduce the exact reported problem.',
+      'Record what is confirmed and what requires clarification.',
+      'List a focused test plan, possible fixes, and any risks.',
+      'Request separate approval before touching repository files or creating a PR.'
+    ];
+    const text=[
+      'PAPERWORLD — HUMAN REVIEW MISSION',
+      'Project: '+PROJECTS[task.room],
+      'Repository: '+repo,
+      'Task: '+String(task.title||'').trim().slice(0,160),
+      'User notes: '+(String(task.notes||'').trim()||'(no notes supplied)'),
+      'Suggested specialist: '+(isTicketSwap?'Frontend + TicketSwap integration engineer':'Repository analyst'),
+      'Scope: investigation / planning ONLY; no code changes authorized.',
+      'Reference files to inspect (not proof of the bug):',
+      ...(references.length?references.map(x=>'- '+x):['- Identify relevant files in the repository.']),
+      'Investigation plan:',
+      ...steps.map((x,i)=>(i+1)+'. '+x),
+      'Definition of done for this mission: evidence-based diagnosis, reproducible steps and a test/fix proposal for human review.',
+      'Permission boundary: DO NOT modify files, push commits, open or merge PRs, deploy, spend money, call paid APIs or use credentials. A future action requires distinct human approval.',
+      'Execution status: NOT STARTED; this is a saved planning brief only.'
+    ].join('\n');
+    return {source_task_id:task.id,project_room:task.room,repository:repo,title:heading+': '+String(task.title||'').trim().slice(0,110),brief:text.slice(0,6000),mode:'analysis_only'};
+  }
+  return {PROJECTS,REPOS,summarize,brief,issueDraftUrl,missionFor};
+
 });
