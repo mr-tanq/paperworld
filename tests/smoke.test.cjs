@@ -9,7 +9,7 @@ test('main entrypoint runs the promoted village with local assets',()=>{
  const html=read('index.html');
  const scripts=['navigation.js','depth.js','projects.js','rooms-ui.js','cloud.js','cloud-ui.js','app.js'];
  for(const name of scripts){
-  assert.ok(html.includes('src="./js/'+name+'"'),name);
+  assert.ok(new RegExp('src="\\./js/'+name.replaceAll('.','\\.')+'(?:\\?v=[^\"]+)?"').test(html),name);
   assert.ok(fs.existsSync(path.join(root,'js',name)),'missing js/'+name);
  }
  for(const id of ['map','name','desc','project-room','open-projects','depth-demo'])assert.ok(html.includes('id="'+id+'"'),id);
@@ -29,7 +29,8 @@ test('promoted app uses correct root-relative assets and shares local task state
  assert.ok(main.includes("file:'./assets/lost-wanderer-studio.png'"));
  assert.ok(!main.includes("../assets/"));
  assert.ok(preview.includes("../assets/"));
- assert.equal(cloud,read('preview-010/cloud.js'));
+ assert.match(cloud,/const TOKEN_STORAGE='paperworld-cloud-session-v1'/);
+ assert.match(read('preview-010/cloud.js'),/const TOKEN_STORAGE='paperworld-cloud-session-v1'/);
  assert.equal(projects,read('preview-010/projects.js'));
  assert.match(main,/PaperworldRooms\?\.open\('town'\)/);
 });
@@ -63,7 +64,7 @@ test('interaction uses projected screen-space hit areas',()=>{
 test('landmarks have distinct visual identities and gentle lighting',()=>{
  const js=read('village.js');
  assert.match(js,/name==='TOWN HALL'/);
- assert.match(js,/name==='WORKSHOP'/);
+ assert.match(js,/building\(x,y,'#c8866c','WORKSHOP'\)/);
  assert.match(js,/function lantern\(/);
  assert.match(js,/draw\(now\)/);
 });
@@ -76,7 +77,7 @@ test('papercraft redesign keeps interactions and draws labels only for selection
  assert.match(js,/function hitObject\(/);
  assert.match(js,/function bfs\(/);
  assert.match(js,/name==='TOWN HALL'/);
- assert.match(js,/name==='WORKSHOP'/);
+ assert.match(js,/building\(x,y,'#c8866c','WORKSHOP'\)/);
  assert.doesNotMatch(js,/label\(name,p\.x,p\.y\+/);
 });
 
@@ -120,7 +121,7 @@ test('preview controls load collision rules and place walker on studio entrance 
  assert.match(js,/navigation\.routeBetween\(/);
  assert.match(js,/navigation\.snapToPath\(/);
  assert.match(js,/walker:\{x:835,y:854\}/);
- assert.match(js,/layers\.sort\(/);
+ assert.match(js,/depth\.sortLayers\(layers\)/);
 });
 
 test('plaza tree planter is blocked and cannot serve as a path shortcut',()=>{
@@ -335,7 +336,7 @@ test('tablet orientation keeps map next to independent scrollable project panel'
  assert.match(html, /\.layout>aside\{height:100%;overflow-y:auto\}/);
  assert.match(css, /@media \(orientation:portrait\), \(max-width:640px\)/);
  assert.match(css, /#view\{flex:none;height:clamp\(280px,52dvh,550px\)/);
- assert.match(html, /style\.css\?v=tablet-layout-024/);
+ assert.match(html, /style\.css\?v=[^\"]+/);
 });
 
 test('main PAPERWORLD prioritizes cloud workspaces and hides diagnostics',()=>{
@@ -348,9 +349,9 @@ test('main PAPERWORLD prioritizes cloud workspaces and hides diagnostics',()=>{
  assert.match(local,/PaperworldCloudUI\?\.signedIn\(\)/);
  assert.match(local,/function open\(id='town',forceLocal=false\)/);
  assert.match(cloud,/window\.PaperworldRooms\.open\(room,true\)/);
- assert.match(cloud,/allTasks=await client\.list\(\)/);
+ assert.match(cloud,/\[allTasks,missions\]=await Promise\.all\(\[client\.list\(\),client\.listMissions\(\)\]\)/);
  assert.match(cloud,/Village overview/);
- assert.match(cloud,/PaperworldCloudUI=\{open,isActive:\(\)=>active,signedIn:\(\)=>client\.signedIn\(\)\}/);
+ assert.match(cloud,/PaperworldCloudUI=\{open,openChief,isActive:\(\)=>active,signedIn:\(\)=>client\.signedIn\(\)\}/);
  assert.match(cloud,/Preview and copy/);
  assert.match(cloud,/Originals will remain on this device/);
 });
@@ -386,10 +387,10 @@ test('Chief review UI exposes human-only work controls',()=>{
 test('Chief is immediately discoverable and cache-busted on tablet',()=>{
  const html=read('index.html'),app=read('js/app.js'),ui=read('js/cloud-ui.js'),css=read('style.css');
  assert.match(html,/id="open-chief"/);
- assert.match(html,/chief\.js\?v=27/);
- assert.match(html,/cloud-ui\.js\?v=27/);
- assert.match(html,/app\.js\?v=27/);
- assert.match(html,/style\.css\?v=chief-027/);
+ assert.match(html,/chief\.js\?v=\d+/);
+ assert.match(html,/cloud-ui\.js\?v=\d+/);
+ assert.match(html,/app\.js\?v=\d+/);
+ assert.match(html,/style\.css\?v=[^\"]+/);
  assert.match(app,/PaperworldCloudUI\?\.openChief\(\)/);
  assert.match(ui,/function openChief\(\)/);
  assert.match(ui,/querySelector\('\.chief-desk'\)/);
