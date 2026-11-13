@@ -100,8 +100,8 @@ test('preview path graph excludes building bases and connects all five entrances
 test('preview controls load collision rules and place walker on studio entrance path',()=>{
  const html=read('preview-010/index.html'),js=read('preview-010/app.js');
  assert.ok(html.indexOf('navigation.js')<html.indexOf('app.js'));
- assert.match(js,/navigation\.findRoute\(/);
- assert.match(js,/navigation\.clearSegment\(/);
+ assert.match(js,/navigation\.routeBetween\(/);
+ assert.match(js,/navigation\.snapToPath\(/);
  assert.match(js,/walker:\{x:835,y:854\}/);
  assert.match(js,/layers\.sort\(/);
 });
