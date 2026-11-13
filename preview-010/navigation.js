@@ -8,14 +8,14 @@
  else root.PaperworldNavigation=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
  'use strict';
- const nodes=[[535,520],[515,575],[520,625],[395,720],[430,760],[520,797],[670,846],[835,854],[1000,846],[1155,797],[1270,738],[1400,700],[1110,690],[1080,610],[1125,515],[620,530],[700,570],[835,575],[955,570],[1040,534],[500,685],[1420,680]];
+ const nodes=[[535,520],[475,580],[415,625],[390,710],[430,750],[520,797],[670,846],[835,854],[1000,846],[1155,797],[1270,738],[1340,710],[1190,680],[1170,625],[1125,515],[620,530],[700,570],[835,575],[955,570],[1040,534],[385,665],[1240,690]];
  const connections=[[0,1],[1,2],[2,20],[20,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],[10,11],[11,21],[21,12],[12,13],[13,14],[0,15],[15,16],[16,17],[17,18],[18,19],[19,14]];
  // Conservative ground-base ellipses: not the roofs, which overhang footpaths.
  const obstacles=[
   {name:'Town Hall',x:535,y:462,rx:155,ry:40},
   {name:'Listening Mirror Workshop',x:1125,y:456,rx:155,ry:40},
-  {name:'Pokémon Hub',x:330,y:626,rx:164,ry:39},
-  {name:'Wellbeing & Training Center',x:1325,y:626,rx:160,ry:39},
+  {name:'Pokémon Hub doorway',x:330,y:650,rx:35,ry:12},
+  {name:'Wellbeing Center doorway',x:1325,y:650,rx:75,ry:14},
   {name:'The Lost Wanderer Studio',x:835,y:775,rx:195,ry:40},
   {name:'Central cherry tree and raised planter',x:830,y:476,rx:90,ry:68}
  ];
