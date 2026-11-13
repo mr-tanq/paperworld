@@ -1,9 +1,44 @@
-:root{font-family:system-ui,-apple-system,sans-serif;color:#41483e;background:#efe8da}*{box-sizing:border-box}body{margin:0}header{height:70px;padding:12px clamp(14px,3vw,36px);display:flex;justify-content:space-between;align-items:center;background:#faf5eb;border-bottom:1px solid #d9cdb9}h1{margin:0;font-size:20px;letter-spacing:.18em}.sub{font-size:12px;color:#8a8a77}.status{font-size:11px;letter-spacing:.06em;color:#74806b}.shell{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,330px);height:calc(100dvh - 70px)}main{position:relative;min-height:0;overflow:hidden;background:radial-gradient(ellipse at 50% 35%,#eaf0e0,#c8d8c2)}canvas{display:block;width:100%;height:100%;touch-action:none}.hud{position:absolute;right:14px;top:14px;display:flex;gap:6px}.hud button{font-size:20px;min-width:42px;min-height:42px}.hint{position:absolute;bottom:14px;left:14px;padding:9px 12px;border-radius:10px;background:#fffaf0e8;font-size:12px;pointer-events:none}aside{padding:24px;overflow:auto;background:#faf5eb;border-left:1px solid #d9cdb9}h2{font-size:21px;line-height:1.2;margin:6px 0 16px}.eyebrow{font-size:11px;letter-spacing:.14em;color:#9a806d}#dialog{line-height:1.55;min-height:75px}.actions{display:flex;flex-wrap:wrap;gap:7px;margin:20px 0}button{border:1px solid #c9c5b4;border-radius:10px;background:#fffdf8;padding:10px;color:inherit;font:inherit;cursor:pointer;touch-action:manipulation}button:hover{background:#f1eadb}button:focus-visible{outline:3px solid #9eae8e;outline-offset:2px}.system{padding:16px;border-radius:14px;background:#eee8dc}.system p{display:flex;justify-content:space-between;gap:8px;margin:10px 0;font-size:12px}.system b{font-size:11px;color:#7e796f}.fine{font-size:12px;color:#817e71;line-height:1.5}@media(max-width:750px){header{height:62px}h1{font-size:16px}.status{font-size:9px}.shell{height:calc(100dvh - 62px);display:flex;flex-direction:column}main{height:62%;flex-shrink:0}aside{height:38%;border-left:0;border-top:1px solid #d9cdb9;padding:12px 16px}h2{font-size:17px;margin:2px 0 8px}#dialog{min-height:0;font-size:13px}.actions{margin:9px 0}.system{padding:10px}.system p{margin:5px 0}.hint{font-size:10px;bottom:8px;left:8px;max-width:75%}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
-/* Prototype 004: paper texture, depth and tablet presentation */
-main{background:radial-gradient(ellipse at 50% 48%,#f2f2e7 0%,#dce8d3 58%,#c5d6c1 100%)}
-main::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.23;background-image:repeating-linear-gradient(0deg,transparent 0 5px,#ffffff22 6px 7px)}
-aside{background:linear-gradient(155deg,#fcf8f0,#f3eadb)}
-header{box-shadow:0 2px 10px #4c58430d;position:relative;z-index:1}
-.hud button{background:#fffaf0ed;box-shadow:0 2px 5px #48544019}
-.system{border:1px solid #ded5c4}
-@media(min-width:751px){.shell{grid-template-columns:minmax(0,1fr) minmax(260px,310px)}}
+:root{font-family:system-ui,-apple-system,sans-serif;color:#373e34;background:#f1e9db}*{box-sizing:border-box}body{margin:0}header{display:flex;align-items:center;gap:24px;flex-wrap:wrap;background:#faf6ed;border-bottom:1px solid #d2c6b3;padding:14px 20px}header strong{letter-spacing:.16em}header span{font-size:11px;letter-spacing:.06em;color:#697365}header a{margin-left:auto;font-size:13px;color:#526b55}.layout{display:grid;grid-template-columns:minmax(0,1fr) 310px;height:calc(100dvh - 55px)}#view{position:relative;overflow:hidden;min-height:320px;background:#182028}#map{width:100%;height:100%;display:block;touch-action:none}.controls{position:absolute;top:14px;right:14px;display:flex;gap:7px}.controls button{border:0;border-radius:11px;background:#fff9eddd;box-shadow:0 2px 8px #0003;width:45px;height:45px;font-size:22px;cursor:pointer}.hint{position:absolute;bottom:12px;left:12px;font-size:12px;color:#433f37;background:#fff9e9e0;border-radius:10px;padding:8px 12px;pointer-events:none}aside{padding:22px;background:#faf5eb;overflow:auto}aside small{color:#9b886c;letter-spacing:.13em}h1{font-size:23px;margin:12px 0}#desc{line-height:1.55}section{background:#eee8dc;border-radius:14px;padding:15px;margin-top:20px;font-size:13px}section p,.disclaimer{color:#77766a;font-size:12px;line-height:1.5}#assets{margin-top:10px;line-height:1.7}.good{color:#3e7b4f}.bad{color:#a65b40}@media(max-width:760px){header{padding:9px 12px;gap:10px}header strong{font-size:14px}header span{font-size:9px}.layout{height:calc(100dvh - 48px);display:flex;flex-direction:column}#view{height:68%;min-height:0}aside{height:32%;padding:12px 16px}h1{font-size:18px;margin:5px 0}#desc{font-size:13px;margin:7px 0}section{margin:6px 0;padding:10px}.hint{font-size:10px;bottom:7px}}
+.marker-editor{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.marker-editor button{font:inherit;font-size:12px;background:#fff9ed;border:1px solid #cfbfa5;border-radius:9px;padding:8px 11px;cursor:pointer}.marker-editor button:disabled{opacity:.45;cursor:default}.marker-editor #marker-status{flex-basis:100%;font-size:11px;color:#7c725e;margin:0;line-height:1.5}
+
+.marker-editor #marker-export-output{width:100%;max-height:165px;resize:vertical;line-height:1.4;background:#fffdf5;border:1px solid #b8a787;border-radius:8px;padding:10px;font-size:11px}.marker-editor #marker-export-output[hidden]{display:none}
+
+.controls .depth-demo{width:auto;min-width:108px;padding:0 10px;font-size:11px;font-weight:600;white-space:nowrap}@media(max-width:760px){.controls .depth-demo{min-width:75px;max-width:130px;font-size:10px;padding:0 5px;white-space:normal}}
+
+/* Functional, accessible task rooms; deliberately secondary to the papercraft map. */
+.open-projects{margin:10px 0;border:1px solid #b6a17e;background:#e6d9bd;color:#4b4536;border-radius:10px;padding:10px 12px;font-weight:700;width:100%;cursor:pointer}
+.project-room{margin:16px -2px;padding:14px 0;border-top:2px solid #d6c7ad}
+.project-room[hidden]{display:none}
+.room-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.room-heading h2{margin:0;font-size:19px}
+.project-room button,.project-room input,.project-room textarea,.project-room select{font:inherit}
+.project-room button{cursor:pointer;border:1px solid #c9bca9;border-radius:8px;background:#fff9ef;color:#3c3b31;padding:8px 10px;font-size:12px}
+.project-room button.primary{background:#486d58;border-color:#486d58;color:white}
+.project-room button.danger{color:#994c3b}
+.room-subtitle,.room-description,.room-footnote,.room-empty{font-size:12px;line-height:1.5;color:#776f62}
+.room-tabs{display:flex;gap:5px;overflow-x:auto;padding:8px 0 10px;scroll-snap-type:x mandatory}
+.room-tabs button{flex:0 0 auto;max-width:145px;scroll-snap-align:start}
+.room-tabs button.selected{background:#e0ecd9;border-color:#799675;font-weight:700}
+.room-title{margin:8px 0 3px;font-size:17px}
+.room-stats{margin:12px 0;font-weight:600;font-size:12px}
+.room-task{background:#f0ebe2;border:1px solid #e2d7c8;border-radius:12px;padding:10px;margin:8px 0}
+.room-task-top{display:flex;align-items:start;justify-content:space-between;gap:6px}
+.room-task-top strong{font-size:13px;overflow-wrap:anywhere}
+.room-status{font-size:11px;max-width:110px;padding:5px;border:1px solid #cfc4b5;border-radius:6px;background:white}
+.room-task-notes{font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;color:#5c594f}
+.room-ops,.room-backup{display:flex;flex-wrap:wrap;gap:7px;margin:9px 0}
+.room-group-label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#706b5f;margin:15px 0 5px}
+.room-task-form{display:flex;flex-direction:column;gap:8px;padding:10px;background:#efe8d9;border-radius:10px;margin-top:10px}
+.room-task-form h3{margin:0;font-size:14px}
+.room-task-form input,.room-task-form textarea{width:100%;border:1px solid #bdaf9d;border-radius:8px;padding:9px;background:#fffdf8}
+.room-suggestions{margin:14px 0;font-size:12px}
+.room-suggestions summary{cursor:pointer}
+.project-room .room-suggestion{display:block;margin:7px 0;text-align:left}
+.room-backup{border-top:1px solid #d3c7b6;padding-top:12px}
+.room-notice,.room-error{padding:9px;border-radius:7px;font-size:12px;line-height:1.4}
+.room-notice{background:#e6f0dd;color:#416044}.room-error{background:#f5e3da;color:#7a413b}
+
+.cloud-login{display:flex;flex-direction:column;gap:10px;padding:10px;margin:10px 0;background:#f0e8db;border-radius:10px}
+.cloud-login input,.cloud-login~input,.cloud-import input{padding:10px;border:1px solid #c2b29c;border-radius:8px;max-width:100%;font:inherit}
+.cloud-import{margin-top:18px}
+.project-room button.primary{margin:8px 0}
