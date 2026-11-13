@@ -1,7 +1,7 @@
 (()=>{'use strict';
 const canvas=document.querySelector('#map'),ctx=canvas.getContext('2d'),nameEl=document.querySelector('#name'),descEl=document.querySelector('#desc'),assetEl=document.querySelector('#assets');
 const W=1671,H=941;
-const state={width:0,height:0,dpr:1,scale:1,fit:1,x:0,y:0,pointer:null,chosen:null,walker:{x:830,y:565},route:[]};
+const state={width:0,height:0,dpr:1,scale:1,fit:1,x:0,y:0,pointer:null,chosen:null,walker:{x:830,y:825},route:[]};
 const defs=[
 {id:'town',name:'Town Hall',file:'../assets/town-hall.png',x:535,bottom:476,width:356,desc:'The future approval and budget hub. All operations remain disabled.'},
 {id:'workshop',name:'Listening Mirror Workshop',file:'../assets/listening-mirror-workshop.png',x:1125,bottom:468,width:358,desc:'The music discovery project workspace. No real tasks are connected.'},
