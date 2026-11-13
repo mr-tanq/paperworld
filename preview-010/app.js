@@ -21,11 +21,13 @@ function localPoint(e){const r=canvas.getBoundingClientRect();return{x:e.clientX
 function worldPoint(p){return{x:(p.x-state.x)/state.scale,y:(p.y-state.y)/state.scale}}
 function spriteBox(d){const ratio=d.image.naturalHeight/d.image.naturalWidth||.75;const height=d.width*ratio;return{x:d.x-d.width/2,y:d.bottom-height,width:d.width,height}}
 function hitBuilding(p){return [...defs].reverse().find(d=>{if(!d.ready||!d.hitMask)return false;const b=spriteBox(d);if(p.x<b.x||p.x>b.x+b.width||p.y<b.y||p.y>b.y+b.height)return false;const m=d.hitMask,px=Math.min(m.w-1,Math.floor((p.x-b.x)/b.width*m.w)),py=Math.min(m.h-1,Math.floor((p.y-b.y)/b.height*m.h));return m.data[(py*m.w+px)*4+3]>65})}
-function inspect(d){state.chosen=d;state.destination=null;nameEl.textContent=d.name;descEl.textContent=d.desc}
+function inspect(d){state.chosen=d;state.route=[];state.destination=null;nameEl.textContent=d.name;descEl.textContent=d.desc}
 function tap(p){
  const d=hitBuilding(p);if(d){inspect(d);state.destination=null;return}
  // Taps on/near the map resolve to the nearest point ON a surveyed paved segment.
- const destination=navigation.snapToPath([p.x,p.y],190);
+ // Allow a comfortable finger-sized margin around mapped paving, but never jump to a far-away path.
+ const touchTolerance=Math.min(115,Math.max(75,56/state.scale));
+ const destination=navigation.snapToPath([p.x,p.y],touchTolerance);
  if(!destination){nameEl.textContent='Village paths';descEl.textContent='No connected walkway nearby. Tap closer to the village roads.';return}
  const start=navigation.snapToPath([state.walker.x,state.walker.y],20);
  if(!start){state.route=[];descEl.textContent='The walker is off the mapped road. Reload to reset position.';return}
