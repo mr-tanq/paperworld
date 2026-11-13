@@ -118,3 +118,25 @@ test('plaza tree planter is blocked and cannot serve as a path shortcut',()=>{
   assert.ok(path.every(p=>!nav.blockedPoint(p)),'route cannot cross planter/building');
  }
 });
+
+test('touch input can snap to mid-path instead of narrow graph waypoints',()=>{
+ const nav=require('../preview-010/navigation.js');
+ const target=nav.snapToPath([870,827],200);
+ assert.ok(target&&target.point,'a nearby tap snaps to paved road');
+ assert.ok(nav.clearSegment(nav.nodes[target.a],target.point));
+ const start=nav.snapToPath([835,854],1);
+ assert.ok(start,'walker begins on a route');
+ const route=nav.routeBetween(start,target);
+ assert.ok(route.length>=2,'a valid route is generated');
+ for(let i=1;i<route.length;i++)assert.ok(nav.clearSegment(route[i-1],route[i]),'no off-road shortcut');
+ assert.ok(nav.nodes.every(p=>!nav.blockedPoint(p)),'route nodes are clear of buildings and planter');
+ assert.equal(nav.safeConnections.length,nav.connections.length,'every mapped segment is clear');
+});
+test('building selection uses alpha hit areas and compact entrance markers',()=>{
+ const js=read('preview-010/app.js');
+ assert.match(js,/hitMask/);
+ assert.match(js,/navigation\.snapToPath\(/);
+ assert.match(js,/navigation\.routeBetween\(/);
+ assert.doesNotMatch(js,/d\.width\*\.35/);
+ assert.match(js,/ctx\.arc\(x,y,12/);
+});
