@@ -337,3 +337,20 @@ test('tablet orientation keeps map next to independent scrollable project panel'
  assert.match(css, /#view\{flex:none;height:clamp\(280px,52dvh,550px\)/);
  assert.match(html, /style\.css\?v=tablet-layout-024/);
 });
+
+test('main PAPERWORLD prioritizes cloud workspaces and hides diagnostics',()=>{
+ const page=read('index.html'),local=read('js/rooms-ui.js'),cloud=read('js/cloud-ui.js'),css=read('style.css');
+ assert.match(page,/Open village dashboard/);
+ assert.match(page,/Map calibration tools/);
+ assert.match(page,/Technical asset status/);
+ assert.match(page,/<details class="dev-tools">/);
+ assert.match(css,/\.controls \.depth-demo\{display:none\}/);
+ assert.match(local,/PaperworldCloudUI\?\.signedIn\(\)/);
+ assert.match(local,/function open\(id='town',forceLocal=false\)/);
+ assert.match(cloud,/window\.PaperworldRooms\.open\(room,true\)/);
+ assert.match(cloud,/allTasks=await client\.list\(\)/);
+ assert.match(cloud,/Village overview/);
+ assert.match(cloud,/PaperworldCloudUI=\{open,isActive:\(\)=>active,signedIn:\(\)=>client\.signedIn\(\)\}/);
+ assert.match(cloud,/Preview and copy/);
+ assert.match(cloud,/Originals will remain on this device/);
+});
