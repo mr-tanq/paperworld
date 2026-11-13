@@ -440,3 +440,16 @@ test('first AI Worker requires explicit credit approval and cannot push or deplo
  assert.match(runner,/worker\.patch/);
  assert.match(runner,/remoteWrites:false/);
 });
+
+test('authenticated prepare-only bridge wiring',()=>{
+ const cloud=read('js/cloud.js'),ui=read('js/cloud-ui.js'),html=read('index.html');
+ for(const part of ['workerStatus','prepareWorkerMission','confirm_prepare_only:true'])assert.ok(cloud.includes(part));
+ for(const label of ['Prepare-only in GitHub','Check worker run'])assert.ok(ui.includes(label));
+ assert.ok(html.includes('cloud.js?v=31'));
+ assert.ok(html.includes('cloud-ui.js?v=31'));
+});
+test('bridge only dispatches allowlisted prepare-only workflow',()=>{
+ const code=read('supabase/functions/worker-bridge/index.ts');
+ for(const part of ['/auth/v1/user','paperworld_missions','owner_id!==userId','confirm_prepare_only!==true','mode:"prepare-only"','if(!TOKEN)','Origin denied'])assert.ok(code.includes(part),part);
+ assert.ok(!code.includes('mode:"run-ai"'));
+});
