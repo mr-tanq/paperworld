@@ -1,7 +1,13 @@
 name: PAPERWORLD Worker — review-only sandbox
+run-name: PAPERWORLD ${{ inputs.mode }} | ${{ inputs.mission_id || 'manual' }}
 on:
   workflow_dispatch:
     inputs:
+      mission_id:
+        description: "PAPERWORLD mission UUID for tracking results (optional for manual runs)"
+        required: false
+        type: string
+        default: ""
       mode:
         description: "Prepare only (no AI credits) or run Copilot (AI credits may be consumed)"
         required: true
