@@ -34,6 +34,39 @@ for(const r of model.ROOMS){
  summary.append(item)
 }
 overview.append(summary);host.append(overview);
+const chief=window.PaperworldChief;
+if(chief){
+ const report=chief.summarize(allTasks);
+ const desk=el('section',undefined,'chief-desk');
+ const heading=el('div',undefined,'chief-heading');
+ heading.append(el('h3','Chief of Staff'),el('span','RULE-BASED · NO AI','chief-tag'));
+ desk.append(heading);
+ desk.append(el('p',report.guidance,'room-description'));
+ if(!report.review.length)desk.append(el('p','Create a cloud task to begin planning.','room-footnote'));
+ for(const proposal of report.review){
+   const original=allTasks.find(t=>t.id===proposal.id);
+   if(!original)continue;
+   const card=el('article',undefined,'chief-item');
+   const label=el('strong',original.title);
+   const meta=el('p',chief.PROJECTS[original.room]+' · '+proposal.reason,'room-footnote');
+   card.append(label,meta);
+   const controls=el('div',undefined,'room-ops');
+   controls.append(btn('Open project',()=>work(async()=>{room=original.room;edit=null;await reload()})));
+   if(original.status==='todo')controls.append(btn('Start task',()=>work(async()=>{
+     await client.update(original.id,{status:'doing'});await reload();message='Marked in progress by you. No agent has been started.'
+   }),'primary'));
+   controls.append(btn('Copy brief',()=>{
+     const content=chief.brief(original);
+     if(navigator.clipboard?.writeText)navigator.clipboard.writeText(content).then(()=>note('Task brief copied.')).catch(()=>note('Clipboard unavailable — use your browser to copy the task.',true));
+     else note('Clipboard unavailable in this browser.',true);
+   }));
+   const link=chief.issueDraftUrl(original);
+   if(link)controls.append(btn('Draft GitHub issue',()=>{window.open(link,'_blank','noopener,noreferrer')}));
+   card.append(controls);desk.append(card)
+ }
+ desk.append(el('p','Suggestions come from task status and creation order only. Opening a GitHub draft does not submit it. No autonomous work is running.','room-footnote'));
+ host.append(desk)
+}
 let tabs=el('div',undefined,'room-tabs');for(const r of model.ROOMS)tabs.append(btn(r.name,()=>work(async()=>{room=r.id;edit=null;await reload()}),room===r.id?'selected':''));host.append(tabs,el('h3',model.ROOMS.find(r=>r.id===room).name,'room-title'),el('p',tasks.length+' cloud tasks · '+tasks.filter(t=>t.status==='done').length+' done','room-stats'));
 host.append(edit?form(edit===true?null:edit):btn('+ New cloud task',()=>{edit=true;render()},'primary'));
 for(const s of ['doing','todo','done']){let entries=tasks.filter(t=>t.status===s);if(entries.length){host.append(el('h4',({doing:'In progress',todo:'To do',done:'Completed'})[s],'room-group-label'));for(const t of entries)host.append(taskRow(t))}}
