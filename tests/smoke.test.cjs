@@ -138,5 +138,28 @@ test('building selection uses alpha hit areas and compact entrance markers',()=>
  assert.match(js,/navigation\.snapToPath\(/);
  assert.match(js,/navigation\.routeBetween\(/);
  assert.doesNotMatch(js,/d\.width\*\.35/);
- assert.match(js,/ctx\.arc\(x,y,12/);
+ assert.match(js,/d\.entrance\[0\]/);
+ assert.doesNotMatch(js,/d\.bottom\+5/);
+});
+
+test('all five buildings define separate door and road approach positions',()=>{
+ const js=read('preview-010/app.js');
+ const nav=require('../preview-010/navigation.js');
+ const entrances=[
+  ['town',535,460,535,520],
+  ['workshop',1125,448,1125,515],
+  ['pokemon',330,632,385,665],
+  ['wellbeing',1325,633,1240,690],
+  ['studio',835,789,835,854]
+ ];
+ for(const [id,x,y,ax,ay] of entrances){
+  assert.ok(js.includes("id:'"+id+"'"),'building '+id+' missing');
+  assert.ok(js.includes('entrance:['+x+','+y+']'),'door '+id+' missing');
+  assert.ok(js.includes('approach:['+ax+','+ay+']'),'walkway approach '+id+' missing');
+  const snapped=nav.snapToPath([ax,ay],1);
+  assert.ok(snapped&&snapped.distance<1,'approach for '+id+' is not on a safe path');
+  assert.equal(nav.blockedPoint([ax,ay]),false,'approach is obstructed for '+id);
+ }
+ assert.match(js,/touchTolerance=/);
+ assert.doesNotMatch(js,/snapToPath\(\[p\.x,p\.y\],190\)/);
 });
