@@ -56,7 +56,7 @@ function localPoint(e){const r=canvas.getBoundingClientRect();return{x:e.clientX
 function worldPoint(p){return{x:(p.x-state.x)/state.scale,y:(p.y-state.y)/state.scale}}
 function spriteBox(d){const ratio=d.image.naturalHeight/d.image.naturalWidth||.75;const height=d.width*ratio;return{x:d.x-d.width/2,y:d.bottom-height,width:d.width,height}}
 function hitBuilding(p){return [...defs].reverse().find(d=>{if(!d.ready||!d.hitMask)return false;const b=spriteBox(d);if(p.x<b.x||p.x>b.x+b.width||p.y<b.y||p.y>b.y+b.height)return false;const m=d.hitMask,px=Math.min(m.w-1,Math.floor((p.x-b.x)/b.width*m.w)),py=Math.min(m.h-1,Math.floor((p.y-b.y)/b.height*m.h));return m.data[(py*m.w+px)*4+3]>65})}
-function inspect(d){if(calibrating)setCalibrating(false);state.chosen=d;state.route=[];state.destination=null;nameEl.textContent=d.name;descEl.textContent=d.desc;updateMarkerControls()}
+function inspect(d){if(calibrating)setCalibrating(false);state.chosen=d;state.route=[];state.destination=null;nameEl.textContent=d.name;descEl.textContent=d.desc;updateMarkerControls();window.PaperworldRooms?.open(d.id)}
 function tap(p){
  if(calibrating&&state.chosen){
   state.chosen.entrance=[Math.round(Math.max(0,Math.min(W,p.x))),Math.round(Math.max(0,Math.min(H,p.y)))];
@@ -119,5 +119,6 @@ canvas.addEventListener('pointerup',e=>{const p=localPoint(e),v=state.pointer;if
 canvas.addEventListener('pointercancel',()=>{state.pointer=null});
 function zoom(delta){const cx=state.width/2,cy=state.height/2,worldX=(cx-state.x)/state.scale,worldY=(cy-state.y)/state.scale;state.scale=Math.max(state.fit*.7,Math.min(state.fit*3,state.scale*delta));state.x=cx-worldX*state.scale;state.y=cy-worldY*state.scale}
 document.querySelector('#plus').onclick=()=>zoom(1.2);document.querySelector('#minus').onclick=()=>zoom(1/1.2);document.querySelector('#home').onclick=resetCamera;
+document.querySelector('#open-projects').addEventListener('click',()=>window.PaperworldRooms?.open('town'));
 new ResizeObserver(resize).observe(canvas);renderStatus();updateMarkerControls();requestAnimationFrame(tick);
 })();
