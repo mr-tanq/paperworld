@@ -50,3 +50,15 @@ test('landmarks have distinct visual identities and gentle lighting',()=>{
  assert.match(js,/function lantern\(/);
  assert.match(js,/draw\(now\)/);
 });
+
+test('papercraft redesign keeps interactions and draws labels only for selection',()=>{
+ const js=read('village.js');
+ assert.match(js,/function selectedLabel\(/);
+ assert.match(js,/selectedLabel\(\)/);
+ assert.match(js,/if\(!state\.selection\)return/);
+ assert.match(js,/function hitObject\(/);
+ assert.match(js,/function bfs\(/);
+ assert.match(js,/name==='TOWN HALL'/);
+ assert.match(js,/name==='WORKSHOP'/);
+ assert.doesNotMatch(js,/label\(name,p\.x,p\.y\+/);
+});
