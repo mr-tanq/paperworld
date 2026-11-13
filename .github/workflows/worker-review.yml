@@ -33,6 +33,8 @@ jobs:
         with:
           persist-credentials: false
           path: controller
+      - name: Verify worker safety controller (offline, no AI)
+        run: node --test controller/scripts/worker/worker.test.mjs
       - name: Create a review-only mission pack
         run: node controller/scripts/worker/worker.mjs ticketswap-diagnostics prepare
       - name: Publish scope for review
@@ -87,7 +89,7 @@ jobs:
           COPILOT_AUTO_UPDATE: 'false'
         run: |
           copilot -p "$(cat ../worker-output/prompt.txt)" -s --no-ask-user \
-            --available-tools='read,write' \
+            --available-tools='view,grep,glob,edit,create,apply_patch' \
             --allow-tool=read --allow-tool=write \
             --deny-tool=shell --deny-tool=url --deny-tool=memory \
             > ../worker-output/analysis.md
