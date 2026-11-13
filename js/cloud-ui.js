@@ -73,5 +73,13 @@ for(const s of ['doing','todo','done']){let entries=tasks.filter(t=>t.status===s
 if(!tasks.length)host.append(el('p','No cloud tasks in this room yet.'));
 host.append(migration(),el('p','Cloud tasks sync across devices. Local tasks remain safe unless you explicitly copy them.','room-footnote'))}
 function open(id='town'){if(model.ROOMS.some(r=>r.id===id))room=id;active=true;edit=null;message='';render();if(client.signedIn())work(reload)}
-window.PaperworldCloudUI={open,isActive:()=>active,signedIn:()=>client.signedIn()};
+function focusChief(){
+ const item=host.querySelector('.chief-desk');
+ if(item){item.scrollIntoView({behavior:'smooth',block:'start'});item.classList.add('chief-focused')}
+}
+function openChief(){
+ open('town');
+ if(client.signedIn())setTimeout(focusChief,350);
+}
+window.PaperworldCloudUI={open,openChief,isActive:()=>active,signedIn:()=>client.signedIn()};
 })();

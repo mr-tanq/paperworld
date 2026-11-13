@@ -382,3 +382,16 @@ test('Chief review UI exposes human-only work controls',()=>{
  assert.match(ui,/No autonomous work is running/);
  assert.match(css,/\.chief-desk/);
 });
+
+test('Chief is immediately discoverable and cache-busted on tablet',()=>{
+ const html=read('index.html'),app=read('js/app.js'),ui=read('js/cloud-ui.js'),css=read('style.css');
+ assert.match(html,/id="open-chief"/);
+ assert.match(html,/chief\.js\?v=27/);
+ assert.match(html,/cloud-ui\.js\?v=27/);
+ assert.match(html,/app\.js\?v=27/);
+ assert.match(html,/style\.css\?v=chief-027/);
+ assert.match(app,/PaperworldCloudUI\?\.openChief\(\)/);
+ assert.match(ui,/function openChief\(\)/);
+ assert.match(ui,/querySelector\('\.chief-desk'\)/);
+ assert.match(css,/\.chief-launch/);
+});
