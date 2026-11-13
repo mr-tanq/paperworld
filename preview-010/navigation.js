@@ -22,15 +22,13 @@
   [1160,790],// 10 - lower-east curve
   [640,865], // 11 - southwest studio path
   [1020,865],// 12 - southeast studio path
-  [835,870], // 13 - Lost Wanderer Studio entrance
-  [450,425], // 14 - upper-left side path
-  [1230,415]// 15 - upper-right side path
+  [835,870]  // 13 - Lost Wanderer Studio entrance
  ];
  const connections=[
   [0,1],[0,2],[1,3],[2,4],
   [1,5],[2,6],[5,7],[6,8],
   [5,9],[6,10],[9,11],[10,12],
-  [11,13],[12,13],[3,14],[4,15]
+  [11,13],[12,13]
  ];
  // Conservative ground-base ellipses: not the roofs, which overhang footpaths.
  const obstacles=[
