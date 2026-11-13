@@ -176,3 +176,14 @@ test('entrance calibration editor supports tap placement without changing naviga
  assert.match(js,/defaultEntrances=/);
  assert.match(js,/updateMarkerControls\(\)/);
 });
+
+test('tablet calibration positions can be exported without writing to a remote service',()=>{
+ const js=read('preview-010/app.js'),html=read('preview-010/index.html');
+ assert.match(html,/id="export-markers"/);
+ assert.match(html,/id="marker-export-output"/);
+ assert.match(js,/function exportCalibration\(/);
+ assert.match(js,/Object\.fromEntries\(defs\.map/);
+ assert.match(js,/navigator\.clipboard\.writeText/);
+ assert.match(js,/markerExportOutput\.select\(\)/);
+ assert.match(js,/format:'paperworld-entrance-calibration-v1'/);
+});

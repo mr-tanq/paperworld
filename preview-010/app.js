@@ -15,6 +15,8 @@ try{const saved=JSON.parse(localStorage.getItem(markerKey)||'{}');for(const d of
 let calibrating=false;
 const calibrateButton=document.querySelector('#calibrate-marker');
 const resetMarkerButton=document.querySelector('#reset-marker');
+const exportMarkerButton=document.querySelector('#export-markers');
+const markerExportOutput=document.querySelector('#marker-export-output');
 const markerText=document.querySelector('#marker-status');
 const defaultEntrances={"town":[542,425],"workshop":[1175,419],"pokemon":[343,561],"wellbeing":[1330,574],"studio":[855,733]};
 function setCalibrating(value){calibrating=value;calibrateButton.textContent=value?'Cancel marker placement':'Place marker on door';markerText.textContent=value?'Tap the actual doorway in the village. The marker will move exactly there.':'Choose a building, then place its marker on the doorway.'}
@@ -22,6 +24,20 @@ function updateMarkerControls(){const selected=!!state.chosen;calibrateButton.di
 function saveMarker(d){try{const saved=JSON.parse(localStorage.getItem(markerKey)||'{}');saved[d.id]=d.entrance;localStorage.setItem(markerKey,JSON.stringify(saved))}catch(_){markerText.textContent='Marker moved. Browser local storage was unavailable.'}}
 calibrateButton.addEventListener('click',()=>{if(!state.chosen)return;setCalibrating(!calibrating)});
 resetMarkerButton.addEventListener('click',()=>{const d=state.chosen;if(!d)return;d.entrance=[...defaultEntrances[d.id]];try{const saved=JSON.parse(localStorage.getItem(markerKey)||'{}');delete saved[d.id];localStorage.setItem(markerKey,JSON.stringify(saved))}catch(_){}setCalibrating(false);updateMarkerControls()});
+function exportCalibration(){
+ // Include building IDs plus visible door positions; approaches stay unchanged.
+ // JSON may be copied into a PR later only after the user reviews it.
+ const payload={format:'paperworld-entrance-calibration-v1',scene:{width:W,height:H},entrances:Object.fromEntries(defs.map(d=>[d.id,{name:d.name,door:[...d.entrance],approach:[...d.approach]}]))};
+ const json=JSON.stringify(payload,null,2);
+ markerExportOutput.hidden=false;
+ markerExportOutput.value=json;
+ markerExportOutput.focus();markerExportOutput.select();
+ markerText.textContent='Coordinates ready below. Copy them and paste into this chat.';
+ if(navigator.clipboard&&navigator.clipboard.writeText){
+  navigator.clipboard.writeText(json).then(()=>{markerText.textContent='Coordinates copied! Paste them into this chat.'}).catch(()=>{markerText.textContent='Select and copy the JSON below, then paste it into this chat.'});
+ }
+}
+exportMarkerButton.addEventListener('click',exportCalibration);
 const scene={name:'Papercraft environment',file:'../assets/environment-010.png'};
 function load(item){item.image=new Image();item.ready=false;item.image.onload=()=>{item.ready=true;if(item!==scene){const c=document.createElement('canvas');c.width=128;c.height=Math.max(1,Math.round(128*item.image.naturalHeight/item.image.naturalWidth));const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(item.image,0,0,c.width,c.height);item.hitMask={data:g.getImageData(0,0,c.width,c.height).data,w:c.width,h:c.height}}renderStatus()};item.image.onerror=()=>{item.ready=false;renderStatus()};item.image.src=item.file}
 [scene,...defs].forEach(load);
