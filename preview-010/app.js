@@ -1,7 +1,9 @@
 (()=>{'use strict';
 const canvas=document.querySelector('#map'),ctx=canvas.getContext('2d'),nameEl=document.querySelector('#name'),descEl=document.querySelector('#desc'),assetEl=document.querySelector('#assets');
 const W=1671,H=941;
-const state={width:0,height:0,dpr:1,scale:1,fit:1,x:0,y:0,pointer:null,chosen:null,walker:{x:835,y:854},route:[],destination:null};
+const depth=window.PaperworldDepth;
+if(!depth)throw new Error('PAPERWORLD depth module not loaded');
+const state={width:0,height:0,dpr:1,scale:1,fit:1,x:0,y:0,pointer:null,chosen:null,walker:{x:835,y:854},route:[],destination:null,depthDemo:0};
 const defs=[
 {id:'town',name:'Town Hall',file:'../assets/town-hall.png',x:535,bottom:476,width:356,entrance:[355,547],approach:[535,520],desc:'The future approval and budget hub. All operations remain disabled.'},
 {id:'workshop',name:'Listening Mirror Workshop',file:'../assets/listening-mirror-workshop.png',x:1125,bottom:468,width:358,entrance:[1153,358],approach:[1125,515],desc:'The music discovery project workspace. No real tasks are connected.'},
@@ -38,6 +40,10 @@ function exportCalibration(){
  }
 }
 exportMarkerButton.addEventListener('click',exportCalibration);
+// Isolated visual tests of painter depth. Neither test actor changes the real path graph.
+const demoButton=document.querySelector('#depth-demo');
+const demoPositions=[null,{x:835,y:705,label:'Behind the Studio'},{x:831,y:434,label:'Behind the plaza tree'}];
+demoButton.addEventListener('click',()=>{state.depthDemo=(state.depthDemo+1)%demoPositions.length;demoButton.textContent='Depth test: '+(demoPositions[state.depthDemo]?.label||'Off')});
 const scene={name:'Papercraft environment',file:'../assets/environment-010.png'};
 function load(item){item.image=new Image();item.ready=false;item.image.onload=()=>{item.ready=true;if(item!==scene){const c=document.createElement('canvas');c.width=128;c.height=Math.max(1,Math.round(128*item.image.naturalHeight/item.image.naturalWidth));const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(item.image,0,0,c.width,c.height);item.hitMask={data:g.getImageData(0,0,c.width,c.height).data,w:c.width,h:c.height}}renderStatus()};item.image.onerror=()=>{item.ready=false;renderStatus()};item.image.src=item.file}
 [scene,...defs].forEach(load);
@@ -76,15 +82,24 @@ function tap(p){
 function draw(now){ctx.clearRect(0,0,state.width,state.height);ctx.fillStyle='#151b22';ctx.fillRect(0,0,state.width,state.height);ctx.save();ctx.translate(state.x,state.y);ctx.scale(state.scale,state.scale);
 if(scene.ready)ctx.drawImage(scene.image,0,0,W,H);else{ctx.fillStyle='#a6b398';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='40px system-ui';ctx.fillText('Upload assets/environment-010.png to preview the village',105,440)}
 const w=state.walker;
- const drawWalker=()=>{
-  ctx.fillStyle='#3a2e29aa';ctx.beginPath();ctx.ellipse(w.x,w.y,14,6,0,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#f8e0b6';ctx.beginPath();ctx.arc(w.x,w.y-23,10,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#647e76';ctx.fillRect(w.x-10,w.y-14,20,20);
-  ctx.fillStyle='#fff8e4';ctx.font='15px system-ui';ctx.textAlign='center';ctx.fillText('You',w.x,w.y+21);
+ const drawFigure=(p,testing=false)=>{
+  ctx.save();
+  ctx.fillStyle='#3a2e29aa';ctx.beginPath();ctx.ellipse(p.x,p.y,14,6,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=testing?'#f9cfa0':'#f8e0b6';ctx.beginPath();ctx.arc(p.x,p.y-23,10,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=testing?'#a17db7':'#647e76';ctx.fillRect(p.x-10,p.y-14,20,20);
+  ctx.fillStyle='#fff8e4';ctx.font='15px system-ui';ctx.textAlign='center';ctx.fillText(testing?'Depth test':'You',p.x,p.y+21);
+  ctx.restore();
  };
- // Painter order: when walking behind a building, its sprite covers the walker.
- const layers=defs.filter(d=>d.ready).map(d=>({depth:d.bottom,paint:()=>{const b=spriteBox(d);ctx.drawImage(d.image,b.x,b.y,b.width,b.height)}}));
- layers.push({depth:w.y,paint:drawWalker});layers.sort((a,b)=>a.depth-b.depth).forEach(item=>item.paint());
+ // Back-to-front ordering based on the actor's FEET and each object's ground
+ // anchor; the transparent building PNG covers an actor behind it, not in front.
+ const layers=defs.filter(d=>d.ready).map(d=>({
+   id:d.id,depth:d.bottom,paint:()=>{const b=spriteBox(d);ctx.drawImage(d.image,b.x,b.y,b.width,b.height)}
+ }));
+ layers.push({id:'player',depth:w.y,paint:()=>drawFigure(w)});
+ const d=demoPositions[state.depthDemo];
+ if(d)layers.push({id:'depth-demo',depth:d.y,paint:()=>drawFigure(d,true)});
+ layers.push(...depth.foregroundLayers(ctx,scene.ready,scene.image,W,H));
+ depth.sortLayers(layers).forEach(item=>item.paint());
  if(state.chosen){
   // Marker is tied to the FRONT DOOR on the actual artwork, not the sprite base,
   // the artwork centre, or the nearest pathfinding waypoint.
