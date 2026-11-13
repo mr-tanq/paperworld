@@ -1,11 +1,11 @@
 (()=>{'use strict';
 const host=document.querySelector('#project-room'),model=window.PaperworldProjects,client=window.PaperworldCloud.createClient();
-let room='town',tasks=[],allTasks=[],busy=false,message='',edit=null,active=false;
+let room='town',tasks=[],allTasks=[],missions=[],busy=false,message='',edit=null,active=false;
 const el=(tag,text,cls)=>{let e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
 const btn=(text,fn,cls)=>{let b=el('button',text,cls);b.type='button';b.disabled=busy;b.addEventListener('click',fn);return b};
 const note=(s,isError=false)=>{message=(isError?'Error: ':'')+s;render()};
 async function work(fn){if(busy)return;busy=true;message='';render();try{await fn()}catch(e){message='Error: '+e.message}finally{busy=false;render()}}
-async function reload(){allTasks=await client.list();tasks=allTasks.filter(t=>t.room===room)}
+async function reload(){[allTasks,missions]=await Promise.all([client.list(),client.listMissions()]);tasks=allTasks.filter(t=>t.room===room)}
 function loginForm(){let f=el('form');let email=el('input'),password=el('input');email.type='email';email.required=true;email.placeholder='Email';email.autocomplete='email';password.type='password';password.required=true;password.minLength=6;password.placeholder='Password';password.autocomplete='current-password';f.append(email,password);
 let sign=el('button','Sign in','primary');sign.type='submit';f.append(sign,btn('Create account',()=>work(async()=>{let ready=await client.signup(email.value.trim(),password.value);if(ready)await reload();else message='Check your email for the confirmation message, then sign in.'})));
 f.addEventListener('submit',e=>{e.preventDefault();work(async()=>{await client.login(email.value.trim(),password.value);await reload()})});return f}
@@ -21,7 +21,7 @@ sec.append(btn('Preview and copy',()=>work(async()=>{const plan=client.prepareIm
 function render(){if(!active)return;host.hidden=false;host.replaceChildren();let head=el('div',undefined,'room-heading');head.append(el('h2','PAPERWORLD Cloud'),btn('Back to local',()=>{active=false;window.PaperworldRooms.open(room,true)}));host.append(head,el('p','Private task board. No AI agents or purchases.','room-subtitle'));
 if(message)host.append(el('p',message,message.startsWith('Error:')?'room-error':'room-notice'));if(busy)host.append(el('p','Loading…'));
 if(!client.signedIn()){host.append(loginForm());return}
-let bar=el('div',undefined,'room-ops');bar.append(el('small',client.identity()),btn('Refresh',()=>work(reload)),btn('Sign out',()=>work(async()=>{await client.signout();tasks=[];allTasks=[];edit=null})));host.append(bar);
+let bar=el('div',undefined,'room-ops');bar.append(el('small',client.identity()),btn('Refresh',()=>work(reload)),btn('Sign out',()=>work(async()=>{await client.signout();tasks=[];allTasks=[];missions=[];edit=null})));host.append(bar);
 const overview=el('section',undefined,'village-overview');
 overview.append(el('h3','Village overview'));
 const total=allTasks.length,done=allTasks.filter(t=>t.status==='done').length,doing=allTasks.filter(t=>t.status==='doing').length;
@@ -62,8 +62,44 @@ if(chief){
    }));
    const link=chief.issueDraftUrl(original);
    if(link)controls.append(btn('Draft GitHub issue',()=>{window.open(link,'_blank','noopener,noreferrer')}));
+   if(original.status!=='done'&&chief.REPOS[original.room]){
+     controls.append(btn('Prepare worker mission',()=>work(async()=>{
+       const draft=chief.missionFor(original);
+       await client.createMission(draft);
+       await reload();
+       message='Mission brief saved for your review. No worker has started and no code was changed.'
+     }),'primary'))
+   }
    card.append(controls);desk.append(card)
  }
+ const missionPanel=el('div',undefined,'chief-missions');
+ missionPanel.append(el('h4','Worker mission drafts · '+missions.length));
+ if(!missions.length)missionPanel.append(el('p','No mission drafts yet. Choose Prepare worker mission on an open task.','room-footnote'));
+ for(const mission of missions.slice(0,30)){
+   const card=el('article',undefined,'chief-item');
+   card.append(el('strong',mission.title));
+   card.append(el('p',mission.repository+' · '+mission.status.replaceAll('_',' ')+' · investigation only','room-footnote'));
+   const buttons=el('div',undefined,'room-ops');
+   buttons.append(btn('Read brief',()=>{
+     const details=card.querySelector('.mission-brief');
+     if(details){details.remove();return}
+     const pre=el('pre',mission.brief,'mission-brief');card.append(pre)
+   }));
+   buttons.append(btn('Copy handoff',()=>{
+     if(navigator.clipboard?.writeText)navigator.clipboard.writeText(mission.brief).then(()=>note('Review brief copied. No worker started.')).catch(()=>note('Clipboard unavailable.',true));
+     else note('Clipboard unavailable.',true)
+   }));
+   if(mission.status==='draft')buttons.append(btn('Ready for MY review',()=>work(async()=>{
+     await client.setMissionStatus(mission.id,'ready_for_review');await reload();
+     message='Marked ready for your review only. This does not authorize execution.'
+   }),'primary'));
+   if(mission.status!=='cancelled')buttons.append(btn('Cancel draft',()=>work(async()=>{
+     await client.setMissionStatus(mission.id,'cancelled');await reload();message='Mission cancelled; no changes were made.'
+   })));
+   card.append(buttons);missionPanel.append(card)
+ }
+ missionPanel.append(el('p','These are planning records, not queued or running agents. No GitHub writes, paid API calls, deployments or approvals are executed.','room-footnote'));
+ desk.append(missionPanel);
  desk.append(el('p','Suggestions come from task status and creation order only. Opening a GitHub draft does not submit it. No autonomous work is running.','room-footnote'));
  host.append(desk)
 }
