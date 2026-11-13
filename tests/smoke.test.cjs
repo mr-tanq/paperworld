@@ -102,7 +102,7 @@ test('preview controls load collision rules and place walker on studio entrance 
  assert.ok(html.indexOf('navigation.js')<html.indexOf('app.js'));
  assert.match(js,/navigation\.findRoute\(/);
  assert.match(js,/navigation\.clearSegment\(/);
- assert.match(js,/walker:\{x:835,y:870\}/);
+ assert.match(js,/walker:\{x:835,y:854\}/);
  assert.match(js,/layers\.sort\(/);
 });
 
