@@ -3,12 +3,25 @@ const canvas=document.querySelector('#map'),ctx=canvas.getContext('2d'),nameEl=d
 const W=1671,H=941;
 const state={width:0,height:0,dpr:1,scale:1,fit:1,x:0,y:0,pointer:null,chosen:null,walker:{x:835,y:854},route:[],destination:null};
 const defs=[
-{id:'town',name:'Town Hall',file:'../assets/town-hall.png',x:535,bottom:476,width:356,entrance:[535,460],approach:[535,520],desc:'The future approval and budget hub. All operations remain disabled.'},
-{id:'workshop',name:'Listening Mirror Workshop',file:'../assets/listening-mirror-workshop.png',x:1125,bottom:468,width:358,entrance:[1125,448],approach:[1125,515],desc:'The music discovery project workspace. No real tasks are connected.'},
-{id:'pokemon',name:'Pokémon Hub',file:'../assets/pokemon-hub.png',x:330,bottom:646,width:370,entrance:[330,632],approach:[385,665],desc:'Future home of Pokémon: Echoes development.'},
-{id:'wellbeing',name:'Wellbeing & Training Center',file:'../assets/wellbeing-training-center.png',x:1325,bottom:645,width:366,entrance:[1325,633],approach:[1240,690],desc:'Future training, nutrition, habits and progress workspace.'},
-{id:'studio',name:'The Lost Wanderer Studio',file:'../assets/lost-wanderer-studio.png',x:835,bottom:801,width:438,entrance:[835,789],approach:[835,854],desc:'Future music writing and production studio.'}
+{id:'town',name:'Town Hall',file:'../assets/town-hall.png',x:535,bottom:476,width:356,entrance:[542,425],approach:[535,520],desc:'The future approval and budget hub. All operations remain disabled.'},
+{id:'workshop',name:'Listening Mirror Workshop',file:'../assets/listening-mirror-workshop.png',x:1125,bottom:468,width:358,entrance:[1175,419],approach:[1125,515],desc:'The music discovery project workspace. No real tasks are connected.'},
+{id:'pokemon',name:'Pokémon Hub',file:'../assets/pokemon-hub.png',x:330,bottom:646,width:370,entrance:[343,561],approach:[385,665],desc:'Future home of Pokémon: Echoes development.'},
+{id:'wellbeing',name:'Wellbeing & Training Center',file:'../assets/wellbeing-training-center.png',x:1325,bottom:645,width:366,entrance:[1330,574],approach:[1240,690],desc:'Future training, nutrition, habits and progress workspace.'},
+{id:'studio',name:'The Lost Wanderer Studio',file:'../assets/lost-wanderer-studio.png',x:835,bottom:801,width:438,entrance:[855,733],approach:[835,854],desc:'Future music writing and production studio.'}
 ];
+// Preview-only marker offsets are local to the user's browser; no GitHub writes.
+const markerKey='paperworld-preview-010-marker-calibration-v1';
+try{const saved=JSON.parse(localStorage.getItem(markerKey)||'{}');for(const d of defs){const p=saved[d.id];if(Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&p[0]>=0&&p[0]<=W&&p[1]>=0&&p[1]<=H)d.entrance=[...p]}}catch(_){}
+let calibrating=false;
+const calibrateButton=document.querySelector('#calibrate-marker');
+const resetMarkerButton=document.querySelector('#reset-marker');
+const markerText=document.querySelector('#marker-status');
+const defaultEntrances={"town":[542,425],"workshop":[1175,419],"pokemon":[343,561],"wellbeing":[1330,574],"studio":[855,733]};
+function setCalibrating(value){calibrating=value;calibrateButton.textContent=value?'Cancel marker placement':'Place marker on door';markerText.textContent=value?'Tap the actual doorway in the village. The marker will move exactly there.':'Choose a building, then place its marker on the doorway.'}
+function updateMarkerControls(){const selected=!!state.chosen;calibrateButton.disabled=!selected;resetMarkerButton.disabled=!selected;markerText.textContent=selected?'Marker: '+state.chosen.entrance.map(v=>Math.round(v)).join(', ')+' (world coordinates)':'Select a building to adjust its marker.'}
+function saveMarker(d){try{const saved=JSON.parse(localStorage.getItem(markerKey)||'{}');saved[d.id]=d.entrance;localStorage.setItem(markerKey,JSON.stringify(saved))}catch(_){markerText.textContent='Marker moved. Browser local storage was unavailable.'}}
+calibrateButton.addEventListener('click',()=>{if(!state.chosen)return;setCalibrating(!calibrating)});
+resetMarkerButton.addEventListener('click',()=>{const d=state.chosen;if(!d)return;d.entrance=[...defaultEntrances[d.id]];try{const saved=JSON.parse(localStorage.getItem(markerKey)||'{}');delete saved[d.id];localStorage.setItem(markerKey,JSON.stringify(saved))}catch(_){}setCalibrating(false);updateMarkerControls()});
 const scene={name:'Papercraft environment',file:'../assets/environment-010.png'};
 function load(item){item.image=new Image();item.ready=false;item.image.onload=()=>{item.ready=true;if(item!==scene){const c=document.createElement('canvas');c.width=128;c.height=Math.max(1,Math.round(128*item.image.naturalHeight/item.image.naturalWidth));const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(item.image,0,0,c.width,c.height);item.hitMask={data:g.getImageData(0,0,c.width,c.height).data,w:c.width,h:c.height}}renderStatus()};item.image.onerror=()=>{item.ready=false;renderStatus()};item.image.src=item.file}
 [scene,...defs].forEach(load);
@@ -21,8 +34,12 @@ function localPoint(e){const r=canvas.getBoundingClientRect();return{x:e.clientX
 function worldPoint(p){return{x:(p.x-state.x)/state.scale,y:(p.y-state.y)/state.scale}}
 function spriteBox(d){const ratio=d.image.naturalHeight/d.image.naturalWidth||.75;const height=d.width*ratio;return{x:d.x-d.width/2,y:d.bottom-height,width:d.width,height}}
 function hitBuilding(p){return [...defs].reverse().find(d=>{if(!d.ready||!d.hitMask)return false;const b=spriteBox(d);if(p.x<b.x||p.x>b.x+b.width||p.y<b.y||p.y>b.y+b.height)return false;const m=d.hitMask,px=Math.min(m.w-1,Math.floor((p.x-b.x)/b.width*m.w)),py=Math.min(m.h-1,Math.floor((p.y-b.y)/b.height*m.h));return m.data[(py*m.w+px)*4+3]>65})}
-function inspect(d){state.chosen=d;state.route=[];state.destination=null;nameEl.textContent=d.name;descEl.textContent=d.desc}
+function inspect(d){if(calibrating)setCalibrating(false);state.chosen=d;state.route=[];state.destination=null;nameEl.textContent=d.name;descEl.textContent=d.desc;updateMarkerControls()}
 function tap(p){
+ if(calibrating&&state.chosen){
+  state.chosen.entrance=[Math.round(Math.max(0,Math.min(W,p.x))),Math.round(Math.max(0,Math.min(H,p.y)))];
+  saveMarker(state.chosen);setCalibrating(false);updateMarkerControls();return;
+ }
  const d=hitBuilding(p);if(d){inspect(d);state.destination=null;return}
  // Taps on/near the map resolve to the nearest point ON a surveyed paved segment.
  // Allow a comfortable finger-sized margin around mapped paving, but never jump to a far-away path.
@@ -36,6 +53,7 @@ function tap(p){
  state.route=path.slice(1).map(([x,y])=>({x,y}));
  state.destination=state.route.length?{x:destination.point[0],y:destination.point[1]}:null;
  state.chosen=null;
+ updateMarkerControls();
  nameEl.textContent='Village paths';
  descEl.textContent=destination.distance>24?'Walking to the nearest paved path.':'Walking along the paved paths.';
 }
@@ -70,5 +88,5 @@ canvas.addEventListener('pointerup',e=>{const p=localPoint(e),v=state.pointer;if
 canvas.addEventListener('pointercancel',()=>{state.pointer=null});
 function zoom(delta){const cx=state.width/2,cy=state.height/2,worldX=(cx-state.x)/state.scale,worldY=(cy-state.y)/state.scale;state.scale=Math.max(state.fit*.7,Math.min(state.fit*3,state.scale*delta));state.x=cx-worldX*state.scale;state.y=cy-worldY*state.scale}
 document.querySelector('#plus').onclick=()=>zoom(1.2);document.querySelector('#minus').onclick=()=>zoom(1/1.2);document.querySelector('#home').onclick=resetCamera;
-new ResizeObserver(resize).observe(canvas);renderStatus();requestAnimationFrame(tick);
+new ResizeObserver(resize).observe(canvas);renderStatus();updateMarkerControls();requestAnimationFrame(tick);
 })();

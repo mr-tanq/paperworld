@@ -146,11 +146,11 @@ test('all five buildings define separate door and road approach positions',()=>{
  const js=read('preview-010/app.js');
  const nav=require('../preview-010/navigation.js');
  const entrances=[
-  ['town',535,460,535,520],
-  ['workshop',1125,448,1125,515],
-  ['pokemon',330,632,385,665],
-  ['wellbeing',1325,633,1240,690],
-  ['studio',835,789,835,854]
+  ['town',542,425,535,520],
+  ['workshop',1175,419,1125,515],
+  ['pokemon',343,561,385,665],
+  ['wellbeing',1330,574,1240,690],
+  ['studio',855,733,835,854]
  ];
  for(const [id,x,y,ax,ay] of entrances){
   assert.ok(js.includes("id:'"+id+"'"),'building '+id+' missing');
@@ -162,4 +162,17 @@ test('all five buildings define separate door and road approach positions',()=>{
  }
  assert.match(js,/touchTolerance=/);
  assert.doesNotMatch(js,/snapToPath\(\[p\.x,p\.y\],190\)/);
+});
+
+test('entrance calibration editor supports tap placement without changing navigation',()=>{
+ const js=read('preview-010/app.js'),html=read('preview-010/index.html');
+ assert.match(html,/id="calibrate-marker"/);
+ assert.match(html,/id="reset-marker"/);
+ assert.match(html,/id="marker-status"/);
+ assert.match(js,/if\(calibrating&&state\.chosen\)/);
+ assert.match(js,/saveMarker\(state\.chosen\)/);
+ assert.match(js,/localStorage\.setItem\(markerKey/);
+ assert.match(js,/localStorage\.getItem\(markerKey/);
+ assert.match(js,/defaultEntrances=/);
+ assert.match(js,/updateMarkerControls\(\)/);
 });
