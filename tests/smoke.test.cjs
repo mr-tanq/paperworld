@@ -419,3 +419,23 @@ test('cloud mission UI does not execute workers and retains privacy',()=>{
  assert.ok(sql.includes('(select auth.uid())=owner_id'));
  assert.doesNotMatch(sql,/service_role|security definer/i);
 });
+
+test('first AI Worker requires explicit credit approval and cannot push or deploy',()=>{
+ const workflow=read('.github/workflows/worker-review.yml');
+ const runner=read('scripts/worker/worker.mjs');
+ assert.match(workflow,/workflow_dispatch:/);
+ assert.doesNotMatch(workflow,/^\s+push:|^\s+schedule:/m);
+ assert.match(workflow,/approve_credits:/);
+ assert.match(workflow,/I_APPROVE_AI_CREDITS/);
+ assert.match(workflow,/if: inputs.mode == 'run-ai'/);
+ assert.match(workflow,/copilot-requests: write/);
+ assert.match(workflow,/contents: read/);
+ assert.doesNotMatch(workflow,/contents: write|--allow-all|--yolo|git push|gh pr create/i);
+ assert.match(workflow,/available-tools='read,write'/);
+ assert.match(workflow,/--deny-tool=shell/);
+ assert.match(workflow,/--deny-tool=url/);
+ assert.match(workflow,/upload-artifact/);
+ assert.match(runner,/forbidden path/);
+ assert.match(runner,/worker\.patch/);
+ assert.match(runner,/remoteWrites:false/);
+});
