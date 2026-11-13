@@ -75,7 +75,7 @@
   function prepareImport(localTasks,remoteTasks){
    if(!Array.isArray(localTasks)||!Array.isArray(remoteTasks))throw Error('Invalid task lists');
    const known=new Set(remoteTasks.map(t=>t.local_task_id).filter(Boolean));
-   const incoming=[],duplicates=0;
+   const incoming=[];let duplicates=0;
    for(const t of localTasks){if(!t||!ROOMS.has(t.room)||typeof t.id!=='string'||t.id.length>120)continue;
     if(known.has(t.id)){duplicates++;continue}
     if(typeof t.title!=='string'||!t.title.trim())continue;
