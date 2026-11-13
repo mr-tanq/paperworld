@@ -62,3 +62,14 @@ test('papercraft redesign keeps interactions and draws labels only for selection
  assert.match(js,/name==='WORKSHOP'/);
  assert.doesNotMatch(js,/label\(name,p\.x,p\.y\+/);
 });
+
+test('town hall supports a local high-quality asset and safe offline fallback',()=>{
+ const js=read('village.js');
+ assert.match(js,/townHallArt\.src='\.\/assets\/town-hall\.png'/);
+ assert.match(js,/townHallArt\.onerror=/);
+ assert.match(js,/function townHall\(/);
+ assert.match(js,/if\(!townHallReady\)\{building/);
+ assert.match(js,/ctx\.drawImage\(townHallArt/);
+ assert.match(js,/function hitObject\(/);
+ assert.match(js,/function bfs\(/);
+});
