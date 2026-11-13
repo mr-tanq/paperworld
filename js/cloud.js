@@ -97,7 +97,38 @@
    }
    return {imported,skipped};
   }
-  return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks};
+
+  const missionFields='id,source_task_id,project_room,repository,title,brief,mode,status,created_at,updated_at';
+  async function listMissions(){
+   return withAuth('/rest/v1/paperworld_missions?select='+missionFields+'&order=created_at.desc&limit=500');
+  }
+  async function createMission(data){
+   if(!data||!['town','workshop'].includes(data.project_room))throw Error('Unsupported mission room');
+   const expected=data.project_room==='workshop'?'mr-tanq/concerts':'mr-tanq/paperworld';
+   if(data.repository!==expected||data.mode!=='analysis_only')throw Error('Invalid mission permissions');
+   const title=String(data.title||'').trim().slice(0,160),brief=String(data.brief||'').trim();
+   if(!title||!brief||brief.length>6000)throw Error('Invalid mission brief');
+   const source_task_id=String(data.source_task_id||'');
+   if(!/^[0-9a-f-]{36}$/i.test(source_task_id))throw Error('Source task required');
+   const rows=await withAuth('/rest/v1/paperworld_missions?select='+missionFields,{
+    method:'POST',data:{source_task_id,project_room:data.project_room,repository:expected,title,brief,mode:'analysis_only',status:'draft'},
+    extra:{Prefer:'return=representation'}
+   });
+   return rows[0];
+  }
+  async function setMissionStatus(id,status){
+   if(!/^[0-9a-f-]{36}$/i.test(id)||!['draft','ready_for_review','cancelled'].includes(status))throw Error('Invalid mission');
+   const rows=await withAuth('/rest/v1/paperworld_missions?id=eq.'+encodeURIComponent(id)+'&select='+missionFields,{
+    method:'PATCH',data:{status},extra:{Prefer:'return=representation'}
+   });
+   if(!rows.length)throw Error('Mission not found');return rows[0];
+  }
+  async function deleteMission(id){
+   if(!/^[0-9a-f-]{36}$/i.test(id))throw Error('Invalid mission ID');
+   await withAuth('/rest/v1/paperworld_missions?id=eq.'+encodeURIComponent(id),{method:'DELETE'});
+  }
+  return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
+   listMissions,createMission,setMissionStatus,deleteMission};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });
