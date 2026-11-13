@@ -33,3 +33,12 @@ test('manifest is valid JSON and stays local',()=>{
  assert.ok(m.name.includes('PAPERWORLD'));
  assert.ok(m.start_url.startsWith('./'));
 });
+
+test('interaction uses projected screen-space hit areas',()=>{
+ const js=read('village.js');
+ assert.match(js,/function hitObject\(/);
+ assert.match(js,/const p=project\(c\.x,c\.y\)/);
+ assert.match(js,/const p=project\(b\.x,b\.y\)/);
+ assert.match(js,/if\(item\)inspect\(item\)/);
+ assert.match(js,/state\.selection/);
+});
