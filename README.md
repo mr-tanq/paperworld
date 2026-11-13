@@ -1,28 +1,32 @@
-# PAPERWORLD — Prototype 001
+# PAPERWORLD — Prototype 002
 
-An isolated, dependency-free, offline visual proof of concept for an isometric papercraft AI village. **This is not an AI agent platform.**
+An isolated, dependency-free isometric village prototype for tablet and mobile. This is **not yet an AI agent platform**.
 
-## Preview
-Open `index.html` in a modern browser, or serve the directory using `python3 -m http.server 8000` and visit `http://localhost:8000`.
+## Run locally
+Open `index.html` in a modern browser or serve the folder with `python3 -m http.server 8000`.
 
-## Included
-- Canvas 2D isometric 8×8 village with Town Hall and Listening Mirror Workshop
-- Three placeholder characters: Chief, Worker, and You
-- Tap-to-move, drag-to-pan, responsive tablet/mobile layout
-- Clearly labeled simulated dialogue and inactive system status
+## Features
+- Responsive Canvas 2D isometric 8×8 village
+- Paper-inspired buildings, trees and placeholder characters
+- Tap-to-move with tile-based breadth-first pathfinding around blocked tiles
+- Drag-to-pan, zoom buttons and reset camera
+- Depth sorting, touch-friendly controls, simulated dialogue
+- Clear inactive-system notices
 
-## Not included
-- No AI agents or cloud workers
-- No Supabase, GitHub API integrations, secrets or privileged calls
-- No paid services or subscriptions
-- No production-quality art, collision avoidance or device-verified performance
-- No GitHub Pages deployment; this repository is private
+## Security and scope
+- No AI calls, paid services, GitHub API writes, Supabase or secrets
+- No deployment and no changes to other repositories
+- This is a visual and interaction prototype, **not** final original papercraft art or Phaser implementation
 
-## Next steps (require separate review)
-1. Review and merge the prototype PR.
-2. Run browser/device smoke tests.
-3. Improve collision, hit testing and accessible controls.
-4. Plan a Phaser migration and original papercraft assets.
-5. Review security before any future integrations.
+## Known limitations
+- Browser and Android device tests have not been performed
+- Touch hit testing uses approximate ground coordinates; building/character interaction requires validation
+- Basic tile collision only; moving characters are not dynamic obstacles
+- No CI checks yet, no automated performance measurements
 
-Do not treat UI labels or simulated character responses as real task activity.
+## Next steps
+1. Review this PR and manually test on an Android device.
+2. Fix observed hit-testing, touch and accessibility issues.
+3. Add automated browser smoke tests before further expansion.
+4. Create original art assets and evaluate Phaser migration.
+5. Separately approve any future hosting or backend integration.
