@@ -9,7 +9,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
  'use strict';
  const nodes=[
-  [830,550], // 0 - lower central square
+  [700,575], // 0 - west edge of central plaza; never route through tree planter
   [675,530], // 1 - west approach to square
   [1000,530],// 2 - east approach
   [535,520], // 3 - Town Hall entrance path
@@ -25,7 +25,7 @@
   [835,870]  // 13 - Lost Wanderer Studio entrance
  ];
  const connections=[
-  [0,1],[0,2],[1,3],[2,4],
+  [0,1],[0,5],[1,3],[2,4],
   [1,5],[2,6],[5,7],[6,8],
   [5,9],[6,10],[9,11],[10,12],
   [11,13],[12,13]
@@ -36,7 +36,8 @@
   {name:'Listening Mirror Workshop',x:1125,y:456,rx:155,ry:40},
   {name:'Pokémon Hub',x:330,y:626,rx:164,ry:39},
   {name:'Wellbeing & Training Center',x:1325,y:626,rx:160,ry:39},
-  {name:'The Lost Wanderer Studio',x:835,y:775,rx:195,ry:40}
+  {name:'The Lost Wanderer Studio',x:835,y:775,rx:195,ry:40},
+  {name:'Central cherry tree and raised planter',x:830,y:476,rx:90,ry:68}
  ];
  const distance=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
  const inside=(p,o,radius=10)=>Math.pow((p[0]-o.x)/(o.rx+radius),2)+Math.pow((p[1]-o.y)/(o.ry+radius),2)<1;
