@@ -13,7 +13,7 @@ test('main entrypoint runs the promoted village with local assets',()=>{
   assert.ok(fs.existsSync(path.join(root,'js',name)),'missing js/'+name);
  }
  for(const id of ['map','name','desc','project-room','open-projects','depth-demo'])assert.ok(html.includes('id="'+id+'"'),id);
- assert.ok(html.includes('href="./style.css"'));
+ assert.match(html,/href="\.\/style\.css\?v=[^"]+"/);
  assert.doesNotMatch(html,/<script[^>]+src=["']https?:/i);
  assert.doesNotMatch(html,/<link[^>]+href=["']https?:/i);
 });
@@ -326,4 +326,14 @@ test('cloud client validates rooms and avoids duplicate local import IDs',()=>{
   await c.signout();
   assert.equal(c.signedIn(),false);
  })();
+});
+
+test('tablet orientation keeps map next to independent scrollable project panel',()=>{
+ const html=read('index.html'),css=read('style.css');
+ assert.match(html,/<style id="paperworld-critical-layout">/);
+ assert.match(html,/@media \(orientation:landscape\) and \(min-width:641px\)/);
+ assert.match(html, /\.layout>aside\{height:100%;overflow-y:auto\}/);
+ assert.match(css, /@media \(orientation:portrait\), \(max-width:640px\)/);
+ assert.match(css, /#view\{flex:none;height:clamp\(280px,52dvh,550px\)/);
+ assert.match(html, /style\.css\?v=tablet-layout-024/);
 });
