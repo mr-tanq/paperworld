@@ -146,11 +146,11 @@ test('all five buildings define separate door and road approach positions',()=>{
  const js=read('preview-010/app.js');
  const nav=require('../preview-010/navigation.js');
  const entrances=[
-  ['town',542,425,535,520],
-  ['workshop',1175,419,1125,515],
+  ['town',355,547,535,520],
+  ['workshop',1153,358,1125,515],
   ['pokemon',343,561,385,665],
   ['wellbeing',1330,574,1240,690],
-  ['studio',855,733,835,854]
+  ['studio',872,679,835,854]
  ];
  for(const [id,x,y,ax,ay] of entrances){
   assert.ok(js.includes("id:'"+id+"'"),'building '+id+' missing');
