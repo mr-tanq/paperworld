@@ -187,3 +187,24 @@ test('tablet calibration positions can be exported without writing to a remote s
  assert.match(js,/markerExportOutput\.select\(\)/);
  assert.match(js,/format:'paperworld-entrance-calibration-v1'/);
 });
+
+test('prototype 011 depth layers sort actors against buildings by foot depth',()=>{
+ const depth=require('../preview-010/depth.js');
+ const layers=depth.sortLayers([{id:'studio',depth:801},{id:'walker-back',depth:705},{id:'walker-front',depth:854}]);
+ assert.deepEqual(layers.map(x=>x.id),['walker-back','studio','walker-front']);
+ const same=depth.sortLayers([{id:'a',depth:505},{id:'b',depth:505}]);
+ assert.deepEqual(same.map(x=>x.id),['a','b'],'same-depth order must be stable');
+ assert.ok(depth.tree.polygon.length>=8,'tree crown should be a traced shape');
+});
+test('prototype 011 preview has foreground tree and isolated depth-demo controls',()=>{
+ const js=read('preview-010/app.js'),html=read('preview-010/index.html'),depth=read('preview-010/depth.js');
+ assert.ok(html.indexOf('depth.js')<html.indexOf('app.js'),'depth module must load first');
+ assert.match(html,/id="depth-demo"/);
+ assert.match(js,/depth\.sortLayers\(layers\)/);
+ assert.match(js,/depth\.foregroundLayers\(ctx,scene\.ready,scene\.image,W,H\)/);
+ assert.match(js,/id:'depth-demo'/);
+ assert.match(depth,/ctx\.clip\(\)/);
+ assert.match(depth,/ctx\.drawImage\(image,0,0,width,height\)/);
+ assert.match(js,/calibrate-marker/);
+ assert.match(js,/navigation\.routeBetween\(/);
+});
