@@ -127,8 +127,16 @@
    if(!/^[0-9a-f-]{36}$/i.test(id))throw Error('Invalid mission ID');
    await withAuth('/rest/v1/paperworld_missions?id=eq.'+encodeURIComponent(id),{method:'DELETE'});
   }
+  async function workerStatus(){
+   return withAuth('/functions/v1/worker-bridge');
+  }
+  async function prepareWorkerMission(id){
+   if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id))throw Error('Invalid mission ID');
+   return withAuth('/functions/v1/worker-bridge',{method:'POST',
+     data:{mission_id:id,confirm_prepare_only:true}});
+  }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
-   listMissions,createMission,setMissionStatus,deleteMission};
+   listMissions,createMission,setMissionStatus,deleteMission,workerStatus,prepareWorkerMission};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });

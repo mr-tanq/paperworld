@@ -410,7 +410,7 @@ test('human-review TicketSwap mission brief references real repository paths',()
 });
 test('cloud mission UI does not execute workers and retains privacy',()=>{
  const html=read('index.html'),cloud=read('js/cloud.js'),ui=read('js/cloud-ui.js'),sql=read('supabase/paperworld_missions_reference.sql');
- for(const src of ['cloud.js?v=28','cloud-ui.js?v=28','chief.js?v=28'])assert.ok(html.includes(src),src);
+ for(const src of ['cloud.js?v=31','cloud-ui.js?v=31','chief.js?v=28'])assert.ok(html.includes(src),src);
  for(const phrase of ['Prepare worker mission','Worker mission drafts','Ready for MY review','Copy handoff','No worker has started'])assert.ok(ui.includes(phrase),phrase);
  for(const fn of ['listMissions','createMission','setMissionStatus','deleteMission'])assert.ok(cloud.includes(fn),fn);
  assert.ok(cloud.includes("mode:'analysis_only'"));
@@ -439,4 +439,17 @@ test('first AI Worker requires explicit credit approval and cannot push or deplo
  assert.match(runner,/forbidden path/);
  assert.match(runner,/worker\.patch/);
  assert.match(runner,/remoteWrites:false/);
+});
+
+test('authenticated prepare-only bridge wiring',()=>{
+ const cloud=read('js/cloud.js'),ui=read('js/cloud-ui.js'),html=read('index.html');
+ for(const part of ['workerStatus','prepareWorkerMission','confirm_prepare_only:true'])assert.ok(cloud.includes(part));
+ for(const label of ['Prepare-only in GitHub','Check worker run'])assert.ok(ui.includes(label));
+ assert.ok(html.includes('cloud.js?v=31'));
+ assert.ok(html.includes('cloud-ui.js?v=31'));
+});
+test('bridge only dispatches allowlisted prepare-only workflow',()=>{
+ const code=read('supabase/functions/worker-bridge/index.ts');
+ for(const part of ['/auth/v1/user','paperworld_missions','owner_id!==userId','confirm_prepare_only!==true','mode:"prepare-only"','if(!TOKEN)','Origin denied'])assert.ok(code.includes(part),part);
+ assert.ok(!code.includes('mode:"run-ai"'));
 });
