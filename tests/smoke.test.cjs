@@ -42,3 +42,11 @@ test('interaction uses projected screen-space hit areas',()=>{
  assert.match(js,/if\(item\)inspect\(item\)/);
  assert.match(js,/state\.selection/);
 });
+
+test('landmarks have distinct visual identities and gentle lighting',()=>{
+ const js=read('village.js');
+ assert.match(js,/name==='TOWN HALL'/);
+ assert.match(js,/name==='WORKSHOP'/);
+ assert.match(js,/function lantern\(/);
+ assert.match(js,/draw\(now\)/);
+});
