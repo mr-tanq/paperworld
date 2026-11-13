@@ -105,3 +105,16 @@ test('preview controls load collision rules and place walker on studio entrance 
  assert.match(js,/walker:\{x:835,y:870\}/);
  assert.match(js,/layers\.sort\(/);
 });
+
+test('plaza tree planter is blocked and cannot serve as a path shortcut',()=>{
+ const nav=require('../preview-010/navigation.js');
+ assert.ok(nav.blockedPoint([830,476]),'central planter should be blocked');
+ assert.ok(!nav.nodes.some(p=>p[0]===830&&p[1]===550),'old route through planter must not return');
+ assert.ok(nav.nodes.every(p=>!nav.blockedPoint(p)),'no waypoints may be inside obstacles');
+ assert.equal(nav.safeConnections.length,nav.connections.length,'every proposed path must pass clearance test');
+ for(const goal of [3,4,7,8]){
+  const path=nav.findRoute(13,goal);
+  assert.ok(path.length,'all five building approach paths remain connected');
+  assert.ok(path.every(p=>!nav.blockedPoint(p)),'route cannot cross planter/building');
+ }
+});
