@@ -32,7 +32,7 @@ function tap(p){
  const path=navigation.routeBetween(start,destination);
  if(!path.length){descEl.textContent='No connected paved route to this destination.';return}
  state.route=path.slice(1).map(([x,y])=>({x,y}));
- state.destination={x:destination.point[0],y:destination.point[1]};
+ state.destination=state.route.length?{x:destination.point[0],y:destination.point[1]}:null;
  state.chosen=null;
  nameEl.textContent='Village paths';
  descEl.textContent=destination.distance>24?'Walking to the nearest paved path.':'Walking along the paved paths.';
