@@ -66,8 +66,41 @@
    if(openId===selected){field.disabled=false;send.disabled=false}
   }
  });
+ const delegateBtn=make('button','world-dialogue-handoff',
+  'Ανάθεση μέσω Matt · έως 3 AI κλήσεις');
+ delegateBtn.type='button';delegateBtn.hidden=true;
+ delegateBtn.addEventListener('click',async()=>{
+  const text=field.value.trim();
+  if(openId!=='matt'||!cloud()?.signedIn()||busy||!text)return;
+  if(!window.confirm('Ο Matt θα εξετάσει το αίτημα με πραγματικό Copilot AI, '+
+   'θα το αναθέσει στον Listening Mirror Director εφόσον ταιριάζει, '+
+   'και θα σου επιστρέψει την ανάλυση. Θα γίνουν έως 3 AI κλήσεις '+
+   'που καταναλώνουν τα credits της συνδρομής σου. '+
+   'Δεν επιτρέπονται αλλαγές αρχείων, εργαλεία ή αυτόνομη εκτέλεση. Συνέχεια;'))return;
+  busy=true;send.disabled=true;field.disabled=true;delegateBtn.disabled=true;
+  const selected=openId;
+  status.textContent='Matt → Director: γίνεται πραγματική AI ανάλυση…';
+  let failed=null;
+  try{
+   const result=await cloud().delegateMatt(text);
+   if(result.delegated){
+    mattReplies.push({content:result.content,time:new Date().toISOString()});
+    mattReplies.push({content:'Listening Mirror Director — αναφορά (ανάλυση, όχι εκτέλεση):\\n'+
+     result.directorReport,time:new Date().toISOString()});
+   }else mattReplies.push({content:result.content,time:new Date().toISOString()});
+   field.value='';
+  }catch(error){failed=error;if(error.noteSaved)field.value=''}
+  finally{
+   busy=false;
+   if(openId===selected){
+    paint();
+    if(failed)status.textContent=(failed.noteSaved?
+     'Το μήνυμα αποθηκεύτηκε, αλλά η ανάθεση απέτυχε: ':'Η ανάθεση απέτυχε: ')+failed.message;
+   }
+  }
+ });
  const helper=make('small','world-chat-helper','Copilot AI Credits · Έγκριση ανά μήνυμα · Καμία ενέργεια σε αρχεία');
- composer.append(connectGithub,diagnoseBtn,form,helper);
+ composer.append(connectGithub,diagnoseBtn,delegateBtn,form,helper);
  panel.append(top,status,messages,composer);view.append(panel);
 
  function bubble(role,text,when){
@@ -107,6 +140,7 @@
   messages.replaceChildren(system(active?'Φόρτωση ιδιωτικού ιστορικού…':'Απαιτείται σύνδεση.'));
   connectGithub.hidden=true;
   diagnoseBtn.hidden=!(isMatt&&active);
+  delegateBtn.hidden=!(isMatt&&active);
   if(isMatt&&active&&typeof cloud()?.githubLinkStatus==='function'){
    const selected=openId;
    cloud().githubLinkStatus().then(link=>{
