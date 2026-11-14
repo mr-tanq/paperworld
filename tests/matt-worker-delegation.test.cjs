@@ -1,0 +1,134 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const {makeWorkerDelegation,CONSENT}=require('../server/matt-worker-delegation.cjs');
+const {FILES}=require('../server/listening-repo-reader.cjs');
+const owner='11111111-1111-4111-8111-111111111111';
+const threadId='22222222-2222-4222-8222-222222222222';
+const requestId='33333333-3333-4333-8333-333333333333';
+const headers={origin:'https://mr-tanq.github.io',authorization:'Bearer aaaaa.bbbbb.ccccc'};
+const payload={threadId,requestId,message:'Investigate missing concert pictures in Listening Mirror',consent:CONSENT};
+function fake({route='listening-director',category='artwork',
+ owns=true,linked=true,budget=true,badEvidence=false,failTurn=0}={}){
+ const seen={calls:0,models:0,configs:[],prompts:[],stages:[],read:[]};
+ const gateway=makeWorkerDelegation({
+  oauth:{getLinkedToken:()=>linked?'gho_VALID_FAKE_ONLY':null},
+  guard:{authenticate:async()=>({ownerId:owner}),ownsThread:async()=>owns},
+  budgetVerified:async()=>budget,
+  reader:{read:async name=>{
+   seen.read.push(name);
+   const categoryPaths=FILES[name]||[];
+   return {repository:badEvidence?'other/repo':'mr-tanq/concerts',
+    ref:'main',category:name,readOnly:true,
+    files:categoryPaths.map(path=>({path,sha:'a'.repeat(40),
+     url:'https://github.com/mr-tanq/concerts/blob/main/'+path,
+     lines:'L1 const stable = true;\nL2 // no changes performed'}))};
+  }},
+  clientFactory:async options=>{
+   seen.options=options;
+   return {start:async()=>{},
+    listModels:async()=>[{id:'model-one',billing:{tokenPrices:{
+     inputPrice:1,outputPrice:2,batchSize:1000}}}],
+    createSession:async config=>{
+     seen.configs.push(config);
+     return {sendAndWait:async({prompt})=>{
+      seen.calls++;seen.prompts.push(prompt);
+      if(failTurn===seen.calls)throw Error('DO_NOT_LEAK_USER_PRIVATE_TOKEN');
+      const responses=[route,category,
+       'Worker observed const stable at FILE L1. No edit or test was done.',
+       'Director confirms L1; next request approval for change.',
+       'Matt reports code reviewed read-only and no changes made.'];
+      return {data:{content:responses[seen.calls-1]}};
+     },disconnect:async()=>{}};
+    },stop:async()=>{}};
+  },
+  diagnostic:stage=>seen.stages.push(stage)
+ });
+ return {gateway,seen};
+}
+const body=v=>JSON.stringify(v);
+test('Matt → Director → source evidence → Worker → Director → Matt is five real simulated turns',async()=>{
+ const {gateway,seen}=fake();
+ const result=await gateway.handle({headers,body:body(payload)});
+ assert.equal(result.status,200);
+ assert.equal(result.body.delegated,true);
+ assert.equal(result.body.execution,'read_only_analysis');
+ assert.equal(result.body.attemptedAiTurns,5);
+ assert.equal(seen.calls,5);
+ assert.deepEqual(seen.read,['artwork']);
+ assert.equal(result.body.evidence.files.length,FILES.artwork.length);
+ assert.match(result.body.workerReport,/L1/);
+ assert.match(result.body.content,/no changes made/);
+ assert.equal(seen.options.useLoggedInUser,false);
+ assert.equal(seen.options.mode,'empty');
+ assert.doesNotMatch(JSON.stringify(result.body),/gho_VALID_FAKE_ONLY/);
+ for(const config of seen.configs){
+  assert.deepEqual(config.availableTools,[]);
+  assert.deepEqual(await config.onPermissionRequest(),{kind:'reject'});
+  assert.equal('hooks' in config,false);
+ }
+ assert.equal(seen.prompts[2].includes('UNTRUSTED REPOSITORY CONTENT'),true);
+});
+test('No director for unrelated project: only one route call and no repo access',async()=>{
+ const {gateway,seen}=fake({route:'not_ready'});
+ const r=await gateway.handle({headers,body:body(payload)});
+ assert.equal(r.status,200);
+ assert.equal(r.body.delegated,false);
+ assert.equal(r.body.attemptedAiTurns,1);
+ assert.equal(seen.calls,1);
+ assert.deepEqual(seen.read,[]);
+});
+test('Invalid Director category never opens files or invokes Worker',async()=>{
+ const {gateway,seen}=fake({category:'../../anything'});
+ const r=await gateway.handle({headers,body:body(payload)});
+ assert.equal(r.status,422);
+ assert.equal(seen.calls,2);
+ assert.deepEqual(seen.read,[]);
+});
+test('Unauthorized request, wrong owner, GitHub disconnect, and no five-turn consent fail closed',async()=>{
+ for(const opts of [{owns:false},{linked:false},{budget:false}]){
+  const {gateway,seen}=fake(opts);
+  const result=await gateway.handle({headers,body:body(payload)});
+  assert.ok([403,404,409].includes(result.status));
+  assert.equal(seen.calls,0);assert.deepEqual(seen.read,[]);
+ }
+ const {gateway,seen}=fake();
+ assert.equal((await gateway.handle({headers:{...headers,origin:'https://evil.tld'},body:body(payload)})).status,403);
+ assert.equal((await gateway.handle({headers,body:body({...payload,consent:'MATT_DIRECTOR_UP_TO_THREE_AI_TURNS'})})).status,400);
+ assert.equal((await gateway.handle({headers,body:body({...payload,threadId:'bad'})})).status,400);
+ assert.equal(seen.calls,0);
+});
+test('Replay cannot spend twice; invalid repository evidence never reaches Worker model',async()=>{
+ const {gateway,seen}=fake();
+ assert.equal((await gateway.handle({headers,body:body(payload)})).status,200);
+ assert.equal((await gateway.handle({headers,body:body(payload)})).status,409);
+ assert.equal(seen.calls,5);
+ const denied=fake({badEvidence:true});
+ const r=await denied.gateway.handle({headers,body:body(payload)});
+ assert.equal(r.status,503);
+ assert.equal(r.body.stage,'repository_read');
+ assert.equal(denied.seen.calls,2);
+});
+test('Failures do not reveal source, prompts or secrets in HTTP or logs',async()=>{
+ const {gateway,seen}=fake({failTurn:3});
+ const r=await gateway.handle({headers,body:body(payload)});
+ assert.equal(r.status,503);
+ assert.equal(r.body.attemptedAiTurns,3);
+ assert.equal(r.body.stage,'model_reply');
+ assert.deepEqual(seen.stages,['model_reply']);
+ assert.doesNotMatch(JSON.stringify(r)+JSON.stringify(seen.stages),/DO_NOT_LEAK|gho_VALID|stable = true/);
+});
+test('Messenger has explicit worker-specific opt-in without losing ordinary chat',()=>{
+ const ui=fs.readFileSync(path.join(__dirname,'../js/world-dialogue.js'),'utf8');
+ assert.match(ui,/Ανάθεση σε Developer Worker/);
+ assert.match(ui,/έως 5 AI κλήσεις/);
+ assert.match(ui,/delegateMattWorker\(text\)/);
+ assert.match(ui,/replace\(\/\\\\n\/g/);
+ const cloud=fs.readFileSync(path.join(__dirname,'../js/cloud.js'),'utf8');
+ assert.match(cloud,/MATT_DIRECTOR_WORKER_UP_TO_FIVE_AI_TURNS/);
+ assert.match(cloud,/\/delegate\/matt\/worker/);
+ const server=fs.readFileSync(path.join(__dirname,'../server/render-matt.cjs'),'utf8');
+ assert.match(server,/\/delegate\/matt\/worker/);
+});
