@@ -53,3 +53,13 @@ test('Diagnostic HTTP route and browser client do not dispatch chat prompts',()=
  const messenger=fs.readFileSync(path.join(__dirname,'../js/world-dialogue.js'),'utf8');
  assert.match(messenger,/Έλεγχος Copilot · χωρίς AI μήνυμα/);
 });
+
+test('Baseline diagnostic session disables tools and rejects permissions without optional SDK settings',async()=>{
+ const cfg=createSafeSessionConfig({model:'gpt-4.1',gitHubToken:'gho_EXAMPLE_ONLY',probeMinimal:true});
+ assert.deepEqual(Object.keys(cfg).sort(),['model','gitHubToken','availableTools','onPermissionRequest'].sort());
+ assert.deepEqual(cfg.availableTools,[]);
+ assert.deepEqual(await cfg.onPermissionRequest(),{kind:'reject'});
+ assert.equal('sessionLimits' in cfg,false);
+ assert.equal('hooks' in cfg,false);
+ assert.equal('systemMessage' in cfg,false);
+});
