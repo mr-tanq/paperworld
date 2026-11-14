@@ -137,3 +137,21 @@ aside{min-width:0;min-height:0;overscroll-behavior:contain}
 /* Failed Worker attempts must never look like success. */
 .developer-result.worker-failed{background:#f8e8e2;border:1px solid #d8a99d;color:#733f34}
 .developer-result.worker-failed a{color:#8c4639}
+
+/* World conversation: floating over the active map on desktop/tablet. */
+.world-talk-actions{position:absolute;z-index:5;left:12px;top:12px;display:flex;gap:7px}
+.world-talk-actions button{font:600 12px system-ui;border:1px solid #9e8660;border-radius:10px;padding:10px 12px;background:#fff6e4;color:#4e402f;min-height:42px;box-shadow:0 2px 9px #0003;cursor:pointer}
+.world-dialogue[hidden],.world-talk-notice[hidden]{display:none}
+.world-dialogue{position:absolute;z-index:8;top:65px;right:12px;bottom:12px;width:min(360px,calc(100% - 24px));display:flex;flex-direction:column;gap:8px;margin:0;padding:14px;background:#211f1beF;color:#f7ecda;border:1px solid #b89861;border-radius:13px;box-shadow:0 14px 36px #0008;font-size:13px}
+.world-dialogue-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.world-dialogue-head strong{font-size:16px}
+.world-dialogue-head button{font-size:25px;line-height:1;background:transparent;color:#ffefcf;border:0;cursor:pointer;padding:2px 8px;min-width:42px;min-height:42px}
+.world-dialogue-status{margin:0;color:#dccbad;font-size:11px;line-height:1.5}
+.world-dialogue-messages{flex:1;overflow-y:auto;min-height:40px;display:flex;flex-direction:column;gap:9px;overscroll-behavior:contain}
+.world-dialogue-messages p{margin:0;padding:10px;border-radius:9px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.world-dialogue-agent{background:#3b372f}.world-dialogue-human{background:#4f604e;align-self:flex-end}
+.world-dialogue-form{display:flex;gap:5px;align-items:end}.world-dialogue-form textarea{min-width:0;flex:1;background:#eee5d5;color:#342b24;border:1px solid #b89861;border-radius:7px;resize:vertical;padding:9px;max-height:120px;font:inherit}
+.world-dialogue-form button{border:0;border-radius:7px;background:#dda25d;color:#252019;padding:12px;min-height:44px;cursor:pointer;font-weight:700}
+.world-dialogue-form :disabled{opacity:.55;cursor:not-allowed}
+.world-talk-notice{position:absolute;z-index:9;left:12px;top:62px;max-width:min(420px,calc(100% - 24px));background:#241f1b;color:#ffe7b6;border:1px solid #a78b5e;padding:10px;border-radius:9px;font-size:12px}
+@media(max-width:640px){.world-talk-actions{left:7px;top:6px;gap:5px}.world-talk-actions button{padding:7px;font-size:11px}.world-dialogue{top:54px;right:7px;left:7px;bottom:7px;width:auto;padding:10px}.world-talk-notice{top:50px}}
