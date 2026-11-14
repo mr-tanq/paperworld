@@ -143,8 +143,30 @@
    return withAuth('/functions/v1/worker-bridge',{method:'POST',
      data:{mission_id:id,confirm_ai_credits:approval}});
   }
+  // Private owner-verified REST conversation storage; no AI request.
+  const agentStore=()=>{if(!root.PaperworldAgentStore)throw Error('Agent store not loaded');return root.PaperworldAgentStore.create({transport:withAuth})};
+  async function getAgentThread(agentId){
+   const store=agentStore();
+   const previous=await store.threads();
+   let thread=previous.find(t=>t.agent_id===agentId);
+   if(!thread){
+    try{thread=(await store.start(agentId))[0]}
+    catch(e){if(!/409|duplicate|unique/i.test(e.message))throw e;thread=(await store.threads()).find(t=>t.agent_id===agentId)}
+   }
+   if(!thread)throw Error('Could not find your private conversation thread');
+   return thread;
+  }
+  async function agentMessages(agentId){
+   const thread=await getAgentThread(agentId);
+   return agentStore().history(thread.id);
+  }
+  async function sendAgentNote(agentId,text){
+   const thread=await getAgentThread(agentId);
+   return agentStore().say(thread.id,text);
+  }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
-   listMissions,createMission,setMissionStatus,deleteMission,workerStatus,prepareWorkerMission,runApprovedAiMission};
+   listMissions,createMission,setMissionStatus,deleteMission,workerStatus,prepareWorkerMission,runApprovedAiMission,
+   agentMessages,sendAgentNote};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });
