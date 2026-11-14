@@ -146,7 +146,7 @@
   const item=make('article','world-chat-message '+(role==='human'?'world-dialogue-human':'world-dialogue-agent'));
   // Some Copilot responses contain literal escaped newlines. Render them
   // as plain text with line breaks, never as HTML or executable markup.
-  const normalized=role==='human'?text:String(text||'').replace(/\\\\n/g,'\n');
+  const normalized=role==='human'?text:String(text||'').replace(/\\n/g,'\n');
   const body=make('p','',normalized);item.append(body);
   if(when&&Number.isFinite(Date.parse(when))){
    const time=make('time','world-chat-time',new Date(when).toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'}));
