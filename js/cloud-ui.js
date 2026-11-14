@@ -136,6 +136,7 @@ function openChief(){
 window.PaperworldCloudUI={
  open,openChief,isActive:()=>active,signedIn:()=>client.signedIn(),
  privateAgentMessages:(id)=>client.agentMessages(id),
- sendPrivateAgentMessage:(id,text)=>client.sendAgentNote(id,text)
+ sendPrivateAgentMessage:(id,text)=>client.sendAgentNote(id,text),
+ askMatt:(text)=>client.askMatt(text)
 };
 })();
