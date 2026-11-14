@@ -127,45 +127,8 @@
    if(!/^[0-9a-f-]{36}$/i.test(id))throw Error('Invalid mission ID');
    await withAuth('/rest/v1/paperworld_missions?id=eq.'+encodeURIComponent(id),{method:'DELETE'});
   }
-  async function workerStatus(id,includeReport=false){
-   if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id))throw Error('Invalid mission ID');
-   const suffix='?mission_id='+encodeURIComponent(id)+(includeReport?'&report=1':'');
-   return withAuth('/functions/v1/worker-bridge'+suffix);
-  }
-  async function prepareWorkerMission(id){
-   if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id))throw Error('Invalid mission ID');
-   return withAuth('/functions/v1/worker-bridge',{method:'POST',
-     data:{mission_id:id,confirm_prepare_only:true}});
-  }
-  async function runApprovedAiMission(id,approval){
-   if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id))throw Error('Invalid mission ID');
-   if(approval!=='I_APPROVE_INCLUDED_AI_CREDITS')throw Error('Explicit AI credit acknowledgement required');
-   return withAuth('/functions/v1/worker-bridge',{method:'POST',
-     data:{mission_id:id,confirm_ai_credits:approval}});
-  }
-  // Private owner-verified REST conversation storage; no AI request.
-  const agentStore=()=>{const module=typeof globalThis!=='undefined'?globalThis.PaperworldAgentStore:null;if(!module)throw Error('Agent store not loaded');return module.create({transport:withAuth})};
-  async function getAgentThread(agentId,createIfMissing=false){
-   const store=agentStore();
-   const previous=await store.threads();
-   let thread=previous.find(t=>t.agent_id===agentId);
-   if(!thread&&createIfMissing){
-    try{thread=(await store.start(agentId))[0]}
-    catch(e){if(!/409|duplicate|unique/i.test(e.message))throw e;thread=(await store.threads()).find(t=>t.agent_id===agentId)}
-   }
-   if(!thread&&createIfMissing)throw Error('Could not find your private conversation thread');
-   return thread;
-  }
-  async function agentMessages(agentId){
-   const thread=await getAgentThread(agentId);
-   return thread?agentStore().history(thread.id):[];
-  }
-  async function sendAgentNote(agentId,text){
-   const thread=await getAgentThread(agentId,true);
-   return agentStore().say(thread.id,text);
-  }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
-   listMissions,createMission,setMissionStatus,deleteMission,workerStatus,prepareWorkerMission,runApprovedAiMission,
+   listMissions,createMission,setMissionStatus,deleteMission,
    agentMessages,sendAgentNote};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
