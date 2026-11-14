@@ -115,3 +115,12 @@ User authorized a separate PR for persistent Matt/Director/Worker job history, n
 - `tests/agent-job-memory.test.cjs` contains mock tests; CI must pass. Database migration and live end-to-end persistence remain unverified.
 - The rows can be inserted by the signed-in owner, so they are **non-authoritative history** only, not proof of model execution or valid permission to act. They cannot authorize spending, deployment, merges, emails or file changes. No full model replies, code excerpts, secrets or OAuth credentials are stored.
 - Before activation: separate owner approval for a reviewed migration in only PAPERWORLD, RLS/security-advisor checks, integration into the trusted backend with explicit consent and failure behavior, and tests for persistent read-after-refresh. No cost/settings changes.
+
+## Matt job-history runtime wiring — draft PR (14 November 2026)
+
+User approved implementing real history writing and reload. **No merge, deploy, Copilot calls or other projects modified in this step.** Applies only to the already-created owner-scoped PAPERWORLD job tables.
+
+- `/delegate/matt/worker` now records a job after Matt successfully routes to Listening Mirror, before additional chargeable AI turns. If creation fails, stop rather than silently proceed with an untracked investigation. It writes ordered narrative stage events for scope, source read, Worker report, Director review and Matt response; on failure attempts a best-effort failed event. Event write failures must set `persisted:false` and never claim durable completion.
+- `POST /history/matt/jobs` has the same origin/bearer authentication, Supabase owner + Matt thread check, and bounded RLS-scoped job/event reads. This endpoint causes no AI calls. Exposes only sanitized job summaries and stage metadata; full code excerpts, model reports and OAuth tokens are not stored.
+- Messenger now provides a manual history-reading button. Only the real Worker delegation gets history; ordinary Matt and Director-only conversations are not yet saved as jobs. History summaries are **user-editable narrative records**, not independently verified execution logs. There is no automatic resume or background execution and no authority to spend, edit, merge or deploy.
+- Offline mock tests cover success, owner isolation, partial persistence, storage failures, and retrieval. A future deployment requires separate authorization and live signed-in read-after-reload verification. Do not describe feature as live before that.
