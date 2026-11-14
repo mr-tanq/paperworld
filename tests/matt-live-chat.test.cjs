@@ -7,15 +7,15 @@ const thread='22222222-2222-4222-8222-222222222222';
 const request='33333333-3333-4333-8333-333333333333';
 const payload={threadId:thread,requestId:request,message:'Hello, Matt',consent:CONSENT};
 const headers={origin:'https://mr-tanq.github.io',authorization:'Bearer aaaaaaa.bbbbbbb.ccccccc'};
-function mock({connected=true,owns=true,multiplier=0,remaining=80}={}){
+function mock({connected=true,owns=true,remaining=80}={}){
  const seen={factory:[],sessions:[],start:0,reply:0};
  const guard={authenticate:async()=>({ownerId:owner}),ownsThread:async()=>owns};
  const oauth={getLinkedToken:()=>connected?'gho_PRIVATE_SERVER_ONLY':null};
  const clientFactory=async opts=>{
   seen.factory.push(opts);
   return {start:async()=>{seen.start++},
-   rpc:{models:{list:async()=>({models:[{id:'test-model',billing:{multiplier}}]})},
-    account:{getQuota:async()=>({quotaSnapshots:{premium_interactions:{
+   listModels:async()=>[{id:'gpt-4.1',billing:{tokenPrices:{inputPrice:1,outputPrice:2,batchSize:1000}}}],
+   rpc:{account:{getQuota:async()=>({quotaSnapshots:{ai_credits:{
       entitlementRequests:100,usedRequests:100-remaining}}})}},
    createSession:async cfg=>{
     seen.sessions.push(cfg);
@@ -33,21 +33,22 @@ test('Authenticated explicit single turn returns real SDK result with no tools',
  assert.equal(r.status,200);
  assert.equal(r.body.executed,true);
  assert.equal(r.body.content,'A genuine mocked AI response');
- assert.equal(r.body.billingMultiplier,0);
+ assert.equal(r.body.sessionCreditSoftLimit,1);
  assert.equal(seen.start,1);
  assert.equal(seen.reply,1);
  assert.equal(seen.factory[0].gitHubToken,'gho_PRIVATE_SERVER_ONLY');
  assert.equal(seen.factory[0].useLoggedInUser,false);
  assert.deepEqual(seen.sessions[0].availableTools,[]);
+ assert.deepEqual(seen.sessions[0].sessionLimits,{maxAiCredits:1});
  assert.deepEqual(await seen.sessions[0].onPermissionRequest(),{kind:'reject'});
  assert.equal((await seen.sessions[0].hooks.onPreToolUse()).permissionDecision,'deny');
  assert.ok(!JSON.stringify(r).includes('gho_PRIVATE'));
 });
 test('Insufficient included quota rejects before model call',async()=>{
- const {chat,seen}=mock({multiplier:1,remaining:0});
+ const {chat,seen}=mock({remaining:0});
  const r=await chat.handle({headers,body:JSON.stringify(payload)});
  assert.equal(r.status,403);
- assert.equal(r.body.error,'no_confirmed_included_model_or_quota');
+ assert.equal(r.body.error,'ai_credit_quota_not_verified');
  assert.equal(seen.reply,0);
 });
 test('A GitHub disconnect fails closed',async()=>{
