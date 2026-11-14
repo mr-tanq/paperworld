@@ -350,7 +350,7 @@ test('main PAPERWORLD prioritizes cloud workspaces and hides diagnostics',()=>{
  assert.match(local,/function open\(id='town',forceLocal=false\)/);
  assert.match(cloud,/window\.PaperworldRooms\.open\(room,true\)/);
  assert.match(cloud,/\[allTasks,missions\]=await Promise\.all\(\[client\.list\(\),client\.listMissions\(\)\]\)/);
- assert.match(cloud,/Village overview/);
+ assert.match(cloud,/renderChiefOrRoom/);
  assert.match(cloud,/PaperworldCloudUI=\{open,openChief,isActive:\(\)=>active,signedIn:\(\)=>client\.signedIn\(\)\}/);
  assert.match(cloud,/Preview and copy/);
  assert.match(cloud,/Originals will remain on this device/);
@@ -374,13 +374,12 @@ test('Chief of Staff makes transparent, safe recommendations without side effect
  assert.equal(engine.issueDraftUrl(tasks[3]),null);
  assert.deepEqual(tasks[0],{id:'a',title:'Fix setlist',room:'workshop',status:'todo',created_at:'2026-11-12T00:00:00Z'});
 });
-test('Chief review UI exposes human-only work controls',()=>{
+test('Chief is oversight, Workshop is the hands-on Developer',()=>{
  const html=read('index.html'),ui=read('js/cloud-ui.js'),css=read('style.css');
  assert.ok(html.indexOf('js/chief.js')<html.indexOf('js/cloud-ui.js'));
- for(const label of ['Chief of Staff','Start task','Copy brief','Draft GitHub issue','RULE-BASED · NO AI'])assert.ok(ui.includes(label),label);
- assert.match(ui,/client\.update\(original\.id,\{status:'doing'\}\)/);
- assert.match(ui,/window\.open\(link,'_blank','noopener,noreferrer'\)/);
- assert.match(ui,/No autonomous work is running/);
+ for(const label of ['Chief of Staff','Listening Mirror Workshop','renderWorkshop','renderChiefOrRoom'])assert.ok(ui.includes(label),label);
+ assert.ok(ui.includes("if(room==='workshop')"));
+ assert.ok(ui.includes('one mission')===false);
  assert.match(css,/\.chief-desk/);
 });
 
@@ -410,8 +409,8 @@ test('human-review TicketSwap mission brief references real repository paths',()
 });
 test('cloud mission UI does not execute workers and retains privacy',()=>{
  const html=read('index.html'),cloud=read('js/cloud.js'),ui=read('js/cloud-ui.js'),sql=read('supabase/paperworld_missions_reference.sql');
- for(const src of ['cloud.js?v=32','cloud-ui.js?v=33','chief.js?v=28'])assert.ok(html.includes(src),src);
- for(const phrase of ['Prepare worker mission','Worker mission drafts','Ready for MY review','Copy handoff','No worker has started'])assert.ok(ui.includes(phrase),phrase);
+ for(const src of ['cloud.js?v=32','cloud-ui.js?v=34','chief.js?v=28'])assert.ok(html.includes(src),src);
+ for(const phrase of ['workerStatus(current.id)','runApprovedAiMission(current.id','workshop.existingTicketSwap(missions)','Παλαιότερες αποστολές'])assert.ok(ui.includes(phrase),phrase);
  for(const fn of ['listMissions','createMission','setMissionStatus','deleteMission'])assert.ok(cloud.includes(fn),fn);
  assert.ok(cloud.includes("mode:'analysis_only'"));
  assert.ok(cloud.includes("['draft','ready_for_review','cancelled']"));
@@ -444,9 +443,9 @@ test('first AI Worker requires explicit credit approval and cannot push or deplo
 test('authenticated prepare-only bridge wiring',()=>{
  const cloud=read('js/cloud.js'),ui=read('js/cloud-ui.js'),html=read('index.html');
  for(const part of ['workerStatus','prepareWorkerMission','confirm_prepare_only:true'])assert.ok(cloud.includes(part));
- for(const label of ['Prepare-only in GitHub','Check this mission','View worker result'])assert.ok(ui.includes(label));
+ for(const label of ['Έλεγχος προόδου','Δες την αναφορά','Ξεκίνα έρευνα AI'])assert.ok(ui.includes(label));
  assert.ok(html.includes('cloud.js?v=32'));
- assert.ok(html.includes('cloud-ui.js?v=33'));
+ assert.ok(html.includes('cloud-ui.js?v=34'));
 });
 test('bridge only dispatches review-ready mission with explicit per-run authorization',()=>{
  const code=read('supabase/functions/worker-bridge/index.ts');
@@ -474,8 +473,8 @@ test('Each GitHub run is tagged to one PAPERWORLD mission, never another task',(
  assert.ok(edge.includes('24*60*60*1000'));
  assert.ok(edge.includes('readReport(run.id)'));
  assert.ok(client.includes('async function workerStatus(id,includeReport=false)'));
- assert.ok(ui.includes('client.workerStatus(mission.id,true)'));
- assert.ok(ui.includes('Open matching GitHub run'));
+ assert.ok(ui.includes('client.workerStatus(current.id,true)'));
+ assert.ok(ui.includes('Άνοιξε την εκτέλεση στο GitHub'));
  assert.ok(ui.includes('workerReports=new Map()'));
 });
 
@@ -484,10 +483,10 @@ test('AI execution is a one-shot human-only Copilot Free credit opt-in',()=>{
  const ui=read('js/cloud-ui.js');
  const client=read('js/cloud.js');
  const workflow=read('.github/workflows/worker-review.yml');
- assert.ok(ui.includes('Run AI investigation'));
- assert.ok(ui.includes('prompt(info)'));
+ assert.ok(ui.includes('Ξεκίνα έρευνα AI'));
+ assert.ok(ui.includes('confirm(explanation)'));
  assert.ok(ui.includes('I_APPROVE_INCLUDED_AI_CREDITS'));
- assert.ok(ui.includes('client.runApprovedAiMission(mission.id,approval)'));
+ assert.ok(ui.includes("client.runApprovedAiMission(current.id,'I_APPROVE_INCLUDED_AI_CREDITS')"));
  assert.ok(client.includes('runApprovedAiMission'));
  assert.ok(client.includes('confirm_ai_credits:approval'));
  assert.ok(edge.includes('keys==="confirm_ai_credits,mission_id"'));
@@ -517,11 +516,33 @@ test('Workshop dialogue routes everyday requests to existing task instead of dup
 test('Listening Mirror dialogue does not quietly start agents or write code',()=>{
  const ui=read('js/cloud-ui.js'),html=read('index.html');
  assert.ok(html.includes('workshop-dialogue.js?v=33'));
- assert.ok(html.includes('cloud-ui.js?v=33'));
- assert.ok(ui.includes("if(room==='workshop'&&window.PaperworldWorkshop)"));
+ assert.ok(html.includes('cloud-ui.js?v=34'));
+ assert.ok(ui.includes('function renderWorkshop()'));
  assert.ok(ui.includes("workshop.existingTicketSwap(missions)"));
- assert.ok(ui.includes("data-mission-id"));
- assert.ok(ui.includes("Αποθήκευση ως εργασία"));
- assert.ok(ui.includes("confirm('Να αποθηκεύσω"));
+ assert.ok(ui.includes('workshop.existingTicketSwap(missions)'));
+ assert.ok(ui.includes('Αποθήκευση αιτήματος'));
+ assert.ok(ui.includes("confirm('Να αποθηκεύσω το αίτημα"));
  assert.ok(!read('js/workshop-dialogue.js').includes('fetch('));
+});
+
+test('one TicketSwap mission is visible while old drafts stay archived',()=>{
+ const ui=read('js/cloud-ui.js'),workshop=require('../js/workshop-dialogue.js');
+ assert.ok(ui.includes('const current=workshop.existingTicketSwap(missions)'));
+ assert.ok(ui.includes('m.id!==current?.id'));
+ assert.ok(ui.includes('Παλαιότερες αποστολές'));
+ assert.ok(ui.includes("el('details',undefined,'developer-archive')"));
+ assert.ok(!ui.includes('Worker mission drafts · '+"'")); 
+ const records=[
+ {id:'1',title:'TicketSwap fix',repository:'mr-tanq/concerts',project_room:'workshop',status:'cancelled'},
+ {id:'2',title:'TicketSwap fix',repository:'mr-tanq/concerts',project_room:'workshop',status:'draft'},
+ {id:'3',title:'TicketSwap fix',repository:'mr-tanq/concerts',project_room:'workshop',status:'ready_for_review'}];
+ assert.equal(workshop.existingTicketSwap(records).id,'3');
+});
+test('natural-language request can start AI only after a separate explicit confirmation',()=>{
+ const ui=read('js/cloud-ui.js'),html=read('index.html'),workshop=require('../js/workshop-dialogue.js');
+ assert.ok(ui.includes('confirm(explanation)'));
+ assert.ok(ui.includes("client.runApprovedAiMission(current.id,'I_APPROVE_INCLUDED_AI_CREDITS')"));
+ assert.ok(ui.includes('Το αίτημα αποθηκεύτηκε. Δεν ξεκίνησε AI.'));
+ assert.ok(html.includes('style.css?v=workspace-034'));
+ assert.equal(workshop.classify('Δεν δουλεύει το τικετσουατ').type,'ticketswap');
 });
