@@ -76,12 +76,16 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
   if(used.has(key))return deny(409,'already_submitted');
   if(busy.has(ownerId))return deny(429,'another_request_active');
   used.set(key,clock()+600000);busy.add(ownerId);
-  let client,session;
+  let client,session,privateBaseDirectory;
   // Diagnostic stages are static allowlisted strings. Never log the exception,
   // OAuth token, request body, headers, model reply, or SDK error message.
   let stage='client_factory';
   try{
-   client=await clientFactory({gitHubToken:token,useLoggedInUser:false,mode:'empty'});
+   // Empty mode requires an isolated persistence location. Never share
+   // Copilot session storage between independently authorized requests.
+   privateBaseDirectory=await fs.mkdtemp(path.join(os.tmpdir(),'paperworld-matt-'));
+   client=await clientFactory({gitHubToken:token,useLoggedInUser:false,
+     mode:'empty',baseDirectory:privateBaseDirectory});
    stage='client_start';
    await client.start();
    stage='model_discovery';
