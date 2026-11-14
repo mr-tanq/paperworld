@@ -32,6 +32,12 @@
  const messages=make('div','world-dialogue-messages');
  messages.setAttribute('role','log');
  messages.setAttribute('aria-label','Conversation messages');
+ const connectGithub=make('button','world-dialogue-handoff','Σύνδεσε το GitHub για να μιλήσεις στον Matt');
+ connectGithub.type='button';connectGithub.hidden=true;
+ connectGithub.addEventListener('click',async()=>{
+  try{const url=await cloud().beginGithubLink();window.location.assign(url)}
+  catch(e){status.textContent='Η σύνδεση GitHub δεν ξεκίνησε: '+e.message}
+ });
  const form=make('form','world-dialogue-form');
  const field=make('textarea','world-chat-input');
  const send=make('button','world-chat-send','➤');
@@ -41,7 +47,7 @@
  form.append(field,send);
  const composer=make('footer','world-chat-composer');
  const helper=make('small','world-chat-helper','Copilot Pro · One confirmed turn · No worker tools or file changes');
- composer.append(form,helper);
+ composer.append(connectGithub,form,helper);
  panel.append(top,status,messages,composer);view.append(panel);
 
  function bubble(role,text,when){
@@ -79,6 +85,17 @@
    isMatt?'Copilot AI · ζητείται έγκριση ανά μήνυμα · χωρίς εργαλεία':
    'Ιδιωτική συνομιλία · ο Director δεν έχει AI ακόμη';
   messages.replaceChildren(system(active?'Φόρτωση ιδιωτικού ιστορικού…':'Απαιτείται σύνδεση.'));
+  connectGithub.hidden=true;
+  if(isMatt&&active&&typeof cloud()?.githubLinkStatus==='function'){
+   const selected=openId;
+   cloud().githubLinkStatus().then(link=>{
+    if(token!==revision||openId!==selected)return;
+    connectGithub.hidden=link.connected===true;
+    if(!link.connected)status.textContent='Σύνδεσε το GitHub για να ενεργοποιηθεί το πραγματικό Copilot AI.';
+   }).catch(()=>{
+    if(token===revision&&openId===selected)connectGithub.hidden=false;
+   });
+  }
   if(active&&typeof cloud()?.privateAgentMessages==='function'){
    const selected=openId;
    cloud().privateAgentMessages(selected).then(history=>{
@@ -122,7 +139,8 @@
    field.value='';
   }catch(error){failure=error;if(error.noteSaved)field.value=''}
   finally{busy=false;if(openId===id){
-   paint();if(failure)status.textContent=(failure.noteSaved?
+   paint();if(failure&&/github_reconnect_required/.test(failure.message))connectGithub.hidden=false;
+   if(failure)status.textContent=(failure.noteSaved?
      'Το μήνυμα αποθηκεύτηκε, αλλά ο Matt δεν απάντησε: ':
      'Το μήνυμα δεν αποθηκεύτηκε: ')+failure.message;
   }}
