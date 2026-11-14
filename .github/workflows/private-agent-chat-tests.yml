@@ -64,6 +64,7 @@ jobs:
             tests/world-dialogue.test.cjs \
             tests/village-first.test.cjs \
             tests/matt-visual.test.cjs \
+            tests/matt-walk-v2.test.cjs \
             tests/matt-copilot-adapter.test.cjs \
             tests/matt-gateway.test.cjs \
             tests/supabase-identity-guard.test.cjs \

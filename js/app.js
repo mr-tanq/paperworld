@@ -51,7 +51,8 @@ const actors=defs.map(d=>({id:({town:'matt',workshop:'listening-director',pokemo
 // Matt's visual animation is independent of AI execution and task delegation.
 const mattVisual=new Image();
 mattVisual.decoding='async';
-mattVisual.src='./assets/matt-walk-atlas.png';
+// v2 has normalized per-frame feet positions and isolated transparent silhouettes.
+mattVisual.src='./assets/matt-walk-v2.png';
 function mattDirection(dx,dy,previous='down'){
  if(Math.abs(dx)<0.001 && Math.abs(dy)<0.001)return previous;
  return Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up');
@@ -59,9 +60,12 @@ function mattDirection(dx,dy,previous='down'){
 function drawMattSprite(a,now){
  if(!mattVisual.complete || !mattVisual.naturalWidth)return false;
  const directions={down:0,right:1,up:2,left:3};
- const row=directions[a.direction]??0,frame=a.moving?Math.floor(now/145)%4:0;
+ const row=directions[a.direction]??0;
+ // Advance the gait by ACTUAL ground distance, not wall-clock time.
+ // No leg cycling while standing, turning or waiting on a route segment.
+ const frame=a.moving?Math.floor((a.walkDistance||0)/16)%4:1;
  const sw=mattVisual.naturalWidth/4,sh=mattVisual.naturalHeight/4;
- const dw=47,dh=77;
+ const dw=60,dh=88;
  ctx.save();
  ctx.fillStyle='rgba(31,24,18,.28)';
  ctx.beginPath();ctx.ellipse(a.x,a.y-2,14,5,0,0,Math.PI*2);ctx.fill();
@@ -73,7 +77,7 @@ function drawMattSprite(a,now){
  return true;
 }
 const mattActor=actors.find(a=>a.id==='matt');
-mattActor.direction='down';mattActor.moving=false;
+mattActor.direction='down';mattActor.moving=false;mattActor.walkDistance=16;
 mattActor.x=state.walker.x-36;mattActor.y=state.walker.y;
 const followTrail=[{x:state.walker.x,y:state.walker.y}];
 window.PaperworldWorld=Object.freeze({
@@ -184,10 +188,14 @@ function tick(now){
  if(followTrail.length>4){
   const next=followTrail[0],dx=next.x-mattActor.x,dy=next.y-mattActor.y,
         dist=Math.hypot(dx,dy),speed=125*dt;
-  mattActor.direction=mattDirection(dx,dy,mattActor.direction);
-  mattActor.moving=dist>2;
-  if(dist<=speed){mattActor.x=next.x;mattActor.y=next.y;followTrail.shift()}
-  else{mattActor.x+=dx/dist*speed;mattActor.y+=dy/dist*speed}
+  if(dist>0.01){
+   mattActor.direction=mattDirection(dx,dy,mattActor.direction);
+   const move=Math.min(dist,speed);
+   mattActor.x+=dx/dist*move;mattActor.y+=dy/dist*move;
+   mattActor.walkDistance+=move;
+   mattActor.moving=move>0.25;
+  }
+  if(dist<=speed+0.01){mattActor.x=next.x;mattActor.y=next.y;followTrail.shift()}
  }
  draw(now);requestAnimationFrame(tick)
 }
