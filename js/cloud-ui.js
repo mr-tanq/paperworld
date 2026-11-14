@@ -7,7 +7,17 @@ const el=(tag,text,cls)=>{let e=document.createElement(tag);if(text!==undefined)
 const btn=(text,fn,cls)=>{let b=el('button',text,cls);b.type='button';b.disabled=busy;b.addEventListener('click',fn);return b};
 const note=(s,isError=false)=>{message=(isError?'Error: ':'')+s;render()};
 async function work(fn){if(busy)return;busy=true;message='';render();try{await fn()}catch(e){message='Error: '+e.message}finally{busy=false;render()}}
-async function reload(){[allTasks,missions]=await Promise.all([client.list(),client.listMissions()]);tasks=allTasks.filter(t=>t.room===room)}
+async function reload(){
+ [allTasks,missions]=await Promise.all([client.list(),client.listMissions()]);
+ tasks=allTasks.filter(t=>t.room===room);
+ if(room==='workshop'&&window.PaperworldWorkshop){
+  const current=window.PaperworldWorkshop.existingTicketSwap(missions);
+  if(current){
+   try{workerReports.set(current.id,await client.workerStatus(current.id))}
+   catch(_){/* Keep task board usable if GitHub status is temporarily unavailable. */}
+  }
+ }
+}
 function loginForm(){let f=el('form');let email=el('input'),password=el('input');email.type='email';email.required=true;email.placeholder='Email';email.autocomplete='email';password.type='password';password.required=true;password.minLength=6;password.placeholder='Password';password.autocomplete='current-password';f.append(email,password);
 let sign=el('button','Sign in','primary');sign.type='submit';f.append(sign,btn('Create account',()=>work(async()=>{let ready=await client.signup(email.value.trim(),password.value);if(ready)await reload();else message='Check your email for the confirmation message, then sign in.'})));
 f.addEventListener('submit',e=>{e.preventDefault();work(async()=>{await client.login(email.value.trim(),password.value);await reload()})});return f}
@@ -86,12 +96,23 @@ function renderWorkshop(){
      workerReports.set(current.id,response);
      message=response.run?'Εκτέλεση: '+response.run.status+(response.run.conclusion?' · '+response.run.conclusion:''):'Δεν βρέθηκε ακόμη εκτέλεση για αυτή την αποστολή.'
     })));
-    ops.append(btn('Ξεκίνα έρευνα AI',()=>work(async()=>{
-     const explanation='Να ζητήσω ΜΙΑ έρευνα του TicketSwap από GitHub Copilot; Μπορεί να χρησιμοποιήσει τα διαθέσιμα Copilot Free AI credits. Δεν επιτρέπεις πρόσθετη χρέωση. Δεν θα κάνει push, merge ή deployment. Η ανάλυση θα γίνει σε προσωρινό αντίγραφο. Συνέχεια;';
-     if(!confirm(explanation)){message='Η έρευνα δεν ξεκίνησε.';return}
-     const result=await client.runApprovedAiMission(current.id,'I_APPROVE_INCLUDED_AI_CREDITS');
-     message=result.accepted?'Το GitHub δέχτηκε την εντολή. Πάτησε Έλεγχος προόδου για να δεις την εξέλιξη.':'Η έρευνα δεν ξεκίνησε.';
-    }),'primary'));
+    const previousRun=workerReports.get(current.id)?.run;
+    const blocked=previousRun?.mode==='run-ai'&&previousRun.retryBlocked;
+    if(!blocked){
+     ops.append(btn('Ξεκίνα έρευνα AI',()=>work(async()=>{
+      const latest=await client.workerStatus(current.id);
+      workerReports.set(current.id,latest);
+      if(latest.run?.mode==='run-ai'&&latest.run.retryBlocked){
+       message='Η προηγούμενη έρευνα έχει προσωρινό κλείδωμα. Δεν ξεκίνησε δεύτερη εκτέλεση.';
+       return;
+      }
+      const explanation='Να ζητήσω ΜΙΑ έρευνα του TicketSwap από GitHub Copilot; Μπορεί να καταναλώσει τα διαθέσιμα Copilot Free AI credits. Έλεγξε ότι η πρόσθετη χρήση παραμένει απενεργοποιημένη και το budget είναι $0. Δεν θα γίνει push, merge ή deployment. Συνέχεια;';
+      if(!confirm(explanation)){message='Η έρευνα δεν ξεκίνησε.';return}
+      const result=await client.runApprovedAiMission(current.id,'I_APPROVE_INCLUDED_AI_CREDITS');
+      message=result.accepted?'Η έρευνα ζητήθηκε. Ο Developer θα εμφανίσει την κατάσταση της εκτέλεσης.':'Η έρευνα δεν ξεκίνησε.';
+      try{workerReports.set(current.id,await client.workerStatus(current.id))}catch(_){}
+     }),'primary'));
+    }
    }
    const status=workerReports.get(current.id);
    if(status?.run?.status==='completed'){
@@ -105,9 +126,23 @@ function renderWorkshop(){
    if(status){
     const results=el('div',undefined,'developer-result');
     const run=status.run;
-    results.append(el('p',run?
-     'GitHub: '+run.status+(run.conclusion?' / '+run.conclusion:'')+(run.mode==='prepare-only'?' · μόνο προετοιμασία':' · AI έρευνα'):
-     'Δεν υπάρχει ακόμη καταγεγραμμένη εκτέλεση αυτής της αποστολής.'));
+    results.classList.toggle('worker-failed',Boolean(run?.conclusion==='failure'));
+    const statusLabel=!run?'Δεν έχει ξεκινήσει ακόμη κάποια έρευνα.':
+     run.status!=='completed'?'Η εκτέλεση βρίσκεται σε εξέλιξη.':
+     run.conclusion==='success'?
+      (run.mode==='prepare-only'?'Η προετοιμασία ολοκληρώθηκε, χωρίς AI.':'Η εκτέλεση τελείωσε. Έλεγξε την αναφορά πριν θεωρήσεις το πρόβλημα λυμένο.'):
+     run.conclusion==='failure'?'Η προηγούμενη προσπάθεια απέτυχε. Δεν διορθώθηκε το TicketSwap.':
+     'Η εκτέλεση ολοκληρώθηκε με κατάσταση '+(run.conclusion||'άγνωστη')+'.';
+    results.append(el('p',statusLabel));
+    if(run?.retryBlocked&&run.mode==='run-ai'){
+     const when=new Date(run.retryAt);
+     const date=Number.isNaN(when.getTime())?run.retryAt:
+       when.toLocaleString('el-GR',{dateStyle:'medium',timeStyle:'short'});
+     results.append(el('p','Νέα έρευνα AI επιτρέπεται μετά τις '+date+'. Το κουμπί εκκίνησης παραμένει κρυφό μέχρι τότε.','room-footnote'));
+    }
+    if(run?.conclusion==='failure'&&run.mode==='run-ai'){
+     results.append(el('p','Η πρώτη δοκιμή απέτυχε πριν την ανάλυση επειδή το Copilot απέρριψε ένα παλιό όριο credits. Η ρύθμιση έχει διορθωθεί, αλλά απαιτείται νέα έγκριση όταν λήξει το κλείδωμα.','room-footnote'));
+    }
     if(run?.url){
      const link=el('a','Άνοιξε την εκτέλεση στο GitHub');
      link.href=run.url;link.target='_blank';link.rel='noopener noreferrer';results.append(link)
