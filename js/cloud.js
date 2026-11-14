@@ -191,6 +191,23 @@
     throw Error('Diagnostic result not verified');
    return result;
   }
+  // Reload read-only job summaries and recorded stages; no AI request or credits.
+  async function mattJobHistory(){
+   await ensureAuth();
+   const thread=await getAgentThread('matt',false);
+   if(!thread)return {jobs:[],authority:'owner_editable_history_not_execution_proof'};
+   const response=await fetcher(MATT_ORIGIN+'/history/matt/jobs',{
+    method:'POST',redirect:'error',headers:{Authorization:'Bearer '+session.access_token,
+     'Content-Type':'application/json'},
+    body:JSON.stringify({threadId:thread.id})
+   });
+   let result={};
+   try{result=await response.json()}catch(_){}
+   if(!response.ok)throw Error((result.error||'History unavailable')+' (HTTP '+response.status+')');
+   if(!Array.isArray(result.jobs)||result.authority!=='owner_editable_history_not_execution_proof')
+    throw Error('Unverified history reply');
+   return result;
+  }
   // Delegation is explicitly a separate, up-to-three Copilot-turn operation.
   // Do not silently send multiple model calls from the ordinary chat button.
   // Separate user-authorized five-call path for evidence-based Worker analysis.
@@ -268,7 +285,7 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,diagnoseMattSession};
+   agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,mattJobHistory,diagnoseMattSession};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });

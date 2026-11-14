@@ -126,6 +126,7 @@
    }
    mattReplies.push({content:'Matt — τελική ενημέρωση:\n'+
     result.content,time:new Date().toISOString()});
+   if(result.delegated&&result.persisted!==true)status.textContent='Η αναφορά ολοκληρώθηκε, αλλά το ιστορικό δεν αποθηκεύτηκε πλήρως.';
    field.value='';
   }catch(error){failed=error;if(error.noteSaved)field.value=''}
   finally{
@@ -138,8 +139,31 @@
    }
   }
  });
+ const historyBtn=make('button','world-dialogue-handoff','Ιστορικό εργασιών · χωρίς AI κλήση');
+ historyBtn.type='button';historyBtn.hidden=true;
+ historyBtn.addEventListener('click',async()=>{
+  if(openId!=='matt'||busy||!cloud()?.signedIn())return;
+  busy=true;historyBtn.disabled=true;
+  const selected=openId;
+  try{
+   const result=await cloud().mattJobHistory();
+   if(openId!==selected)return;
+   const lines=result.jobs.slice(0,15).map(job=>{
+    const last=job.events?.[job.events.length-1];
+    const summary=String(job.summary||'').slice(0,120);
+    return '• '+summary+' — '+(last?.state||'χωρίς καταγεγραμμένο στάδιο')+
+     ' ('+(job.events?.length||0)+' συμβάντα)';
+   });
+   const heading=system('Αποθηκευμένο ιστορικό αναθέσεων · καταγραφές χρήστη, όχι απόδειξη εκτέλεσης');
+   const detail=system(lines.length?lines.join('\\n'):'Δεν υπάρχουν αποθηκευμένες αναθέσεις.');
+   messages.prepend(detail);messages.prepend(heading);
+   status.textContent='Το ιστορικό φορτώθηκε χωρίς AI Credits.';
+  }catch(error){
+   if(openId===selected)status.textContent='Ιστορικό: '+error.message;
+  }finally{busy=false;historyBtn.disabled=false}
+ });
  const helper=make('small','world-chat-helper','Copilot AI Credits · Έγκριση ανά μήνυμα · Καμία ενέργεια σε αρχεία');
- composer.append(connectGithub,diagnoseBtn,delegateBtn,workerBtn,form,helper);
+ composer.append(connectGithub,diagnoseBtn,delegateBtn,workerBtn,historyBtn,form,helper);
  panel.append(top,status,messages,composer);view.append(panel);
 
  function bubble(role,text,when){
@@ -184,6 +208,7 @@
   diagnoseBtn.hidden=!(isMatt&&active);
   delegateBtn.hidden=!(isMatt&&active);
   workerBtn.hidden=!(isMatt&&active);
+  historyBtn.hidden=!(isMatt&&active);
   if(isMatt&&active&&typeof cloud()?.githubLinkStatus==='function'){
    const selected=openId;
    cloud().githubLinkStatus().then(link=>{

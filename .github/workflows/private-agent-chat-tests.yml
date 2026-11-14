@@ -11,6 +11,7 @@ on:
       - 'server/matt-delegation.cjs'
       - 'server/matt-worker-delegation.cjs'
       - 'server/agent-job-memory.cjs'
+      - 'server/agent-job-history-api.cjs'
       - 'supabase/paperworld_agent_job_history_review.sql'
       - 'server/listening-repo-reader.cjs'
       - 'server/github-oauth.cjs'
@@ -62,6 +63,7 @@ jobs:
           node --test \
             tests/agents.test.cjs \
             tests/agent-job-memory.test.cjs \
+            tests/agent-job-history-api.test.cjs \
             tests/agent-conversation-store.test.cjs \
             tests/agent-cloud-integration.test.cjs \
             tests/world-dialogue.test.cjs \

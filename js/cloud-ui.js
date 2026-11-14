@@ -140,6 +140,7 @@ window.PaperworldCloudUI={
  askMatt:(text)=>client.askMatt(text),
  delegateMatt:(text)=>client.delegateMatt(text),
  delegateMattWorker:(text)=>client.delegateMattWorker(text),
+ mattJobHistory:()=>client.mattJobHistory(),
  diagnoseMattSession:()=>client.diagnoseMattSession(),
  githubLinkStatus:()=>client.githubLinkStatus(),
  beginGithubLink:()=>client.beginGithubLink()

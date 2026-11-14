@@ -11,12 +11,17 @@ const requestId='33333333-3333-4333-8333-333333333333';
 const headers={origin:'https://mr-tanq.github.io',authorization:'Bearer aaaaa.bbbbb.ccccc'};
 const payload={threadId,requestId,message:'Investigate missing concert pictures in Listening Mirror',consent:CONSENT};
 function fake({route='listening-director',category='artwork',
- owns=true,linked=true,budget=true,badEvidence=false,tamperPath=false,failTurn=0}={}){
- const seen={calls:0,models:0,configs:[],prompts:[],stages:[],read:[]};
+ owns=true,linked=true,budget=true,badEvidence=false,tamperPath=false,failTurn=0,
+ failHistoryCreate=false,failHistoryEvent=false}={}){
+ const seen={calls:0,models:0,configs:[],prompts:[],stages:[],read:[],jobs:[],events:[]};
  const gateway=makeWorkerDelegation({
   oauth:{getLinkedToken:()=>linked?'gho_VALID_FAKE_ONLY':null},
   guard:{authenticate:async()=>({ownerId:owner}),ownsThread:async()=>owns},
   budgetVerified:async()=>budget,
+  jobMemory:{
+   create:async args=>{seen.jobs.push(args);if(failHistoryCreate)throw Error('storage_down')},
+   append:async args=>{seen.events.push(args);if(failHistoryEvent)throw Error('event_down')}
+  },
   reader:{read:async name=>{
    seen.read.push(name);
    const categoryPaths=FILES[name]||[];
@@ -54,6 +59,11 @@ test('Matt → Director → source evidence → Worker → Director → Matt is 
  const result=await gateway.handle({headers,body:body(payload)});
  assert.equal(result.status,200);
  assert.equal(result.body.delegated,true);
+ assert.equal(result.body.persisted,true);
+ assert.equal(seen.jobs.length,1);
+ assert.equal(seen.jobs[0].jobId,requestId);
+ assert.deepEqual(seen.events.map(e=>e.state),['created','routed','scoped',
+  'evidence_read','worker_reported','director_reviewed','reported']);
  assert.equal(result.body.execution,'read_only_analysis');
  assert.equal(result.body.attemptedAiTurns,5);
  assert.equal(seen.calls,5);
@@ -137,4 +147,27 @@ test('Messenger has explicit worker-specific opt-in without losing ordinary chat
  assert.match(cloud,/\/delegate\/matt\/worker/);
  const server=fs.readFileSync(path.join(__dirname,'../server/render-matt.cjs'),'utf8');
  assert.match(server,/\/delegate\/matt\/worker/);
+});
+
+test('History create failure aborts before Director/Worker charged calls',async()=>{
+ const {gateway,seen}=fake({failHistoryCreate:true});
+ const result=await gateway.handle({headers,body:body(payload)});
+ assert.equal(result.status,503);
+ assert.equal(result.body.stage,'job_create');
+ assert.equal(seen.calls,1);
+ assert.equal(seen.jobs.length,1);
+});
+test('Event recording failures never falsely claim persistence',async()=>{
+ const {gateway,seen}=fake({failHistoryEvent:true});
+ const result=await gateway.handle({headers,body:body(payload)});
+ assert.equal(result.status,200);
+ assert.equal(result.body.persisted,false);
+ assert.equal(seen.calls,5);
+ assert.ok(seen.events.length>0);
+});
+test('No job row is created when route is not enabled',async()=>{
+ const {gateway,seen}=fake({route:'not_ready'});
+ const result=await gateway.handle({headers,body:body(payload)});
+ assert.equal(result.body.delegated,false);
+ assert.deepEqual(seen.jobs,[]);
 });
