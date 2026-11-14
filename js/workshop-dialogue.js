@@ -7,7 +7,7 @@
  else root.PaperworldWorkshop=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
  'use strict';
- const TOKEN_WORDS=['ticketswap','ticket swap','τικετσουαπ','τικετσβαπ'];
+ const TOKEN_WORDS=['ticketswap','ticket swap','τικετσουαπ','τικετσουατ','τικετσβαπ','τικετσωαπ'];
  function classify(value){
   const text=String(value||'').trim().slice(0,1500);
   if(!text)return {type:'empty',text};
