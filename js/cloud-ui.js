@@ -2,6 +2,7 @@
 const host=document.querySelector('#project-room'),model=window.PaperworldProjects,client=window.PaperworldCloud.createClient();
 let room='town',tasks=[],allTasks=[],missions=[],busy=false,message='',edit=null,active=false;
 const workerReports=new Map();
+let workshopInput='',workshopResponse=null;
 const el=(tag,text,cls)=>{let e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
 const btn=(text,fn,cls)=>{let b=el('button',text,cls);b.type='button';b.disabled=busy;b.addEventListener('click',fn);return b};
 const note=(s,isError=false)=>{message=(isError?'Error: ':'')+s;render()};
@@ -35,6 +36,54 @@ for(const r of model.ROOMS){
  summary.append(item)
 }
 overview.append(summary);host.append(overview);
+if(room==='workshop'&&window.PaperworldWorkshop){
+ const workshop=window.PaperworldWorkshop;
+ const talk=el('section',undefined,'workshop-dialogue');
+ talk.append(el('h3','Ο προγραμματιστής του Listening Mirror'));
+ talk.append(el('p','Πες μου τι δεν δουλεύει. Θα καταλάβω ποια ήδη γνωστή εργασία αφορά και θα σου δείξω το επόμενο ασφαλές βήμα. Δεν κάνω ακόμη αυτόματη ανάλυση ή αλλαγές χωρίς έγκριση.','room-footnote'));
+ const form=el('form',undefined,'workshop-message-form');
+ const field=el('textarea');field.rows=3;field.maxLength=1500;field.placeholder='Φίλε, δεν δουλεύει καλά το TicketSwap…';
+ field.setAttribute('aria-label','Μίλησε στον προγραμματιστή του Listening Mirror');
+ field.value=workshopInput;
+ field.addEventListener('input',()=>{workshopInput=field.value});
+ const send=el('button','Στείλε στον προγραμματιστή','primary');send.type='submit';
+ form.append(field,send);
+ form.addEventListener('submit',e=>{
+   e.preventDefault();
+   const result=workshop.classify(field.value);
+   if(result.type==='empty'){message='Γράψε πρώτα τι θέλεις να ελέγξουμε.';render();return}
+   workshopInput=result.text;workshopResponse=result;render()
+ });
+ talk.append(form);
+ if(workshopResponse){
+   const response=el('div',undefined,'workshop-reply');
+   response.append(el('p','Εσύ: '+workshopResponse.text));
+   response.append(el('p','Developer: '+workshopResponse.reply));
+   const actions=el('div',undefined,'room-ops');
+   if(workshopResponse.type==='ticketswap'){
+     const existing=workshop.existingTicketSwap(missions);
+     if(existing){
+       response.append(el('p','Βρέθηκε η υπάρχουσα αποστολή: '+existing.title+' · '+existing.status.replaceAll('_',' '),'room-footnote'));
+       actions.append(btn('Δες την αποστολή',()=>{
+         const el=host.querySelector('[data-mission-id="'+existing.id+'"]');
+         if(el){el.scrollIntoView({behavior:'smooth',block:'nearest'});el.classList.add('chief-focused')}
+         else note('Η αποστολή δεν είναι ορατή στον πίνακα. Άνοιξε το Chief of Staff.')
+       }))
+     }else{
+       response.append(el('p','Δεν υπάρχει ακόμη ενεργή αποστολή TicketSwap. Μπορείς να δημιουργήσεις μία από το Chief of Staff.','room-footnote'));
+     }
+   }else{
+     actions.append(btn('Αποθήκευση ως εργασία',()=>work(async()=>{
+       if(!confirm('Να αποθηκεύσω αυτό το αίτημα ως νέα εργασία στο Listening Mirror Cloud;'))return;
+       await client.add('workshop',workshopResponse.text.slice(0,160),workshopResponse.text);
+       workshopResponse=null;workshopInput='';await reload();
+       message='Το αίτημα αποθηκεύτηκε ως εργασία. Δεν ξεκίνησε AI Worker.'
+     }),'primary'))
+   }
+   response.append(actions);talk.append(response)
+ }
+ host.append(talk)
+}
 const chief=window.PaperworldChief;
 if(chief){
  const report=chief.summarize(allTasks);
@@ -78,6 +127,7 @@ if(chief){
  if(!missions.length)missionPanel.append(el('p','No mission drafts yet. Choose Prepare worker mission on an open task.','room-footnote'));
  for(const mission of missions.slice(0,30)){
    const card=el('article',undefined,'chief-item');
+   card.setAttribute('data-mission-id',mission.id);
    card.append(el('strong',mission.title));
    card.append(el('p',mission.repository+' · '+mission.status.replaceAll('_',' ')+' · investigation only','room-footnote'));
    const buttons=el('div',undefined,'room-ops');
