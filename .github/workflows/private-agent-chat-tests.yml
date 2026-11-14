@@ -10,6 +10,8 @@ on:
       - 'server/matt-live-chat.cjs'
       - 'server/matt-delegation.cjs'
       - 'server/matt-worker-delegation.cjs'
+      - 'server/agent-job-memory.cjs'
+      - 'supabase/paperworld_agent_job_history_review.sql'
       - 'server/listening-repo-reader.cjs'
       - 'server/github-oauth.cjs'
       - 'server/copilot-client-loader.cjs'
@@ -59,6 +61,7 @@ jobs:
         run: |
           node --test \
             tests/agents.test.cjs \
+            tests/agent-job-memory.test.cjs \
             tests/agent-conversation-store.test.cjs \
             tests/agent-cloud-integration.test.cjs \
             tests/world-dialogue.test.cjs \
