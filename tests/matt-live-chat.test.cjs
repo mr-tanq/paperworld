@@ -49,6 +49,8 @@ test('Authenticated explicit single turn returns real SDK result with no tools',
  assert.equal(seen.factory[0].gitHubToken,'gho_PRIVATE_SERVER_ONLY');
  assert.equal(seen.factory[0].useLoggedInUser,false);
  assert.deepEqual(seen.sessions[0].availableTools,[]);
+ assert.deepEqual(seen.sessions[0].includedBuiltinAgents,[]);
+ assert.equal('excludedBuiltinAgents' in seen.sessions[0],false);
  assert.deepEqual(seen.sessions[0].sessionLimits,{maxAiCredits:1});
  assert.deepEqual(await seen.sessions[0].onPermissionRequest(),{kind:'reject'});
  assert.equal((await seen.sessions[0].hooks.onPreToolUse()).permissionDecision,'deny');
