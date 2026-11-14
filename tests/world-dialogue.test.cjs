@@ -20,11 +20,14 @@ test('Keyboard shortcuts respect text inputs and require proximity for T',()=>{
  assert.match(source,/e\.key\.toLowerCase\(\)==='t'/);
  assert.match(world,/nearestAgent/);
 });
-test('Only signed-in Matt can send, Directors stay disabled',()=>{
+test('Only signed-in users can save messages; Directors cannot produce replies',()=>{
  assert.match(source,/field\.disabled=!available/);
  assert.match(source,/openId==='matt'&&active/);
- assert.match(source,/if\(openId!=='matt'/);
+ assert.match(source,/privateAgentMessages/);
+ assert.match(source,/sendPrivateAgentMessage/);
+ assert.match(source,/if\(!openId\|\|!cloud\(\)\?\.signedIn\(\)/);
  assert.match(cloud,/sendMattMessage/);
+ assert.match(cloud,/privateAgentMessages/);
 });
 test('overlay stays inside map and is loaded after world and cloud',()=>{
  assert.match(html,/id="view"/);
