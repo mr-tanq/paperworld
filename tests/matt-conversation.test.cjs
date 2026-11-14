@@ -24,7 +24,7 @@ test('No simulated agent answer, execution, or credits on arbitrary text',()=>{
  const session=createSession({storage:store(),identity:'a@example.com'});
  const result=session.send('Φτιάξε μου ένα τελείως καινούριο project');
  assert.equal(result.proposal,null);
- assert.match(result.reply,/δεν έχω ακόμη συνδεθεί με AI/);
+ assert.match(result.reply,/Δεν έχω ακόμη συνδεθεί με AI/);
  assert.throws(()=>session.send(' '.repeat(10)));
  assert.throws(()=>session.send('a'.repeat(1501)));
 });
