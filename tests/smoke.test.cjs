@@ -410,7 +410,7 @@ test('human-review TicketSwap mission brief references real repository paths',()
 });
 test('cloud mission UI does not execute workers and retains privacy',()=>{
  const html=read('index.html'),cloud=read('js/cloud.js'),ui=read('js/cloud-ui.js'),sql=read('supabase/paperworld_missions_reference.sql');
- for(const src of ['cloud.js?v=32','cloud-ui.js?v=32','chief.js?v=28'])assert.ok(html.includes(src),src);
+ for(const src of ['cloud.js?v=32','cloud-ui.js?v=33','chief.js?v=28'])assert.ok(html.includes(src),src);
  for(const phrase of ['Prepare worker mission','Worker mission drafts','Ready for MY review','Copy handoff','No worker has started'])assert.ok(ui.includes(phrase),phrase);
  for(const fn of ['listMissions','createMission','setMissionStatus','deleteMission'])assert.ok(cloud.includes(fn),fn);
  assert.ok(cloud.includes("mode:'analysis_only'"));
@@ -446,7 +446,7 @@ test('authenticated prepare-only bridge wiring',()=>{
  for(const part of ['workerStatus','prepareWorkerMission','confirm_prepare_only:true'])assert.ok(cloud.includes(part));
  for(const label of ['Prepare-only in GitHub','Check this mission','View worker result'])assert.ok(ui.includes(label));
  assert.ok(html.includes('cloud.js?v=32'));
- assert.ok(html.includes('cloud-ui.js?v=32'));
+ assert.ok(html.includes('cloud-ui.js?v=33'));
 });
 test('bridge only dispatches review-ready mission with explicit per-run authorization',()=>{
  const code=read('supabase/functions/worker-bridge/index.ts');
