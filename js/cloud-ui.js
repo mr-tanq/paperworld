@@ -20,200 +20,175 @@ sec.append(el('h4','Copy tasks from this tablet'));
 if(!store||store.warning){sec.append(el('p','Local tasks cannot be read safely.'));return sec}
 let originals=store.snapshot().tasks;sec.append(el('p',originals.length+' local tasks found. Originals will remain on this device.'));
 sec.append(btn('Preview and copy',()=>work(async()=>{const plan=client.prepareImport(originals,await client.list());if(!plan.incoming.length){message='No new local tasks to import.';return}if(!confirm('Copy '+plan.incoming.length+' local tasks into your private cloud? Existing local tasks will be preserved.')){message='Import cancelled.';return}const result=await client.importTasks(originals);await reload();message='Imported '+result.imported+', skipped '+result.skipped+'.'})));return sec}
-function render(){if(!active)return;host.hidden=false;host.replaceChildren();let head=el('div',undefined,'room-heading');head.append(el('h2','PAPERWORLD Cloud'),btn('Back to local',()=>{active=false;window.PaperworldRooms.open(room,true)}));host.append(head,el('p','Private task board. No AI agents or purchases.','room-subtitle'));
-if(message)host.append(el('p',message,message.startsWith('Error:')?'room-error':'room-notice'));if(busy)host.append(el('p','Loading…'));
-if(!client.signedIn()){host.append(loginForm());return}
-let bar=el('div',undefined,'room-ops');bar.append(el('small',client.identity()),btn('Refresh',()=>work(reload)),btn('Sign out',()=>work(async()=>{await client.signout();tasks=[];allTasks=[];missions=[];edit=null})));host.append(bar);
-const overview=el('section',undefined,'village-overview');
-overview.append(el('h3','Village overview'));
-const total=allTasks.length,done=allTasks.filter(t=>t.status==='done').length,doing=allTasks.filter(t=>t.status==='doing').length;
-overview.append(el('p',total+' tasks · '+doing+' in progress · '+done+' completed','room-stats'));
-const summary=el('div',undefined,'overview-projects');
-for(const r of model.ROOMS){
- const per=allTasks.filter(t=>t.room===r.id);
- const item=btn(r.name+' · '+per.filter(t=>t.status!=='done').length+' open',()=>work(async()=>{room=r.id;edit=null;await reload()}),'overview-project');
- if(r.id===room)item.classList.add('selected');
- summary.append(item)
+function render(){
+ if(!active)return;
+ host.hidden=false;host.replaceChildren();
+ if(!client.signedIn()){
+  host.append(el('h2','PAPERWORLD · Sign in'),el('p','Sign in to open your private project workspace.'),loginForm());return;
+ }
+ const top=el('div',undefined,'room-heading');
+ top.append(el('h2',room==='workshop'?'Listening Mirror Workshop':room==='town'?'Chief of Staff':model.ROOMS.find(r=>r.id===room).name));
+ top.append(btn('Back to local',()=>{active=false;window.PaperworldRooms.open(room,true)}));
+ host.append(top);
+ if(message)host.append(el('p',message,message.startsWith('Error:')?'room-error':'room-notice'));
+ if(busy)host.append(el('p','Working…','room-footnote'));
+ const userBar=el('div',undefined,'room-ops');
+ userBar.append(el('small',client.identity()),
+  btn('Refresh',()=>work(reload)),
+  btn('Sign out',()=>work(async()=>{await client.signout();tasks=[];allTasks=[];missions=[];edit=null;workshopInput='';workshopResponse=null})));
+ host.append(userBar);
+ if(room==='workshop'){
+  renderWorkshop();return;
+ }
+ renderChiefOrRoom();
 }
-overview.append(summary);host.append(overview);
-if(room==='workshop'&&window.PaperworldWorkshop){
- const workshop=window.PaperworldWorkshop;
- const talk=el('section',undefined,'workshop-dialogue');
- talk.append(el('h3','Ο προγραμματιστής του Listening Mirror'));
- talk.append(el('p','Πες μου τι δεν δουλεύει. Θα καταλάβω ποια ήδη γνωστή εργασία αφορά και θα σου δείξω το επόμενο ασφαλές βήμα. Δεν κάνω ακόμη αυτόματη ανάλυση ή αλλαγές χωρίς έγκριση.','room-footnote'));
- const form=el('form',undefined,'workshop-message-form');
- const field=el('textarea');field.rows=3;field.maxLength=1500;field.placeholder='Φίλε, δεν δουλεύει καλά το TicketSwap…';
- field.setAttribute('aria-label','Μίλησε στον προγραμματιστή του Listening Mirror');
- field.value=workshopInput;
- field.addEventListener('input',()=>{workshopInput=field.value});
- const send=el('button','Στείλε στον προγραμματιστή','primary');send.type='submit';
- form.append(field,send);
- form.addEventListener('submit',e=>{
-   e.preventDefault();
-   const result=workshop.classify(field.value);
-   if(result.type==='empty'){message='Γράψε πρώτα τι θέλεις να ελέγξουμε.';render();return}
-   workshopInput=result.text;workshopResponse=result;render()
+function renderWorkshop(){
+ const workshop=window.PaperworldWorkshop,chief=window.PaperworldChief;
+ const header=el('section',undefined,'developer-chat');
+ header.append(el('h3','Ο προγραμματιστής σου'));
+ header.append(el('p','Πες μου τι χρειάζεται το Listening Mirror. Για το TicketSwap μπορώ ήδη να αναθέσω ασφαλή τεχνική έρευνα, με την έγκρισή σου.','room-footnote'));
+ const chat=el('div',undefined,'developer-messages');
+ if(!workshopResponse)chat.append(el('p','Developer: Γεια σου! Τι δεν δουλεύει;','developer-bubble'));
+ else{
+  chat.append(el('p','Εσύ: '+workshopResponse.text,'human-bubble'));
+  chat.append(el('p','Developer: '+workshopResponse.reply,'developer-bubble'));
+ }
+ header.append(chat);
+ const f=el('form',undefined,'developer-form');
+ const input=el('textarea');input.rows=3;input.maxLength=1500;
+ input.placeholder='Π.χ. Φίλε, δεν δουλεύει το TicketSwap…';
+ input.value=workshopInput;input.setAttribute('aria-label','Μήνυμα στον προγραμματιστή');
+ input.addEventListener('input',()=>{workshopInput=input.value});
+ const send=el('button','Στείλε','primary');send.type='submit';
+ f.append(input,send);
+ f.addEventListener('submit',event=>{
+  event.preventDefault();const result=workshop.classify(input.value);
+  if(result.type==='empty'){message='Γράψε πρώτα τι θέλεις να ελέγξουμε.';render();return}
+  workshopResponse=result;workshopInput='';message='';render()
  });
- talk.append(form);
- if(workshopResponse){
-   const response=el('div',undefined,'workshop-reply');
-   response.append(el('p','Εσύ: '+workshopResponse.text));
-   response.append(el('p','Developer: '+workshopResponse.reply));
-   const actions=el('div',undefined,'room-ops');
-   if(workshopResponse.type==='ticketswap'){
-     const existing=workshop.existingTicketSwap(missions);
-     if(existing){
-       response.append(el('p','Βρέθηκε η υπάρχουσα αποστολή: '+existing.title+' · '+existing.status.replaceAll('_',' '),'room-footnote'));
-       actions.append(btn('Δες την αποστολή',()=>{
-         const el=host.querySelector('[data-mission-id="'+existing.id+'"]');
-         if(el){el.scrollIntoView({behavior:'smooth',block:'nearest'});el.classList.add('chief-focused')}
-         else note('Η αποστολή δεν είναι ορατή στον πίνακα. Άνοιξε το Chief of Staff.')
-       }))
-     }else{
-       response.append(el('p','Δεν υπάρχει ακόμη ενεργή αποστολή TicketSwap. Μπορείς να δημιουργήσεις μία από το Chief of Staff.','room-footnote'));
-     }
-   }else{
-     actions.append(btn('Αποθήκευση ως εργασία',()=>work(async()=>{
-       if(!confirm('Να αποθηκεύσω αυτό το αίτημα ως νέα εργασία στο Listening Mirror Cloud;'))return;
-       await client.add('workshop',workshopResponse.text.slice(0,160),workshopResponse.text);
-       workshopResponse=null;workshopInput='';await reload();
-       message='Το αίτημα αποθηκεύτηκε ως εργασία. Δεν ξεκίνησε AI Worker.'
-     }),'primary'))
-   }
-   response.append(actions);talk.append(response)
- }
- host.append(talk)
-}
-const chief=window.PaperworldChief;
-if(chief){
- const report=chief.summarize(allTasks);
- const desk=el('section',undefined,'chief-desk');
- const heading=el('div',undefined,'chief-heading');
- heading.append(el('h3','Chief of Staff'),el('span','RULE-BASED · NO AI','chief-tag'));
- desk.append(heading);
- desk.append(el('p',report.guidance,'room-description'));
- if(!report.review.length)desk.append(el('p','Create a cloud task to begin planning.','room-footnote'));
- for(const proposal of report.review){
-   const original=allTasks.find(t=>t.id===proposal.id);
-   if(!original)continue;
-   const card=el('article',undefined,'chief-item');
-   const label=el('strong',original.title);
-   const meta=el('p',chief.PROJECTS[original.room]+' · '+proposal.reason,'room-footnote');
-   card.append(label,meta);
-   const controls=el('div',undefined,'room-ops');
-   controls.append(btn('Open project',()=>work(async()=>{room=original.room;edit=null;await reload()})));
-   if(original.status==='todo')controls.append(btn('Start task',()=>work(async()=>{
-     await client.update(original.id,{status:'doing'});await reload();message='Marked in progress by you. No agent has been started.'
+ header.append(f);
+ host.append(header);
+ const current=workshop.existingTicketSwap(missions);
+ const isTicket=workshopResponse?.type==='ticketswap';
+ if(isTicket){
+  const card=el('section',undefined,'developer-mission');
+  card.append(el('h3','TicketSwap · μία αποστολή'));
+  if(current){
+   card.append(el('p',current.status==='ready_for_review'?'Έτοιμη για τεχνική έρευνα':'Προσχέδιο · δεν έχει εγκριθεί ακόμη','room-footnote'));
+   const ops=el('div',undefined,'room-ops');
+   if(current.status==='draft')ops.append(btn('Ετοίμασε για έλεγχο',()=>work(async()=>{
+    await client.setMissionStatus(current.id,'ready_for_review');await reload();
+    message='Η αποστολή είναι έτοιμη. Δεν εκτελέστηκε AI.'
    }),'primary'));
-   controls.append(btn('Copy brief',()=>{
-     const content=chief.brief(original);
-     if(navigator.clipboard?.writeText)navigator.clipboard.writeText(content).then(()=>note('Task brief copied.')).catch(()=>note('Clipboard unavailable — use your browser to copy the task.',true));
-     else note('Clipboard unavailable in this browser.',true);
-   }));
-   const link=chief.issueDraftUrl(original);
-   if(link)controls.append(btn('Draft GitHub issue',()=>{window.open(link,'_blank','noopener,noreferrer')}));
-   if(original.status!=='done'&&chief.REPOS[original.room]){
-     controls.append(btn('Prepare worker mission',()=>work(async()=>{
-       const draft=chief.missionFor(original);
-       await client.createMission(draft);
-       await reload();
-       message='Mission brief saved for your review. No worker has started and no code was changed.'
-     }),'primary'))
+   else{
+    ops.append(btn('Έλεγχος προόδου',()=>work(async()=>{
+     const response=await client.workerStatus(current.id);
+     workerReports.set(current.id,response);
+     message=response.run?'Εκτέλεση: '+response.run.status+(response.run.conclusion?' · '+response.run.conclusion:''):'Δεν βρέθηκε ακόμη εκτέλεση για αυτή την αποστολή.'
+    })));
+    ops.append(btn('Ξεκίνα έρευνα AI',()=>work(async()=>{
+     const explanation='Να ζητήσω ΜΙΑ έρευνα του TicketSwap από GitHub Copilot; Μπορεί να χρησιμοποιήσει τα διαθέσιμα Copilot Free AI credits. Δεν επιτρέπεις πρόσθετη χρέωση. Δεν θα κάνει push, merge ή deployment. Η ανάλυση θα γίνει σε προσωρινό αντίγραφο. Συνέχεια;';
+     if(!confirm(explanation)){message='Η έρευνα δεν ξεκίνησε.';return}
+     const result=await client.runApprovedAiMission(current.id,'I_APPROVE_INCLUDED_AI_CREDITS');
+     message=result.accepted?'Το GitHub δέχτηκε την εντολή. Πάτησε Έλεγχος προόδου για να δεις την εξέλιξη.':'Η έρευνα δεν ξεκίνησε.';
+    }),'primary'));
    }
-   card.append(controls);desk.append(card)
- }
- const missionPanel=el('div',undefined,'chief-missions');
- missionPanel.append(el('h4','Worker mission drafts · '+missions.length));
- if(!missions.length)missionPanel.append(el('p','No mission drafts yet. Choose Prepare worker mission on an open task.','room-footnote'));
- for(const mission of missions.slice(0,30)){
-   const card=el('article',undefined,'chief-item');
-   card.setAttribute('data-mission-id',mission.id);
-   card.append(el('strong',mission.title));
-   card.append(el('p',mission.repository+' · '+mission.status.replaceAll('_',' ')+' · investigation only','room-footnote'));
-   const buttons=el('div',undefined,'room-ops');
-   buttons.append(btn('Read brief',()=>{
-     const details=card.querySelector('.mission-brief');
-     if(details){details.remove();return}
-     const pre=el('pre',mission.brief,'mission-brief');card.append(pre)
-   }));
-   buttons.append(btn('Copy handoff',()=>{
-     if(navigator.clipboard?.writeText)navigator.clipboard.writeText(mission.brief).then(()=>note('Review brief copied. No worker started.')).catch(()=>note('Clipboard unavailable.',true));
-     else note('Clipboard unavailable.',true)
-   }));
-   if(mission.status==='ready_for_review' && mission.repository==='mr-tanq/concerts' && /ticketswap/i.test(mission.title)){
-     buttons.append(btn('Prepare-only in GitHub',()=>work(async()=>{
-       if(!confirm('Request the TicketSwap prepare-only workflow? This creates a scope artifact without running AI or consuming AI inference credits.')){
-         message='Prepare-only request cancelled.';return
-       }
-       const response=await client.prepareWorkerMission(mission.id);
-       message=response.accepted?'GitHub accepted the prepare-only job. Use Check worker run to see the latest status.':'No workflow was started.'
-     }),'primary'))
+   const status=workerReports.get(current.id);
+   if(status?.run?.status==='completed'){
+    ops.append(btn('Δες την αναφορά',()=>work(async()=>{
+     const report=await client.workerStatus(current.id,true);
+     workerReports.set(current.id,report);
+     message=report.report?'Η αναφορά φορτώθηκε από το GitHub.':'Δεν υπάρχει διαθέσιμη αναφορά.';
+    })));
    }
-   if(mission.status==='ready_for_review'&&mission.repository==='mr-tanq/concerts'&&/ticketswap/i.test(mission.title)){
-     buttons.append(btn('Run AI investigation',()=>work(async()=>{
-       const info='This uses your included GitHub Copilot Free AI credits (if available). You have configured $0 overage, but PAPERWORLD cannot independently verify GitHub billing settings. The AI can edit ONLY a temporary checkout; it cannot push, merge or deploy. To approve one run, type I_APPROVE_INCLUDED_AI_CREDITS.';
-       const approval=prompt(info);
-       if(approval===null){message='AI run cancelled. No credits consumed.';return;}
-       if(approval!=='I_APPROVE_INCLUDED_AI_CREDITS')throw Error('Acknowledgement mismatch; AI not started');
-       const result=await client.runApprovedAiMission(mission.id,approval);
-       message=result.accepted?'GitHub accepted this ONE AI analysis run. Check this mission to see progress; actual credit use depends on the Copilot allowance.':'AI run was not started.';
-     }),'chief-ai-run'))
-   }
-   if(mission.status!=='cancelled'){
-     buttons.append(btn('Check this mission',()=>work(async()=>{
-       const status=await client.workerStatus(mission.id);
-       workerReports.set(mission.id,status);
-       const run=status.run;
-       message=(status.connected?'Secure bridge connected. ':'Secure bridge not connected. ')+
-         (run?'This mission: '+run.status+(run.conclusion?' / '+run.conclusion:''):'No run yet for this mission.');
-     })));
-     const saved=workerReports.get(mission.id);
-     if(saved?.run?.status==='completed'){
-       buttons.append(btn('View worker result',()=>work(async()=>{
-         const report=await client.workerStatus(mission.id,true);
-         workerReports.set(mission.id,report);
-         message=report.report?'Worker report loaded from GitHub Actions.':'No report artifact available for this mission.';
-       })));
+   card.append(ops);
+   if(status){
+    const results=el('div',undefined,'developer-result');
+    const run=status.run;
+    results.append(el('p',run?
+     'GitHub: '+run.status+(run.conclusion?' / '+run.conclusion:'')+(run.mode==='prepare-only'?' · μόνο προετοιμασία':' · AI έρευνα'):
+     'Δεν υπάρχει ακόμη καταγεγραμμένη εκτέλεση αυτής της αποστολής.'));
+    if(run?.url){
+     const link=el('a','Άνοιξε την εκτέλεση στο GitHub');
+     link.href=run.url;link.target='_blank';link.rel='noopener noreferrer';results.append(link)
+    }
+    if(status.report?.files){
+     for(const name of ['analysis.md','audit.json','tests.log','worker.patch','scope.json','prompt.txt']){
+      if(!status.report.files[name])continue;
+      const details=el('details',undefined,'worker-report-file');
+      details.append(el('summary',name),el('pre',status.report.files[name],'mission-brief'));
+      results.append(details)
      }
-     if(saved){
-       const info=el('div',undefined,'worker-result');
-       const run=saved.run;
-       info.append(el('p',run?'This mission: '+run.status+(run.conclusion?' · '+run.conclusion:''):'No tagged run yet.','room-footnote'));
-       if(run?.url){
-         const link=el('a','Open matching GitHub run');
-         link.href=run.url;link.target='_blank';link.rel='noopener noreferrer';
-         info.append(link);
-       }
-       if(saved.report?.files){
-         for(const name of ['scope.json','audit.json','analysis.md','tests.log','worker.patch','prompt.txt']){
-           const content=saved.report.files[name];if(!content)continue;
-           const detail=el('details',undefined,'worker-report-file');
-           detail.append(el('summary',name),el('pre',content,'mission-brief'));
-           info.append(detail);
-         }
-       }
-       card.append(info);
-     }
+    }
+    card.append(results)
    }
-   if(mission.status==='draft')buttons.append(btn('Ready for MY review',()=>work(async()=>{
-     await client.setMissionStatus(mission.id,'ready_for_review');await reload();
-     message='Marked ready for your review only. This does not authorize execution.'
-   }),'primary'));
-   if(mission.status!=='cancelled')buttons.append(btn('Cancel draft',()=>work(async()=>{
-     await client.setMissionStatus(mission.id,'cancelled');await reload();message='Mission cancelled; no changes were made.'
-   })));
-   card.append(buttons);missionPanel.append(card)
+  }else card.append(el('p','Δεν βρέθηκε ενεργή αποστολή TicketSwap. Άνοιξε τον Chief of Staff για να οργανώσουμε την πρώτη.','room-footnote'));
+  host.append(card)
+ }else if(workshopResponse?.type==='other'){
+  const save=el('section',undefined,'developer-mission');
+  save.append(el('p','Μπορώ να κρατήσω το αίτημά σου χωρίς να προσποιηθώ ότι εκτελείται ήδη.','room-footnote'));
+  save.append(btn('Αποθήκευση αιτήματος',()=>work(async()=>{
+   if(!confirm('Να αποθηκεύσω το αίτημα ως εργασία στο Listening Mirror;'))return;
+   const note=workshopResponse.text;
+   await client.add('workshop',note.slice(0,160),note);
+   await reload();workshopResponse=null;message='Το αίτημα αποθηκεύτηκε. Δεν ξεκίνησε AI.';
+  }),'primary'));
+  host.append(save)
  }
- missionPanel.append(el('p','These are planning records, not queued or running agents. No GitHub writes, paid API calls, deployments or approvals are executed.','room-footnote'));
- desk.append(missionPanel);
- desk.append(el('p','Suggestions come from task status and creation order only. Opening a GitHub draft does not submit it. No autonomous work is running.','room-footnote'));
- host.append(desk)
+ const other=missions.filter(m=>m.project_room==='workshop'&&m.id!==current?.id);
+ if(other.length){
+  const details=el('details',undefined,'developer-archive');
+  details.append(el('summary','Παλαιότερες αποστολές ('+other.length+')'));
+  details.append(el('p','Τα παλιά προσχέδια διατηρούνται στο cloud, αλλά δεν εμφανίζονται ως ξεχωριστές ενεργές εργασίες.','room-footnote'));
+  host.append(details)
+ }
+ const tasksPanel=el('details',undefined,'developer-tasks');
+ tasksPanel.append(el('summary','Εργασίες Listening Mirror · '+tasks.length));
+ const wrap=el('div',undefined,'developer-task-body');
+ wrap.append(btn('+ Νέα εργασία',()=>{edit=true;render()},'primary'));
+ if(edit)wrap.append(form(edit===true?null:edit));
+ for(const status of ['doing','todo','done'])for(const task of tasks.filter(t=>t.status===status))wrap.append(taskRow(task));
+ tasksPanel.append(wrap);host.append(tasksPanel)
 }
-let tabs=el('div',undefined,'room-tabs');for(const r of model.ROOMS)tabs.append(btn(r.name,()=>work(async()=>{room=r.id;edit=null;await reload()}),room===r.id?'selected':''));host.append(tabs,el('h3',model.ROOMS.find(r=>r.id===room).name,'room-title'),el('p',tasks.length+' cloud tasks · '+tasks.filter(t=>t.status==='done').length+' done','room-stats'));
-host.append(edit?form(edit===true?null:edit):btn('+ New cloud task',()=>{edit=true;render()},'primary'));
-for(const s of ['doing','todo','done']){let entries=tasks.filter(t=>t.status===s);if(entries.length){host.append(el('h4',({doing:'In progress',todo:'To do',done:'Completed'})[s],'room-group-label'));for(const t of entries)host.append(taskRow(t))}}
-if(!tasks.length)host.append(el('p','No cloud tasks in this room yet.'));
-host.append(migration(),el('p','Cloud tasks sync across devices. Local tasks remain safe unless you explicitly copy them.','room-footnote'))}
+function renderChiefOrRoom(){
+ const tabs=el('div',undefined,'room-tabs');
+ for(const r of model.ROOMS)tabs.append(btn(r.name,()=>work(async()=>{room=r.id;edit=null;workshopResponse=null;await reload()}),r.id===room?'selected':''));
+ host.append(tabs);
+ if(room==='town'){
+  host.append(el('p','Εδώ παρακολουθείς όλα τα projects. Για αλλαγές στο Listening Mirror μίλα στον προγραμματιστή του Workshop.','room-footnote'));
+  const overview=el('div',undefined,'overview-projects');
+  for(const r of model.ROOMS){
+   const count=allTasks.filter(t=>t.room===r.id&&t.status!=='done').length;
+   overview.append(btn(r.name+' · '+count+' εκκρεμότητες',()=>work(async()=>{
+    room=r.id;edit=null;await reload()
+   }),'overview-project'))
+  }
+  host.append(overview)
+ }else{
+  host.append(el('h3',model.ROOMS.find(r=>r.id===room).name));
+  host.append(el('p',tasks.length+' cloud tasks','room-stats'))
+ }
+ if(room!=='town'){
+  if(edit)host.append(form(edit===true?null:edit));
+  else host.append(btn('+ Νέα εργασία',()=>{edit=true;render()},'primary'));
+  for(const task of tasks)host.append(taskRow(task))
+ }
+ if(room==='town'){
+  const pending=allTasks.filter(t=>t.status==='todo'||t.status==='doing');
+  if(pending.length){
+   const panel=el('section',undefined,'chief-desk');
+   panel.append(el('h3','Ανοιχτές εργασίες'));
+   for(const task of pending.slice(0,8)){
+    const item=el('div',undefined,'chief-item');
+    item.append(el('strong',task.title),el('p',model.ROOMS.find(r=>r.id===task.room)?.name||task.room,'room-footnote'));
+    item.append(btn('Άνοιξε project',()=>work(async()=>{room=task.room;await reload()})));
+    panel.append(item)
+   }
+   host.append(panel)
+  }
+ }else host.append(migration())
+}
+
 function open(id='town'){if(model.ROOMS.some(r=>r.id===id))room=id;active=true;edit=null;message='';render();if(client.signedIn())work(reload)}
 function focusChief(){
  const item=host.querySelector('.chief-desk');
