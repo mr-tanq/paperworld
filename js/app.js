@@ -48,7 +48,32 @@ demoButton.addEventListener('click',()=>{state.depthDemo=(state.depthDemo+1)%dem
 const actors=defs.map(d=>({id:({town:'matt',workshop:'listening-director',pokemon:'pokemon-director',wellbeing:'wellbeing-director',studio:'studio-director'})[d.id],name:d.id==='town'?'Matt':d.name+' Director',x:d.approach[0],y:d.approach[1]}));
 // Matt follows the player along previously walked positions rather than
 // teleporting through houses. This is visual companionship, not AI execution.
+// Matt's visual animation is independent of AI execution and task delegation.
+const mattVisual=new Image();
+mattVisual.decoding='async';
+mattVisual.src='./assets/matt-walk-atlas.png';
+function mattDirection(dx,dy,previous='down'){
+ if(Math.abs(dx)<0.001 && Math.abs(dy)<0.001)return previous;
+ return Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up');
+}
+function drawMattSprite(a,now){
+ if(!mattVisual.complete || !mattVisual.naturalWidth)return false;
+ const directions={down:0,right:1,up:2,left:3};
+ const row=directions[a.direction]??0,frame=a.moving?Math.floor(now/145)%4:0;
+ const sw=mattVisual.naturalWidth/4,sh=mattVisual.naturalHeight/4;
+ const dw=47,dh=77;
+ ctx.save();
+ ctx.fillStyle='rgba(31,24,18,.28)';
+ ctx.beginPath();ctx.ellipse(a.x,a.y-2,14,5,0,0,Math.PI*2);ctx.fill();
+ ctx.drawImage(mattVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh,dw,dh);
+ ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+ ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;
+ ctx.fillStyle='#fff4db';ctx.fillText('Matt',a.x,a.y+14);
+ ctx.restore();
+ return true;
+}
 const mattActor=actors.find(a=>a.id==='matt');
+mattActor.direction='down';mattActor.moving=false;
 mattActor.x=state.walker.x-36;mattActor.y=state.walker.y;
 const followTrail=[{x:state.walker.x,y:state.walker.y}];
 window.PaperworldWorld=Object.freeze({
@@ -119,6 +144,7 @@ const w=state.walker;
    id:d.id,depth:d.bottom,paint:()=>{const b=spriteBox(d);ctx.drawImage(d.image,b.x,b.y,b.width,b.height)}
  }));
  for(const a of actors)layers.push({id:'agent-'+a.id,depth:a.y,paint:()=>{
+ if(a.id==='matt' && drawMattSprite(a,now))return;
  ctx.save();ctx.fillStyle='#42362999';ctx.beginPath();ctx.ellipse(a.x,a.y,13,5,0,0,Math.PI*2);ctx.fill();
  ctx.fillStyle=a.id==='matt'?'#c9a56e':'#8ca7af';ctx.beginPath();ctx.arc(a.x,a.y-24,10,0,Math.PI*2);ctx.fill();
  ctx.fillStyle='#3c4d58';ctx.fillRect(a.x-10,a.y-14,20,20);
@@ -154,8 +180,11 @@ function tick(now){
  const last=followTrail[followTrail.length-1];
  if(Math.hypot(state.walker.x-last.x,state.walker.y-last.y)>11)
   followTrail.push({x:state.walker.x,y:state.walker.y});
+ mattActor.moving=false;
  if(followTrail.length>4){
   const next=followTrail[0],dx=next.x-mattActor.x,dy=next.y-mattActor.y,
+  mattActor.direction=mattDirection(dx,dy,mattActor.direction);
+  mattActor.moving=Math.hypot(dx,dy)>2;
         dist=Math.hypot(dx,dy),speed=125*dt;
   if(dist<=speed){mattActor.x=next.x;mattActor.y=next.y;followTrail.shift()}
   else{mattActor.x+=dx/dist*speed;mattActor.y+=dy/dist*speed}
