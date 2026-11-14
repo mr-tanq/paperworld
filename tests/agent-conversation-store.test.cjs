@@ -23,7 +23,7 @@ test('Client uses RLS transport, never accepts owner or agent messages',async()=
  assert.deepEqual(calls[0][1].data,{agent_id:'matt'});
  assert.deepEqual(calls[1][1].data,{thread_id:ID,role:'human',content:'Help me with Listening Mirror'});
  assert.ok(!JSON.stringify(calls).includes('owner_id'));
- assert.throws(()=>store.start('evil-agent'));
+ await assert.rejects(store.start('evil-agent'));
  await assert.rejects(store.say(ID,' '));
 });
 test('API is explicitly bounded and never dispatches Copilot',()=>{
