@@ -39,6 +39,7 @@ test('Reject changed imports, new privileged APIs, new URLs and source loss',()=
   updated.replace('return Boolean(value)','return fetch(value)'),
   updated.replace('return Boolean(value)',"return putFile(x)"),
   updated.replace('return Boolean(value)',"return 'https://attacker.example'"),
+  updated.replace('return Boolean(value)',"return import('./unexpected.js')"),
   original
  ]){
   const a=base();a.proposedFiles[0].content=content;
