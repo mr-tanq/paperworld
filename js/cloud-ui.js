@@ -231,6 +231,9 @@ function renderMattConversation(){
   const preview=window.PaperworldAgents?.previewHandoff(mattProposal)||'Πρόταση προς Director';
   proposal.append(el('p',preview));
   proposal.append(el('p','Καμία εντολή δεν στάλθηκε, ούτε έγινε χρήση credits.','room-footnote'));
+  if(mattProposal.to==='listening-director'&&window.PaperworldWorkshop?.classify(mattProposal.request).type==='ticketswap'){
+   proposal.append(btn('Άνοιξε την πραγματική αποστολή στο Workshop',()=>openMattHandoff(mattProposal),'primary'));
+  }
   proposal.append(btn('Απόκρυψη πρότασης',()=>{mattProposal=null;render()}));
   sec.append(proposal);
  }
@@ -279,6 +282,22 @@ function renderChiefOrRoom(){
  }else host.append(migration())
 }
 
+// Human-invoked, scope-checked handoff to an EXISTING real project mission.
+function openMattHandoff(handoff){
+ if(!client.signedIn())throw Error('Sign in to PAPERWORLD Cloud first');
+ const agents=window.PaperworldAgents,workshop=window.PaperworldWorkshop;
+ // The destination is fixed; never accept arbitrary project names or commands.
+ if(!handoff||handoff.from!=='matt'||handoff.to!=='listening-director'||
+    handoff.project!=='workshop'||handoff.state!=='proposed'||handoff.execution!=='none'||
+    !agents?.route('matt','listening-director')||
+    workshop?.classify(handoff.request).type!=='ticketswap')
+  throw Error('This handoff is not connected to a real mission yet');
+ workshopResponse=workshop.classify(handoff.request);
+ workshopInput='';
+ mattProposal=handoff;
+ open('workshop'); // Existing mission is loaded; no duplicate, dispatch or AI run.
+ return {destination:'workshop',executed:false,creditsUsed:false};
+}
 function open(id='town'){if(model.ROOMS.some(r=>r.id===id))room=id;active=true;edit=null;message='';render();if(client.signedIn())work(reload)}
 function focusChief(){
  const item=host.querySelector('.chief-desk');
@@ -298,6 +317,7 @@ window.PaperworldCloudUI={
  mattMessages:()=>sessionForWorld().messages(),
  sendMattMessage:(text)=>{const response=sessionForWorld().send(text,allTasks);mattProposal=response.proposal;if(active&&room==='town')render();return response},
  privateAgentMessages:(id)=>client.agentMessages(id),
- sendPrivateAgentMessage:(id,text)=>client.sendAgentNote(id,text)
+ sendPrivateAgentMessage:(id,text)=>client.sendAgentNote(id,text),
+ openMattHandoff
 };
 })();
