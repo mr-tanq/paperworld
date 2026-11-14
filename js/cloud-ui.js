@@ -207,36 +207,13 @@ function renderWorkshop(){
  tasksPanel.append(wrap);host.append(tasksPanel)
 }
 function renderMattConversation(){
- const engine=window.PaperworldMattChat;
  const sec=el('section',undefined,'developer-chat');
- sec.append(el('h3','Μίλα στον Matt'));
- sec.append(el('p','Τοπικό ιστορικό στη συσκευή σου · χωρίς ενεργό AI μοντέλο ή εκτέλεση agents.','room-footnote'));
- if(!engine){sec.append(el('p','Το σύστημα συνομιλίας δεν φορτώθηκε.','room-error'));return sec}
- try{if(!mattSession)mattSession=engine.createSession({storage:localStorage,identity:client.identity()})}
- catch(_){sec.append(el('p','Δεν είναι διαθέσιμο το τοπικό ιστορικό.','room-error'));return sec}
- const log=el('div',undefined,'developer-messages');
- const entries=mattSession.messages();
- if(!entries.length)log.append(el('p','Matt: Γεια σου. Μπορώ να σου δείξω εκκρεμότητες ή να προτείνω ανάθεση σε έναν Director. Δεν είμαι ακόμη συνδεδεμένος με AI.','developer-bubble'));
- for(const item of entries)log.append(el('p',(item.role==='human'?'Εσύ: ':'Matt: ')+item.text,item.role==='human'?'human-bubble':'developer-bubble'));
- sec.append(log);
- const form=el('form',undefined,'developer-form');
- const input=el('textarea');input.rows=2;input.maxLength=1500;input.required=true;input.setAttribute('aria-label','Μήνυμα στον Matt');input.placeholder='Π.χ. Matt, τι εκκρεμότητες έχουμε στο Listening Mirror;';
- const send=el('button','Στείλε μήνυμα','primary');send.type='submit';
- form.append(input,send);
- form.addEventListener('submit',e=>{e.preventDefault();try{const response=mattSession.send(input.value,allTasks);mattProposal=response.proposal;render()}catch(error){note(error.message,true)}});
- sec.append(form);
- if(mattProposal){
-  const proposal=el('div',undefined,'developer-mission');
-  proposal.append(el('strong','Πρόταση ανάθεσης (δεν έχει εκτελεστεί)'));
-  const preview=window.PaperworldAgents?.previewHandoff(mattProposal)||'Πρόταση προς Director';
-  proposal.append(el('p',preview));
-  proposal.append(el('p','Καμία εντολή δεν στάλθηκε, ούτε έγινε χρήση credits.','room-footnote'));
-  proposal.append(btn('Απόκρυψη πρότασης',()=>{mattProposal=null;render()}));
-  sec.append(proposal);
- }
- sec.append(btn('Καθαρισμός τοπικού ιστορικού',()=>{
-   if(confirm('Να διαγραφεί το ιστορικό συνομιλίας Matt μόνο από αυτή τη συσκευή;')){mattSession.clear();mattProposal=null;render()}
- }));
+ sec.append(el('h3','Matt · Chief of Staff'));
+ sec.append(el('p','Άνοιξε το σκούρο Messenger του Matt μέσα στο χωριό. Εκεί διαβάζεις τα μηνύματά σου και μπορείς να πας στην πραγματική αποστολή Listening Mirror. Προς το παρόν ο Matt δεν είναι συνδεδεμένος με AI.','room-footnote'));
+ sec.append(btn('Άνοιξε το Messenger του Matt',()=>{
+  if(!window.PaperworldWorldDialogue?.show){note('Το παράθυρο Messenger δεν φορτώθηκε.',true);return}
+  window.PaperworldWorldDialogue.show('matt');
+ },'primary'));
  return sec;
 }
 function renderChiefOrRoom(){
@@ -279,6 +256,22 @@ function renderChiefOrRoom(){
  }else host.append(migration())
 }
 
+// Human-invoked, scope-checked handoff to an EXISTING real project mission.
+function openMattHandoff(handoff){
+ if(!client.signedIn())throw Error('Sign in to PAPERWORLD Cloud first');
+ const agents=window.PaperworldAgents,workshop=window.PaperworldWorkshop;
+ // The destination is fixed; never accept arbitrary project names or commands.
+ if(!handoff||handoff.from!=='matt'||handoff.to!=='listening-director'||
+    handoff.project!=='workshop'||handoff.state!=='proposed'||handoff.execution!=='none'||
+    !agents?.route('matt','listening-director')||
+    workshop?.classify(handoff.request).type!=='ticketswap')
+  throw Error('This handoff is not connected to a real mission yet');
+ workshopResponse=workshop.classify(handoff.request);
+ workshopInput='';
+ mattProposal=handoff;
+ open('workshop'); // Existing mission is loaded; no duplicate, dispatch or AI run.
+ return {destination:'workshop',executed:false,creditsUsed:false};
+}
 function open(id='town'){if(model.ROOMS.some(r=>r.id===id))room=id;active=true;edit=null;message='';render();if(client.signedIn())work(reload)}
 function focusChief(){
  const item=host.querySelector('.chief-desk');
@@ -298,6 +291,7 @@ window.PaperworldCloudUI={
  mattMessages:()=>sessionForWorld().messages(),
  sendMattMessage:(text)=>{const response=sessionForWorld().send(text,allTasks);mattProposal=response.proposal;if(active&&room==='town')render();return response},
  privateAgentMessages:(id)=>client.agentMessages(id),
- sendPrivateAgentMessage:(id,text)=>client.sendAgentNote(id,text)
+ sendPrivateAgentMessage:(id,text)=>client.sendAgentNote(id,text),
+ openMattHandoff
 };
 })();
