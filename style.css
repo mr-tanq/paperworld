@@ -133,3 +133,7 @@ aside{min-width:0;min-height:0;overscroll-behavior:contain}
 .developer-task-body{padding:12px 0}
 .developer-mission .room-ops{display:flex;flex-wrap:wrap;gap:7px}
 .developer-mission .room-ops button{min-height:38px}
+
+/* Failed Worker attempts must never look like success. */
+.developer-result.worker-failed{background:#f8e8e2;border:1px solid #d8a99d;color:#733f34}
+.developer-result.worker-failed a{color:#8c4639}
