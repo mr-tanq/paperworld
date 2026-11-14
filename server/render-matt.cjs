@@ -1,10 +1,10 @@
-/* PAPERWORLD Render Free bootstrap. PUBLIC HTTP, AI intentionally OFF.
- * No OAuth tokens, Copilot SDK or private project data available here.
- * This file only proves HTTPS reachability after explicitly approved deployment.
+/* PAPERWORLD Render Free server. AI gated by owner auth, consent and model quota.
+ * Never log or return OAuth tokens. No autonomous tools or background work.
  */
 'use strict';
 const http=require('node:http');
 const {createGithubOAuth,APP_ORIGIN}=require('./github-oauth.cjs');
+const {makeMattChat}=require('./matt-live-chat.cjs');
 function response(res,status,body){
  res.writeHead(status,{'Content-Type':'application/json; charset=utf-8',
   'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
@@ -17,11 +17,15 @@ function createRenderMattServer({oauth=createGithubOAuth({
   clientSecret:process.env.GITHUB_OAUTH_CLIENT_SECRET,
   supabaseUrl:'https://jrevhzvrgenucuozjowm.supabase.co',
   supabaseKey:'sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL'
- })}={}){
+ }),chatFactory=({oauth})=>makeMattChat({oauth,clientFactory:async options=>{
+  const {CopilotClient}=await import('@github/copilot-sdk');
+  return new CopilotClient(options);
+ }})}={}){
+ const live=chatFactory({oauth});
  const server=http.createServer(async(req,res)=>{
   // Never enable CORS or accept browser credentials until a full OAuth review.
   if(req.method==='GET'&&req.url==='/health')
-   return response(res,200,{service:'paperworld-matt',reachable:true,aiEnabled:false,stage:'hosting-smoke-test'});
+   return response(res,200,{service:'paperworld-matt',reachable:true,aiEnabled:true,stage:'authenticated-chat-guarded'});
   if(req.url==='/auth/github/callback' || req.url?.startsWith('/auth/github/callback?')){
    const result=await oauth.callback({url:req.url});
    res.writeHead(result.status,result.headers);res.end();return;
@@ -42,8 +46,31 @@ function createRenderMattServer({oauth=createGithubOAuth({
     res.writeHead(result.status,result.headers);res.end(JSON.stringify(result.body));return;
    }catch(_){response(res,503,{error:'oauth_unavailable'});return}
   }
-  if(req.url==='/chat/matt')
-   return response(res,503,{error:'ai_not_connected'});
+  if(req.url==='/chat/matt'){
+   if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
+    res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
+     'Access-Control-Allow-Methods':'POST, OPTIONS',
+     'Access-Control-Allow-Headers':'authorization,content-type',
+     'Vary':'Origin','Access-Control-Max-Age':'600'});res.end();return;
+   }
+   if(req.method!=='POST')return response(res,405,{error:'method_not_allowed'});
+   if(req.headers.origin!==APP_ORIGIN)return response(res,403,{error:'origin_denied'});
+   let parts=[],total=0;
+   try{
+    for await(const chunk of req){
+     total+=chunk.length;
+     if(total>4000){res.writeHead(413,{'Content-Type':'application/json'});
+      res.end(JSON.stringify({error:'request_too_large'}));return}
+     parts.push(chunk);
+    }
+    const result=await live.handle({headers:req.headers,
+      body:Buffer.concat(parts).toString('utf8')});
+    res.writeHead(result.status,{'Content-Type':'application/json; charset=utf-8',
+      'Cache-Control':'no-store','Access-Control-Allow-Origin':APP_ORIGIN,
+      'Vary':'Origin','X-Content-Type-Options':'nosniff'});
+    res.end(JSON.stringify(result.body));return;
+   }catch(_){return response(res,503,{error:'chat_unavailable'})}
+  }
   return response(res,404,{error:'not_found'});
  });
  server.requestTimeout=10000;
