@@ -80,7 +80,8 @@ const mattActor=actors.find(a=>a.id==='matt');
 mattActor.direction='down';mattActor.moving=false;mattActor.walkDistance=16;
 mattActor.x=state.walker.x-36;mattActor.y=state.walker.y;
 const followTrail=[{x:state.walker.x,y:state.walker.y}];
-const agentJourney={mode:'following',route:[],phase:'idle',meeting:false};
+const agentJourney={mode:'following',route:[],phase:'idle',meeting:false,
+ pendingReturn:false,meetingSince:0};
 window.PaperworldWorld=Object.freeze({
  agents:()=>actors.map(a=>({...a})),
  // T addresses a nearby Director; M talks to the always-available Matt.
@@ -112,9 +113,14 @@ function setAgentWorkflowStage(stateName){
  if(!projection)return false;
  agentJourney.phase=projection.phase;
  if(projection.returning){
-  agentJourney.meeting=false;
-  if(planMattRoute([state.walker.x,state.walker.y]))agentJourney.mode='returning';
-  else agentJourney.mode='following';
+  // Finish the physical walk and brief encounter even if the AI response
+  // finishes before the sprite reaches the workshop. Visual playback only.
+  agentJourney.pendingReturn=true;
+  if(agentJourney.mode==='following'){
+   agentJourney.pendingReturn=false;
+   agentJourney.meeting=false;
+   if(planMattRoute([state.walker.x,state.walker.y]))agentJourney.mode='returning';
+  }
  }else if(projection.travel&&agentJourney.mode==='following'){
   if(planMattRoute([1125,515]))agentJourney.mode='outbound';
  }
@@ -234,12 +240,19 @@ function tick(now){
    }
    if(dist<=speed+0.01)agentJourney.route.shift();
   }else if(agentJourney.mode==='outbound'){
-   agentJourney.mode='meeting';agentJourney.meeting=true;
+   agentJourney.mode='meeting';agentJourney.meeting=true;agentJourney.meetingSince=now;
   }else{
    agentJourney.mode='following';agentJourney.meeting=false;
    followTrail.length=0;followTrail.push({x:state.walker.x,y:state.walker.y});
   }
- }else if(agentJourney.mode==='following'&&followTrail.length>4){
+ }
+ if(agentJourney.mode==='meeting'&&agentJourney.pendingReturn&&
+    now-agentJourney.meetingSince>1600){
+  agentJourney.meeting=false;agentJourney.pendingReturn=false;
+  if(planMattRoute([state.walker.x,state.walker.y]))agentJourney.mode='returning';
+  else agentJourney.mode='following';
+ }
+ if(agentJourney.mode==='following'&&followTrail.length>4){
   const next=followTrail[0],dx=next.x-mattActor.x,dy=next.y-mattActor.y,
         dist=Math.hypot(dx,dy),speed=125*dt;
   if(dist>0.01){
