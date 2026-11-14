@@ -18,25 +18,28 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
  const used=new Map(),busy=new Set(),conversations=new Map();
  function clean(){for(const [id,until] of used)if(until<clock())used.delete(id)}
  function deny(status,error){return {status,body:{error}}}
- function eligible(models,quota){
-  const listed=Array.isArray(models)?models:models?.models;
-  if(!Array.isArray(listed))return null;
+ // GitHub switched from premium-request-based pricing to token-priced AI Credits
+ // on June 1, 2026. Do NOT infer a free turn from legacy multipliers.
+ // Every turn also requires GitHub account-level $0 additional usage budget.
+ async function entitled(client,token){
+  if(typeof client.listModels!=='function')return null;
+  const models=await client.listModels();
+  if(!Array.isArray(models)||!models.length)return null;
+  const desired=models.find(m=>m.id==='gpt-5.4-mini')||
+   models.find(m=>m.id==='gpt-5-mini')||
+   models.find(m=>m.id==='gpt-4.1');
+  if(!desired||typeof desired.id!=='string')return null;
+  if(typeof client.rpc?.account?.getQuota!=='function')return null;
+  const quota=await client.rpc.account.getQuota({gitHubToken:token});
   const snapshots=quota?.quotaSnapshots;
-  const premium=snapshots?.premium_interactions;
-  const chat=snapshots?.chat;
-  const unlimited=chat?.entitlementRequests===-1||
-      premium?.entitlementRequests===-1;
-  const premiumRemaining=Number(premium?.entitlementRequests)-Number(premium?.usedRequests);
-  const inside=unlimited||Number.isFinite(premiumRemaining)&&premiumRemaining>=5;
-  const supported=listed.filter(x=>typeof x.id==='string'&&
-    /^[-a-z0-9.]+$/i.test(x.id)&&
-    Number.isFinite(x.billing?.multiplier)&&x.billing.multiplier>=0&&
-    x.billing.multiplier<=1);
-  const free=supported.find(x=>x.billing.multiplier===0);
-  if(free)return {id:free.id,cost:0};
-  if(!inside)return null;
-  const included=supported.find(x=>x.billing.multiplier>0&&x.billing.multiplier<=1);
-  return included?{id:included.id,cost:included.billing.multiplier}:null;
+  // The effective AI-Credit entitlement must be observable. Missing quota
+  // is NOT interpreted as unlimited usage.
+  const ai=snapshots?.ai_credits||snapshots?.ai_credit;
+  if(!ai||!Number.isFinite(ai.entitlementRequests)||!Number.isFinite(ai.usedRequests))
+   return null;
+  if(ai.entitlementRequests!==-1&&ai.entitlementRequests-ai.usedRequests<5)
+   return null;
+  return {id:desired.id};
  }
  async function handle({headers={},body}={}){
   if(headers.origin!=='https://mr-tanq.github.io')return deny(403,'origin_denied');
@@ -66,10 +69,8 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
   try{
    client=await clientFactory({gitHubToken:token,useLoggedInUser:false,mode:'empty'});
    await client.start();
-   const models=await client.rpc.models.list({});
-   const quota=await client.rpc.account.getQuota({});
-   const model=eligible(models,quota);
-   if(!model)return deny(403,'no_confirmed_included_model_or_quota');
+   const model=await entitled(client,token);
+   if(!model)return deny(403,'ai_credit_quota_not_verified');
    const conversationKey=ownerId+':'+data.threadId;
    const context=conversations.get(conversationKey)||[];
    // Separate this stored conversation text from the Chief's system instructions.
@@ -79,6 +80,7 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
    session=await client.createSession({
     model:model.id,
     gitHubToken:token,
+    sessionLimits:{maxAiCredits:1},
     availableTools:[],
     onPermissionRequest:async()=>({kind:'reject'}),
     hooks:{onPreToolUse:async()=>({permissionDecision:'deny',
@@ -98,7 +100,7 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
      {role:'Matt',text:content.trim().slice(0,1500)}].slice(-8));
    return {status:200,body:{content:content.slice(0,6000),
      agentId:'matt',executed:true,model:model.id,
-     billingMultiplier:model.cost,requestId:data.requestId,
+     sessionCreditSoftLimit:1,requestId:data.requestId,
      persisted:false}};
   }catch(_){return deny(503,'copilot_runtime_unavailable')}
   finally{
