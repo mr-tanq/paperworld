@@ -95,6 +95,7 @@ jobs:
           COPILOT_AUTO_UPDATE: 'false'
         run: |
           copilot -p "$(cat ../worker-output/prompt.txt)" -s --no-ask-user \
+            --model=claude-haiku-4.5 --max-ai-credits=0.50 \
             --available-tools='view,grep,glob,edit,create,apply_patch' \
             --allow-tool=read --allow-tool=write \
             --deny-tool=shell --deny-tool=url --deny-tool=memory \
