@@ -106,7 +106,9 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
     gitHubToken:token,
     sessionLimits:{maxAiCredits:1},
     availableTools:[],
-    excludedBuiltinAgents:['*'],
+    // An exclusion list accepts exact agent names, not a wildcard.
+    // Empty includedBuiltinAgents explicitly disables built-in subagents.
+    includedBuiltinAgents:[],
     onPermissionRequest:async()=>({kind:'reject'}),
     hooks:{onPreToolUse:async()=>({permissionDecision:'deny',
       permissionDecisionReason:'Chat only; no agent tools are authorized'})},
