@@ -272,6 +272,34 @@ function openMattHandoff(handoff){
  open('workshop'); // Existing mission is loaded; no duplicate, dispatch or AI run.
  return {destination:'workshop',executed:false,creditsUsed:false};
 }
+// The same existing Listening Mirror mission and worker bridge used by the Workshop.
+// Read-only by default; no duplicate jobs and no hidden AI execution.
+async function mattMissionStatus(){
+ if(!client.signedIn())throw Error('Sign in to PAPERWORLD Cloud');
+ const live=await client.listMissions();
+ const mission=window.PaperworldWorkshop?.existingTicketSwap(live);
+ if(!mission)return {found:false,mission:null,run:null,report:null};
+ const response=await client.workerStatus(mission.id);
+ return {found:true,mission,run:response?.run||null,report:null};
+}
+async function mattMissionReport(){
+ const state=await mattMissionStatus();
+ if(!state.found)return state;
+ const response=await client.workerStatus(state.mission.id,true);
+ return {...state,run:response?.run||state.run,report:response?.report||null};
+}
+async function mattRequestAiInvestigation({confirmCredits}={}){
+ if(!client.signedIn())throw Error('Sign in to PAPERWORLD Cloud');
+ if(confirmCredits!=='I_APPROVE_INCLUDED_AI_CREDITS')throw Error('Explicit credit approval required');
+ const state=await mattMissionStatus();
+ if(!state.found||state.mission.status!=='ready_for_review')
+  throw Error('No ready TicketSwap mission. Open the Workshop first.');
+ if(state.run?.mode==='run-ai'&&(state.run.status!=='completed'||state.run.retryBlocked))
+  throw Error('Previous AI run is active or retry blocked');
+ // A single existing bridge request; never push, merge or deploy automatically.
+ const result=await client.runApprovedAiMission(state.mission.id,confirmCredits);
+ return {accepted:result?.accepted===true,missionId:state.mission.id};
+}
 function open(id='town'){if(model.ROOMS.some(r=>r.id===id))room=id;active=true;edit=null;message='';render();if(client.signedIn())work(reload)}
 function focusChief(){
  const item=host.querySelector('.chief-desk');
@@ -292,6 +320,6 @@ window.PaperworldCloudUI={
  sendMattMessage:(text)=>{const response=sessionForWorld().send(text,allTasks);mattProposal=response.proposal;if(active&&room==='town')render();return response},
  privateAgentMessages:(id)=>client.agentMessages(id),
  sendPrivateAgentMessage:(id,text)=>client.sendAgentNote(id,text),
- openMattHandoff
+ openMattHandoff,mattMissionStatus,mattMissionReport,mattRequestAiInvestigation
 };
 })();
