@@ -21,7 +21,8 @@ function createRenderMattServer({oauth=createGithubOAuth({
   const {CopilotClient}=await import('@github/copilot-sdk');
   return new CopilotClient(options);
  }})}={}){
- const live=chatFactory({oauth});
+ let live;
+ function getLive(){if(!live)live=chatFactory({oauth});return live}
  const server=http.createServer(async(req,res)=>{
   // Never enable CORS or accept browser credentials until a full OAuth review.
   if(req.method==='GET'&&req.url==='/health')
@@ -63,7 +64,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
       res.end(JSON.stringify({error:'request_too_large'}));return}
      parts.push(chunk);
     }
-    const result=await live.handle({headers:req.headers,
+    const result=await getLive().handle({headers:req.headers,
       body:Buffer.concat(parts).toString('utf8')});
     res.writeHead(result.status,{'Content-Type':'application/json; charset=utf-8',
       'Cache-Control':'no-store','Access-Control-Allow-Origin':APP_ORIGIN,
