@@ -494,8 +494,8 @@ test('AI execution is a one-shot human-only Copilot Free credit opt-in',()=>{
  assert.ok(edge.includes('mode=ai?"run-ai":"prepare-only"'));
  assert.ok(edge.includes('approve_credits:ai?"I_APPROVE_AI_CREDITS":""'));
  assert.ok(edge.includes('cooldown=ai?24*60*60*1000'));
- assert.ok(workflow.includes('--max-ai-credits=0.50'));
- assert.ok(workflow.includes('--model=claude-haiku-4.5'));
+ assert.ok(workflow.includes('--max-ai-credits=30'));
+ assert.ok(workflow.includes('--model=auto'));
  assert.ok(!workflow.includes('contents: write'));
 });
 
@@ -545,4 +545,12 @@ test('natural-language request can start AI only after a separate explicit confi
  assert.ok(ui.includes('Το αίτημα αποθηκεύτηκε. Δεν ξεκίνησε AI.'));
  assert.ok(html.includes('style.css?v=workspace-034'));
  assert.equal(workshop.classify('Δεν δουλεύει το τικετσουατ').type,'ticketswap');
+});
+
+test('Copilot Free workflow uses valid minimum credit cap and auto model selection',()=>{
+ const workflow=read('.github/workflows/worker-review.yml');
+ assert.match(workflow,/--model=auto --max-ai-credits=30/);
+ assert.doesNotMatch(workflow,/--max-ai-credits=0\.50/);
+ assert.match(workflow,/if: inputs.mode == 'run-ai'/);
+ assert.match(workflow,/I_APPROVE_AI_CREDITS/);
 });
