@@ -1,11 +1,11 @@
 /* PAPERWORLD in-world Messenger-style conversations.
- * One visual message stream, real private user notes, and honest non-AI responses.
+ * One visual message stream and private user notes, waiting for real AI connection.
  * No Copilot model call, credit use or automatic worker execution.
  */
 (()=>{'use strict';
  const view=document.querySelector('#view'),world=()=>window.PaperworldWorld,cloud=()=>window.PaperworldCloudUI;
  if(!view)return;
- let openId=null,revision=0,busy=false,proposedHandoff=null;
+ let openId=null,revision=0,busy=false;
  const make=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e};
  const actions=make('div','world-talk-actions');
  const mattBtn=make('button','','M · Matt'),nearBtn=make('button','','T · Talk');
@@ -21,7 +21,7 @@
  avatar.setAttribute('aria-hidden','true');
  const identity=make('div','world-chat-identity');
  const heading=make('strong','','Matt');
- const activity=make('small','world-chat-presence','Chief of Staff · AI not connected');
+ const activity=make('small','world-chat-presence','Chief of Staff · AI offline');
  identity.append(heading,activity);
  const close=make('button','world-chat-close','×');
  close.type='button';close.setAttribute('aria-label','Close conversation');
@@ -31,8 +31,6 @@
  const messages=make('div','world-dialogue-messages');
  messages.setAttribute('role','log');
  messages.setAttribute('aria-label','Conversation messages');
- const handoffAction=make('button','world-dialogue-handoff','Άνοιξε την αποστολή στο Listening Mirror Workshop');
- handoffAction.type='button';handoffAction.hidden=true;
  const form=make('form','world-dialogue-form');
  const field=make('textarea','world-chat-input');
  const send=make('button','world-chat-send','➤');
@@ -42,7 +40,7 @@
  form.append(field,send);
  const composer=make('footer','world-chat-composer');
  const helper=make('small','world-chat-helper','Human-controlled · No automatic AI or spending');
- composer.append(handoffAction,form,helper);
+ composer.append(form,helper);
  panel.append(top,status,messages,composer);view.append(panel);
 
  function bubble(role,text,when){
@@ -56,10 +54,6 @@
  }
  function system(text){return make('p','world-dialogue-note',text)}
  function scrollBottom(){messages.scrollTop=messages.scrollHeight}
- function localMattEntries(){
-  const history=cloud()?.mattMessages?.()||[];
-  return history.map(m=>({role:m.role==='human'?'human':'agent',text:m.text,time:m.createdAt}));
- }
  function appendEntries(entries){
   messages.replaceChildren();
   for(const m of entries)messages.append(bubble(m.role,m.text,m.time));
@@ -77,31 +71,24 @@
   activity.textContent=isMatt?'Chief of Staff · AI not connected':'Project Director · AI not connected';
   const active=cloud()?.signedIn()===true;
   const available=active&&typeof cloud()?.privateAgentMessages==='function'&&!busy;
-  const localMatt=isMatt&&active&&typeof cloud()?.mattMessages==='function';
-  status.textContent=!active?'Sign in to PAPERWORLD Cloud from the side menu to save messages.':
-   isMatt?'Τοπικές απαντήσεις Matt · χωρίς πραγματικό AI ακόμα':'Τα μηνύματα αποθηκεύονται ιδιωτικά · χωρίς αυτόματη απάντηση';
-  // One conversation stream: Matt's local messages, or Directors' cloud messages.
-  if(localMatt){appendEntries(localMattEntries())}
-  else {messages.replaceChildren(system(active?'Φόρτωση ιστορικού…':'Συνδέσου για να δεις τα μηνύματά σου.'))}
+  status.textContent=!active?'Συνδέσου στο PAPERWORLD Cloud για να στείλεις μηνύματα.':
+   'Ιδιωτική συνομιλία · αναμονή πραγματικής σύνδεσης AI · καμία αυτόματη εκτέλεση';
+  messages.replaceChildren(system(active?'Φόρτωση ιδιωτικού ιστορικού…':'Απαιτείται σύνδεση.'));
   if(active&&typeof cloud()?.privateAgentMessages==='function'){
    const selected=openId;
    cloud().privateAgentMessages(selected).then(history=>{
     if(token!==revision||openId!==selected)return;
-    if(isMatt&&localMatt&&localMattEntries().length)return; // No duplicate sent notes.
     appendEntries(history.map(m=>({role:m.role==='human'?'human':'agent',text:m.content,time:m.created_at})));
    }).catch(error=>{
-    if(token!==revision)return;
-    if(!isMatt||!localMatt)messages.replaceChildren(system('Το ιστορικό δεν φορτώθηκε: '+error.message));
+    if(token!==revision||openId!==selected)return;
+    messages.replaceChildren(system('Το ιστορικό δεν φορτώθηκε: '+error.message));
    });
   }
-  handoffAction.hidden=!(isMatt&&proposedHandoff?.to==='listening-director'&&
-    /ticket\s*swap|ticketswap|τικετ/i.test(proposedHandoff.request||'')&&
-    typeof cloud()?.openMattHandoff==='function');
   field.disabled=!available;send.disabled=!available;
   field.placeholder=available?'Γράψε μήνυμα…':'Συνδέσου για να στείλεις μήνυμα';
  }
- function show(id){if(id!=='matt')proposedHandoff=null;openId=id;paint();if(!field.disabled)field.focus()}
- function hide(){openId=null;proposedHandoff=null;paint();mattBtn.focus()}
+ function show(id){openId=id;paint();if(!field.disabled)field.focus()}
+ function hide(){openId=null;paint();mattBtn.focus()}
  function nearby(){
   const target=world()?.nearestAgent(100);
   if(!target){showNotice('Δεν υπάρχει agent κοντά σου. Πλησίασε έναν χαρακτήρα.');return}
@@ -113,10 +100,6 @@
  nearBtn.addEventListener('click',nearby);
  veil.addEventListener('click',hide);
  close.addEventListener('click',hide);
- handoffAction.addEventListener('click',()=>{
-  try{cloud().openMattHandoff(proposedHandoff);hide()}
-  catch(error){status.textContent='Δεν άνοιξε η αποστολή: '+error.message}
- });
  form.addEventListener('submit',async e=>{
   e.preventDefault();if(!openId||!cloud()?.signedIn()||field.disabled||busy)return;
   const id=openId,text=field.value;
@@ -124,10 +107,6 @@
   let failure=null;
   try{
    await cloud().sendPrivateAgentMessage(id,text);
-   if(id==='matt'){
-    const response=cloud().sendMattMessage(text);
-    proposedHandoff=response?.proposal||null;
-   }
    field.value='';
   }catch(error){failure=error}
   finally{busy=false;if(openId===id){paint();if(failure)status.textContent='Μήνυμα δεν αποθηκεύτηκε: '+failure.message}}

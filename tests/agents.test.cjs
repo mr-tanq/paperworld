@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const agents=require('../js/agents.js');
 
 test('Chief can propose a director-level investigation without executing anything',()=>{
-  const task=agents.proposeHandoff({from:'matt',to:'listening-director',project:'workshop',operation:'investigate',request:'Check TicketSwap behavior'});
+  const task=agents.proposeHandoff({from:'matt',to:'listening-director',project:'workshop',operation:'investigate',request:'Review an unidentified issue in a user project'});
   assert.equal(task.state,'proposed');
   assert.equal(task.execution,'none');
   assert.equal(task.requiresHumanApproval,true);
