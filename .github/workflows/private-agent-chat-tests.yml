@@ -51,6 +51,8 @@ jobs:
         run: npm install --omit=dev --no-audit --no-fund --ignore-scripts
       - name: Verify Copilot SDK exports without authenticating
         run: node -e "if (typeof require('@github/copilot-sdk').CopilotClient !== 'function') process.exit(1)"
+      - name: Syntax check village renderer
+        run: node --check js/app.js
       - name: Test agent registry, conversation, cloud storage and UI
         run: |
           node --test \
@@ -59,6 +61,7 @@ jobs:
             tests/agent-cloud-integration.test.cjs \
             tests/world-dialogue.test.cjs \
             tests/village-first.test.cjs \
+            tests/matt-visual.test.cjs \
             tests/matt-copilot-adapter.test.cjs \
             tests/matt-gateway.test.cjs \
             tests/supabase-identity-guard.test.cjs \
