@@ -7,7 +7,7 @@ const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const CONSENT='ONE_COPILOT_TURN_INCLUDED_ALLOWANCE';
 function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
-  clock=Date.now}={}){
+  clock=Date.now,budgetVerified=()=>process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED==='yes'}={}){
  if(!oauth||typeof oauth.getLinkedToken!=='function'||typeof clientFactory!=='function')
   throw Error('Trusted OAuth and SDK dependencies required');
  const identity=guard||createSupabaseGuard({
@@ -60,7 +60,7 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
   }catch(_){return deny(401,'unauthorized')}
   // A soft SDK session cap does NOT guarantee no overage on its first model call.
   // Enable only after the account owner sets a verified hard-stop $0 overage budget.
-  if(process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED!=='yes')
+  if(typeof budgetVerified!=='function'||await budgetVerified({ownerId})!==true)
    return deny(403,'verify_github_zero_overage_budget');
   const token=oauth.getLinkedToken({ownerId});
   if(!token)return deny(409,'github_reconnect_required');
