@@ -147,9 +147,31 @@
    const thread=await getAgentThread(agentId,true);
    return agentStore().say(thread.id,text);
   }
+  // GitHub OAuth linking uses the current Supabase user, never a browser GitHub token.
+  const MATT_ORIGIN='https://paperworld-matt-test-6hmd.onrender.com';
+  async function mattOAuth(path){
+   if(!session?.access_token)throw Error('Sign in to PAPERWORLD Cloud first');
+   const response=await fetcher(MATT_ORIGIN+path,{
+    method:'POST',headers:{Authorization:'Bearer '+session.access_token,
+     'Content-Type':'application/json'},body:'{}',redirect:'error'
+   });
+   let result={};
+   try{result=await response.json()}catch(_){}
+   if(!response.ok)throw Error((result.error||'GitHub connection unavailable')+
+     ' (HTTP '+response.status+')');
+   return result;
+  }
+  async function beginGithubLink(){
+   const result=await mattOAuth('/auth/github/start');
+   const u=new URL(result.authorizationUrl);
+   if(u.origin!=='https://github.com'||u.pathname!=='/login/oauth/authorize')
+    throw Error('Invalid GitHub authorization URL');
+   return u.href;
+  }
+  async function githubLinkStatus(){return mattOAuth('/auth/github/status')}
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   agentMessages,sendAgentNote};
+   agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });
