@@ -113,3 +113,23 @@ aside{min-width:0;min-height:0;overscroll-behavior:contain}
 .workshop-reply{padding:10px;background:#faf8f2;border:1px solid #d8ccba;border-radius:10px;overflow-wrap:anywhere}
 .workshop-reply p{margin:5px 0 10px;font-size:13px;line-height:1.45}
 .chief-item.chief-focused{outline:2px solid #58775d;outline-offset:3px}
+
+/* PRODUCT WORKSPACE V34: conversation first, compact task storage and quiet administration. */
+.developer-chat{margin:8px 0 12px;padding:12px;border-radius:14px;border:1px solid #d3c4ad;background:#f4eddf}
+.developer-chat h3{font-size:17px;margin:0 0 8px}
+.developer-messages{display:grid;gap:8px;max-height:240px;overflow-y:auto}
+.developer-bubble,.human-bubble{margin:0;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.developer-bubble{background:#fffaf0;border:1px solid #e2d6c3}
+.human-bubble{background:#deeadf;border:1px solid #bad0bd}
+.developer-form{display:grid;gap:8px;margin-top:12px}
+.developer-form textarea{width:100%;min-height:72px;box-sizing:border-box;border:1px solid #cbbdaa;border-radius:11px;background:#fffdf8;color:#343a32;padding:11px;font:inherit;resize:vertical}
+.developer-form button{justify-self:start}
+.developer-mission{margin:0 0 12px;padding:12px;background:#f9f5ec;border:1px solid #d6c8af;border-radius:12px}
+.developer-mission h3{font-size:15px;margin:0 0 8px}
+.developer-result{margin-top:12px;padding:10px;background:#e8eee5;border-radius:8px;font-size:12px;overflow-wrap:anywhere}
+.developer-result a{display:block;color:#365940;text-decoration:underline}
+.developer-archive,.developer-tasks{margin:10px 0;border-top:1px solid #ded1bc;padding:10px 0;font-size:13px}
+.developer-archive summary,.developer-tasks summary{cursor:pointer;font-weight:600;color:#666b5d}
+.developer-task-body{padding:12px 0}
+.developer-mission .room-ops{display:flex;flex-wrap:wrap;gap:7px}
+.developer-mission .room-ops button{min-height:38px}
