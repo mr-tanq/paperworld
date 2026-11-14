@@ -43,7 +43,7 @@ test('Authenticated explicit single turn returns real SDK result with no tools',
  assert.equal(r.status,200);
  assert.equal(r.body.executed,true);
  assert.equal(r.body.content,'A genuine mocked AI response');
- assert.equal(r.body.sessionCreditSoftLimit,1);
+ assert.equal(r.body.sessionConfig,'baseline-no-tools');
  assert.equal(seen.start,1);
  assert.equal(seen.reply,1);
  assert.equal(seen.factory[0].gitHubToken,'gho_PRIVATE_SERVER_ONLY');
@@ -51,9 +51,11 @@ test('Authenticated explicit single turn returns real SDK result with no tools',
  assert.deepEqual(seen.sessions[0].availableTools,[]);
  assert.equal('includedBuiltinAgents' in seen.sessions[0],false);
  assert.equal('excludedBuiltinAgents' in seen.sessions[0],false);
- assert.deepEqual(seen.sessions[0].sessionLimits,{maxAiCredits:1});
+ assert.equal('sessionLimits' in seen.sessions[0],false);
+ assert.equal('hooks' in seen.sessions[0],false);
+ assert.equal('systemMessage' in seen.sessions[0],false);
  assert.deepEqual(await seen.sessions[0].onPermissionRequest(),{kind:'reject'});
- assert.equal((await seen.sessions[0].hooks.onPreToolUse()).permissionDecision,'deny');
+
  assert.ok(!JSON.stringify(r).includes('gho_PRIVATE'));
 });
 test('Unknown model pricing rejects before model call',async()=>{
@@ -159,4 +161,16 @@ test('Diagnostic distinguishes failure in optional full session options from bas
  assert.equal(result.status,200);
  assert.deepEqual(seen.sessions.map(x=>x.availableTools),[[],[]]);
  assert.equal(seen.reply,0);
+});
+
+test('Matt live chat uses exact successfully diagnosed baseline session config',async()=>{
+ const {chat,seen}=mock();
+ const result=await chat.handle({headers,body:JSON.stringify(payload)});
+ assert.equal(result.status,200);
+ assert.equal(result.body.sessionConfig,'baseline-no-tools');
+ assert.deepEqual(Object.keys(seen.sessions[0]).sort(),
+  ['model','gitHubToken','availableTools','onPermissionRequest'].sort());
+ assert.deepEqual(seen.sessions[0].availableTools,[]);
+ assert.equal((await seen.sessions[0].onPermissionRequest()).kind,'reject');
+ assert.equal(seen.reply,1);
 });
