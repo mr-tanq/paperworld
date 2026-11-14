@@ -11,7 +11,7 @@ const requestId='33333333-3333-4333-8333-333333333333';
 const headers={origin:'https://mr-tanq.github.io',authorization:'Bearer aaaaa.bbbbb.ccccc'};
 const payload={threadId,requestId,message:'Investigate missing concert pictures in Listening Mirror',consent:CONSENT};
 function fake({route='listening-director',category='artwork',
- owns=true,linked=true,budget=true,badEvidence=false,failTurn=0}={}){
+ owns=true,linked=true,budget=true,badEvidence=false,tamperPath=false,failTurn=0}={}){
  const seen={calls:0,models:0,configs:[],prompts:[],stages:[],read:[]};
  const gateway=makeWorkerDelegation({
   oauth:{getLinkedToken:()=>linked?'gho_VALID_FAKE_ONLY':null},
@@ -22,7 +22,7 @@ function fake({route='listening-director',category='artwork',
    const categoryPaths=FILES[name]||[];
    return {repository:badEvidence?'other/repo':'mr-tanq/concerts',
     ref:'main',category:name,readOnly:true,
-    files:categoryPaths.map(path=>({path,sha:'a'.repeat(40),
+    files:categoryPaths.map((path,i)=>({path:tamperPath&&i===0?'secret.env':path,sha:'a'.repeat(40),
      url:'https://github.com/mr-tanq/concerts/blob/main/'+path,
      lines:'L1 const stable = true;\nL2 // no changes performed'}))};
   }},
@@ -110,7 +110,13 @@ test('Replay cannot spend twice; invalid repository evidence never reaches Worke
  assert.equal(r.status,503);
  assert.equal(r.body.stage,'repository_read');
  assert.equal(denied.seen.calls,2);
+ const tampered=fake({tamperPath:true});
+ const rejected=await tampered.gateway.handle({headers,body:body(payload)});
+ assert.equal(rejected.status,503);
+ assert.equal(rejected.body.stage,'repository_read');
+ assert.equal(tampered.seen.calls,2);
 });
+
 test('Failures do not reveal source, prompts or secrets in HTTP or logs',async()=>{
  const {gateway,seen}=fake({failTurn:3});
  const r=await gateway.handle({headers,body:body(payload)});
