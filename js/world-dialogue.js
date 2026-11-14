@@ -6,6 +6,7 @@
  const view=document.querySelector('#view'),world=()=>window.PaperworldWorld,cloud=()=>window.PaperworldCloudUI;
  if(!view)return;
  let openId=null,revision=0,busy=false;
+ const mattReplies=[];
  const make=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e};
  const actions=make('div','world-talk-actions');
  const mattBtn=make('button','','M · Matt'),nearBtn=make('button','','T · Talk');
@@ -31,6 +32,12 @@
  const messages=make('div','world-dialogue-messages');
  messages.setAttribute('role','log');
  messages.setAttribute('aria-label','Conversation messages');
+ const connectGithub=make('button','world-dialogue-handoff','Σύνδεσε το GitHub για να μιλήσεις στον Matt');
+ connectGithub.type='button';connectGithub.hidden=true;
+ connectGithub.addEventListener('click',async()=>{
+  try{const url=await cloud().beginGithubLink();window.location.assign(url)}
+  catch(e){status.textContent='Η σύνδεση GitHub δεν ξεκίνησε: '+e.message}
+ });
  const form=make('form','world-dialogue-form');
  const field=make('textarea','world-chat-input');
  const send=make('button','world-chat-send','➤');
@@ -39,8 +46,8 @@
  send.type='submit';send.setAttribute('aria-label','Send message');
  form.append(field,send);
  const composer=make('footer','world-chat-composer');
- const helper=make('small','world-chat-helper','Human-controlled · No automatic AI or spending');
- composer.append(form,helper);
+ const helper=make('small','world-chat-helper','Copilot AI Credits · Έγκριση ανά μήνυμα · Καμία ενέργεια σε αρχεία');
+ composer.append(connectGithub,form,helper);
  panel.append(top,status,messages,composer);view.append(panel);
 
  function bubble(role,text,when){
@@ -57,7 +64,10 @@
  function appendEntries(entries){
   messages.replaceChildren();
   for(const m of entries)messages.append(bubble(m.role,m.text,m.time));
-  if(!entries.length)messages.append(system(openId==='matt'?'Πες στον Matt τι χρειάζεσαι. Προς το παρόν μπορεί να προτείνει αναθέσεις, όχι να εκτελέσει AI.':'Μπορείς να αφήσεις ένα ιδιωτικό μήνυμα. Ο Director δεν απαντά ακόμη με AI.'));
+  if(openId==='matt')for(const reply of mattReplies)messages.append(bubble('agent',reply.content,reply.time));
+  if(!entries.length&&!mattReplies.length)messages.append(system(openId==='matt'?
+   'Ο Matt απαντά με πραγματικό Copilot AI όταν είναι συνδεδεμένο το GitHub. Οι απαντήσεις αυτού του δοκιμαστικού chat δεν αποθηκεύονται ακόμη μόνιμα.':
+   'Μπορείς να αφήσεις ένα ιδιωτικό μήνυμα. Ο Director δεν απαντά ακόμη με AI.'));
   scrollBottom();
  }
  function paint(){
@@ -68,12 +78,24 @@
   const agent=world()?.agents()?.find(a=>a.id===openId);
   heading.textContent=isMatt?'Matt':(agent?.name||'Director');
   avatar.textContent=isMatt?'M':(heading.textContent.trim().charAt(0)||'D').toUpperCase();
-  activity.textContent=isMatt?'Chief of Staff · AI not connected':'Project Director · AI not connected';
+  activity.textContent=isMatt?'Chief of Staff · GitHub Copilot':'Project Director · AI not connected';
   const active=cloud()?.signedIn()===true;
   const available=active&&typeof cloud()?.privateAgentMessages==='function'&&!busy;
   status.textContent=!active?'Συνδέσου στο PAPERWORLD Cloud για να στείλεις μηνύματα.':
-   'Ιδιωτική συνομιλία · αναμονή πραγματικής σύνδεσης AI · καμία αυτόματη εκτέλεση';
+   isMatt?'Copilot AI · ζητείται έγκριση ανά μήνυμα · χωρίς εργαλεία':
+   'Ιδιωτική συνομιλία · ο Director δεν έχει AI ακόμη';
   messages.replaceChildren(system(active?'Φόρτωση ιδιωτικού ιστορικού…':'Απαιτείται σύνδεση.'));
+  connectGithub.hidden=true;
+  if(isMatt&&active&&typeof cloud()?.githubLinkStatus==='function'){
+   const selected=openId;
+   cloud().githubLinkStatus().then(link=>{
+    if(token!==revision||openId!==selected)return;
+    connectGithub.hidden=link.connected===true;
+    if(!link.connected)status.textContent='Σύνδεσε το GitHub για να ενεργοποιηθεί το πραγματικό Copilot AI.';
+   }).catch(()=>{
+    if(token===revision&&openId===selected)connectGithub.hidden=false;
+   });
+  }
   if(active&&typeof cloud()?.privateAgentMessages==='function'){
    const selected=openId;
    cloud().privateAgentMessages(selected).then(history=>{
@@ -103,13 +125,26 @@
  form.addEventListener('submit',async e=>{
   e.preventDefault();if(!openId||!cloud()?.signedIn()||field.disabled||busy)return;
   const id=openId,text=field.value;
+  if(id==='matt'&&!window.confirm(
+    'Να σταλεί αυτό το μήνυμα στο GitHub Copilot μέσω της συνδρομής σου; '+
+    'Η κλήση θα καταναλώσει GitHub AI Credits από τη συνδρομή σου. '+
+    'Προχώρα μόνο αν έχεις ρυθμίσει στο GitHub μηδενικό επιπλέον budget με hard stop. '+
+    'Ο Matt δεν έχει δικαιώματα εργαλείων ή αλλαγής αρχείων.'))return;
   busy=true;send.disabled=true;field.disabled=true;
   let failure=null;
   try{
-   await cloud().sendPrivateAgentMessage(id,text);
+   if(id==='matt'){
+    const answer=await cloud().askMatt(text);
+    mattReplies.push({content:answer.content,time:new Date().toISOString()});
+   }else await cloud().sendPrivateAgentMessage(id,text);
    field.value='';
-  }catch(error){failure=error}
-  finally{busy=false;if(openId===id){paint();if(failure)status.textContent='Μήνυμα δεν αποθηκεύτηκε: '+failure.message}}
+  }catch(error){failure=error;if(error.noteSaved)field.value=''}
+  finally{busy=false;if(openId===id){
+   paint();if(failure&&/github_reconnect_required/.test(failure.message))connectGithub.hidden=false;
+   if(failure)status.textContent=(failure.noteSaved?
+     'Το μήνυμα αποθηκεύτηκε, αλλά ο Matt δεν απάντησε: ':
+     'Το μήνυμα δεν αποθηκεύτηκε: ')+failure.message;
+  }}
  });
  field.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();if(!field.disabled&&field.value.trim())form.requestSubmit()}

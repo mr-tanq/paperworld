@@ -106,6 +106,11 @@ function createGithubOAuth({clientId,clientSecret,callbackUrl=BASE_CALLBACK,
  }
  // Future AI bridge MUST still separately claim a one-time approval before
  // requesting a token. Exposes no token from HTTP endpoints.
- return Object.freeze({enabled:enabled&&!!guard,start,callback,status});
+ function getLinkedToken({ownerId}={}){
+  if(typeof ownerId!=='string'||!validId.test(ownerId))return null;
+  clean();
+  return linked.get(ownerId)?.token||null;
+ }
+ return Object.freeze({enabled:enabled&&!!guard,start,callback,status,getLinkedToken});
 }
 module.exports=Object.freeze({createGithubOAuth,APP_ORIGIN,BASE_CALLBACK});

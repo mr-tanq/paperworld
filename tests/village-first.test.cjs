@@ -35,7 +35,7 @@ test('Work desk and sign-in remain reachable; Matt accessible directly',()=>{
 test('Game redesign does not hardcode TicketSwap or claim AI enabled',()=>{
  const html=read('index.html'),app=read('js/app.js');
  assert.doesNotMatch(html+app,/ticketswap|ticket swap/i);
- assert.match(read('server/render-matt.cjs'),/aiEnabled:false/);
+ assert.match(read('server/render-matt.cjs'),/aiEnabled:true/);
 });
 
 test('Matt follows actual user movement; T selects a Director rather than following Matt',()=>{

@@ -52,3 +52,13 @@ test('Dark messenger keeps one unified scroll stream and accessible agent identi
  assert.match(style,/world-chat-message/);
  assert.match(style,/@media\(max-width:640px\)/);
 });
+
+test('Matt offers OAuth reconnect inside Messenger, including Render Free sleep',()=>{
+ assert.match(source,/connectGithub/);
+ assert.match(source,/githubLinkStatus\(\)/);
+ assert.match(source,/beginGithubLink\(\)/);
+ assert.match(source,/github_reconnect_required/);
+ assert.match(source,/cloud\(\)\.askMatt\(text\)/);
+ assert.match(source,/window\.confirm\(/);
+ assert.match(source,/mattReplies\.push/);
+});

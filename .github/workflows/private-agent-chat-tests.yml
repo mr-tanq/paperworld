@@ -5,12 +5,15 @@ on:
       - 'server/supabase-identity-guard.cjs'
       - 'server/matt-approval-claimer.cjs'
       - 'render.yaml'
+      - 'package.json'
+      - 'server/matt-live-chat.cjs'
       - 'server/github-oauth.cjs'
       - 'server/render-matt.cjs'
       - 'server/matt-http-server.cjs'
       - 'server/matt-gateway.cjs'
       - 'server/matt-copilot-adapter.cjs'
       - 'js/cloud.js'
+      - 'js/cloud-ui.js'
       - 'js/agent-conversation-store.js'
       - 'index.html'
       - 'style.css'
@@ -31,7 +34,7 @@ concurrency:
 jobs:
   private-chat-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Checkout PAPERWORLD (no persistent token)
         uses: actions/checkout@v4
@@ -41,6 +44,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install pinned Copilot SDK package (NO AI requests)
+        run: npm install --omit=dev --no-audit --no-fund --ignore-scripts
+      - name: Verify Copilot SDK exports without authenticating
+        run: node -e "if (typeof require('@github/copilot-sdk').CopilotClient !== 'function') process.exit(1)"
       - name: Test agent registry, conversation, cloud storage and UI
         run: |
           node --test \
@@ -55,6 +62,8 @@ jobs:
             tests/matt-http-server.test.cjs \
             tests/render-matt.test.cjs \
             tests/github-oauth.test.cjs \
+            tests/matt-live-chat.test.cjs \
             tests/matt-approval-claimer.test.cjs
 
 # No Copilot permissions, no AI dispatch, no deployment, no secrets or write token.
+# Live SDK behavior must be validated only after separate account-owner permission.

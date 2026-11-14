@@ -19,11 +19,11 @@ test('Render bootstrap is a real HTTP listener and never invokes AI',async()=>{
  try{
   const health=await request(address.port,'/health');
   assert.equal(health.status,200);
-  assert.equal(health.body.aiEnabled,false);
+  assert.equal(health.body.aiEnabled,true);
   assert.equal(health.headers['cache-control'],'no-store');
   const chat=await request(address.port,'/chat/matt','POST');
-  assert.equal(chat.status,503);
-  assert.deepEqual(chat.body,{error:'ai_not_connected'});
+  assert.equal(chat.status,403);
+  assert.deepEqual(chat.body,{error:'origin_denied'});
   assert.equal(chat.headers['access-control-allow-origin'],undefined);
   const callback=await request(address.port,'/auth/github/callback');
   assert.equal(callback.status,302);
@@ -38,11 +38,12 @@ test('Render blueprint pins free tier and blocks autodeploys',()=>{
  assert.match(config,/autoDeployTrigger: 'off'/);
  assert.match(config,/healthCheckPath: \/health/);
  assert.match(config,/startCommand: node server\/render-matt\.cjs/);
+ assert.match(config,/npm install --omit=dev/);
  assert.doesNotMatch(config,/sync: false|generateValue|paid|postgres|creditCard|copilot-requests: write/i);
 });
-test('Source is status-only, without credentials or model client',()=>{
+test('Server has no embedded GitHub secrets or unguarded tool execution',()=>{
  const source=fs.readFileSync(path.join(__dirname,'../server/render-matt.cjs'),'utf8');
- assert.doesNotMatch(source,/CopilotClient|createSession\(|GITHUB_TOKEN|service_role|client_secret|access_token|sendAndWait\(/);
- assert.match(source,/aiEnabled:false/);
- assert.match(source,/ai_not_connected/);
+ assert.doesNotMatch(source,/GITHUB_TOKEN|service_role|client_secret|access_token|sendAndWait\(/);
+ assert.match(source,/aiEnabled:true/);
+ assert.match(source,/chatFactory/);
 });

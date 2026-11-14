@@ -7,7 +7,7 @@ services:
     plan: free
     region: frankfurt
     branch: main
-    buildCommand: echo "PAPERWORLD status-only backend; no dependencies"
+    buildCommand: npm install --omit=dev --no-audit --no-fund
     startCommand: node server/render-matt.cjs
     healthCheckPath: /health
     autoDeployTrigger: 'off'
