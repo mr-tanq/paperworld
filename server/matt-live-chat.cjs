@@ -58,6 +58,10 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
    if(!await identity.ownsThread({threadId:data.threadId,ownerId,agentId:'matt',token:bearer.slice(7)}))
     return deny(404,'thread_not_found');
   }catch(_){return deny(401,'unauthorized')}
+  // A soft SDK session cap does NOT guarantee no overage on its first model call.
+  // Enable only after the account owner sets a verified hard-stop $0 overage budget.
+  if(process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED!=='yes')
+   return deny(403,'verify_github_zero_overage_budget');
   const token=oauth.getLinkedToken({ownerId});
   if(!token)return deny(409,'github_reconnect_required');
   clean();
@@ -82,6 +86,7 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
     gitHubToken:token,
     sessionLimits:{maxAiCredits:1},
     availableTools:[],
+    excludedBuiltinAgents:['*'],
     onPermissionRequest:async()=>({kind:'reject'}),
     hooks:{onPreToolUse:async()=>({permissionDecision:'deny',
       permissionDecisionReason:'Chat only; no agent tools are authorized'})},
