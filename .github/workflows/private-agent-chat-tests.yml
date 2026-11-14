@@ -13,6 +13,7 @@ on:
       - 'server/matt-gateway.cjs'
       - 'server/matt-copilot-adapter.cjs'
       - 'js/cloud.js'
+      - 'js/cloud-ui.js'
       - 'js/agent-conversation-store.js'
       - 'index.html'
       - 'style.css'
