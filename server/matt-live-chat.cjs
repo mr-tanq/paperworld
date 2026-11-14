@@ -4,6 +4,9 @@
  */
 'use strict';
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
+const os=require('node:os');
+const path=require('node:path');
+const fs=require('node:fs/promises');
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const CONSENT='ONE_COPILOT_TURN_INCLUDED_ALLOWANCE';
 function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
@@ -73,12 +76,16 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
   if(used.has(key))return deny(409,'already_submitted');
   if(busy.has(ownerId))return deny(429,'another_request_active');
   used.set(key,clock()+600000);busy.add(ownerId);
-  let client,session;
+  let client,session,privateBaseDirectory;
   // Diagnostic stages are static allowlisted strings. Never log the exception,
   // OAuth token, request body, headers, model reply, or SDK error message.
   let stage='client_factory';
   try{
-   client=await clientFactory({gitHubToken:token,useLoggedInUser:false,mode:'empty'});
+   // Empty mode requires an isolated persistence location. Never share
+   // Copilot session storage between independently authorized requests.
+   privateBaseDirectory=await fs.mkdtemp(path.join(os.tmpdir(),'paperworld-matt-'));
+   client=await clientFactory({gitHubToken:token,useLoggedInUser:false,
+     mode:'empty',baseDirectory:privateBaseDirectory});
    stage='client_start';
    await client.start();
    stage='model_discovery';
@@ -131,6 +138,9 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
   finally{
    try{await session?.disconnect?.()}catch(_){}
    try{await client?.stop?.()}catch(_){}
+   if(privateBaseDirectory){
+    try{await fs.rm(privateBaseDirectory,{recursive:true,force:true})}catch(_){}
+   }
    busy.delete(ownerId);
   }
  }

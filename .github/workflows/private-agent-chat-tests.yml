@@ -8,6 +8,7 @@ on:
       - 'package.json'
       - 'server/matt-live-chat.cjs'
       - 'server/github-oauth.cjs'
+      - 'server/copilot-client-loader.cjs'
       - 'server/render-matt.cjs'
       - 'server/matt-http-server.cjs'
       - 'server/matt-gateway.cjs'
@@ -61,6 +62,7 @@ jobs:
             tests/supabase-identity-guard.test.cjs \
             tests/matt-http-server.test.cjs \
             tests/render-matt.test.cjs \
+            tests/copilot-client-loader.test.cjs \
             tests/github-oauth.test.cjs \
             tests/matt-live-chat.test.cjs \
             tests/matt-approval-claimer.test.cjs
