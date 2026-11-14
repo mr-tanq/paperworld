@@ -49,7 +49,7 @@ test('Authenticated explicit single turn returns real SDK result with no tools',
  assert.equal(seen.factory[0].gitHubToken,'gho_PRIVATE_SERVER_ONLY');
  assert.equal(seen.factory[0].useLoggedInUser,false);
  assert.deepEqual(seen.sessions[0].availableTools,[]);
- assert.deepEqual(seen.sessions[0].includedBuiltinAgents,[]);
+ assert.equal('includedBuiltinAgents' in seen.sessions[0],false);
  assert.equal('excludedBuiltinAgents' in seen.sessions[0],false);
  assert.deepEqual(seen.sessions[0].sessionLimits,{maxAiCredits:1});
  assert.deepEqual(await seen.sessions[0].onPermissionRequest(),{kind:'reject'});
@@ -91,7 +91,7 @@ test('All runtime errors report only a safe stage, without tokens or exception t
   const {chat,seen}=mock({failStage:stage});
   const res=await chat.handle({headers,body:JSON.stringify(payload)});
   assert.equal(res.status,503);
-  assert.deepEqual(res.body,{error:'copilot_runtime_unavailable',stage});
+  assert.deepEqual(res.body,{error:'copilot_runtime_unavailable',stage,reason:'unclassified'});
   assert.deepEqual(seen.diagnostics,[stage]);
   assert.doesNotMatch(JSON.stringify(res.body)+JSON.stringify(seen.diagnostics),
    /SENSITIVE_USER_SECRET_DO_NOT_LOG|gho_PRIVATE|Hello, Matt/);
@@ -103,4 +103,43 @@ test('Unknown model pricing produces safe diagnostic without a model request',as
  assert.equal(result.status,403);
  assert.deepEqual(seen.diagnostics,['model_pricing_unavailable']);
  assert.equal(seen.reply,0);
+});
+
+test('Diagnostic creates a user-bound Copilot session but NEVER sends an AI message',async()=>{
+ const {chat,seen}=mock();
+ const diagnosticBody=JSON.stringify({threadId:thread,requestId:request,
+  consent:'SESSION_ONLY_NO_MODEL_CALL'});
+ const result=await chat.diagnose({headers,body:diagnosticBody});
+ assert.equal(result.status,200);
+ assert.equal(result.body.sessionCreated,true);
+ assert.equal(result.body.aiMessagesSent,0);
+ assert.equal(seen.sessions.length,1);
+ assert.equal(seen.reply,0);
+ assert.deepEqual(seen.sessions[0].availableTools,[]);
+ assert.deepEqual(await seen.sessions[0].onPermissionRequest(),{kind:'reject'});
+});
+test('Diagnostic fails closed without consent, ownership, budget or GitHub link',async()=>{
+ const req=JSON.stringify({threadId:thread,requestId:request,consent:'SESSION_ONLY_NO_MODEL_CALL'});
+ for(const opts of [{connected:false},{owns:false},{budgetVerified:false}]){
+  const {chat,seen}=mock(opts);
+  const result=await chat.diagnose({headers,body:req});
+  assert.ok([403,404,409].includes(result.status));
+  assert.equal(seen.sessions.length,0);
+  assert.equal(seen.reply,0);
+ }
+ const {chat,seen}=mock();
+ const result=await chat.diagnose({headers,body:JSON.stringify({
+  threadId:thread,requestId:request,consent:'invalid'})});
+ assert.equal(result.status,400);
+ assert.equal(seen.factory.length,0);
+});
+test('Diagnostic reports safe session-create failure and never sends',async()=>{
+ const {chat,seen}=mock({failStage:'session_create'});
+ const result=await chat.diagnose({headers,body:JSON.stringify({
+  threadId:thread,requestId:request,consent:'SESSION_ONLY_NO_MODEL_CALL'})});
+ assert.equal(result.status,503);
+ assert.deepEqual(result.body,{error:'copilot_session_diagnostic_failed',
+  stage:'session_create',reason:'unclassified',aiMessagesSent:0});
+ assert.equal(seen.reply,0);
+ assert.ok(!JSON.stringify(result).includes('SENSITIVE_USER_SECRET'));
 });
