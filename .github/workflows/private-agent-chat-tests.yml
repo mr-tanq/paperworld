@@ -9,6 +9,8 @@ on:
       - 'server/matt-session-config.cjs'
       - 'server/matt-live-chat.cjs'
       - 'server/matt-delegation.cjs'
+      - 'server/matt-worker-delegation.cjs'
+      - 'server/listening-repo-reader.cjs'
       - 'server/github-oauth.cjs'
       - 'server/copilot-client-loader.cjs'
       - 'server/render-matt.cjs'
@@ -68,6 +70,8 @@ jobs:
             tests/github-oauth.test.cjs \
             tests/matt-live-chat.test.cjs \
             tests/matt-delegation.test.cjs \
+            tests/listening-repo-reader.test.cjs \
+            tests/matt-worker-delegation.test.cjs \
             tests/matt-session-config.test.cjs \
             tests/matt-approval-claimer.test.cjs
 
