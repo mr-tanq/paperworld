@@ -46,9 +46,17 @@ const demoPositions=[null,{x:835,y:705,label:'Behind the Studio'},{x:831,y:434,l
 demoButton.addEventListener('click',()=>{state.depthDemo=(state.depthDemo+1)%demoPositions.length;demoButton.textContent='Depth test: '+(demoPositions[state.depthDemo]?.label||'Off')});
 // Placeholders: Directors stand at approved path approach coordinates, not inside buildings.
 const actors=defs.map(d=>({id:({town:'matt',workshop:'listening-director',pokemon:'pokemon-director',wellbeing:'wellbeing-director',studio:'studio-director'})[d.id],name:d.id==='town'?'Matt':d.name+' Director',x:d.approach[0],y:d.approach[1]}));
+// Matt follows the player along previously walked positions rather than
+// teleporting through houses. This is visual companionship, not AI execution.
+const mattActor=actors.find(a=>a.id==='matt');
+mattActor.x=state.walker.x-36;mattActor.y=state.walker.y;
+const followTrail=[{x:state.walker.x,y:state.walker.y}];
 window.PaperworldWorld=Object.freeze({
  agents:()=>actors.map(a=>({...a})),
- nearestAgent:(radius=100)=>actors.map(a=>({...a,distance:Math.hypot(a.x-state.walker.x,a.y-state.walker.y)})).filter(a=>a.distance<=radius).sort((a,b)=>a.distance-b.distance)[0]||null
+ // T addresses a nearby Director; M talks to the always-available Matt.
+ nearestAgent:(radius=100)=>actors.filter(a=>a.id!=='matt')
+   .map(a=>({...a,distance:Math.hypot(a.x-state.walker.x,a.y-state.walker.y)}))
+   .filter(a=>a.distance<=radius).sort((a,b)=>a.distance-b.distance)[0]||null
 });
 const scene={name:'Papercraft environment',file:'./assets/environment-010.png'};
 function load(item){item.image=new Image();item.ready=false;item.image.onload=()=>{item.ready=true;if(item!==scene){const c=document.createElement('canvas');c.width=128;c.height=Math.max(1,Math.round(128*item.image.naturalHeight/item.image.naturalWidth));const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(item.image,0,0,c.width,c.height);item.hitMask={data:g.getImageData(0,0,c.width,c.height).data,w:c.width,h:c.height}}renderStatus()};item.image.onerror=()=>{item.ready=false;renderStatus()};item.image.src=item.file}
@@ -134,7 +142,26 @@ layers.push({id:'player',depth:w.y,paint:()=>drawFigure(w)});
 }
  if(state.destination){const p=state.destination;ctx.strokeStyle='#fef3d9';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x-7,p.y);ctx.lineTo(p.x+7,p.y);ctx.moveTo(p.x,p.y-7);ctx.lineTo(p.x,p.y+7);ctx.stroke()}
  ctx.restore()}
-function tick(now){const dt=Math.min(.05,(now-(tick.last||now))/1000);tick.last=now;if(state.route.length){let next=state.route[0],dx=next.x-state.walker.x,dy=next.y-state.walker.y,dist=Math.hypot(dx,dy),speed=105*dt;if(dist<=speed){Object.assign(state.walker,next);state.route.shift();if(!state.route.length)state.destination=null}else{state.walker.x+=dx/dist*speed;state.walker.y+=dy/dist*speed}}draw(now);requestAnimationFrame(tick)}
+function tick(now){
+ const dt=Math.min(.05,(now-(tick.last||now))/1000);tick.last=now;
+ if(state.route.length){
+  const next=state.route[0],dx=next.x-state.walker.x,dy=next.y-state.walker.y,
+        dist=Math.hypot(dx,dy),speed=105*dt;
+  if(dist<=speed){Object.assign(state.walker,next);state.route.shift();
+   if(!state.route.length)state.destination=null}
+  else{state.walker.x+=dx/dist*speed;state.walker.y+=dy/dist*speed}
+ }
+ const last=followTrail[followTrail.length-1];
+ if(Math.hypot(state.walker.x-last.x,state.walker.y-last.y)>11)
+  followTrail.push({x:state.walker.x,y:state.walker.y});
+ if(followTrail.length>4){
+  const next=followTrail[0],dx=next.x-mattActor.x,dy=next.y-mattActor.y,
+        dist=Math.hypot(dx,dy),speed=125*dt;
+  if(dist<=speed){mattActor.x=next.x;mattActor.y=next.y;followTrail.shift()}
+  else{mattActor.x+=dx/dist*speed;mattActor.y+=dy/dist*speed}
+ }
+ draw(now);requestAnimationFrame(tick)
+}
 canvas.addEventListener('pointerdown',e=>{const p=localPoint(e);state.pointer={...p,originalX:p.x,originalY:p.y,dragged:false};canvas.setPointerCapture(e.pointerId)});
 canvas.addEventListener('pointermove',e=>{const p=localPoint(e),v=state.pointer;if(!v)return;if(Math.hypot(p.x-v.originalX,p.y-v.originalY)>7)v.dragged=true;if(v.dragged){state.x+=p.x-v.x;state.y+=p.y-v.y}v.x=p.x;v.y=p.y});
 canvas.addEventListener('pointerup',e=>{const p=localPoint(e),v=state.pointer;if(v&&!v.dragged)tap(worldPoint(p));state.pointer=null});
