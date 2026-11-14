@@ -191,6 +191,33 @@
     throw Error('Diagnostic result not verified');
    return result;
   }
+  // Delegation is explicitly a separate, up-to-three Copilot-turn operation.
+  // Do not silently send multiple model calls from the ordinary chat button.
+  async function delegateMatt(message){
+   const text=String(message||'').trim();
+   if(!text||text.length>1200)throw Error('Message must be 1–1200 characters');
+   await ensureAuth();
+   const thread=await getAgentThread('matt',true);
+   await agentStore().say(thread.id,text);
+   const payload={threadId:thread.id,requestId:crypto.randomUUID(),message:text,
+    consent:'MATT_DIRECTOR_UP_TO_THREE_AI_TURNS'};
+   try{
+    const response=await fetcher(MATT_ORIGIN+'/delegate/matt',{
+     method:'POST',headers:{Authorization:'Bearer '+session.access_token,
+      'Content-Type':'application/json'},body:JSON.stringify(payload),redirect:'error'
+    });
+    let result={};
+    try{result=await response.json()}catch(_){}
+    if(!response.ok)throw Error((result.error||'Delegation failed')+
+     (result.stage?' · '+result.stage:'')+' (HTTP '+response.status+')');
+    if(result.executed!==true||typeof result.content!=='string')
+     throw Error('No verified Matt delegation response');
+    return result;
+   }catch(error){
+    error.noteSaved=true;
+    throw error;
+   }
+  }
   async function askMatt(message){
    const text=String(message||'').trim();
    if(!text||text.length>1200)throw Error('Message must be 1–1200 characters');
@@ -218,7 +245,7 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt,diagnoseMattSession};
+   agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,diagnoseMattSession};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });
