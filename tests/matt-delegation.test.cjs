@@ -62,10 +62,10 @@ test('Listening Mirror director is real routed AI turn and reports via Matt, wit
  }
  assert.equal(seen.options.useLoggedInUser,false);
  assert.equal(seen.stopped,1);
- assert.ok(seen.prompts[1].includes('NO repository'));
+ assert.ok(seen.prompts[1].includes('CANNOT inspect their source code'));
 });
 test('Matt AI routing cannot delegate to nonexistent or unauthorized directors',async()=>{
- for(const route of ['pokemon-director','not_ready','listening-developer','']){
+ for(const route of ['pokemon-director','not_ready','listening-developer','unknown-route']){
   const {gateway,seen}=make({route});
   const r=await gateway.handle({headers,body:requestBody(data)});
   assert.equal(r.status,200);
@@ -73,6 +73,13 @@ test('Matt AI routing cannot delegate to nonexistent or unauthorized directors',
   assert.equal(r.body.aiTurns,1);
   assert.equal(seen.sent,1);
  }
+});
+test('Empty AI routing fails closed and does not fabricate a Director',async()=>{
+ const {gateway,seen}=make({route:''});
+ const result=await gateway.handle({headers,body:requestBody(data)});
+ assert.equal(result.status,503);
+ assert.equal(result.body.attemptedAiTurns,1);
+ assert.equal(seen.sent,1);
 });
 test('Owner auth, budget and exact 3-call consent guard all inference',async()=>{
  for(const opts of [{owns:false},{linked:false},{budget:false}]){
