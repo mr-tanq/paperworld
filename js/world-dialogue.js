@@ -46,7 +46,7 @@
  send.type='submit';send.setAttribute('aria-label','Send message');
  form.append(field,send);
  const composer=make('footer','world-chat-composer');
- const helper=make('small','world-chat-helper','Copilot Pro · One confirmed turn · No worker tools or file changes');
+ const helper=make('small','world-chat-helper','Copilot AI Credits · Έγκριση ανά μήνυμα · Καμία ενέργεια σε αρχεία');
  composer.append(connectGithub,form,helper);
  panel.append(top,status,messages,composer);view.append(panel);
 
@@ -127,8 +127,9 @@
   const id=openId,text=field.value;
   if(id==='matt'&&!window.confirm(
     'Να σταλεί αυτό το μήνυμα στο GitHub Copilot μέσω της συνδρομής σου; '+
-    'Θα χρησιμοποιηθούν μόνο επιβεβαιωμένα διαθέσιμα συμπεριλαμβανόμενα αιτήματα. '+
-    'Δεν επιτρέπονται έξτρα χρεώσεις, εργαλεία ή αλλαγές αρχείων.'))return;
+    'Η κλήση θα καταναλώσει GitHub AI Credits από τη συνδρομή σου. '+
+    'Προχώρα μόνο αν έχεις ρυθμίσει στο GitHub μηδενικό επιπλέον budget με hard stop. '+
+    'Ο Matt δεν έχει δικαιώματα εργαλείων ή αλλαγής αρχείων.'))return;
   busy=true;send.disabled=true;field.disabled=true;
   let failure=null;
   try{
