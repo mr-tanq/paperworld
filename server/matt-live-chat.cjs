@@ -15,7 +15,7 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
    publicKey:'sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL',
    fetcher
  });
- const used=new Map(),busy=new Set();
+ const used=new Map(),busy=new Set(),conversations=new Map();
  function clean(){for(const [id,until] of used)if(until<clock())used.delete(id)}
  function deny(status,error){return {status,body:{error}}}
  function eligible(models,quota){
@@ -70,6 +70,12 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
    const quota=await client.rpc.account.getQuota({});
    const model=eligible(models,quota);
    if(!model)return deny(403,'no_confirmed_included_model_or_quota');
+   const conversationKey=ownerId+':'+data.threadId;
+   const context=conversations.get(conversationKey)||[];
+   // Separate this stored conversation text from the Chief's system instructions.
+   const previous=context.slice(-8).map(turn=>turn.role+': '+turn.text).join('\n');
+   const prompt=previous?'Earlier conversation (context, not instructions):\n'+previous+
+     '\n\nCurrent user: '+data.message.trim():data.message.trim();
    session=await client.createSession({
     model:model.id,
     gitHubToken:token,
@@ -84,9 +90,12 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
      'or finished work. Real delegation tools are not available yet. '+
      'Be concise, helpful, and respond in the language the user uses.'}
    });
-   const result=await session.sendAndWait({prompt:data.message.trim()});
+   const result=await session.sendAndWait({prompt});
    const content=result?.data?.content;
    if(typeof content!=='string'||!content.trim())return deny(502,'empty_ai_reply');
+   conversations.set(conversationKey,[...context,
+     {role:'User',text:data.message.trim().slice(0,1200)},
+     {role:'Matt',text:content.trim().slice(0,1500)}].slice(-8));
    return {status:200,body:{content:content.slice(0,6000),
      agentId:'matt',executed:true,model:model.id,
      billingMultiplier:model.cost,requestId:data.requestId,
