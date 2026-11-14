@@ -25,10 +25,20 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
   if(typeof client.listModels!=='function')return null;
   const models=await client.listModels();
   if(!Array.isArray(models)||!models.length)return null;
-  const desired=models.find(m=>m.id==='gpt-5.4-mini')||
-   models.find(m=>m.id==='gpt-5-mini')||
-   models.find(m=>m.id==='gpt-4.1');
-  if(!desired||typeof desired.id!=='string')return null;
+  // Prefer explicitly priced, lowest-cost available model. Missing pricing is
+  // not evidence of zero cost, so fail closed instead.
+  const priced=models.filter(m=>typeof m?.id==='string'&&
+    /^[a-z0-9.-]{1,80}$/i.test(m.id)&&
+    Number.isFinite(m?.billing?.tokenPrices?.inputPrice)&&
+    Number.isFinite(m?.billing?.tokenPrices?.outputPrice)&&
+    Number.isFinite(m?.billing?.tokenPrices?.batchSize)&&
+    m.billing.tokenPrices.batchSize>0&&
+    m.billing.tokenPrices.inputPrice>=0&&
+    m.billing.tokenPrices.outputPrice>=0);
+  if(!priced.length)return null;
+  const cost=m=>(m.billing.tokenPrices.inputPrice+
+    m.billing.tokenPrices.outputPrice)/m.billing.tokenPrices.batchSize;
+  const desired=priced.sort((x,y)=>cost(x)-cost(y))[0];
   if(typeof client.rpc?.account?.getQuota!=='function')return null;
   const quota=await client.rpc.account.getQuota({gitHubToken:token});
   const snapshots=quota?.quotaSnapshots;
