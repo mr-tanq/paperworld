@@ -4,7 +4,7 @@
  'use strict';
  const api=factory();
  if(typeof module==='object'&&module.exports)module.exports=api;
- else root.PaperworldWorkshop=factory();
+ else root.PaperworldWorkshop=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
  'use strict';
  const TOKEN_WORDS=['ticketswap','ticket swap','τικετσουαπ','τικετσβαπ'];
