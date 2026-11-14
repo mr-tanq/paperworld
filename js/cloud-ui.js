@@ -154,7 +154,21 @@ function renderWorkshop(){
      link.href=run.url;link.target='_blank';link.rel='noopener noreferrer';results.append(link)
     }
     if(status.report?.files){
-     for(const name of ['analysis.md','audit.json','tests.log','worker.patch','scope.json','prompt.txt']){
+     if(status.report.files['execution.json']){
+      try{
+       const detail=JSON.parse(status.report.files['execution.json']);
+       const labels={
+        'invalid-credit-limit':'Η εκτέλεση σταμάτησε λόγω μη αποδεκτού ορίου AI credits.',
+        'authentication-or-permission':'Το Copilot δεν είχε την απαραίτητη πρόσβαση.',
+        'model-not-available':'Το μοντέλο Copilot δεν ήταν διαθέσιμο στον λογαριασμό.',
+        'network-or-rate-limit':'Προέκυψε πρόβλημα σύνδεσης ή όριο αιτημάτων.',
+        'copilot-cli-error':'Το Copilot CLI απέτυχε πριν ολοκληρώσει την εργασία.',
+        'cli-exited-successfully':'Η διαδικασία Copilot ολοκληρώθηκε. Αυτό δεν αποδεικνύει ότι λύθηκε το TicketSwap.'
+       };
+       results.append(el('p',labels[detail.reason]||'Η εκτέλεση επέστρεψε μη αναγνωρισμένη κατάσταση.','room-footnote'));
+      }catch(_){results.append(el('p','Δεν διαβάστηκε η τεχνική διάγνωση.','room-footnote'))}
+     }
+     for(const name of ['execution.json','analysis.md','audit.json','tests.log','worker.patch','scope.json','prompt.txt']){
       if(!status.report.files[name])continue;
       const details=el('details',undefined,'worker-report-file');
       details.append(el('summary',name),el('pre',status.report.files[name],'mission-brief'));
