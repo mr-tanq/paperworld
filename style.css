@@ -234,3 +234,62 @@ aside{min-width:0;min-height:0;overscroll-behavior:contain}
  .world-dialogue-messages{padding:13px 12px 16px}
  .world-chat-composer{padding:8px 10px}
 }
+
+/* PAPERWORLD v54 — VILLAGE-FIRST GAME INTERFACE
+   Map occupies the viewport. The old admin forms are secondary/hidden.
+   Render only real messages and real task states; never simulate AI progress. */
+html,body{height:100%;width:100%;overflow:hidden;background:#182028}
+body>header{position:fixed;left:12px;top:12px;z-index:6;display:flex;align-items:center;
+ gap:10px;padding:9px 13px;background:#11191bdc;border:1px solid #ffffff25;
+ border-radius:12px;backdrop-filter:blur(11px);color:#f0e5d4;box-shadow:0 8px 24px #0007}
+body>header strong{font-size:12px;color:#f4e9d8;letter-spacing:.16em}
+body>header span{font-size:10px;color:#a3afa6;letter-spacing:.04em}
+.layout{position:fixed;inset:0;display:block;width:100vw;height:100dvh;overflow:hidden}
+#view{position:absolute;inset:0;min-height:0;height:100%;width:100%;overflow:hidden}
+#map{height:100%;width:100%}
+.controls{position:absolute;z-index:5;top:12px;right:12px;display:flex;gap:6px}
+.controls button{width:40px;min-width:40px;height:40px;min-height:40px;display:grid;place-items:center;
+ font-size:16px;border:1px solid #ffffff25;background:#121b1de9;color:#f3e6d2;
+ border-radius:11px;box-shadow:0 5px 18px #0005}
+.controls #world-talk-matt{background:#5b4b38;border-color:#a58d65;font-weight:800}
+.controls #world-work-panel{font-size:22px}
+.controls button:hover,.world-talk-actions button:hover{background:#344245}
+.hint{bottom:14px;left:14px;z-index:3;background:#141b1ed4;color:#ddd9c9;
+ font-size:11px;border:1px solid #ffffff17;border-radius:12px;padding:9px 13px;box-shadow:0 6px 18px #0005}
+.world-talk-actions{left:auto;right:12px;top:64px;z-index:4}
+.world-talk-actions button{background:#121b1de9!important;color:#eee8dd!important;border:1px solid #ffffff25!important}
+.world-talk-actions button:first-child{display:none} /* persistent M control above */
+#view .world-dialogue{z-index:17}
+#view .world-chat-veil{z-index:16}
+.layout>aside#world-drawer{position:absolute;right:12px;top:67px;bottom:14px;
+ z-index:12;width:min(380px,calc(100vw - 24px));height:auto;max-height:calc(100dvh - 83px);
+ overflow-y:auto;background:#171c21f5;color:#ebeeed;border:1px solid #ffffff30;
+ border-radius:17px;padding:16px;box-shadow:0 20px 65px #000b;backdrop-filter:blur(12px)}
+.layout>aside#world-drawer[hidden]{display:none!important}
+#world-drawer h1,#world-drawer h2,#world-drawer h3,#world-drawer h4{color:#f5eee2}
+#world-drawer p,#world-drawer small,#world-drawer .disclaimer{color:#b5bfc0}
+#world-drawer section,#world-drawer article{background:#22292f;border:1px solid #ffffff16;color:#e5e9e9}
+#world-drawer input,#world-drawer textarea,#world-drawer select{background:#262e33!important;
+ color:#f2f2f2!important;border-color:#59626a!important}
+#world-drawer button{color:#e8e9e5;background:#29353a;border:1px solid #ffffff2a;border-radius:10px}
+#world-drawer button.primary{background:#53674e;color:#fff}
+.world-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
+ padding:0 0 12px;border-bottom:1px solid #ffffff20}
+.world-drawer-head #close-world-drawer{width:39px;height:39px;border-radius:10px;font-size:25px;
+ display:grid;place-items:center;background:#2c343b}
+#world-drawer .room-tabs,#world-drawer .room-suggestions,#world-drawer .dev-tools{
+ display:none!important
+}
+#world-drawer .workspace-actions{display:flex;flex-wrap:wrap;gap:8px}
+#world-drawer .workspace-actions #open-projects{display:none}
+@media(max-width:640px){
+ body>header{top:7px;left:7px;padding:8px 10px}
+ body>header span{display:none}
+ .controls{top:7px;right:7px;gap:4px}
+ .controls button{min-height:37px;min-width:37px;width:37px;height:37px}
+ .world-talk-actions{top:52px;right:7px}
+ .hint{left:7px;bottom:7px;padding:7px 9px;font-size:10px}
+ .layout>aside#world-drawer{top:55px;right:7px;bottom:7px;width:calc(100vw - 14px);
+  max-height:calc(100dvh - 62px);padding:12px}
+}
+@media (max-height:550px){.hint{display:none}.layout>aside#world-drawer{bottom:6px}}
