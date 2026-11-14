@@ -3,7 +3,7 @@
 (()=>{'use strict';
  const view=document.querySelector('#view'),world=()=>window.PaperworldWorld,cloud=()=>window.PaperworldCloudUI;
  if(!view)return;
- let openId=null,revision=0,busy=false;
+ let openId=null,revision=0,busy=false,proposedHandoff=null;
  const make=(tag,className,text)=>{const e=document.createElement(tag);if(className)e.className=className;if(text!==undefined)e.textContent=text;return e};
  const actions=make('div','world-talk-actions');
  const mattBtn=make('button','','M · Matt'),nearBtn=make('button','','T · Talk');
@@ -16,7 +16,15 @@
  const privateLog=make('div','world-dialogue-private');
  const form=make('form','world-dialogue-form'),field=make('textarea'),send=make('button','','Send');
  field.rows=2;field.maxLength=1500;field.required=true;field.setAttribute('aria-label','Message to agent');send.type='submit';
- form.append(field,send);panel.append(status,messages,privateLog,form);view.append(panel);
+ const handoffAction=make('button','world-dialogue-handoff','Άνοιξε την αποστολή στο Listening Mirror Workshop');
+ handoffAction.type='button';handoffAction.hidden=true;
+ handoffAction.addEventListener('click',()=>{
+  try{
+   cloud().openMattHandoff(proposedHandoff);
+   hide();
+  }catch(error){status.textContent='Δεν άνοιξε η αποστολή: '+error.message}
+ });
+ form.append(field,send);panel.append(status,messages,privateLog,handoffAction,form);view.append(panel);
  function paint(){
   const token=++revision;
   if(!openId){panel.hidden=true;privateLog.replaceChildren();return}
@@ -37,6 +45,9 @@
    status.textContent='Τα μηνύματά σου αποθηκεύονται ιδιωτικά. Ο Director δεν έχει ακόμη AI μοντέλο ή σύστημα εκτέλεσης.';
    messages.append(make('p','world-dialogue-agent','Μπορείς να αφήσεις μήνυμα για αργότερα. Κανένας Worker δεν ξεκινά και δεν δημιουργείται αυτόματη απάντηση.'));
   }
+  handoffAction.hidden=!(openId==='matt'&&proposedHandoff?.to==='listening-director'&&
+    /ticket\\s*swap|ticketswap|τικετ/i.test(proposedHandoff.request||'')&&
+    typeof cloud()?.openMattHandoff==='function');
   privateLog.replaceChildren();
   if(active&&typeof cloud()?.privateAgentMessages==='function'){
    privateLog.append(make('p','world-dialogue-note','Φόρτωση ιδιωτικών μηνυμάτων…'));
@@ -55,8 +66,8 @@
   field.placeholder=available?(openId==='matt'?'Μίλησε στον Matt…':'Αποθήκευσε μήνυμα για Director (δεν απαντά ακόμη με AI)…'):'Συνδέσου στο Cloud για να στείλεις μήνυμα';
   messages.scrollTop=messages.scrollHeight;
  }
- function show(id){openId=id;paint();if(!field.disabled)field.focus()}
- function hide(){openId=null;paint()}
+ function show(id){if(id!=='matt')proposedHandoff=null;openId=id;paint();if(!field.disabled)field.focus()}
+ function hide(){openId=null;proposedHandoff=null;paint()}
  function nearby(){
   const target=world()?.nearestAgent(100);
   if(!target){showNotice('Δεν υπάρχει agent κοντά σου. Πλησίασε έναν χαρακτήρα.');return}
@@ -74,7 +85,10 @@
   let failure=null;
   try{
    await cloud().sendPrivateAgentMessage(id,text);
-   if(id==='matt')cloud().sendMattMessage(text);
+   if(id==='matt'){
+    const response=cloud().sendMattMessage(text);
+    proposedHandoff=response?.proposal||null;
+   }
    field.value='';
   }catch(error){failure=error}
   finally{busy=false;if(openId===id){paint();if(failure)status.textContent='Μήνυμα δεν αποθηκεύτηκε: '+failure.message}}
