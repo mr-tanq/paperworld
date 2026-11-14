@@ -23,9 +23,9 @@ test('Verifies authenticated Supabase identity, never accepts browser owner',asy
 test('Uses same user JWT for RLS read and validates thread owner and Matt agent',async()=>{
  const x=harness();
  assert.equal(await x.guard.ownsThread({threadId:THREAD,ownerId:USER,agentId:'matt',token:TOKEN}),true);
- assert.equal(x.requests.length,3);
- assert.ok(x.requests[2].url.includes('id=eq.'+THREAD));
- assert.equal(x.requests[2].options.headers.Authorization,'Bearer '+TOKEN);
+ assert.equal(x.requests.length,2);
+ assert.ok(x.requests[1].url.includes('id=eq.'+THREAD));
+ assert.equal(x.requests[1].options.headers.Authorization,'Bearer '+TOKEN);
 });
 test('Rejects incorrect Supabase identity and foreign threads',async()=>{
  for(const cfg of [{person:{id:USER,aud:'anon'}},{person:{id:'not-uuid',aud:'authenticated'}}]){
