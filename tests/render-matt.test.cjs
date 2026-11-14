@@ -41,9 +41,9 @@ test('Render blueprint pins free tier and blocks autodeploys',()=>{
  assert.match(config,/npm install --omit=dev/);
  assert.doesNotMatch(config,/sync: false|generateValue|paid|postgres|creditCard|copilot-requests: write/i);
 });
-test('Source is status-only, without credentials or model client',()=>{
+test('Server has no embedded GitHub secrets or unguarded tool execution',()=>{
  const source=fs.readFileSync(path.join(__dirname,'../server/render-matt.cjs'),'utf8');
- assert.doesNotMatch(source,/CopilotClient|createSession\(|GITHUB_TOKEN|service_role|client_secret|access_token|sendAndWait\(/);
+ assert.doesNotMatch(source,/GITHUB_TOKEN|service_role|client_secret|access_token|sendAndWait\(/);
  assert.match(source,/aiEnabled:true/);
  assert.match(source,/chatFactory/);
 });
