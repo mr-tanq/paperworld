@@ -409,7 +409,7 @@ test('human-review TicketSwap mission brief references real repository paths',()
 });
 test('cloud mission UI does not execute workers and retains privacy',()=>{
  const html=read('index.html'),cloud=read('js/cloud.js'),ui=read('js/cloud-ui.js'),sql=read('supabase/paperworld_missions_reference.sql');
- for(const src of ['cloud.js?v=32','cloud-ui.js?v=34','chief.js?v=28'])assert.ok(html.includes(src),src);
+ for(const src of ['cloud.js?v=32','cloud-ui.js?v=36','chief.js?v=28'])assert.ok(html.includes(src),src);
  for(const phrase of ['workerStatus(current.id)','runApprovedAiMission(current.id','workshop.existingTicketSwap(missions)','Παλαιότερες αποστολές'])assert.ok(ui.includes(phrase),phrase);
  for(const fn of ['listMissions','createMission','setMissionStatus','deleteMission'])assert.ok(cloud.includes(fn),fn);
  assert.ok(cloud.includes("mode:'analysis_only'"));
@@ -445,7 +445,7 @@ test('authenticated prepare-only bridge wiring',()=>{
  for(const part of ['workerStatus','prepareWorkerMission','confirm_prepare_only:true'])assert.ok(cloud.includes(part));
  for(const label of ['Έλεγχος προόδου','Δες την αναφορά','Ξεκίνα έρευνα AI'])assert.ok(ui.includes(label));
  assert.ok(html.includes('cloud.js?v=32'));
- assert.ok(html.includes('cloud-ui.js?v=34'));
+ assert.ok(html.includes('cloud-ui.js?v=36'));
 });
 test('bridge only dispatches review-ready mission with explicit per-run authorization',()=>{
  const code=read('supabase/functions/worker-bridge/index.ts');
@@ -516,7 +516,7 @@ test('Workshop dialogue routes everyday requests to existing task instead of dup
 test('Listening Mirror dialogue does not quietly start agents or write code',()=>{
  const ui=read('js/cloud-ui.js'),html=read('index.html');
  assert.ok(html.includes('workshop-dialogue.js?v=33'));
- assert.ok(html.includes('cloud-ui.js?v=34'));
+ assert.ok(html.includes('cloud-ui.js?v=36'));
  assert.ok(ui.includes('function renderWorkshop()'));
  assert.ok(ui.includes("workshop.existingTicketSwap(missions)"));
  assert.ok(ui.includes('workshop.existingTicketSwap(missions)'));
@@ -543,7 +543,7 @@ test('natural-language request can start AI only after a separate explicit confi
  assert.ok(ui.includes('confirm(explanation)'));
  assert.ok(ui.includes("client.runApprovedAiMission(current.id,'I_APPROVE_INCLUDED_AI_CREDITS')"));
  assert.ok(ui.includes('Το αίτημα αποθηκεύτηκε. Δεν ξεκίνησε AI.'));
- assert.ok(html.includes('style.css?v=workspace-034'));
+ assert.ok(html.includes('style.css?v=worker-state-036'));
  assert.equal(workshop.classify('Δεν δουλεύει το τικετσουατ').type,'ticketswap');
 });
 
@@ -553,4 +553,21 @@ test('Copilot Free workflow uses valid minimum credit cap and auto model selecti
  assert.doesNotMatch(workflow,/--max-ai-credits=0\.50/);
  assert.match(workflow,/if: inputs.mode == 'run-ai'/);
  assert.match(workflow,/I_APPROVE_AI_CREDITS/);
+});
+
+test('failed Worker run shows accurate status and blocks retry until server cooldown ends',()=>{
+ const edge=read('supabase/functions/worker-bridge/index.ts');
+ const ui=read('js/cloud-ui.js');
+ const html=read('index.html');
+ assert.ok(edge.includes('retryAt'));
+ assert.ok(edge.includes('retryBlocked'));
+ assert.ok(edge.includes('24*60*60*1000'));
+ assert.ok(ui.includes('workerReports.set(current.id,await client.workerStatus(current.id))'));
+ assert.ok(ui.includes('const blocked=previousRun?.mode'));
+ assert.ok(ui.includes('if(!blocked)'));
+ assert.ok(ui.includes('latest.run.retryBlocked'));
+ assert.ok(ui.includes('Η προηγούμενη προσπάθεια απέτυχε'));
+ assert.ok(ui.includes('run.id===43533783800'));
+ assert.ok(html.includes('cloud-ui.js?v=36'));
+ assert.match(read('style.css'),/\.developer-result\.worker-failed/);
 });
