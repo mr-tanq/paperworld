@@ -138,6 +138,7 @@ window.PaperworldCloudUI={
  privateAgentMessages:(id)=>client.agentMessages(id),
  sendPrivateAgentMessage:(id,text)=>client.sendAgentNote(id,text),
  askMatt:(text)=>client.askMatt(text),
+ delegateMatt:(text)=>client.delegateMatt(text),
  diagnoseMattSession:()=>client.diagnoseMattSession(),
  githubLinkStatus:()=>client.githubLinkStatus(),
  beginGithubLink:()=>client.beginGithubLink()
