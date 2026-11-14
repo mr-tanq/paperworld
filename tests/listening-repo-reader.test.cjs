@@ -72,3 +72,48 @@ test('No mutable repository paths, branch selection or GitHub writes exposed',()
  assert.equal(typeof reader.write,'undefined');
  assert.equal(typeof reader.delete,'undefined');
 });
+
+test('Linked GitHub OAuth is used only for fixed Contents API GETs',async()=>{
+ const {reader,urls,requests}=mockRead();
+ await reader.read('ticketing',{token:'gho_SAFE_TEST_TOKEN'});
+ assert.equal(urls.length,3);
+ for(const request of requests){
+  assert.equal(request.method,'GET');
+  assert.equal(request.redirect,'error');
+  assert.equal(request.headers.Authorization,'Bearer gho_SAFE_TEST_TOKEN');
+ }
+ assert.deepEqual(urls.map(u=>new URL(u).host),['api.github.com','api.github.com','api.github.com']);
+});
+test('GitHub failures have safe discriminated reason codes with no response text',async()=>{
+ const cases=[
+  [401,{},'github_auth_rejected'],
+  [403,{'x-ratelimit-remaining':'0'},'github_rate_limited'],
+  [403,{'x-ratelimit-remaining':'42'},'github_forbidden'],
+  [404,{},'github_file_missing_or_inaccessible'],
+  [429,{},'github_rate_limited'],
+  [503,{},'github_upstream_unavailable']
+ ];
+ for(const [status,headers,code] of cases){
+  const reader=createRepoReader({fetcher:async()=>({
+   ok:false,status,headers:{get:key=>headers[key]},
+   text:async()=>'SECRET_RESPONSE_MUST_NEVER_APPEAR'
+  })});
+  await assert.rejects(reader.read('ticketing',{token:'gho_SAFE_TEST_TOKEN'}),error=>{
+   assert.equal(error.code,code);
+   assert.equal(error.message,'repository_read_unavailable');
+   assert.doesNotMatch(String(error),/SECRET_RESPONSE|SAFE_TEST_TOKEN/);
+   return true;
+  });
+ }
+});
+test('Network and invalid GitHub credential errors fail closed',async()=>{
+ const reader=createRepoReader({fetcher:async()=>{throw Error('SECRET_TOKEN_NETWORK_FAILURE')}});
+ await assert.rejects(reader.read('ticketing',{token:'gho_SAFE_TEST_TOKEN'}),error=>{
+  assert.equal(error.code,'github_network_unavailable');
+  assert.doesNotMatch(String(error),/SECRET_TOKEN/);
+  return true;
+ });
+ await assert.rejects(reader.read('ticketing',{token:'\nunsafe'}),error=>{
+  assert.equal(error.code,'github_auth_invalid');return true;
+ });
+});

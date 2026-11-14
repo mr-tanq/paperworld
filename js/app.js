@@ -82,11 +82,12 @@ mattActor.direction='down';mattActor.moving=false;mattActor.walkDistance=16;
 mattActor.x=state.walker.x-36;mattActor.y=state.walker.y;
 const followTrail=[{x:state.walker.x,y:state.walker.y}];
 const agentJourney={mode:'following',route:[],phase:'idle',meeting:false,
- pendingReturn:false,meetingSince:0};
+ pendingReturn:false,meetingSince:0,failed:false};
 window.PaperworldWorld=Object.freeze({
  agents:()=>actors.map(a=>({...a})),
  // T addresses a nearby Director; M talks to the always-available Matt.
  setAgentWorkflowStage,
+ setAgentWorkflowFailure,
  nearestAgent:(radius=100)=>actors.filter(a=>a.id!=='matt')
    .map(a=>({...a,distance:Math.hypot(a.x-state.walker.x,a.y-state.walker.y)}))
    .filter(a=>a.distance<=radius).sort((a,b)=>a.distance-b.distance)[0]||null
@@ -107,7 +108,15 @@ function planMattRoute(target){
  agentJourney.route=points.map(([x,y])=>({x,y})).filter(p=>Math.hypot(p.x-mattActor.x,p.y-mattActor.y)>1);
  return true;
 }
+function setAgentWorkflowFailure(){
+ // A worker failure is not a completed meeting. Never invent a journey.
+ agentJourney.failed=true;
+ if(agentJourney.mode==='outbound'||agentJourney.mode==='meeting')
+  setAgentWorkflowStage('failed');
+ else agentJourney.phase='failed';
+}
 function setAgentWorkflowStage(stateName){
+ if(stateName==='routed'||stateName==='created')agentJourney.failed=false;
  const events=stateName==='created'?[{state:'created',actor:'matt'}]:
   [{state:'routed',actor:'matt'},{state:stateName,actor:'matt'}];
  const projection=window.PaperworldVisualWorkflow?.project(events);
@@ -195,6 +204,15 @@ layers.push({id:'player',depth:w.y,paint:()=>drawFigure(w)});
  if(d)layers.push({id:'depth-demo',depth:d.y,paint:()=>drawFigure(d,true)});
  layers.push(...depth.foregroundLayers(ctx,scene.ready,scene.image,W,H));
  depth.sortLayers(layers).forEach(item=>item.paint());
+ if(agentJourney.failed){
+  ctx.save();
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font='bold 18px system-ui';
+  ctx.shadowColor='#18171b';ctx.shadowBlur=7;
+  ctx.fillStyle='#ffb9a8';
+  ctx.fillText('⚠ Εργασία απέτυχε',mattActor.x,mattActor.y-108);
+  ctx.restore();
+ }
  if(agentJourney.meeting){
   const d=actors.find(a=>a.id==='listening-director');
   ctx.save();ctx.font='bold 22px system-ui';ctx.fillStyle='#fff4db';

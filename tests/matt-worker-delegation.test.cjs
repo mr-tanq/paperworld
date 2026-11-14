@@ -22,8 +22,8 @@ function fake({route='listening-director',category='artwork',
    create:async args=>{seen.jobs.push(args);if(failHistoryCreate)throw Error('storage_down')},
    append:async args=>{seen.events.push(args);if(failHistoryEvent)throw Error('event_down')}
   },
-  reader:{read:async name=>{
-   seen.read.push(name);
+  reader:{read:async (name,options)=>{
+   seen.read.push(name);seen.readerAuth=options?.token;
    const categoryPaths=FILES[name]||[];
    return {repository:badEvidence?'other/repo':'mr-tanq/concerts',
     ref:'main',category:name,readOnly:true,
@@ -68,6 +68,7 @@ test('Matt → Director → source evidence → Worker → Director → Matt is 
  assert.equal(result.body.attemptedAiTurns,5);
  assert.equal(seen.calls,5);
  assert.deepEqual(seen.read,['artwork']);
+ assert.equal(seen.readerAuth,'gho_VALID_FAKE_ONLY');
  assert.equal(result.body.evidence.files.length,FILES.artwork.length);
  assert.match(result.body.workerReport,/L1/);
  assert.match(result.body.content,/no changes made/);
@@ -172,4 +173,32 @@ test('No job row is created when route is not enabled',async()=>{
  const result=await gateway.handle({headers,body:body(payload)});
  assert.equal(result.body.delegated,false);
  assert.deepEqual(seen.jobs,[]);
+});
+
+test('Reader failure exposes only a bounded safe GitHub reason',async()=>{
+ const seen={calls:0,diagnostics:[],events:[]};
+ const gateway=makeWorkerDelegation({
+  oauth:{getLinkedToken:()=> 'gho_PRIVATE_TOKEN_NEVER_EXPOSED'},
+  guard:{authenticate:async()=>({ownerId:owner}),ownsThread:async()=>true},
+  budgetVerified:()=>true,
+  jobMemory:{create:async()=>{},append:async event=>{seen.events.push(event)}},
+  reader:{read:async()=>{const e=new Error('SECRET_API_RESPONSE');e.code='github_rate_limited';throw e}},
+  clientFactory:async()=>({
+   start:async()=>{},listModels:async()=>[{id:'model',billing:{tokenPrices:{inputPrice:1,outputPrice:1,batchSize:1000}}}],
+   createSession:async()=>({sendAndWait:async()=>{
+    seen.calls++;return {data:{content:seen.calls===1?'listening-director':'ticketing'}}
+   },disconnect:async()=>{}}),stop:async()=>{}
+  }),
+  diagnostic:value=>seen.diagnostics.push(value)
+ });
+ const response=await gateway.handle({headers,body:body(payload)});
+ assert.equal(response.status,503);
+ assert.equal(response.body.stage,'repository_read');
+ assert.equal(response.body.reason,'github_rate_limited');
+ assert.equal(response.body.attemptedAiTurns,2);
+ assert.equal(seen.calls,2);
+ assert.equal(seen.events.at(-1).state,'failed');
+ assert.match(seen.events.at(-1).note,/github_rate_limited/);
+ assert.equal(seen.diagnostics.at(-1),'repository_read:github_rate_limited');
+ assert.doesNotMatch(JSON.stringify(response)+JSON.stringify(seen.diagnostics),/SECRET_API_RESPONSE|PRIVATE_TOKEN/);
 });

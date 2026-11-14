@@ -112,8 +112,8 @@
   }catch(error){
    failed=error;
    await poll();
-   if(lastPhase&&lastPhase!=='reported')showStage('failed');
-   showNotice('Η ανάθεση δεν ολοκληρώθηκε: '+error.message);
+   world()?.setAgentWorkflowFailure?.();
+   showNotice('⚠ Η εργασία απέτυχε (δεν ολοκληρώθηκε): '+error.message);
    if(error.noteSaved)field.value='';
   }finally{
    if(watcher!==null)clearInterval(watcher);

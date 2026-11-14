@@ -122,7 +122,7 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
     return deny(422,'director_scope_unverified');
    await record('scoped','listening-director','Allowed source category: '+category);
    stage='repository_read';
-   const evidence=await reader.read(category);
+   const evidence=await reader.read(category,{token});
    if(evidence.repository!=='mr-tanq/concerts'||evidence.readOnly!==true||
     evidence.category!==category||!Array.isArray(evidence.files)||
     evidence.files.length!==FILES[category].length||
@@ -176,11 +176,16 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
      files:evidence.files.map(x=>({path:x.path,sha:x.sha,url:x.url}))},
     execution:'read_only_analysis',requestId:input.requestId,
     persisted:jobCreated&&historyComplete,jobId:input.requestId}};
-  }catch(_){
-   diagnostic(stage);
-   await record('failed','matt','Investigation interrupted at '+stage);
+  }catch(error){
+   // Expose only enumerated failure classes, never raw GitHub responses or tokens.
+   const reason=stage==='repository_read'&&typeof error?.code==='string'&&
+    /^github_(auth_rejected|auth_invalid|rate_limited|forbidden|file_missing_or_inaccessible|upstream_unavailable|http_denied|network_unavailable|invalid_response)$/.test(error.code)
+     ?error.code:null;
+   diagnostic(reason?stage+':'+reason:stage);
+   await record('failed','matt','Investigation interrupted at '+stage+
+    (reason?' ('+reason+')':''));
    return {status:503,body:{error:'worker_runtime_unavailable',
-    stage,attemptedAiTurns:attempted}};
+    stage,attemptedAiTurns:attempted,...(reason?{reason}:{})}};
   }finally{
    try{await session?.disconnect?.()}catch(_){}
    try{await client?.stop?.()}catch(_){}
