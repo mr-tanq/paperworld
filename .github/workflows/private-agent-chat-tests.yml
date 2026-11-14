@@ -22,6 +22,7 @@ on:
       - 'server/matt-copilot-adapter.cjs'
       - 'js/cloud.js'
       - 'js/cloud-ui.js'
+      - 'js/visual-agent-workflow.js'
       - 'js/agent-conversation-store.js'
       - 'index.html'
       - 'style.css'
@@ -67,6 +68,7 @@ jobs:
             tests/agent-conversation-store.test.cjs \
             tests/agent-cloud-integration.test.cjs \
             tests/world-dialogue.test.cjs \
+            tests/visual-agent-workflow.test.cjs \
             tests/village-first.test.cjs \
             tests/matt-visual.test.cjs \
             tests/matt-walk-v2.test.cjs \
