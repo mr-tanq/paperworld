@@ -162,7 +162,7 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
   if(busy.has(ownerId))return deny(429,'another_request_active');
   used.set(key,clock()+600000);busy.add(ownerId);
   let client,session,directory;
-  let stage='client_factory';
+  let stage='client_factory',profile='baseline';
   try{
    directory=await fs.mkdtemp(path.join(os.tmpdir(),'paperworld-diag-'));
    client=await clientFactory({gitHubToken:token,useLoggedInUser:false,
@@ -172,17 +172,30 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
    stage='model_discovery';
    const model=await entitled(client);
    if(!model)return deny(403,'no_verified_price_model');
-   stage='session_create';
+   // First try only an explicit per-user token, empty tool allowlist and
+   // reject-all permission handler. If that fails, optional options are
+   // NOT the cause; check SDK authentication or runtime policy.
+   stage='session_create';profile='baseline';
+   session=await client.createSession(createSafeSessionConfig({
+    model:model.id,gitHubToken:token,probeMinimal:true
+   }));
+   await session.disconnect();
+   session=null;
+   // Then compare full, equally no-tools session options.
+   profile='full';
    session=await client.createSession(createSafeSessionConfig({
     model:model.id,gitHubToken:token
    }));
-   // This endpoint deliberately never calls send/sendAndWait, even on success.
-   return {status:200,body:{sessionCreated:true,model:model.id,
-    aiMessagesSent:0,diagnostic:true}};
+   // NO send/sendAndWait, no model inference from this endpoint.
+   return {status:200,body:{sessionCreated:true,baselineCreated:true,
+    fullCreated:true,model:model.id,aiMessagesSent:0,diagnostic:true}};
   }catch(error){
    const reason=stage==='session_create'?classifySessionError(error):'unclassified';
-   diagnostic(reason==='unclassified'?stage:stage+':'+reason);
+   // Profiles are trusted fixed labels, not user-supplied strings.
+   diagnostic((reason==='unclassified'?stage:stage+':'+reason)+
+    (stage==='session_create'?':'+profile:''));
    return {status:503,body:{error:'copilot_session_diagnostic_failed',stage,reason,
+    profile:stage==='session_create'?profile:'not_reached',
     aiMessagesSent:0}};
   }finally{
    try{await session?.disconnect?.()}catch(_){}

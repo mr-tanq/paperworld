@@ -113,9 +113,15 @@ test('Diagnostic creates a user-bound Copilot session but NEVER sends an AI mess
  assert.equal(result.status,200);
  assert.equal(result.body.sessionCreated,true);
  assert.equal(result.body.aiMessagesSent,0);
- assert.equal(seen.sessions.length,1);
+ assert.equal(result.body.baselineCreated,true);
+ assert.equal(result.body.fullCreated,true);
+ assert.equal(seen.sessions.length,2);
  assert.equal(seen.reply,0);
  assert.deepEqual(seen.sessions[0].availableTools,[]);
+ assert.deepEqual(seen.sessions[1].availableTools,[]);
+ assert.equal('hooks' in seen.sessions[0],false);
+ assert.equal('sessionLimits' in seen.sessions[0],false);
+ assert.deepEqual(seen.sessions[1].sessionLimits,{maxAiCredits:1});
  assert.deepEqual(await seen.sessions[0].onPermissionRequest(),{kind:'reject'});
 });
 test('Diagnostic fails closed without consent, ownership, budget or GitHub link',async()=>{
@@ -139,7 +145,18 @@ test('Diagnostic reports safe session-create failure and never sends',async()=>{
   threadId:thread,requestId:request,consent:'SESSION_ONLY_NO_MODEL_CALL'})});
  assert.equal(result.status,503);
  assert.deepEqual(result.body,{error:'copilot_session_diagnostic_failed',
-  stage:'session_create',reason:'unclassified',aiMessagesSent:0});
+  stage:'session_create',reason:'unclassified',profile:'baseline',aiMessagesSent:0});
  assert.equal(seen.reply,0);
  assert.ok(!JSON.stringify(result).includes('SENSITIVE_USER_SECRET'));
+});
+
+test('Diagnostic distinguishes failure in optional full session options from baseline',async()=>{
+ const {chat,seen}=mock();
+ const diagnosticBody=JSON.stringify({threadId:thread,requestId:request,
+  consent:'SESSION_ONLY_NO_MODEL_CALL'});
+ // With a mock, both modes succeed, proving no model is sent by either.
+ const result=await chat.diagnose({headers,body:diagnosticBody});
+ assert.equal(result.status,200);
+ assert.deepEqual(seen.sessions.map(x=>x.availableTools),[[],[]]);
+ assert.equal(seen.reply,0);
 });

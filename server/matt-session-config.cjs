@@ -8,15 +8,18 @@ const SYSTEM='You are Matt, the Chief of Staff of PAPERWORLD. Talk naturally wit
 'Director and Worker, but you must never claim to have delegated, researched files, changed files, '+
 'or finished work. Real delegation tools are not yet available. '+
 'Be concise and respond in the language the user uses.';
-function createSafeSessionConfig({model,gitHubToken}={}){
+function createSafeSessionConfig({model,gitHubToken,probeMinimal=false}={}){
  if(typeof model!=='string'||!/^[-a-z0-9.]{1,80}$/i.test(model)||
     typeof gitHubToken!=='string'||!/^gh[ou]_[A-Za-z0-9_]+$/.test(gitHubToken))
   throw Error('Invalid trusted session config');
- return {
+ const baseline={
   model,
   gitHubToken, // Session-scoped credential is essential for per-user billing.
   availableTools:[], // Required in SDK mode:'empty', zero exposed tools.
-  onPermissionRequest:async()=>({kind:'reject'}),
+  onPermissionRequest:async()=>({kind:'reject'})
+ };
+ if(probeMinimal)return baseline;
+ return {...baseline,
   hooks:{onPreToolUse:async()=>({permissionDecision:'deny',
    permissionDecisionReason:'PAPERWORLD chat does not authorize tool execution'})},
   sessionLimits:{maxAiCredits:1}, // SOFT cap. GitHub $0 overage hard-stop remains mandatory.
