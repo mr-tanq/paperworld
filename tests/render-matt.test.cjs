@@ -9,7 +9,7 @@ function request(port,p,method='GET'){
  return new Promise((resolve,reject)=>{
   const req=http.request({host:'127.0.0.1',port,path:p,method},res=>{
    let raw='';res.on('data',chunk=>raw+=chunk);
-   res.on('end',()=>resolve({status:res.statusCode,headers:res.headers,body:JSON.parse(raw)}));
+   res.on('end',()=>resolve({status:res.statusCode,headers:res.headers,body:raw?JSON.parse(raw):null}));
   });req.on('error',reject);req.end();
  });
 }
@@ -25,7 +25,10 @@ test('Render bootstrap is a real HTTP listener and never invokes AI',async()=>{
   assert.equal(chat.status,503);
   assert.deepEqual(chat.body,{error:'ai_not_connected'});
   assert.equal(chat.headers['access-control-allow-origin'],undefined);
-  assert.equal((await request(address.port,'/auth/github/callback')).status,404);
+  const callback=await request(address.port,'/auth/github/callback');
+  assert.equal(callback.status,302);
+  assert.equal(callback.body,null);
+  assert.match(callback.headers.location||'',/github_link=failed/);
   assert.equal((await request(address.port,'/')).status,404);
  }finally{await app.close()}
 });
