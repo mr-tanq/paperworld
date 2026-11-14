@@ -37,3 +37,13 @@ test('Natural Matt message uses explicit consent and polls owned history without
  const html=read('index.html');
  assert.ok(html.indexOf('js/visual-agent-workflow.js')<html.indexOf('js/app.js'));
 });
+
+test('Failure indication does not masquerade as successful Director meeting',()=>{
+ const app=read('js/app.js'),ui=read('js/world-dialogue.js');
+ assert.match(app,/function setAgentWorkflowFailure\(\)/);
+ assert.match(app,/agentJourney\.failed=true/);
+ assert.match(app,/⚠ Εργασία απέτυχε/);
+ assert.match(ui,/setAgentWorkflowFailure\?\.\(\)/);
+ assert.match(ui,/⚠ Η εργασία απέτυχε/);
+ assert.ok(read('index.html').includes('js/app.js?v=56'));
+});
