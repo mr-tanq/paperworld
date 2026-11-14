@@ -21,7 +21,7 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
  // GitHub switched from premium-request-based pricing to token-priced AI Credits
  // on June 1, 2026. Do NOT infer a free turn from legacy multipliers.
  // Every turn also requires GitHub account-level $0 additional usage budget.
- async function entitled(client,token){
+ async function entitled(client){
   if(typeof client.listModels!=='function')return null;
   const models=await client.listModels();
   if(!Array.isArray(models)||!models.length)return null;
@@ -39,16 +39,9 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
   const cost=m=>(m.billing.tokenPrices.inputPrice+
     m.billing.tokenPrices.outputPrice)/m.billing.tokenPrices.batchSize;
   const desired=priced.sort((x,y)=>cost(x)-cost(y))[0];
-  if(typeof client.rpc?.account?.getQuota!=='function')return null;
-  const quota=await client.rpc.account.getQuota({gitHubToken:token});
-  const snapshots=quota?.quotaSnapshots;
-  // The effective AI-Credit entitlement must be observable. Missing quota
-  // is NOT interpreted as unlimited usage.
-  const ai=snapshots?.ai_credits||snapshots?.ai_credit;
-  if(!ai||!Number.isFinite(ai.entitlementRequests)||!Number.isFinite(ai.usedRequests))
-   return null;
-  if(ai.entitlementRequests!==-1&&ai.entitlementRequests-ai.usedRequests<5)
-   return null;
+  // Account-level hard stop is the billing authority. GitHub SDK quota
+  // snapshots are advisory and can use legacy or provider-dependent keys;
+  // never invent available credits from them.
   return {id:desired.id};
  }
  async function handle({headers={},body}={}){
@@ -83,8 +76,8 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
   try{
    client=await clientFactory({gitHubToken:token,useLoggedInUser:false,mode:'empty'});
    await client.start();
-   const model=await entitled(client,token);
-   if(!model)return deny(403,'ai_credit_quota_not_verified');
+   const model=await entitled(client);
+   if(!model)return deny(403,'no_verified_price_model');
    const conversationKey=ownerId+':'+data.threadId;
    const context=conversations.get(conversationKey)||[];
    // Separate this stored conversation text from the Chief's system instructions.
