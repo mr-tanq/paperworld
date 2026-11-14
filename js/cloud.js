@@ -169,9 +169,34 @@
    return u.href;
   }
   async function githubLinkStatus(){return mattOAuth('/auth/github/status')}
+  async function askMatt(message){
+   const text=String(message||'').trim();
+   if(!text||text.length>1200)throw Error('Message must be 1–1200 characters');
+   await ensureAuth();
+   const thread=await getAgentThread('matt',true);
+   // Human text is stored privately before making the separately confirmed call.
+   await agentStore().say(thread.id,text);
+   const payload={threadId:thread.id,requestId:crypto.randomUUID(),message:text,
+     consent:'ONE_COPILOT_TURN_INCLUDED_ALLOWANCE'};
+   let response;
+   try{
+    response=await fetcher(MATT_ORIGIN+'/chat/matt',{method:'POST',
+     headers:{Authorization:'Bearer '+session.access_token,
+      'Content-Type':'application/json'},
+     body:JSON.stringify(payload),redirect:'error'});
+    const result=await response.json();
+    if(!response.ok)throw Error((result.error||'Copilot failed')+' (HTTP '+response.status+')');
+    if(!result.executed||result.agentId!=='matt'||typeof result.content!=='string')
+     throw Error('No real Matt reply returned');
+    return result;
+   }catch(error){
+    error.noteSaved=true; // Do not resend the human note automatically.
+    throw error;
+   }
+  }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus};
+   agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });
