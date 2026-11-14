@@ -36,10 +36,12 @@ function createRepoReader({fetcher=globalThis.fetch}={}){
    // Declared response length is advisory; never accept oversized body metadata.
    const data=await response.json();
    if(data?.type!=='file'||data.path!==name||data.encoding!=='base64'||
-    typeof data.content!=='string'||data.size>MAX_FILE_BYTES)
+    typeof data.content!=='string'||!Number.isInteger(data.size)||
+    data.size<0||data.size>MAX_FILE_BYTES)
     throw Error('repository_file_not_allowed');
    const content=Buffer.from(data.content.replace(/\s/g,''),'base64');
-   if(content.length>MAX_FILE_BYTES||bytes+content.length>MAX_TOTAL_BYTES)
+   if(content.length!==data.size||content.length>MAX_FILE_BYTES||
+    bytes+content.length>MAX_TOTAL_BYTES)
     throw Error('repository_evidence_too_large');
    bytes+=content.length;
    entries.push(Object.freeze({
