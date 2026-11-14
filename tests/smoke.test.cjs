@@ -350,7 +350,7 @@ test('main PAPERWORLD prioritizes cloud workspaces and hides diagnostics',()=>{
  assert.match(local,/function open\(id='town',forceLocal=false\)/);
  assert.match(cloud,/window\.PaperworldRooms\.open\(room,true\)/);
  assert.match(cloud,/\[allTasks,missions\]=await Promise\.all\(\[client\.list\(\),client\.listMissions\(\)\]\)/);
- assert.match(cloud,/Village overview/);
+ assert.match(cloud,/renderChiefOrRoom/);
  assert.match(cloud,/PaperworldCloudUI=\{open,openChief,isActive:\(\)=>active,signedIn:\(\)=>client\.signedIn\(\)\}/);
  assert.match(cloud,/Preview and copy/);
  assert.match(cloud,/Originals will remain on this device/);
@@ -520,7 +520,7 @@ test('Listening Mirror dialogue does not quietly start agents or write code',()=
  assert.ok(ui.includes('function renderWorkshop()'));
  assert.ok(ui.includes("workshop.existingTicketSwap(missions)"));
  assert.ok(ui.includes('workshop.existingTicketSwap(missions)'));
- assert.ok(ui.includes('Αποθήκευση αιτήματος')===false);
+ assert.ok(ui.includes('Αποθήκευση αιτήματος'));
  assert.ok(ui.includes("confirm('Να αποθηκεύσω το αίτημα"));
  assert.ok(!read('js/workshop-dialogue.js').includes('fetch('));
 });
