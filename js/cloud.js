@@ -144,7 +144,7 @@
      data:{mission_id:id,confirm_ai_credits:approval}});
   }
   // Private owner-verified REST conversation storage; no AI request.
-  const agentStore=()=>{if(!root.PaperworldAgentStore)throw Error('Agent store not loaded');return root.PaperworldAgentStore.create({transport:withAuth})};
+  const agentStore=()=>{const module=typeof globalThis!=='undefined'?globalThis.PaperworldAgentStore:null;if(!module)throw Error('Agent store not loaded');return module.create({transport:withAuth})};
   async function getAgentThread(agentId,createIfMissing=false){
    const store=agentStore();
    const previous=await store.threads();
