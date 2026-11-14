@@ -133,6 +133,64 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
    busy.delete(ownerId);
   }
  }
- return Object.freeze({handle});
+
+ // Diagnostic-only session: does not call session.send(), sendAndWait(),
+ // or any model endpoint. Authenticated owner + explicit one-use consent.
+ async function diagnose({headers={},body}={}){
+  if(headers.origin!=='https://mr-tanq.github.io')return deny(403,'origin_denied');
+  const bearer=headers.authorization||'';
+  if(!/^Bearer [A-Za-z0-9_.-]{12,4096}$/.test(bearer))return deny(401,'unauthorized');
+  if(typeof body!=='string'||Buffer.byteLength(body)>512)return deny(413,'invalid_body');
+  let data;
+  try{data=JSON.parse(body)}catch(_){return deny(400,'invalid_json')}
+  if(!data||!UUID.test(data.threadId||'')||!UUID.test(data.requestId||'')||
+   data.consent!=='SESSION_ONLY_NO_MODEL_CALL')return deny(400,'consent_or_input_required');
+  let ownerId;
+  try{
+   const identityResult=await identity.authenticate(bearer.slice(7));
+   ownerId=identityResult.ownerId;
+   if(!await identity.ownsThread({threadId:data.threadId,ownerId,
+    agentId:'matt',token:bearer.slice(7)}))return deny(404,'thread_not_found');
+  }catch(_){return deny(401,'unauthorized')}
+  if(typeof budgetVerified!=='function'||await budgetVerified({ownerId})!==true)
+   return deny(403,'verify_github_zero_overage_budget');
+  const token=oauth.getLinkedToken({ownerId});
+  if(!token)return deny(409,'github_reconnect_required');
+  clean();
+  const key=ownerId+':diagnostic:'+data.requestId;
+  if(used.has(key))return deny(409,'already_submitted');
+  if(busy.has(ownerId))return deny(429,'another_request_active');
+  used.set(key,clock()+600000);busy.add(ownerId);
+  let client,session,directory;
+  let stage='client_factory';
+  try{
+   directory=await fs.mkdtemp(path.join(os.tmpdir(),'paperworld-diag-'));
+   client=await clientFactory({gitHubToken:token,useLoggedInUser:false,
+    mode:'empty',baseDirectory:directory});
+   stage='client_start';
+   await client.start();
+   stage='model_discovery';
+   const model=await entitled(client);
+   if(!model)return deny(403,'no_verified_price_model');
+   stage='session_create';
+   session=await client.createSession(createSafeSessionConfig({
+    model:model.id,gitHubToken:token
+   }));
+   // This endpoint deliberately never calls send/sendAndWait, even on success.
+   return {status:200,body:{sessionCreated:true,model:model.id,
+    aiMessagesSent:0,diagnostic:true}};
+  }catch(error){
+   const reason=stage==='session_create'?classifySessionError(error):'unclassified';
+   diagnostic(reason==='unclassified'?stage:stage+':'+reason);
+   return {status:503,body:{error:'copilot_session_diagnostic_failed',stage,reason,
+    aiMessagesSent:0}};
+  }finally{
+   try{await session?.disconnect?.()}catch(_){}
+   try{await client?.stop?.()}catch(_){}
+   if(directory)try{await fs.rm(directory,{recursive:true,force:true})}catch(_){}
+   busy.delete(ownerId);
+  }
+ }
+ return Object.freeze({handle,diagnose});
 }
 module.exports=Object.freeze({makeMattChat,CONSENT});
