@@ -3,7 +3,7 @@ const canvas=document.querySelector('#map'),ctx=canvas.getContext('2d'),nameEl=d
 const W=1671,H=941;
 const depth=window.PaperworldDepth;
 if(!depth)throw new Error('PAPERWORLD depth module not loaded');
-const state={width:0,height:0,dpr:1,scale:1,fit:1,x:0,y:0,pointer:null,chosen:null,walker:{x:835,y:854},route:[],destination:null,depthDemo:0};
+const state={width:0,height:0,dpr:1,scale:1,fit:1,x:0,y:0,pointer:null,chosen:null,walker:{x:835,y:854,direction:'down',moving:false,walkDistance:14},route:[],destination:null,depthDemo:0};
 const defs=[
 {id:'town',name:'Town Hall',file:'./assets/town-hall.png',x:535,bottom:476,width:356,entrance:[355,547],approach:[535,520],desc:'The future approval and budget hub. All operations remain disabled.'},
 {id:'workshop',name:'Listening Mirror Workshop',file:'./assets/listening-mirror-workshop.png',x:1125,bottom:468,width:358,entrance:[1153,358],approach:[1125,515],desc:'The music discovery project workspace. No real tasks are connected.'},
@@ -49,6 +49,28 @@ const actors=defs.map(d=>({id:({town:'matt',workshop:'listening-director',pokemo
 // Matt follows the player along previously walked positions rather than
 // teleporting through houses. This is visual companionship, not AI execution.
 // Matt's visual animation is independent of AI execution and task delegation.
+// Chief Human Officer: contemporary clothes distinguish the human visitor from AI residents.
+const playerVisual=new Image();
+playerVisual.decoding='async';
+playerVisual.src='./assets/player-walk-v1.png';
+function drawPlayerSprite(p){
+ if(!playerVisual.complete||!playerVisual.naturalWidth)return false;
+ const rows={down:0,right:1,up:2,left:3};
+ const row=rows[p.direction]??0;
+ // Use the proven Matt v3 4-pose gait, driven by physical movement distance.
+ const frame=p.moving?Math.floor(p.walkDistance/14)%4:1;
+ const sw=playerVisual.naturalWidth/4,sh=playerVisual.naturalHeight/4;
+ const dw=60,dh=88;
+ ctx.save();
+ ctx.fillStyle='rgba(31,24,18,.28)';
+ ctx.beginPath();ctx.ellipse(p.x,p.y-2,14,5,0,0,Math.PI*2);ctx.fill();
+ ctx.drawImage(playerVisual,frame*sw,row*sh,sw,sh,p.x-dw/2,p.y-dh,dw,dh);
+ ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 13px system-ui';
+ ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;ctx.fillStyle='#fff4db';
+ ctx.fillText('You',p.x,p.y+14);
+ ctx.restore();
+ return true;
+}
 const mattVisual=new Image();
 mattVisual.decoding='async';
 // v2 has normalized per-frame feet positions and isolated transparent silhouettes.
@@ -199,7 +221,7 @@ const w=state.walker;
  ctx.fillStyle='#fff9e8';ctx.font='bold 15px system-ui';ctx.textAlign='center';ctx.fillText(a.id==='matt'?'Matt':'Director',a.x,a.y+23);
  ctx.restore();
 }});
-layers.push({id:'player',depth:w.y,paint:()=>drawFigure(w)});
+layers.push({id:'player',depth:w.y,paint:()=>{if(!drawPlayerSprite(w))drawFigure(w)}});
  const d=demoPositions[state.depthDemo];
  if(d)layers.push({id:'depth-demo',depth:d.y,paint:()=>drawFigure(d,true)});
  layers.push(...depth.foregroundLayers(ctx,scene.ready,scene.image,W,H));
@@ -235,12 +257,19 @@ layers.push({id:'player',depth:w.y,paint:()=>drawFigure(w)});
  ctx.restore()}
 function tick(now){
  const dt=Math.min(.05,(now-(tick.last||now))/1000);tick.last=now;
+ const player=state.walker;
+ player.moving=false;
  if(state.route.length){
-  const next=state.route[0],dx=next.x-state.walker.x,dy=next.y-state.walker.y,
+  const next=state.route[0],dx=next.x-player.x,dy=next.y-player.y,
         dist=Math.hypot(dx,dy),speed=105*dt;
-  if(dist<=speed){Object.assign(state.walker,next);state.route.shift();
+  if(dist>0.001){
+   const step=Math.min(dist,speed);
+   player.direction=mattDirection(dx,dy,player.direction);
+   player.x+=dx/dist*step;player.y+=dy/dist*step;
+   player.walkDistance+=step;player.moving=step>0.25;
+  }
+  if(dist<=speed+0.001){player.x=next.x;player.y=next.y;state.route.shift();
    if(!state.route.length)state.destination=null}
-  else{state.walker.x+=dx/dist*speed;state.walker.y+=dy/dist*speed}
  }
  const last=followTrail[followTrail.length-1];
  if(Math.hypot(state.walker.x-last.x,state.walker.y-last.y)>11)
