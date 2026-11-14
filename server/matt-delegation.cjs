@@ -83,7 +83,7 @@ function makeDelegation({oauth,clientFactory,guard,fetcher=globalThis.fetch,
     // one per-owner OAuth token, no optional SDK hooks that break createSession.
     stage='session_create';
     session=await client.createSession(createSafeSessionConfig({
-     model,gitHubToken,probeMinimal:true
+     model,gitHubToken:githubToken,probeMinimal:true
     }));
     stage='model_reply';
     // Count attempted model turns, including failures.
