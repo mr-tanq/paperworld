@@ -8,7 +8,7 @@ const world=fs.readFileSync(path.join(__dirname,'../js/app.js'),'utf8');
 const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
 const cloud=fs.readFileSync(path.join(__dirname,'../js/cloud-ui.js'),'utf8');
 test('World conversation uses real Matt session, never a fake AI provider',()=>{
- assert.match(source,/cloud\(\)\.sendMattMessage\(field\.value\)/);
+ assert.match(source,/cloud\(\)\.sendMattMessage\(text\)/);
  assert.match(source,/cloud\(\)\.mattMessages\(\)/);
  assert.match(source,/δεν είναι ακόμη AI/);
  assert.doesNotMatch(source,/fetch\s*\(|dispatchWorker|workerDispatch|copilot|apiKey/);

@@ -1,0 +1,43 @@
+name: PAPERWORLD private-agent chat — offline tests
+on:
+  pull_request:
+    paths:
+      - 'js/cloud.js'
+      - 'js/agent-conversation-store.js'
+      - 'js/world-dialogue.js'
+      - 'js/agents.js'
+      - 'js/matt-conversation.js'
+      - 'tests/**'
+      - '.github/workflows/private-agent-chat-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paperworld-agent-chat-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  private-chat-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout PAPERWORLD (no persistent token)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Configure Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test agent registry, conversation, cloud storage and UI
+        run: |
+          node --test \
+            tests/agents.test.cjs \
+            tests/matt-conversation.test.cjs \
+            tests/agent-conversation-store.test.cjs \
+            tests/agent-cloud-integration.test.cjs \
+            tests/world-dialogue.test.cjs
+
+# No Copilot permissions, no AI dispatch, no deployment, no secrets or write token.
