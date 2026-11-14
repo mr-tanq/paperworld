@@ -7,11 +7,11 @@ const source=fs.readFileSync(path.join(__dirname,'../js/world-dialogue.js'),'utf
 const world=fs.readFileSync(path.join(__dirname,'../js/app.js'),'utf8');
 const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
 const cloud=fs.readFileSync(path.join(__dirname,'../js/cloud-ui.js'),'utf8');
-test('World conversation uses real Matt session, never a fake AI provider',()=>{
- assert.match(source,/cloud\(\)\.sendMattMessage\(text\)/);
- assert.match(source,/mattMessages\?\.\(\)/);
- assert.match(source,/χωρίς πραγματικό AI/);
- assert.doesNotMatch(source,/fetch\s*\(|dispatchWorker|workerDispatch|copilot|apiKey/);
+test('World conversation stores real notes without canned Matt replies',()=>{
+ assert.match(source,/sendPrivateAgentMessage\(id,text\)/);
+ assert.match(source,/privateAgentMessages\(selected\)/);
+ assert.doesNotMatch(source,/sendMattMessage|mattMessages|proposedHandoff/);
+ assert.doesNotMatch(source,/fetch\s*\(|dispatchWorker|workerDispatch|apiKey/);
 });
 test('Keyboard shortcuts respect text inputs and require proximity for T',()=>{
  assert.match(source,/closest\?\.\('input,textarea,select/);
@@ -22,11 +22,11 @@ test('Keyboard shortcuts respect text inputs and require proximity for T',()=>{
 });
 test('Only signed-in users can save messages; Directors cannot produce replies',()=>{
  assert.match(source,/field\.disabled=!available/);
- assert.match(source,/isMatt&&active/);
+ assert.match(source,/const active=cloud\(\)\?\.signedIn\(\)===true/);
  assert.match(source,/privateAgentMessages/);
  assert.match(source,/sendPrivateAgentMessage/);
  assert.match(source,/if\(!openId\|\|!cloud\(\)\?\.signedIn\(\)/);
- assert.match(cloud,/sendMattMessage/);
+ assert.doesNotMatch(cloud,/sendMattMessage/);
  assert.match(cloud,/privateAgentMessages/);
 });
 test('overlay stays inside map and is loaded after world and cloud',()=>{
@@ -34,17 +34,6 @@ test('overlay stays inside map and is loaded after world and cloud',()=>{
  const app=html.indexOf('js/app.js?'),overlay=html.indexOf('js/world-dialogue.js?');
  assert.ok(app>=0&&overlay>app);
  assert.match(source,/world-talk-actions/);
-});
-
-test('Visible human-confirmed Matt handoff routes to an actual existing mission',()=>{
- const source=fs.readFileSync(path.join(__dirname,'../js/world-dialogue.js'),'utf8');
- const ui=fs.readFileSync(path.join(__dirname,'../js/cloud-ui.js'),'utf8');
- assert.match(source,/openMattHandoff\(proposedHandoff\)/);
- assert.match(source,/proposedHandoff=response\?\.proposal\|\|null/);
- assert.match(ui,/handoff\.state!=='proposed'/);
- assert.match(ui,/open\('workshop'\)/);
- assert.match(ui,/existingTicketSwap\(missions\)/);
- assert.doesNotMatch(ui.slice(ui.indexOf('function openMattHandoff'),ui.indexOf("function open(id='town')")),/runApprovedAiMission\(|createMission\(|prepareWorkerMission\(/);
 });
 
 test('Dark messenger keeps one unified scroll stream and accessible agent identity',()=>{
@@ -56,7 +45,7 @@ test('Dark messenger keeps one unified scroll stream and accessible agent identi
  assert.match(source,/role','log/);
  assert.match(source,/function bubble\(/);
  assert.match(source,/messages\.replaceChildren/);
- assert.match(source,/if\(isMatt&&localMatt&&localMattEntries\(\)\.length\)return/);
+ assert.doesNotMatch(source,/localMattEntries/);
  assert.doesNotMatch(source,/world-dialogue-private/);
  assert.match(style,/background:#101216/);
  assert.match(style,/world-chat-composer/);
