@@ -27,7 +27,22 @@ function mock({connected=true,owns=true,remaining=80}={}){
  };
  return {chat:makeMattChat({oauth,guard,clientFactory}),seen};
 }
+test('No billing confirmation means no SDK access even for otherwise valid owner',async()=>{
+ const {chat,seen}=mock();
+ const value=process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED;
+ delete process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED;
+ try {
+  const r=await chat.handle({headers,body:JSON.stringify(payload)});
+  assert.equal(r.status,403);
+  assert.equal(r.body.error,'verify_github_zero_overage_budget');
+  assert.equal(seen.factory.length,0);
+ } finally {
+  if(value===undefined)delete process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED;
+  else process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED=value;
+ }
+});
 test('Authenticated explicit single turn returns real SDK result with no tools',async()=>{
+ process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED='yes';
  const {chat,seen}=mock();
  const r=await chat.handle({headers,body:JSON.stringify(payload)});
  assert.equal(r.status,200);
