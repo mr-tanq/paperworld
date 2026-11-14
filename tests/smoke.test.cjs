@@ -550,7 +550,7 @@ test('natural-language request can start AI only after a separate explicit confi
 test('Copilot Free workflow uses valid minimum credit cap and auto model selection',()=>{
  const workflow=read('.github/workflows/worker-review.yml');
  assert.match(workflow,/--model=auto --max-ai-credits=30/);
- assert.doesNotMatch(workflow,/--max-ai-credits=0\\.50/);
+ assert.doesNotMatch(workflow,/--max-ai-credits=0\.50/);
  assert.match(workflow,/if: inputs.mode == 'run-ai'/);
  assert.match(workflow,/I_APPROVE_AI_CREDITS/);
 });
