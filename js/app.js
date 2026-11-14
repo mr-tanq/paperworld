@@ -52,7 +52,7 @@ const actors=defs.map(d=>({id:({town:'matt',workshop:'listening-director',pokemo
 const mattVisual=new Image();
 mattVisual.decoding='async';
 // v2 has normalized per-frame feet positions and isolated transparent silhouettes.
-mattVisual.src='./assets/matt-walk-v2.png';
+mattVisual.src='./assets/matt-walk-v3.png';
 function mattDirection(dx,dy,previous='down'){
  if(Math.abs(dx)<0.001 && Math.abs(dy)<0.001)return previous;
  return Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up');
@@ -63,7 +63,8 @@ function drawMattSprite(a,now){
  const row=directions[a.direction]??0;
  // Advance the gait by ACTUAL ground distance, not wall-clock time.
  // No leg cycling while standing, turning or waiting on a route segment.
- const frame=a.moving?Math.floor((a.walkDistance||0)/16)%4:1;
+ // Contact → passing → opposite contact → passing, linked to ground travel.
+ const frame=a.moving?Math.floor((a.walkDistance||0)/14)%4:1;
  const sw=mattVisual.naturalWidth/4,sh=mattVisual.naturalHeight/4;
  const dw=60,dh=88;
  ctx.save();
