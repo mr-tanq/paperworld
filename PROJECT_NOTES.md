@@ -95,3 +95,13 @@ Code fetch uses the GitHub **public Contents API** through fixed-origin `https:/
 Worker and Director reports are ephemeral in Messenger and not durable in the database. There is no asynchronous background process, no persisted job graph, and no autonomous GitHub file changes. Real code evidence fetch and model handoff remain unverified in production until explicit merge/deploy authorization. All tests are offline mocks.
 
 Messenger displays literal escaped newline sequences as line breaks with textContent, never unsafe HTML. The visual layout remains one dark Messenger, not extra tabs. Next: production review of mock CI, test public GitHub endpoint on Render, obtain separate human approval to merge/deploy, then verify one user-triggered 5-turn request.
+
+## Agent Workspace v1 — draft review only (14 November 2026)
+
+Approved scope: first incremental agent-coordination foundation, no merge/deploy, AI calls, Listening Mirror repository mutations or new Supabase migrations.
+
+- Added `server/agent-workspace.cjs`: explicit immutable Matt → Listening Mirror Director → Developer Worker roles/capabilities, validated read-only evidence packet, bounded per-file evidence formatting with truncation markers, and a **pure in-memory job history model** with ordered event transitions. The history model is not yet wired to server requests, does not persist, and does not automatically resume jobs.
+- Updated `server/matt-worker-delegation.cjs`: after existing allowlisted repository evidence checks, Directors receive limited source excerpts to review Worker line claims independently. Untrusted source is labeled data, not instructions; excerpts may be incomplete. The Director must mark missing line support as unverified.
+- Added offline node tests for role hierarchy, evidence origin/duplicates, source truncation, job transitions and handoff prompt presence.
+- Deliberately unchanged: fixed three-file read allowlists, zero-dollar additional usage hard stop, explicit per-request consent, denied Copilot tools, read-only GitHub fetching, ephemeral chat results, existing UI and Supabase access rules.
+- Future, separately approved steps: wire verified status transitions to a durable owner-scoped database record with migration/RLS review, and consider adding safe project-specific worker tools with explicit approval. No claim of durable agent memory or independent autonomous jobs in v1.
