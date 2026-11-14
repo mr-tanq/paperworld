@@ -5,6 +5,8 @@ on:
       - 'server/supabase-identity-guard.cjs'
       - 'server/matt-approval-claimer.cjs'
       - 'render.yaml'
+      - 'package.json'
+      - 'server/matt-live-chat.cjs'
       - 'server/github-oauth.cjs'
       - 'server/render-matt.cjs'
       - 'server/matt-http-server.cjs'
@@ -55,6 +57,8 @@ jobs:
             tests/matt-http-server.test.cjs \
             tests/render-matt.test.cjs \
             tests/github-oauth.test.cjs \
+            tests/matt-live-chat.test.cjs \
             tests/matt-approval-claimer.test.cjs
 
 # No Copilot permissions, no AI dispatch, no deployment, no secrets or write token.
+# Live SDK behavior must be validated only after separate account-owner permission.
