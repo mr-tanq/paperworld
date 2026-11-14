@@ -81,9 +81,12 @@ const mattActor=actors.find(a=>a.id==='matt');
 mattActor.direction='down';mattActor.moving=false;mattActor.walkDistance=16;
 mattActor.x=state.walker.x-36;mattActor.y=state.walker.y;
 const followTrail=[{x:state.walker.x,y:state.walker.y}];
+const agentJourney={mode:'following',route:[],phase:'idle',meeting:false,
+ pendingReturn:false,meetingSince:0};
 window.PaperworldWorld=Object.freeze({
  agents:()=>actors.map(a=>({...a})),
  // T addresses a nearby Director; M talks to the always-available Matt.
+ setAgentWorkflowStage,
  nearestAgent:(radius=100)=>actors.filter(a=>a.id!=='matt')
    .map(a=>({...a,distance:Math.hypot(a.x-state.walker.x,a.y-state.walker.y)}))
    .filter(a=>a.distance<=radius).sort((a,b)=>a.distance-b.distance)[0]||null
@@ -94,6 +97,37 @@ function load(item){item.image=new Image();item.ready=false;item.image.onload=()
 function renderStatus(){assetEl.innerHTML=[scene,...defs].map(d=>'<div class="'+(d.ready?'good':'bad')+'">'+(d.ready?'✓ ':'○ ')+d.name+'</div>').join('')}
 const navigation=window.PaperworldNavigation;
 if(!navigation)throw new Error('PAPERWORLD navigation module not loaded');
+function planMattRoute(target){
+ const start=navigation.snapToPath([mattActor.x,mattActor.y],110);
+ const end=navigation.snapToPath(target,55);
+ if(!start||!end)return false;
+ const points=navigation.routeBetween(start,end);
+ if(!points.length)return false;
+ // Preserve physical movement. No teleporting to the target actor/building.
+ agentJourney.route=points.map(([x,y])=>({x,y})).filter(p=>Math.hypot(p.x-mattActor.x,p.y-mattActor.y)>1);
+ return true;
+}
+function setAgentWorkflowStage(stateName){
+ const events=stateName==='created'?[{state:'created',actor:'matt'}]:
+  [{state:'routed',actor:'matt'},{state:stateName,actor:'matt'}];
+ const projection=window.PaperworldVisualWorkflow?.project(events);
+ if(!projection)return false;
+ agentJourney.phase=projection.phase;
+ if(projection.returning){
+  // Finish the physical walk and brief encounter even if the AI response
+  // finishes before the sprite reaches the workshop. Visual playback only.
+  agentJourney.pendingReturn=true;
+  if(agentJourney.mode==='following'){
+   agentJourney.pendingReturn=false;
+   agentJourney.meeting=false;
+   if(planMattRoute([state.walker.x,state.walker.y]))agentJourney.mode='returning';
+  }
+ }else if(projection.travel&&agentJourney.mode==='following'){
+  if(planMattRoute([1125,515]))agentJourney.mode='outbound';
+ }
+ return true;
+}
+
 function resize(){const r=canvas.getBoundingClientRect();state.width=r.width;state.height=r.height;state.dpr=Math.min(2,devicePixelRatio||1);canvas.width=Math.max(1,Math.round(r.width*state.dpr));canvas.height=Math.max(1,Math.round(r.height*state.dpr));ctx.setTransform(state.dpr,0,0,state.dpr,0,0);state.fit=Math.min((r.width-14)/W,(r.height-14)/H);resetCamera()}
 function resetCamera(){state.scale=state.fit;state.x=(state.width-W*state.scale)/2;state.y=(state.height-H*state.scale)/2}
 function localPoint(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
@@ -161,6 +195,14 @@ layers.push({id:'player',depth:w.y,paint:()=>drawFigure(w)});
  if(d)layers.push({id:'depth-demo',depth:d.y,paint:()=>drawFigure(d,true)});
  layers.push(...depth.foregroundLayers(ctx,scene.ready,scene.image,W,H));
  depth.sortLayers(layers).forEach(item=>item.paint());
+ if(agentJourney.meeting){
+  const d=actors.find(a=>a.id==='listening-director');
+  ctx.save();ctx.font='bold 22px system-ui';ctx.fillStyle='#fff4db';
+  ctx.shadowColor='#15211e';ctx.shadowBlur=7;
+  ctx.fillText('…',mattActor.x,mattActor.y-96);
+  if(d)ctx.fillText('…',d.x,d.y-60);
+  ctx.restore();
+ }
  if(state.chosen){
   // Marker is tied to the FRONT DOOR on the actual artwork, not the sprite base,
   // the artwork centre, or the nearest pathfinding waypoint.
@@ -186,7 +228,32 @@ function tick(now){
  if(Math.hypot(state.walker.x-last.x,state.walker.y-last.y)>11)
   followTrail.push({x:state.walker.x,y:state.walker.y});
  mattActor.moving=false;
- if(followTrail.length>4){
+ if(agentJourney.mode==='outbound'||agentJourney.mode==='returning'){
+  const next=agentJourney.route[0];
+  if(next){
+   const dx=next.x-mattActor.x,dy=next.y-mattActor.y;
+   const dist=Math.hypot(dx,dy),speed=125*dt;
+   if(dist>0.001){
+    const step=Math.min(dist,speed);
+    mattActor.direction=mattDirection(dx,dy,mattActor.direction);
+    mattActor.x+=dx/dist*step;mattActor.y+=dy/dist*step;
+    mattActor.walkDistance+=step;mattActor.moving=step>0.25;
+   }
+   if(dist<=speed+0.01)agentJourney.route.shift();
+  }else if(agentJourney.mode==='outbound'){
+   agentJourney.mode='meeting';agentJourney.meeting=true;agentJourney.meetingSince=now;
+  }else{
+   agentJourney.mode='following';agentJourney.meeting=false;
+   followTrail.length=0;followTrail.push({x:state.walker.x,y:state.walker.y});
+  }
+ }
+ if(agentJourney.mode==='meeting'&&agentJourney.pendingReturn&&
+    now-agentJourney.meetingSince>1600){
+  agentJourney.meeting=false;agentJourney.pendingReturn=false;
+  if(planMattRoute([state.walker.x,state.walker.y]))agentJourney.mode='returning';
+  else agentJourney.mode='following';
+ }
+ if(agentJourney.mode==='following'&&followTrail.length>4){
   const next=followTrail[0],dx=next.x-mattActor.x,dy=next.y-mattActor.y,
         dist=Math.hypot(dx,dy),speed=125*dt;
   if(dist>0.01){

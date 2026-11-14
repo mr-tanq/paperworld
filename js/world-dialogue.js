@@ -66,79 +66,65 @@
    if(openId===selected){field.disabled=false;send.disabled=false}
   }
  });
- const delegateBtn=make('button','world-dialogue-handoff',
-  'Ανάθεση μέσω Matt · έως 3 AI κλήσεις');
- delegateBtn.type='button';delegateBtn.hidden=true;
- delegateBtn.addEventListener('click',async()=>{
-  const text=field.value.trim();
-  if(openId!=='matt'||!cloud()?.signedIn()||busy||!text)return;
-  if(!window.confirm('Ο Matt θα εξετάσει το αίτημα με πραγματικό Copilot AI, '+
-   'θα το αναθέσει στον Listening Mirror Director εφόσον ταιριάζει, '+
-   'και θα σου επιστρέψει την ανάλυση. Θα γίνουν έως 3 AI κλήσεις '+
-   'που καταναλώνουν τα credits της συνδρομής σου. '+
-   'Δεν επιτρέπονται αλλαγές αρχείων, εργαλεία ή αυτόνομη εκτέλεση. Συνέχεια;'))return;
-  busy=true;send.disabled=true;field.disabled=true;delegateBtn.disabled=true;
-  const selected=openId;
-  status.textContent='Matt → Director: γίνεται πραγματική AI ανάλυση…';
-  let failed=null;
+ // One natural instruction to Matt. AI routing decides the active Director;
+ // there is no Director/Worker transcript in the human Messenger.
+ async function runMattWorkflow(text){
+  if(openId!=='matt'||!cloud()?.signedIn()||busy||!text.trim())return;
+  if(!window.confirm('Ο Matt θα εξετάσει το αίτημα και, αν αφορά το Listening Mirror, '+
+    'θα το αναθέσει στον Director και Developer Worker. Έως 5 πραγματικές '+
+    'AI κλήσεις από τα διαθέσιμα GitHub Copilot Credits, με επιπλέον budget $0. '+
+    'Μόνο ανάγνωση επιτρεπόμενου κώδικα, χωρίς αλλαγές, εργαλεία ή deployment. Συνέχεια;'))return;
+  busy=true;field.disabled=true;send.disabled=true;
+  let requestId=null,lastPhase=null,polling=false,watcher=null,failed=null;
+  const showStage=phase=>{
+   if(phase===lastPhase)return;
+   lastPhase=phase;
+   world()?.setAgentWorkflowStage?.(phase);
+  };
+  const poll=async()=>{
+   if(!requestId||polling)return;
+   polling=true;
+   try{
+    const history=await cloud().mattJobHistory();
+    const job=history.jobs.find(item=>item.id===requestId);
+    const last=job?.events?.[job.events.length-1];
+    if(last&&typeof last.state==='string')showStage(last.state);
+   }catch(_){/* Progress is optional; never imply that a failed poll means work completed. */}
+   finally{polling=false}
+  };
+  // Close the overlay after the user's explicit AI approval so the village
+  // remains visible; the map follows real stored stages only.
+  hide();
+  showNotice('Ο Matt εξετάζει την ανάθεση. Η πορεία θα εμφανιστεί όταν καταγραφεί ο Director.');
   try{
-   const result=await cloud().delegateMatt(text);
+   const result=await cloud().delegateMattWorker(text,{onStart:id=>{
+    requestId=id;
+    watcher=setInterval(poll,1300);
+   }});
+   await poll();
    if(result.delegated){
-    mattReplies.push({content:'Listening Mirror Director — αναφορά (ανάλυση, όχι εκτέλεση):\\n'+
-     result.directorReport,time:new Date().toISOString()});
-    mattReplies.push({content:'Matt — τελική ενημέρωση:\\n'+result.content,
-     time:new Date().toISOString()});
-   }else mattReplies.push({content:result.content,time:new Date().toISOString()});
+    showStage('reported');
+    showNotice('Ο Matt επέστρεψε με ενημέρωση. Πάτησε M για να τη διαβάσεις.');
+   }else showNotice('Ο Matt δεν έχει ακόμη ενεργό Director για αυτό το αίτημα.');
+   mattReplies.push({content:'Matt — ενημέρωση:\n'+result.content,
+    time:new Date().toISOString()});
    field.value='';
-  }catch(error){failed=error;if(error.noteSaved)field.value=''}
-  finally{
-   busy=false;
-   if(openId===selected){
+  }catch(error){
+   failed=error;
+   await poll();
+   if(lastPhase&&lastPhase!=='reported')showStage('failed');
+   showNotice('Η ανάθεση δεν ολοκληρώθηκε: '+error.message);
+   if(error.noteSaved)field.value='';
+  }finally{
+   if(watcher!==null)clearInterval(watcher);
+   busy=false;field.disabled=false;send.disabled=false;
+   // Do not reopen the Messenger automatically. The user owns the view.
+   if(openId==='matt'){
     paint();
-    if(failed)status.textContent=(failed.noteSaved?
-     'Το μήνυμα αποθηκεύτηκε, αλλά η ανάθεση απέτυχε: ':'Η ανάθεση απέτυχε: ')+failed.message;
+    if(failed)status.textContent='Η ανάθεση απέτυχε: '+failed.message;
    }
   }
- });
- const workerBtn=make('button','world-dialogue-handoff',
-  'Ανάθεση σε Developer Worker · έως 5 AI κλήσεις');
- workerBtn.type='button';workerBtn.hidden=true;
- workerBtn.addEventListener('click',async()=>{
-  const text=field.value.trim();
-  if(openId!=='matt'||!cloud()?.signedIn()||busy||!text)return;
-  if(!window.confirm('Ο Matt θα αναθέσει σε Listening Mirror Director και Developer Worker. '+
-   'Θα πραγματοποιηθούν έως 5 πραγματικές κλήσεις Copilot που χρησιμοποιούν AI Credits. '+
-   'Ο Worker θα διαβάσει ΜΟΝΟ συγκεκριμένα δημόσια αρχεία του mr-tanq/concerts, '+
-   'χωρίς GitHub write access, αλλαγές ή εκτέλεση κώδικα. '+
-   'Το επιπλέον budget του GitHub παραμένει $0. Συνέχεια;'))return;
-  busy=true;send.disabled=true;field.disabled=true;
-  workerBtn.disabled=true;delegateBtn.disabled=true;
-  const selected=openId;let failed=null;
-  status.textContent='Matt → Director → Developer Worker: γίνεται ανάγνωση κώδικα και ανάλυση…';
-  try{
-   const result=await cloud().delegateMattWorker(text);
-   if(result.delegated){
-    const filenames=(result.evidence?.files||[]).map(x=>x.path).join(', ');
-    mattReplies.push({content:'Listening Mirror Developer Worker — ανάγνωση κώδικα ('+
-     filenames+'):\n'+result.workerReport,time:new Date().toISOString()});
-    mattReplies.push({content:'Listening Mirror Director — αξιολόγηση:\n'+
-     result.directorReport,time:new Date().toISOString()});
-   }
-   mattReplies.push({content:'Matt — τελική ενημέρωση:\n'+
-    result.content,time:new Date().toISOString()});
-   if(result.delegated&&result.persisted!==true)status.textContent='Η αναφορά ολοκληρώθηκε, αλλά το ιστορικό δεν αποθηκεύτηκε πλήρως.';
-   field.value='';
-  }catch(error){failed=error;if(error.noteSaved)field.value=''}
-  finally{
-   busy=false;workerBtn.disabled=false;delegateBtn.disabled=false;
-   if(openId===selected){
-    paint();
-    if(failed)status.textContent=(failed.noteSaved?
-     'Το μήνυμα αποθηκεύτηκε, αλλά ο Worker δεν ολοκλήρωσε: ':
-     'Η ανάθεση απέτυχε: ')+failed.message;
-   }
-  }
- });
+ }
  const historyBtn=make('button','world-dialogue-handoff','Ιστορικό εργασιών · χωρίς AI κλήση');
  historyBtn.type='button';historyBtn.hidden=true;
  historyBtn.addEventListener('click',async()=>{
@@ -163,7 +149,7 @@
   }finally{busy=false;historyBtn.disabled=false}
  });
  const helper=make('small','world-chat-helper','Copilot AI Credits · Έγκριση ανά μήνυμα · Καμία ενέργεια σε αρχεία');
- composer.append(connectGithub,diagnoseBtn,delegateBtn,workerBtn,historyBtn,form,helper);
+ composer.append(connectGithub,historyBtn,form,helper);
  panel.append(top,status,messages,composer);view.append(panel);
 
  function bubble(role,text,when){
@@ -206,8 +192,6 @@
   messages.replaceChildren(system(active?'Φόρτωση ιδιωτικού ιστορικού…':'Απαιτείται σύνδεση.'));
   connectGithub.hidden=true;
   diagnoseBtn.hidden=!(isMatt&&active);
-  delegateBtn.hidden=!(isMatt&&active);
-  workerBtn.hidden=!(isMatt&&active);
   historyBtn.hidden=!(isMatt&&active);
   if(isMatt&&active&&typeof cloud()?.githubLinkStatus==='function'){
    const selected=openId;
@@ -246,28 +230,18 @@
  veil.addEventListener('click',hide);
  close.addEventListener('click',hide);
  form.addEventListener('submit',async e=>{
-  e.preventDefault();if(!openId||!cloud()?.signedIn()||field.disabled||busy)return;
-  const id=openId,text=field.value;
-  if(id==='matt'&&!window.confirm(
-    'Να σταλεί αυτό το μήνυμα στο GitHub Copilot μέσω της συνδρομής σου; '+
-    'Η κλήση θα καταναλώσει GitHub AI Credits από τη συνδρομή σου. '+
-    'Προχώρα μόνο αν έχεις ρυθμίσει στο GitHub μηδενικό επιπλέον budget με hard stop. '+
-    'Ο Matt δεν έχει δικαιώματα εργαλείων ή αλλαγής αρχείων.'))return;
-  busy=true;send.disabled=true;field.disabled=true;
-  let failure=null;
-  try{
-   if(id==='matt'){
-    const answer=await cloud().askMatt(text);
-    mattReplies.push({content:answer.content,time:new Date().toISOString()});
-   }else await cloud().sendPrivateAgentMessage(id,text);
-   field.value='';
-  }catch(error){failure=error;if(error.noteSaved)field.value=''}
-  finally{busy=false;if(openId===id){
-   paint();if(failure&&/github_reconnect_required/.test(failure.message))connectGithub.hidden=false;
-   if(failure)status.textContent=(failure.noteSaved?
-     'Το μήνυμα αποθηκεύτηκε, αλλά ο Matt δεν απάντησε: ':
-     'Το μήνυμα δεν αποθηκεύτηκε: ')+failure.message;
-  }}
+  e.preventDefault();
+  if(!openId||!cloud()?.signedIn()||field.disabled||busy)return;
+  const id=openId,text=field.value.trim();
+  if(!text)return;
+  if(id==='matt'){
+   await runMattWorkflow(text);
+   return;
+  }
+  busy=true;field.disabled=true;send.disabled=true;
+  try{await cloud().sendPrivateAgentMessage(id,text);field.value=''}
+  catch(error){status.textContent='Το μήνυμα δεν αποθηκεύτηκε: '+error.message}
+  finally{busy=false;if(openId===id)paint()}
  });
  field.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();if(!field.disabled&&field.value.trim())form.requestSubmit()}

@@ -118,6 +118,6 @@ test('Only Listening Mirror Director has enabled AI delegation in this PR',()=>{
  const browser=fs.readFileSync(path.join(__dirname,'../js/cloud.js'),'utf8');
  assert.match(browser,/MATT_DIRECTOR_UP_TO_THREE_AI_TURNS/);
  const ui=fs.readFileSync(path.join(__dirname,'../js/world-dialogue.js'),'utf8');
- assert.match(ui,/Ανάθεση μέσω Matt/);
- assert.match(ui,/έως 3 AI κλήσεις/);
+ assert.match(ui,/runMattWorkflow\(text\)/);
+ assert.match(ui,/έως 5|Έως 5/);
 });
