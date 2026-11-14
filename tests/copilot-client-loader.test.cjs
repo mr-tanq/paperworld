@@ -3,13 +3,18 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
+const os=require('node:os');
 const {createCopilotClient,STAGES}=require('../server/copilot-client-loader.cjs');
 test('real SDK package import and client construction work offline without starting it',async()=>{
- const client=await createCopilotClient({useLoggedInUser:false,mode:'empty'},{
-  report:stage=>{throw Error('unexpected SDK bootstrap stage: '+stage)}
- });
- assert.equal(typeof client.start,'function');
- assert.equal(typeof client.createSession,'function');
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'paperworld-sdk-smoke-'));
+ try{
+  const client=await createCopilotClient({useLoggedInUser:false,mode:'empty',
+   baseDirectory:dir,gitHubToken:'gho_local_dummy_never_used'},{
+   report:stage=>{throw Error('unexpected SDK bootstrap stage: '+stage)}
+  });
+  assert.equal(typeof client.start,'function');
+  assert.equal(typeof client.createSession,'function');
+ }finally{fs.rmSync(dir,{recursive:true,force:true})}
  // Never call start or createSession: this test consumes no Copilot credits.
 });
 test('import failure reports only static sdk_import stage',async()=>{
