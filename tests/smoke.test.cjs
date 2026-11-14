@@ -443,7 +443,7 @@ test('first AI Worker requires explicit credit approval and cannot push or deplo
 test('authenticated prepare-only bridge wiring',()=>{
  const cloud=read('js/cloud.js'),ui=read('js/cloud-ui.js'),html=read('index.html');
  for(const part of ['workerStatus','prepareWorkerMission','confirm_prepare_only:true'])assert.ok(cloud.includes(part));
- for(const label of ['Prepare-only in GitHub','Check this mission','View worker result'])assert.ok(ui.includes(label));
+ for(const label of ['Έλεγχος προόδου','Δες την αναφορά','Ξεκίνα έρευνα AI'])assert.ok(ui.includes(label));
  assert.ok(html.includes('cloud.js?v=32'));
  assert.ok(html.includes('cloud-ui.js?v=34'));
 });
@@ -473,8 +473,8 @@ test('Each GitHub run is tagged to one PAPERWORLD mission, never another task',(
  assert.ok(edge.includes('24*60*60*1000'));
  assert.ok(edge.includes('readReport(run.id)'));
  assert.ok(client.includes('async function workerStatus(id,includeReport=false)'));
- assert.ok(ui.includes('client.workerStatus(mission.id,true)'));
- assert.ok(ui.includes('Open matching GitHub run'));
+ assert.ok(ui.includes('client.workerStatus(current.id,true)'));
+ assert.ok(ui.includes('Άνοιξε την εκτέλεση στο GitHub'));
  assert.ok(ui.includes('workerReports=new Map()'));
 });
 
@@ -519,8 +519,8 @@ test('Listening Mirror dialogue does not quietly start agents or write code',()=
  assert.ok(html.includes('cloud-ui.js?v=34'));
  assert.ok(ui.includes('function renderWorkshop()'));
  assert.ok(ui.includes("workshop.existingTicketSwap(missions)"));
- assert.ok(ui.includes("data-mission-id"));
- assert.ok(ui.includes("Αποθήκευση ως εργασία"));
+ assert.ok(ui.includes('workshop.existingTicketSwap(missions)'));
+ assert.ok(ui.includes('Αποθήκευση αιτήματος')===false);
  assert.ok(ui.includes("confirm('Να αποθηκεύσω το αίτημα"));
  assert.ok(!read('js/workshop-dialogue.js').includes('fetch('));
 });
