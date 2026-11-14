@@ -103,3 +103,13 @@ aside{min-width:0;min-height:0;overscroll-behavior:contain}
 .worker-report-file{margin-top:6px;border-top:1px solid #ded2bf;padding-top:5px}
 .worker-report-file summary{cursor:pointer;font-size:12px;font-weight:600}
 .worker-report-file .mission-brief{max-height:240px}
+
+/* Personal Workshop Developer: conversational request entry in a real project room. */
+.workshop-dialogue{margin:12px 0;padding:14px;background:#f2ead9;border:1px solid #ccbda6;border-radius:13px}
+.workshop-dialogue h3{margin:0 0 5px;font-size:17px}
+.workshop-message-form{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+.workshop-message-form textarea{display:block;width:100%;box-sizing:border-box;min-height:82px;resize:vertical;padding:10px;border:1px solid #c4baa8;border-radius:9px;background:#fffdf7;color:#303a32;font:inherit}
+.workshop-message-form button{align-self:flex-start}
+.workshop-reply{padding:10px;background:#faf8f2;border:1px solid #d8ccba;border-radius:10px;overflow-wrap:anywhere}
+.workshop-reply p{margin:5px 0 10px;font-size:13px;line-height:1.45}
+.chief-item.chief-focused{outline:2px solid #58775d;outline-offset:3px}
