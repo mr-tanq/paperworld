@@ -138,9 +138,11 @@ test('Failures do not reveal source, prompts or secrets in HTTP or logs',async()
 });
 test('Messenger has explicit worker-specific opt-in without losing ordinary chat',()=>{
  const ui=fs.readFileSync(path.join(__dirname,'../js/world-dialogue.js'),'utf8');
- assert.match(ui,/Ανάθεση σε Developer Worker/);
- assert.match(ui,/έως 5 AI κλήσεις/);
- assert.match(ui,/delegateMattWorker\(text\)/);
+ assert.match(ui,/runMattWorkflow/);
+ assert.match(ui,/Έως 5/);
+ assert.match(ui,/delegateMattWorker/);
+ assert.doesNotMatch(ui,/result\.workerReport,time/);
+ assert.doesNotMatch(ui,/result\.directorReport,time/);
  assert.match(ui,/replace\(\/\\\\n\/g/);
  const cloud=fs.readFileSync(path.join(__dirname,'../js/cloud.js'),'utf8');
  assert.match(cloud,/MATT_DIRECTOR_WORKER_UP_TO_FIVE_AI_TURNS/);
