@@ -66,6 +66,18 @@ function renderMattConversation(){
  const sec=el('section',undefined,'developer-chat');
  sec.append(el('h3','Matt · Chief of Staff'));
  sec.append(el('p','Μίλα ελεύθερα στον Matt για οποιοδήποτε project. Οι συνομιλίες αποθηκεύονται ιδιωτικά, αλλά δεν υπάρχει ακόμη ζωντανό AI ώστε να δώσει απαντήσεις ή να αναθέσει εργασία.','room-footnote'));
+ sec.append(el('p','Σύνδεση GitHub Copilot · το AI παραμένει απενεργοποιημένο έως ότου εγκρίνεις ξεχωριστά την πρώτη κλήση.','room-footnote'));
+ sec.append(btn('Σύνδεσε το GitHub',()=>work(async()=>{
+  const authorizationUrl=await client.beginGithubLink();
+  // Redirect only to verified github.com OAuth authorization URL.
+  window.location.assign(authorizationUrl);
+ }),'primary'));
+ sec.append(btn('Έλεγχος σύνδεσης GitHub',()=>work(async()=>{
+  const status=await client.githubLinkStatus();
+  message=status.connected?'GitHub συνδεδεμένο: '+status.login+
+   ' · προσωρινή σύνδεση (Render Free). Καμία AI κλήση.':
+   'Δεν υπάρχει ενεργή σύνδεση GitHub. Πάτησε «Σύνδεσε το GitHub».';
+ })));
  sec.append(btn('Άνοιξε το Messenger του Matt',()=>{
   if(!window.PaperworldWorldDialogue?.show){note('Το παράθυρο Messenger δεν φορτώθηκε.',true);return}
   window.PaperworldWorldDialogue.show('matt');
