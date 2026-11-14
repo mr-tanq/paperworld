@@ -44,6 +44,12 @@ exportMarkerButton.addEventListener('click',exportCalibration);
 const demoButton=document.querySelector('#depth-demo');
 const demoPositions=[null,{x:835,y:705,label:'Behind the Studio'},{x:831,y:434,label:'Behind the plaza tree'}];
 demoButton.addEventListener('click',()=>{state.depthDemo=(state.depthDemo+1)%demoPositions.length;demoButton.textContent='Depth test: '+(demoPositions[state.depthDemo]?.label||'Off')});
+// Placeholders: Directors stand at approved path approach coordinates, not inside buildings.
+const actors=defs.map(d=>({id:({town:'matt',workshop:'listening-director',pokemon:'pokemon-director',wellbeing:'wellbeing-director',studio:'studio-director'})[d.id],name:d.id==='town'?'Matt':d.name+' Director',x:d.approach[0],y:d.approach[1]}));
+window.PaperworldWorld=Object.freeze({
+ agents:()=>actors.map(a=>({...a})),
+ nearestAgent:(radius=100)=>actors.map(a=>({...a,distance:Math.hypot(a.x-state.walker.x,a.y-state.walker.y)})).filter(a=>a.distance<=radius).sort((a,b)=>a.distance-b.distance)[0]||null
+});
 const scene={name:'Papercraft environment',file:'./assets/environment-010.png'};
 function load(item){item.image=new Image();item.ready=false;item.image.onload=()=>{item.ready=true;if(item!==scene){const c=document.createElement('canvas');c.width=128;c.height=Math.max(1,Math.round(128*item.image.naturalHeight/item.image.naturalWidth));const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(item.image,0,0,c.width,c.height);item.hitMask={data:g.getImageData(0,0,c.width,c.height).data,w:c.width,h:c.height}}renderStatus()};item.image.onerror=()=>{item.ready=false;renderStatus()};item.image.src=item.file}
 [scene,...defs].forEach(load);
@@ -95,7 +101,14 @@ const w=state.walker;
  const layers=defs.filter(d=>d.ready).map(d=>({
    id:d.id,depth:d.bottom,paint:()=>{const b=spriteBox(d);ctx.drawImage(d.image,b.x,b.y,b.width,b.height)}
  }));
- layers.push({id:'player',depth:w.y,paint:()=>drawFigure(w)});
+ for(const a of actors)layers.push({id:'agent-'+a.id,depth:a.y,paint:()=>{
+ ctx.save();ctx.fillStyle='#42362999';ctx.beginPath();ctx.ellipse(a.x,a.y,13,5,0,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle=a.id==='matt'?'#c9a56e':'#8ca7af';ctx.beginPath();ctx.arc(a.x,a.y-24,10,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#3c4d58';ctx.fillRect(a.x-10,a.y-14,20,20);
+ ctx.fillStyle='#fff9e8';ctx.font='bold 15px system-ui';ctx.textAlign='center';ctx.fillText(a.id==='matt'?'Matt':'Director',a.x,a.y+23);
+ ctx.restore();
+}});
+layers.push({id:'player',depth:w.y,paint:()=>drawFigure(w)});
  const d=demoPositions[state.depthDemo];
  if(d)layers.push({id:'depth-demo',depth:d.y,paint:()=>drawFigure(d,true)});
  layers.push(...depth.foregroundLayers(ctx,scene.ready,scene.image,W,H));
