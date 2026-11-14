@@ -1,7 +1,13 @@
 name: PAPERWORLD Worker — review-only sandbox
+run-name: PAPERWORLD ${{ inputs.mode }} | ${{ inputs.mission_id || 'manual' }}
 on:
   workflow_dispatch:
     inputs:
+      mission_id:
+        description: "PAPERWORLD mission UUID for tracking results (optional for manual runs)"
+        required: false
+        type: string
+        default: ""
       mode:
         description: "Prepare only (no AI credits) or run Copilot (AI credits may be consumed)"
         required: true
@@ -89,6 +95,7 @@ jobs:
           COPILOT_AUTO_UPDATE: 'false'
         run: |
           copilot -p "$(cat ../worker-output/prompt.txt)" -s --no-ask-user \
+            --model=claude-haiku-4.5 --max-ai-credits=0.50 \
             --available-tools='view,grep,glob,edit,create,apply_patch' \
             --allow-tool=read --allow-tool=write \
             --deny-tool=shell --deny-tool=url --deny-tool=memory \

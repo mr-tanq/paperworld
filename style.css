@@ -96,3 +96,10 @@ aside{min-width:0;min-height:0;overscroll-behavior:contain}
 .chief-missions h4{margin:0 0 10px;font-size:13px;letter-spacing:.02em}
 .chief-missions .chief-item{padding:10px 0}
 .mission-brief{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;max-height:300px;overflow:auto;border:1px solid #dbcfbc;border-radius:8px;background:#fffcf6;color:#3c3e35;padding:11px;font:11px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}
+
+/* Per-mission read-only execution report. */
+.worker-result{margin:9px 0;padding:8px;background:#f4efe2;border:1px solid #ddd2bb;border-radius:8px}
+.worker-result>a{font-size:12px;text-decoration:underline;overflow-wrap:anywhere}
+.worker-report-file{margin-top:6px;border-top:1px solid #ded2bf;padding-top:5px}
+.worker-report-file summary{cursor:pointer;font-size:12px;font-weight:600}
+.worker-report-file .mission-brief{max-height:240px}
