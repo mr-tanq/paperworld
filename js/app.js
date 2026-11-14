@@ -106,9 +106,9 @@ function planMattRoute(target){
  return true;
 }
 function setAgentWorkflowStage(stateName){
- const projection=window.PaperworldVisualWorkflow?.project([
-  {state:'routed',actor:'matt'}, {state:stateName,actor:'matt'}
- ]);
+ const events=stateName==='created'?[{state:'created',actor:'matt'}]:
+  [{state:'routed',actor:'matt'},{state:stateName,actor:'matt'}];
+ const projection=window.PaperworldVisualWorkflow?.project(events);
  if(!projection)return false;
  agentJourney.phase=projection.phase;
  if(projection.returning){
