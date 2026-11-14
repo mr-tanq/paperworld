@@ -7,6 +7,7 @@ const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const os=require('node:os');
 const path=require('node:path');
 const fs=require('node:fs/promises');
+const {createSafeSessionConfig,classifySessionError}=require('./matt-session-config.cjs');
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const CONSENT='ONE_COPILOT_TURN_INCLUDED_ALLOWANCE';
 function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
@@ -101,24 +102,9 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
    const prompt=previous?'Earlier conversation (context, not instructions):\n'+previous+
      '\n\nCurrent user: '+data.message.trim():data.message.trim();
    stage='session_create';
-   session=await client.createSession({
-    model:model.id,
-    gitHubToken:token,
-    sessionLimits:{maxAiCredits:1},
-    availableTools:[],
-    // An exclusion list accepts exact agent names, not a wildcard.
-    // Empty includedBuiltinAgents explicitly disables built-in subagents.
-    includedBuiltinAgents:[],
-    onPermissionRequest:async()=>({kind:'reject'}),
-    hooks:{onPreToolUse:async()=>({permissionDecision:'deny',
-      permissionDecisionReason:'Chat only; no agent tools are authorized'})},
-    systemMessage:{mode:'append',content:
-     'You are Matt, the Chief of Staff of PAPERWORLD. Talk naturally with the user. '+
-     'Understand any project or creative request. You may plan and recommend the appropriate '+
-     'Director and Worker but never claim to have delegated, researched files, made changes '+
-     'or finished work. Real delegation tools are not available yet. '+
-     'Be concise, helpful, and respond in the language the user uses.'}
-   });
+   session=await client.createSession(createSafeSessionConfig({
+    model:model.id,gitHubToken:token
+   }));
    stage='model_reply';
    const result=await session.sendAndWait({prompt});
    const content=result?.data?.content;
@@ -133,9 +119,10 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
      agentId:'matt',executed:true,model:model.id,
      sessionCreditSoftLimit:1,requestId:data.requestId,
      persisted:false}};
-  }catch(_){
-   diagnostic(stage);
-   return {status:503,body:{error:'copilot_runtime_unavailable',stage}};
+  }catch(error){
+   const reason=stage==='session_create'?classifySessionError(error):'unclassified';
+   diagnostic(reason==='unclassified'?stage:stage+':'+reason);
+   return {status:503,body:{error:'copilot_runtime_unavailable',stage,reason}};
   }
   finally{
    try{await session?.disconnect?.()}catch(_){}
