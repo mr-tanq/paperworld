@@ -183,9 +183,9 @@ function tick(now){
  mattActor.moving=false;
  if(followTrail.length>4){
   const next=followTrail[0],dx=next.x-mattActor.x,dy=next.y-mattActor.y,
-  mattActor.direction=mattDirection(dx,dy,mattActor.direction);
-  mattActor.moving=Math.hypot(dx,dy)>2;
         dist=Math.hypot(dx,dy),speed=125*dt;
+  mattActor.direction=mattDirection(dx,dy,mattActor.direction);
+  mattActor.moving=dist>2;
   if(dist<=speed){mattActor.x=next.x;mattActor.y=next.y;followTrail.shift()}
   else{mattActor.x+=dx/dist*speed;mattActor.y+=dy/dist*speed}
  }
