@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'server/supabase-identity-guard.cjs'
+      - 'server/matt-approval-claimer.cjs'
       - 'server/matt-http-server.cjs'
       - 'server/matt-gateway.cjs'
       - 'server/matt-copilot-adapter.cjs'
@@ -46,6 +47,7 @@ jobs:
             tests/matt-copilot-adapter.test.cjs \
             tests/matt-gateway.test.cjs \
             tests/supabase-identity-guard.test.cjs \
-            tests/matt-http-server.test.cjs
+            tests/matt-http-server.test.cjs \
+            tests/matt-approval-claimer.test.cjs
 
 # No Copilot permissions, no AI dispatch, no deployment, no secrets or write token.
