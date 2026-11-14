@@ -6,6 +6,7 @@ const http=require('node:http');
 const {createGithubOAuth,APP_ORIGIN}=require('./github-oauth.cjs');
 const {makeMattChat}=require('./matt-live-chat.cjs');
 const {makeDelegation}=require('./matt-delegation.cjs');
+const {makeWorkerDelegation}=require('./matt-worker-delegation.cjs');
 const {createCopilotClient}=require('./copilot-client-loader.cjs');
 function response(res,status,body){
  res.writeHead(status,{'Content-Type':'application/json; charset=utf-8',
@@ -20,10 +21,12 @@ function createRenderMattServer({oauth=createGithubOAuth({
   supabaseUrl:'https://jrevhzvrgenucuozjowm.supabase.co',
   supabaseKey:'sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL'
  }),chatFactory=({oauth})=>makeMattChat({oauth,clientFactory:createCopilotClient}),
- delegationFactory=({oauth})=>makeDelegation({oauth,clientFactory:createCopilotClient})}={}){
- let live,delegation;
+ delegationFactory=({oauth})=>makeDelegation({oauth,clientFactory:createCopilotClient}),
+ workerFactory=({oauth})=>makeWorkerDelegation({oauth,clientFactory:createCopilotClient})}={}){
+ let live,delegation,worker;
  function getLive(){if(!live)live=chatFactory({oauth});return live}
  function getDelegation(){if(!delegation)delegation=delegationFactory({oauth});return delegation}
+ function getWorker(){if(!worker)worker=workerFactory({oauth});return worker}
  const server=http.createServer(async(req,res)=>{
   // Never enable CORS or accept browser credentials until a full OAuth review.
   if(req.method==='GET'&&req.url==='/health')
@@ -49,7 +52,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
    }catch(_){response(res,503,{error:'oauth_unavailable'});return}
   }
   const isMattRequest=req.url==='/chat/matt'||req.url==='/diagnostic/matt-session'||
-   req.url==='/delegate/matt';
+   req.url==='/delegate/matt'||req.url==='/delegate/matt/worker';
   if(isMattRequest){
    if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
     res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
@@ -67,7 +70,8 @@ function createRenderMattServer({oauth=createGithubOAuth({
       res.end(JSON.stringify({error:'request_too_large'}));return}
      parts.push(chunk);
     }
-    const gateway=req.url==='/delegate/matt'?getDelegation():getLive();
+    const gateway=req.url==='/delegate/matt/worker'?getWorker():
+      req.url==='/delegate/matt'?getDelegation():getLive();
     const action=req.url==='/diagnostic/matt-session'?gateway.diagnose:gateway.handle;
     if(typeof action!=='function')return response(res,503,{error:'diagnostic_not_configured'});
     const result=await action({headers:req.headers,
