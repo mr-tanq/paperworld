@@ -410,7 +410,7 @@ test('human-review TicketSwap mission brief references real repository paths',()
 });
 test('cloud mission UI does not execute workers and retains privacy',()=>{
  const html=read('index.html'),cloud=read('js/cloud.js'),ui=read('js/cloud-ui.js'),sql=read('supabase/paperworld_missions_reference.sql');
- for(const src of ['cloud.js?v=32','cloud-ui.js?v=32','chief.js?v=28'])assert.ok(html.includes(src),src);
+ for(const src of ['cloud.js?v=32','cloud-ui.js?v=33','chief.js?v=28'])assert.ok(html.includes(src),src);
  for(const phrase of ['Prepare worker mission','Worker mission drafts','Ready for MY review','Copy handoff','No worker has started'])assert.ok(ui.includes(phrase),phrase);
  for(const fn of ['listMissions','createMission','setMissionStatus','deleteMission'])assert.ok(cloud.includes(fn),fn);
  assert.ok(cloud.includes("mode:'analysis_only'"));
@@ -446,7 +446,7 @@ test('authenticated prepare-only bridge wiring',()=>{
  for(const part of ['workerStatus','prepareWorkerMission','confirm_prepare_only:true'])assert.ok(cloud.includes(part));
  for(const label of ['Prepare-only in GitHub','Check this mission','View worker result'])assert.ok(ui.includes(label));
  assert.ok(html.includes('cloud.js?v=32'));
- assert.ok(html.includes('cloud-ui.js?v=32'));
+ assert.ok(html.includes('cloud-ui.js?v=33'));
 });
 test('bridge only dispatches review-ready mission with explicit per-run authorization',()=>{
  const code=read('supabase/functions/worker-bridge/index.ts');
@@ -498,4 +498,30 @@ test('AI execution is a one-shot human-only Copilot Free credit opt-in',()=>{
  assert.ok(workflow.includes('--max-ai-credits=0.50'));
  assert.ok(workflow.includes('--model=claude-haiku-4.5'));
  assert.ok(!workflow.includes('contents: write'));
+});
+
+test('Workshop dialogue routes everyday requests to existing task instead of duplicates',()=>{
+ const workshop=require('../js/workshop-dialogue.js');
+ assert.equal(workshop.classify('Φίλε, δεν δουλεύει το TicketSwap.').type,'ticketswap');
+ assert.equal(workshop.classify('Ticket Swap check failing').type,'ticketswap');
+ assert.equal(workshop.classify('Improve festival photos').type,'other');
+ assert.equal(workshop.classify('   ').type,'empty');
+ const records=[
+  {id:'cancelled',project_room:'workshop',repository:'mr-tanq/concerts',title:'TicketSwap fix',status:'cancelled'},
+  {id:'draft',project_room:'workshop',repository:'mr-tanq/concerts',title:'TicketSwap fix',status:'draft'},
+  {id:'ready',project_room:'workshop',repository:'mr-tanq/concerts',title:'TicketSwap fix',status:'ready_for_review'}
+ ];
+ assert.equal(workshop.existingTicketSwap(records).id,'ready');
+ assert.equal(workshop.existingTicketSwap(records.slice(0,1)),null);
+});
+test('Listening Mirror dialogue does not quietly start agents or write code',()=>{
+ const ui=read('js/cloud-ui.js'),html=read('index.html');
+ assert.ok(html.includes('workshop-dialogue.js?v=33'));
+ assert.ok(html.includes('cloud-ui.js?v=33'));
+ assert.ok(ui.includes("if(room==='workshop'&&window.PaperworldWorkshop)"));
+ assert.ok(ui.includes("workshop.existingTicketSwap(missions)"));
+ assert.ok(ui.includes("data-mission-id"));
+ assert.ok(ui.includes("Αποθήκευση ως εργασία"));
+ assert.ok(ui.includes("confirm('Να αποθηκεύσω"));
+ assert.ok(!read('js/workshop-dialogue.js').includes('fetch('));
 });
