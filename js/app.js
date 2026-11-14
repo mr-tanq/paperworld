@@ -145,8 +145,7 @@ const drawer=document.querySelector('#world-drawer');
 function openWorkDesk(){
  drawer.hidden=false;
  // Cloud sign-in / task data is preserved off the main game canvas.
- if(window.PaperworldCloudUI?.signedIn())window.PaperworldCloudUI.openChief();
- else window.PaperworldRooms?.open('town');
+ window.PaperworldCloudUI?.openChief();
 }
 document.querySelector('#open-projects').addEventListener('click',openWorkDesk);
 document.querySelector('#world-work-panel')?.addEventListener('click',openWorkDesk);
