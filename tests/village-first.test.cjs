@@ -37,3 +37,14 @@ test('Game redesign does not hardcode TicketSwap or claim AI enabled',()=>{
  assert.doesNotMatch(html+app,/ticketswap|ticket swap/i);
  assert.match(read('server/render-matt.cjs'),/aiEnabled:false/);
 });
+
+test('Matt follows actual user movement; T selects a Director rather than following Matt',()=>{
+ const app=read('js/app.js');
+ assert.match(app,/const followTrail=/);
+ assert.match(app,/const mattActor=actors\.find/);
+ assert.match(app,/followTrail\.push\(/);
+ assert.match(app,/mattActor\.x\+=/);
+ assert.match(app,/actors\.filter\(a=>a\.id!=='matt'\)/);
+ assert.match(app,/function tick\(now\)/);
+ assert.doesNotMatch(app,/mattActor\.x=Math\.random\(\)/);
+});
