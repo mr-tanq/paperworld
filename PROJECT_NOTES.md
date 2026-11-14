@@ -43,3 +43,13 @@ No paid API or surprise credits; review/estimate and explicit yes before credits
 ## Render Free hosting experiment (14 November 2026)
 
 User approved preparing **Render Free** for a trial, subject to confirmed no-charge setup. Render docs confirm $0/month Free Web Service, 750 shared instance-hours, idle shutdown after 15 minutes, and potential bandwidth/build overage billing **if payment details are on file**. The proposed `render.yaml` uses Free, manual deploy only, no database; an isolated `server/render-matt.cjs` status-only endpoint returns AI OFF. Do not create, merge, or deploy a paid service. GitHub OAuth, ownership, SDK and human approval must be implemented before any live AI request.
+
+## Village-first UI redesign decision — 14 November 2026
+
+Verified the original Tristen O'Brien video description and seven-step chapter plan: the key product is a navigable village with a following Chief of Staff, house-level Directors, specialized workers, a real connector/job, natural chat, and Town Hall. The source's description is available, but original video frames could not be fetched reliably, so *pixel-perfect visual equivalence is not claimed*.
+
+The user explicitly rejected our permanently displayed beige inspector/sidebar, tab-style task selection, prebuilt missions and calibration/dev clutter as the everyday UI.
+
+Approved interaction: village fills the entire viewport, house taps directly open the corresponding in-world agent Messenger, M talks to Matt, T talks to nearby agents, and a small optional work desk contains Cloud login and secondary project data. Task tabs and technical calibration are hidden from the everyday experience, not removed from storage. No fake agent replies or fake worker status. Keep the current papercraft art until separately approved asset changes.
+
+PR `feature/village-first-game-interface` makes these frontend changes only. It does not deploy, auto-merge, spend credits, change Supabase or enable Copilot. Next: validate on Android tablet; implement real user-authorized GitHub OAuth and protected AI endpoint, then real task-to-worker routing.
