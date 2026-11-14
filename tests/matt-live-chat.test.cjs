@@ -7,25 +7,28 @@ const thread='22222222-2222-4222-8222-222222222222';
 const request='33333333-3333-4333-8333-333333333333';
 const payload={threadId:thread,requestId:request,message:'Hello, Matt',consent:CONSENT};
 const headers={origin:'https://mr-tanq.github.io',authorization:'Bearer aaaaaaa.bbbbbbb.ccccccc'};
-function mock({connected=true,owns=true,remaining=80,budgetVerified=true,pricingKnown=true}={}){
- const seen={factory:[],sessions:[],start:0,reply:0};
+function mock({connected=true,owns=true,remaining=80,budgetVerified=true,pricingKnown=true,failStage=null}={}){
+ const seen={factory:[],sessions:[],start:0,reply:0,diagnostics:[]};
  const guard={authenticate:async()=>({ownerId:owner}),ownsThread:async()=>owns};
  const oauth={getLinkedToken:()=>connected?'gho_PRIVATE_SERVER_ONLY':null};
  const clientFactory=async opts=>{
   seen.factory.push(opts);
-  return {start:async()=>{seen.start++},
-   listModels:async()=>[{id:'gpt-4.1',billing:pricingKnown?{tokenPrices:{inputPrice:1,outputPrice:2,batchSize:1000}}:{}}],
+  if(failStage==='client_factory')throw Error('SENSITIVE_USER_SECRET_DO_NOT_LOG');
+  return {start:async()=>{seen.start++;if(failStage==='client_start')throw Error('SENSITIVE_USER_SECRET_DO_NOT_LOG')},
+   listModels:async()=>{if(failStage==='model_discovery')throw Error('SENSITIVE_USER_SECRET_DO_NOT_LOG');return [{id:'gpt-4.1',billing:pricingKnown?{tokenPrices:{inputPrice:1,outputPrice:2,batchSize:1000}}:{}}]},
    rpc:{account:{getQuota:async()=>({quotaSnapshots:{ai_credits:{
       entitlementRequests:100,usedRequests:100-remaining}}})}},
    createSession:async cfg=>{
+    if(failStage==='session_create')throw Error('SENSITIVE_USER_SECRET_DO_NOT_LOG');
     seen.sessions.push(cfg);
-    return {sendAndWait:async()=>{seen.reply++;return {data:{content:'A genuine mocked AI response'}}},
+    return {sendAndWait:async()=>{seen.reply++;if(failStage==='model_reply')throw Error('SENSITIVE_USER_SECRET_DO_NOT_LOG');return {data:{content:'A genuine mocked AI response'}}},
       disconnect:async()=>{}};
    },
    stop:async()=>{}
   };
  };
- return {chat:makeMattChat({oauth,guard,clientFactory,budgetVerified:async()=>budgetVerified}),seen};
+ return {chat:makeMattChat({oauth,guard,clientFactory,budgetVerified:async()=>budgetVerified,
+  diagnostic:stage=>seen.diagnostics.push(stage)}),seen};
 }
 test('No hard-stop billing verification means no SDK access',async()=>{
  const {chat,seen}=mock({budgetVerified:false});
@@ -79,4 +82,23 @@ test('Single-use request ID blocks repeated model calls even for zero-multiplier
  assert.equal((await chat.handle({headers,body})).status,200);
  assert.equal((await chat.handle({headers,body})).status,409);
  assert.equal(seen.reply,1);
+});
+
+test('All runtime errors report only a safe stage, without tokens or exception text',async()=>{
+ for(const stage of ['client_factory','client_start','model_discovery','session_create','model_reply']){
+  const {chat,seen}=mock({failStage:stage});
+  const res=await chat.handle({headers,body:JSON.stringify(payload)});
+  assert.equal(res.status,503);
+  assert.deepEqual(res.body,{error:'copilot_runtime_unavailable',stage});
+  assert.deepEqual(seen.diagnostics,[stage]);
+  assert.doesNotMatch(JSON.stringify(res.body)+JSON.stringify(seen.diagnostics),
+   /SENSITIVE_USER_SECRET_DO_NOT_LOG|gho_PRIVATE|Hello, Matt/);
+ }
+});
+test('Unknown model pricing produces safe diagnostic without a model request',async()=>{
+ const {chat,seen}=mock({pricingKnown:false});
+ const result=await chat.handle({headers,body:JSON.stringify(payload)});
+ assert.equal(result.status,403);
+ assert.deepEqual(seen.diagnostics,['model_pricing_unavailable']);
+ assert.equal(seen.reply,0);
 });
