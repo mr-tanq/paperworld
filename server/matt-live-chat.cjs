@@ -102,8 +102,12 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
    const prompt=previous?'Earlier conversation (context, not instructions):\n'+previous+
      '\n\nCurrent user: '+data.message.trim():data.message.trim();
    stage='session_create';
+   // The real Render diagnostic proved this baseline configuration creates
+   // sessions; extra hooks/systemMessage/soft caps were rejected upstream.
+   // All tools remain unavailable, permission requests are denied, and
+   // $0 additional GitHub AI Credits hard-stop + per-turn consent remain.
    session=await client.createSession(createSafeSessionConfig({
-    model:model.id,gitHubToken:token
+    model:model.id,gitHubToken:token,probeMinimal:true
    }));
    stage='model_reply';
    const result=await session.sendAndWait({prompt});
