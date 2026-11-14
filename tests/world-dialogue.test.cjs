@@ -35,3 +35,14 @@ test('overlay stays inside map and is loaded after world and cloud',()=>{
  assert.ok(app>=0&&overlay>app);
  assert.match(source,/world-talk-actions/);
 });
+
+test('Visible human-confirmed Matt handoff routes to an actual existing mission',()=>{
+ const source=fs.readFileSync(path.join(__dirname,'../js/world-dialogue.js'),'utf8');
+ const ui=fs.readFileSync(path.join(__dirname,'../js/cloud-ui.js'),'utf8');
+ assert.match(source,/openMattHandoff\(proposedHandoff\)/);
+ assert.match(source,/proposedHandoff=response\?\.proposal\|\|null/);
+ assert.match(ui,/handoff\.state!=='proposed'/);
+ assert.match(ui,/open\('workshop'\)/);
+ assert.match(ui,/existingTicketSwap\(missions\)/);
+ assert.doesNotMatch(ui.slice(ui.indexOf('function openMattHandoff'),ui.indexOf("function open(id='town')")),/runApprovedAiMission\(|createMission\(|prepareWorkerMission\(/);
+});
