@@ -39,3 +39,7 @@ Example requests are only examples; **TicketSwap must not be a built-in demo, pr
 ## Existing user rules
 
 No paid API or surprise credits; review/estimate and explicit yes before credits. No autonomous merge, deployment or edits to `mr-tanq/concerts`; workers can propose fixes for review. Before file mutations or running on the user's devices, explain scope and receive permission. Maintain this notes file with decisions. Show completed work and accurate CI status.
+
+## Render Free hosting experiment (14 November 2026)
+
+User approved preparing **Render Free** for a trial, subject to confirmed no-charge setup. Render docs confirm $0/month Free Web Service, 750 shared instance-hours, idle shutdown after 15 minutes, and potential bandwidth/build overage billing **if payment details are on file**. The proposed `render.yaml` uses Free, manual deploy only, no database; an isolated `server/render-matt.cjs` status-only endpoint returns AI OFF. Do not create, merge, or deploy a paid service. GitHub OAuth, ownership, SDK and human approval must be implemented before any live AI request.

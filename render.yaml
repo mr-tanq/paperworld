@@ -1,0 +1,13 @@
+# Opt-in Render Blueprint. Only creates a FREE health/status service.
+# NEVER deploy automatically or provide payment credentials to this prototype.
+services:
+  - type: web
+    name: paperworld-matt-test
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: echo "PAPERWORLD status-only backend; no dependencies"
+    startCommand: node server/render-matt.cjs
+    healthCheckPath: /health
+    autoDeployTrigger: 'off'
