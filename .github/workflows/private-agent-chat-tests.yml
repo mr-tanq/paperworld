@@ -11,6 +11,9 @@ on:
       - 'server/matt-copilot-adapter.cjs'
       - 'js/cloud.js'
       - 'js/agent-conversation-store.js'
+      - 'index.html'
+      - 'style.css'
+      - 'js/app.js'
       - 'js/world-dialogue.js'
       - 'js/agents.js'
       - 'tests/**'
@@ -44,6 +47,7 @@ jobs:
             tests/agent-conversation-store.test.cjs \
             tests/agent-cloud-integration.test.cjs \
             tests/world-dialogue.test.cjs \
+            tests/village-first.test.cjs \
             tests/matt-copilot-adapter.test.cjs \
             tests/matt-gateway.test.cjs \
             tests/supabase-identity-guard.test.cjs \
