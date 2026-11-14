@@ -85,9 +85,13 @@ Deno.serve(async(req:Request)=>{
      if(!mission)return respond(403,{error:"Mission not accessible"});
      if(!TOKEN)return respond(200,{connected:false,prepareOnly:true,run:null,note:"Bridge token missing."});
      const run=await missionRuns(missionId);
+     const mode=run?.display_title?.startsWith("PAPERWORLD run-ai | ")?"run-ai":"prepare-only";
+     const cooldownMs=mode==="run-ai"?24*60*60*1000:10*60*1000;
+     const retryAt=run&&Number.isFinite(Date.parse(run.created_at))?
+       new Date(Date.parse(run.created_at)+cooldownMs).toISOString():null;
      const tracked=run?{id:run.id,status:run.status,conclusion:run.conclusion,
-       createdAt:run.created_at,url:run.html_url,
-       mode:run.display_title?.startsWith("PAPERWORLD run-ai | ")?"run-ai":"prepare-only"}:null;
+       createdAt:run.created_at,url:run.html_url,mode,retryAt,
+       retryBlocked:Boolean(retryAt&&Date.now()<Date.parse(retryAt))}:null;
      const result:Record<string,unknown>={connected:true,prepareOnly:true,missionId,run:tracked,
        note:run?"This GitHub Actions run is tagged with this mission.":"No tagged run for this mission yet."};
      if(run?.status==="completed"&&params.get("report")==="1")
