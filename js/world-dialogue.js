@@ -100,13 +100,54 @@
    }
   }
  });
+ const workerBtn=make('button','world-dialogue-handoff',
+  'Ανάθεση σε Developer Worker · έως 5 AI κλήσεις');
+ workerBtn.type='button';workerBtn.hidden=true;
+ workerBtn.addEventListener('click',async()=>{
+  const text=field.value.trim();
+  if(openId!=='matt'||!cloud()?.signedIn()||busy||!text)return;
+  if(!window.confirm('Ο Matt θα αναθέσει σε Listening Mirror Director και Developer Worker. '+
+   'Θα πραγματοποιηθούν έως 5 πραγματικές κλήσεις Copilot που χρησιμοποιούν AI Credits. '+
+   'Ο Worker θα διαβάσει ΜΟΝΟ συγκεκριμένα δημόσια αρχεία του mr-tanq/concerts, '+
+   'χωρίς GitHub write access, αλλαγές ή εκτέλεση κώδικα. '+
+   'Το επιπλέον budget του GitHub παραμένει $0. Συνέχεια;'))return;
+  busy=true;send.disabled=true;field.disabled=true;
+  workerBtn.disabled=true;delegateBtn.disabled=true;
+  const selected=openId;let failed=null;
+  status.textContent='Matt → Director → Developer Worker: γίνεται ανάγνωση κώδικα και ανάλυση…';
+  try{
+   const result=await cloud().delegateMattWorker(text);
+   if(result.delegated){
+    const filenames=(result.evidence?.files||[]).map(x=>x.path).join(', ');
+    mattReplies.push({content:'Listening Mirror Developer Worker — ανάγνωση κώδικα ('+
+     filenames+'):\n'+result.workerReport,time:new Date().toISOString()});
+    mattReplies.push({content:'Listening Mirror Director — αξιολόγηση:\n'+
+     result.directorReport,time:new Date().toISOString()});
+   }
+   mattReplies.push({content:'Matt — τελική ενημέρωση:\n'+
+    result.content,time:new Date().toISOString()});
+   field.value='';
+  }catch(error){failed=error;if(error.noteSaved)field.value=''}
+  finally{
+   busy=false;workerBtn.disabled=false;delegateBtn.disabled=false;
+   if(openId===selected){
+    paint();
+    if(failed)status.textContent=(failed.noteSaved?
+     'Το μήνυμα αποθηκεύτηκε, αλλά ο Worker δεν ολοκλήρωσε: ':
+     'Η ανάθεση απέτυχε: ')+failed.message;
+   }
+  }
+ });
  const helper=make('small','world-chat-helper','Copilot AI Credits · Έγκριση ανά μήνυμα · Καμία ενέργεια σε αρχεία');
- composer.append(connectGithub,diagnoseBtn,delegateBtn,form,helper);
+ composer.append(connectGithub,diagnoseBtn,delegateBtn,workerBtn,form,helper);
  panel.append(top,status,messages,composer);view.append(panel);
 
  function bubble(role,text,when){
   const item=make('article','world-chat-message '+(role==='human'?'world-dialogue-human':'world-dialogue-agent'));
-  const body=make('p','',text);item.append(body);
+  // Some Copilot responses contain literal escaped newlines. Render them
+  // as plain text with line breaks, never as HTML or executable markup.
+  const normalized=role==='human'?text:String(text||'').replace(/\\\\n/g,'\n');
+  const body=make('p','',normalized);item.append(body);
   if(when&&Number.isFinite(Date.parse(when))){
    const time=make('time','world-chat-time',new Date(when).toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'}));
    time.dateTime=when;item.append(time);
@@ -142,6 +183,7 @@
   connectGithub.hidden=true;
   diagnoseBtn.hidden=!(isMatt&&active);
   delegateBtn.hidden=!(isMatt&&active);
+  workerBtn.hidden=!(isMatt&&active);
   if(isMatt&&active&&typeof cloud()?.githubLinkStatus==='function'){
    const selected=openId;
    cloud().githubLinkStatus().then(link=>{
