@@ -30,5 +30,5 @@ test('overlay stays inside map and is loaded after world and cloud',()=>{
  assert.match(html,/id="view"/);
  const app=html.indexOf('js/app.js?'),overlay=html.indexOf('js/world-dialogue.js?');
  assert.ok(app>=0&&overlay>app);
- assert.match(html,/world-talk-actions/);
+ assert.match(source,/world-talk-actions/);
 });
