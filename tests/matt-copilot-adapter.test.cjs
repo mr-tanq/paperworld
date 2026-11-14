@@ -26,7 +26,7 @@ test('Permitted call requests zero tools, returns actual reply and releases sess
  });
  const result=await adapter.reply(valid);
  assert.equal(result.executed,true);assert.equal(result.agentId,'matt');
- assert.deepEqual(actions[1],[ 'client',{mode:'empty'}]);
+ assert.deepEqual(actions[1],[ 'client',{mode:'empty',gitHubToken:'server-fixture',useLoggedInUser:false}]);
  assert.deepEqual(actions[2][1].availableTools,[]);
  assert.equal(actions[2][1].model,'auto');
  assert.equal(actions[2][1].gitHubToken,'server-fixture');
@@ -47,4 +47,23 @@ test('Empty AI response is never reported as success; session cleanup is enforce
  });
  await assert.rejects(adapter.reply(valid),/no response/);
  assert.equal(disconnected,1);assert.equal(stopped,1);
+});
+
+test('User token is explicitly pinned at SDK client level, never host fallback',async()=>{
+ let clientOptions,sessionOptions;
+ const adapter=createMattAdapter({
+  authorizeRequest:async()=>({allowed:true,budgetConfigured:true}),
+  clientFactory:async opts=>{clientOptions=opts;return {
+   createSession:async opts=>{sessionOptions=opts;return{
+    sendAndWait:async()=>({data:{content:'Allowed private answer'}}),
+    disconnect:async()=>{}
+   }},
+   stop:async()=>{}
+  }}
+ });
+ await adapter.reply(valid);
+ assert.equal(clientOptions.useLoggedInUser,false);
+ assert.equal(clientOptions.gitHubToken,valid.githubToken);
+ assert.deepEqual(sessionOptions.availableTools,[]);
+ assert.equal(sessionOptions.gitHubToken,valid.githubToken);
 });
