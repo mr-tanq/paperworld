@@ -4,6 +4,7 @@
  */
 'use strict';
 const http=require('node:http');
+const {createGithubOAuth,APP_ORIGIN}=require('./github-oauth.cjs');
 function response(res,status,body){
  res.writeHead(status,{'Content-Type':'application/json; charset=utf-8',
   'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
@@ -11,11 +12,36 @@ function response(res,status,body){
   'X-Frame-Options':'DENY'});
  res.end(JSON.stringify(body));
 }
-function createRenderMattServer(){
- const server=http.createServer((req,res)=>{
+function createRenderMattServer({oauth=createGithubOAuth({
+  clientId:process.env.GITHUB_OAUTH_CLIENT_ID,
+  clientSecret:process.env.GITHUB_OAUTH_CLIENT_SECRET,
+  supabaseUrl:'https://jrevhzvrgenucuozjowm.supabase.co',
+  supabaseKey:'sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL'
+ })}={}){
+ const server=http.createServer(async(req,res)=>{
   // Never enable CORS or accept browser credentials until a full OAuth review.
   if(req.method==='GET'&&req.url==='/health')
    return response(res,200,{service:'paperworld-matt',reachable:true,aiEnabled:false,stage:'hosting-smoke-test'});
+  if(req.url==='/auth/github/callback' || req.url?.startsWith('/auth/github/callback?')){
+   const result=await oauth.callback({url:req.url});
+   res.writeHead(result.status,result.headers);res.end();return;
+  }
+  const isOAuth=req.url==='/auth/github/start'||req.url==='/auth/github/status';
+  if(isOAuth){
+   const origin=req.headers.origin;
+   if(origin===APP_ORIGIN&&req.method==='OPTIONS'){
+    res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
+      'Access-Control-Allow-Methods':'POST, OPTIONS',
+      'Access-Control-Allow-Headers':'authorization,content-type',
+      'Access-Control-Max-Age':'600','Vary':'Origin'});res.end();return;
+   }
+   if(req.method!=='POST'){response(res,405,{error:'method_not_allowed'});return}
+   try{
+    const action=req.url.endsWith('/start')?oauth.start:oauth.status;
+    const result=await action({headers:req.headers});
+    res.writeHead(result.status,result.headers);res.end(JSON.stringify(result.body));return;
+   }catch(_){response(res,503,{error:'oauth_unavailable'});return}
+  }
   if(req.url==='/chat/matt')
    return response(res,503,{error:'ai_not_connected'});
   return response(res,404,{error:'not_found'});
