@@ -499,3 +499,29 @@ test('AI execution is a one-shot human-only Copilot Free credit opt-in',()=>{
  assert.ok(workflow.includes('--model=claude-haiku-4.5'));
  assert.ok(!workflow.includes('contents: write'));
 });
+
+test('Workshop dialogue routes everyday requests to existing task instead of duplicates',()=>{
+ const workshop=require('../js/workshop-dialogue.js');
+ assert.equal(workshop.classify('Φίλε, δεν δουλεύει το TicketSwap.').type,'ticketswap');
+ assert.equal(workshop.classify('Ticket Swap check failing').type,'ticketswap');
+ assert.equal(workshop.classify('Improve festival photos').type,'other');
+ assert.equal(workshop.classify('   ').type,'empty');
+ const records=[
+  {id:'cancelled',project_room:'workshop',repository:'mr-tanq/concerts',title:'TicketSwap fix',status:'cancelled'},
+  {id:'draft',project_room:'workshop',repository:'mr-tanq/concerts',title:'TicketSwap fix',status:'draft'},
+  {id:'ready',project_room:'workshop',repository:'mr-tanq/concerts',title:'TicketSwap fix',status:'ready_for_review'}
+ ];
+ assert.equal(workshop.existingTicketSwap(records).id,'ready');
+ assert.equal(workshop.existingTicketSwap(records.slice(0,1)),null);
+});
+test('Listening Mirror dialogue does not quietly start agents or write code',()=>{
+ const ui=read('js/cloud-ui.js'),html=read('index.html');
+ assert.ok(html.includes('workshop-dialogue.js?v=33'));
+ assert.ok(html.includes('cloud-ui.js?v=33'));
+ assert.ok(ui.includes("if(room==='workshop'&&window.PaperworldWorkshop)"));
+ assert.ok(ui.includes("workshop.existingTicketSwap(missions)"));
+ assert.ok(ui.includes("data-mission-id"));
+ assert.ok(ui.includes("Αποθήκευση ως εργασία"));
+ assert.ok(ui.includes("confirm('Να αποθηκεύσω"));
+ assert.ok(!read('js/workshop-dialogue.js').includes('fetch('));
+});
