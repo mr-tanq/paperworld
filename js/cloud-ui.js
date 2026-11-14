@@ -3,6 +3,7 @@ const host=document.querySelector('#project-room'),model=window.PaperworldProjec
 let room='town',tasks=[],allTasks=[],missions=[],busy=false,message='',edit=null,active=false;
 const workerReports=new Map();
 let workshopInput='',workshopResponse=null;
+let mattSession=null,mattProposal=null;
 const el=(tag,text,cls)=>{let e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
 const btn=(text,fn,cls)=>{let b=el('button',text,cls);b.type='button';b.disabled=busy;b.addEventListener('click',fn);return b};
 const note=(s,isError=false)=>{message=(isError?'Error: ':'')+s;render()};
@@ -45,7 +46,7 @@ function render(){
  const userBar=el('div',undefined,'room-ops');
  userBar.append(el('small',client.identity()),
   btn('Refresh',()=>work(reload)),
-  btn('Sign out',()=>work(async()=>{await client.signout();tasks=[];allTasks=[];missions=[];edit=null;workshopInput='';workshopResponse=null})));
+  btn('Sign out',()=>work(async()=>{await client.signout();tasks=[];allTasks=[];missions=[];edit=null;workshopInput='';workshopResponse=null;mattSession=null;mattProposal=null})));
  host.append(userBar);
  if(room==='workshop'){
   renderWorkshop();return;
@@ -205,11 +206,45 @@ function renderWorkshop(){
  for(const status of ['doing','todo','done'])for(const task of tasks.filter(t=>t.status===status))wrap.append(taskRow(task));
  tasksPanel.append(wrap);host.append(tasksPanel)
 }
+function renderMattConversation(){
+ const engine=window.PaperworldMattChat;
+ const sec=el('section',undefined,'developer-chat');
+ sec.append(el('h3','Μίλα στον Matt'));
+ sec.append(el('p','Τοπικό ιστορικό στη συσκευή σου · χωρίς ενεργό AI μοντέλο ή εκτέλεση agents.','room-footnote'));
+ if(!engine){sec.append(el('p','Το σύστημα συνομιλίας δεν φορτώθηκε.','room-error'));return sec}
+ try{if(!mattSession)mattSession=engine.createSession({storage:localStorage,identity:client.identity()})}
+ catch(_){sec.append(el('p','Δεν είναι διαθέσιμο το τοπικό ιστορικό.','room-error'));return sec}
+ const log=el('div',undefined,'developer-messages');
+ const entries=mattSession.messages();
+ if(!entries.length)log.append(el('p','Matt: Γεια σου. Μπορώ να σου δείξω εκκρεμότητες ή να προτείνω ανάθεση σε έναν Director. Δεν είμαι ακόμη συνδεδεμένος με AI.','developer-bubble'));
+ for(const item of entries)log.append(el('p',(item.role==='human'?'Εσύ: ':'Matt: ')+item.text,item.role==='human'?'human-bubble':'developer-bubble'));
+ sec.append(log);
+ const form=el('form',undefined,'developer-form');
+ const input=el('textarea');input.rows=2;input.maxLength=1500;input.required=true;input.setAttribute('aria-label','Μήνυμα στον Matt');input.placeholder='Π.χ. Matt, τι εκκρεμότητες έχουμε στο Listening Mirror;';
+ const send=el('button','Στείλε μήνυμα','primary');send.type='submit';
+ form.append(input,send);
+ form.addEventListener('submit',e=>{e.preventDefault();try{const response=mattSession.send(input.value,allTasks);mattProposal=response.proposal;render()}catch(error){note(error.message,true)}});
+ sec.append(form);
+ if(mattProposal){
+  const proposal=el('div',undefined,'developer-mission');
+  proposal.append(el('strong','Πρόταση ανάθεσης (δεν έχει εκτελεστεί)'));
+  const preview=window.PaperworldAgents?.previewHandoff(mattProposal)||'Πρόταση προς Director';
+  proposal.append(el('p',preview));
+  proposal.append(el('p','Καμία εντολή δεν στάλθηκε, ούτε έγινε χρήση credits.','room-footnote'));
+  proposal.append(btn('Απόκρυψη πρότασης',()=>{mattProposal=null;render()}));
+  sec.append(proposal);
+ }
+ sec.append(btn('Καθαρισμός τοπικού ιστορικού',()=>{
+   if(confirm('Να διαγραφεί το ιστορικό συνομιλίας Matt μόνο από αυτή τη συσκευή;')){mattSession.clear();mattProposal=null;render()}
+ }));
+ return sec;
+}
 function renderChiefOrRoom(){
  const tabs=el('div',undefined,'room-tabs');
  for(const r of model.ROOMS)tabs.append(btn(r.name,()=>work(async()=>{room=r.id;edit=null;workshopResponse=null;await reload()}),r.id===room?'selected':''));
  host.append(tabs);
  if(room==='town'){
+  host.append(renderMattConversation());
   host.append(el('p','Εδώ παρακολουθείς όλα τα projects. Για αλλαγές στο Listening Mirror μίλα στον προγραμματιστή του Workshop.','room-footnote'));
   const overview=el('div',undefined,'overview-projects');
   for(const r of model.ROOMS){
