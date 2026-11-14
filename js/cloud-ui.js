@@ -94,7 +94,10 @@ function renderWorkshop(){
     ops.append(btn('Έλεγχος προόδου',()=>work(async()=>{
      const response=await client.workerStatus(current.id);
      workerReports.set(current.id,response);
-     message=response.run?'Εκτέλεση: '+response.run.status+(response.run.conclusion?' · '+response.run.conclusion:''):'Δεν βρέθηκε ακόμη εκτέλεση για αυτή την αποστολή.'
+     message=response.run?.conclusion==='failure'?
+      'Error: Η προηγούμενη AI εκτέλεση απέτυχε. Το TicketSwap δεν έχει διορθωθεί. Δες την αιτία και την αναφορά παρακάτω.':
+      response.run?'Εκτέλεση: '+response.run.status+(response.run.conclusion?' · '+response.run.conclusion:''):
+      'Δεν βρέθηκε ακόμη εκτέλεση για αυτή την αποστολή.'
     })));
     const previousRun=workerReports.get(current.id)?.run;
     const blocked=previousRun?.mode==='run-ai'&&previousRun.retryBlocked;
