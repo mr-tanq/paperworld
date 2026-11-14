@@ -84,9 +84,10 @@
   try{
    const result=await cloud().delegateMatt(text);
    if(result.delegated){
-    mattReplies.push({content:result.content,time:new Date().toISOString()});
     mattReplies.push({content:'Listening Mirror Director — αναφορά (ανάλυση, όχι εκτέλεση):\\n'+
      result.directorReport,time:new Date().toISOString()});
+    mattReplies.push({content:'Matt — τελική ενημέρωση:\\n'+result.content,
+     time:new Date().toISOString()});
    }else mattReplies.push({content:result.content,time:new Date().toISOString()});
    field.value='';
   }catch(error){failed=error;if(error.noteSaved)field.value=''}
