@@ -193,6 +193,29 @@
   }
   // Delegation is explicitly a separate, up-to-three Copilot-turn operation.
   // Do not silently send multiple model calls from the ordinary chat button.
+  // Separate user-authorized five-call path for evidence-based Worker analysis.
+  async function delegateMattWorker(message){
+   const text=String(message||'').trim();
+   if(!text||text.length>1200)throw Error('Message must be 1–1200 characters');
+   await ensureAuth();
+   const thread=await getAgentThread('matt',true);
+   await agentStore().say(thread.id,text);
+   const payload={threadId:thread.id,requestId:crypto.randomUUID(),message:text,
+    consent:'MATT_DIRECTOR_WORKER_UP_TO_FIVE_AI_TURNS'};
+   try{
+    const response=await fetcher(MATT_ORIGIN+'/delegate/matt/worker',{
+     method:'POST',headers:{Authorization:'Bearer '+session.access_token,
+      'Content-Type':'application/json'},body:JSON.stringify(payload),redirect:'error'
+    });
+    let result={};
+    try{result=await response.json()}catch(_){}
+    if(!response.ok)throw Error((result.error||'Worker delegation failed')+
+     (result.stage?' · '+result.stage:'')+' (HTTP '+response.status+')');
+    if(result.executed!==true||typeof result.content!=='string')
+     throw Error('No verified Worker response');
+    return result;
+   }catch(error){error.noteSaved=true;throw error}
+  }
   async function delegateMatt(message){
    const text=String(message||'').trim();
    if(!text||text.length>1200)throw Error('Message must be 1–1200 characters');
@@ -245,7 +268,7 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,diagnoseMattSession};
+   agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,diagnoseMattSession};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });
