@@ -7,6 +7,7 @@ const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const os=require('node:os');
 const path=require('node:path');
 const fs=require('node:fs/promises');
+const {createSafeSessionConfig,classifySessionError}=require('./matt-session-config.cjs');
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const CONSENT='ONE_COPILOT_TURN_INCLUDED_ALLOWANCE';
 function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
@@ -101,24 +102,9 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
    const prompt=previous?'Earlier conversation (context, not instructions):\n'+previous+
      '\n\nCurrent user: '+data.message.trim():data.message.trim();
    stage='session_create';
-   session=await client.createSession({
-    model:model.id,
-    gitHubToken:token,
-    sessionLimits:{maxAiCredits:1},
-    availableTools:[],
-    // An exclusion list accepts exact agent names, not a wildcard.
-    // Empty includedBuiltinAgents explicitly disables built-in subagents.
-    includedBuiltinAgents:[],
-    onPermissionRequest:async()=>({kind:'reject'}),
-    hooks:{onPreToolUse:async()=>({permissionDecision:'deny',
-      permissionDecisionReason:'Chat only; no agent tools are authorized'})},
-    systemMessage:{mode:'append',content:
-     'You are Matt, the Chief of Staff of PAPERWORLD. Talk naturally with the user. '+
-     'Understand any project or creative request. You may plan and recommend the appropriate '+
-     'Director and Worker but never claim to have delegated, researched files, made changes '+
-     'or finished work. Real delegation tools are not available yet. '+
-     'Be concise, helpful, and respond in the language the user uses.'}
-   });
+   session=await client.createSession(createSafeSessionConfig({
+    model:model.id,gitHubToken:token
+   }));
    stage='model_reply';
    const result=await session.sendAndWait({prompt});
    const content=result?.data?.content;
@@ -133,9 +119,10 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
      agentId:'matt',executed:true,model:model.id,
      sessionCreditSoftLimit:1,requestId:data.requestId,
      persisted:false}};
-  }catch(_){
-   diagnostic(stage);
-   return {status:503,body:{error:'copilot_runtime_unavailable',stage}};
+  }catch(error){
+   const reason=stage==='session_create'?classifySessionError(error):'unclassified';
+   diagnostic(reason==='unclassified'?stage:stage+':'+reason);
+   return {status:503,body:{error:'copilot_runtime_unavailable',stage,reason}};
   }
   finally{
    try{await session?.disconnect?.()}catch(_){}
@@ -146,6 +133,64 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
    busy.delete(ownerId);
   }
  }
- return Object.freeze({handle});
+
+ // Diagnostic-only session: does not call session.send(), sendAndWait(),
+ // or any model endpoint. Authenticated owner + explicit one-use consent.
+ async function diagnose({headers={},body}={}){
+  if(headers.origin!=='https://mr-tanq.github.io')return deny(403,'origin_denied');
+  const bearer=headers.authorization||'';
+  if(!/^Bearer [A-Za-z0-9_.-]{12,4096}$/.test(bearer))return deny(401,'unauthorized');
+  if(typeof body!=='string'||Buffer.byteLength(body)>512)return deny(413,'invalid_body');
+  let data;
+  try{data=JSON.parse(body)}catch(_){return deny(400,'invalid_json')}
+  if(!data||!UUID.test(data.threadId||'')||!UUID.test(data.requestId||'')||
+   data.consent!=='SESSION_ONLY_NO_MODEL_CALL')return deny(400,'consent_or_input_required');
+  let ownerId;
+  try{
+   const identityResult=await identity.authenticate(bearer.slice(7));
+   ownerId=identityResult.ownerId;
+   if(!await identity.ownsThread({threadId:data.threadId,ownerId,
+    agentId:'matt',token:bearer.slice(7)}))return deny(404,'thread_not_found');
+  }catch(_){return deny(401,'unauthorized')}
+  if(typeof budgetVerified!=='function'||await budgetVerified({ownerId})!==true)
+   return deny(403,'verify_github_zero_overage_budget');
+  const token=oauth.getLinkedToken({ownerId});
+  if(!token)return deny(409,'github_reconnect_required');
+  clean();
+  const key=ownerId+':diagnostic:'+data.requestId;
+  if(used.has(key))return deny(409,'already_submitted');
+  if(busy.has(ownerId))return deny(429,'another_request_active');
+  used.set(key,clock()+600000);busy.add(ownerId);
+  let client,session,directory;
+  let stage='client_factory';
+  try{
+   directory=await fs.mkdtemp(path.join(os.tmpdir(),'paperworld-diag-'));
+   client=await clientFactory({gitHubToken:token,useLoggedInUser:false,
+    mode:'empty',baseDirectory:directory});
+   stage='client_start';
+   await client.start();
+   stage='model_discovery';
+   const model=await entitled(client);
+   if(!model)return deny(403,'no_verified_price_model');
+   stage='session_create';
+   session=await client.createSession(createSafeSessionConfig({
+    model:model.id,gitHubToken:token
+   }));
+   // This endpoint deliberately never calls send/sendAndWait, even on success.
+   return {status:200,body:{sessionCreated:true,model:model.id,
+    aiMessagesSent:0,diagnostic:true}};
+  }catch(error){
+   const reason=stage==='session_create'?classifySessionError(error):'unclassified';
+   diagnostic(reason==='unclassified'?stage:stage+':'+reason);
+   return {status:503,body:{error:'copilot_session_diagnostic_failed',stage,reason,
+    aiMessagesSent:0}};
+  }finally{
+   try{await session?.disconnect?.()}catch(_){}
+   try{await client?.stop?.()}catch(_){}
+   if(directory)try{await fs.rm(directory,{recursive:true,force:true})}catch(_){}
+   busy.delete(ownerId);
+  }
+ }
+ return Object.freeze({handle,diagnose});
 }
 module.exports=Object.freeze({makeMattChat,CONSENT});

@@ -6,6 +6,7 @@ on:
       - 'server/matt-approval-claimer.cjs'
       - 'render.yaml'
       - 'package.json'
+      - 'server/matt-session-config.cjs'
       - 'server/matt-live-chat.cjs'
       - 'server/github-oauth.cjs'
       - 'server/copilot-client-loader.cjs'
@@ -65,6 +66,7 @@ jobs:
             tests/copilot-client-loader.test.cjs \
             tests/github-oauth.test.cjs \
             tests/matt-live-chat.test.cjs \
+            tests/matt-session-config.test.cjs \
             tests/matt-approval-claimer.test.cjs
 
 # No Copilot permissions, no AI dispatch, no deployment, no secrets or write token.

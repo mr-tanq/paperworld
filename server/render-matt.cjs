@@ -45,7 +45,8 @@ function createRenderMattServer({oauth=createGithubOAuth({
     res.writeHead(result.status,result.headers);res.end(JSON.stringify(result.body));return;
    }catch(_){response(res,503,{error:'oauth_unavailable'});return}
   }
-  if(req.url==='/chat/matt'){
+  const isMattRequest=req.url==='/chat/matt'||req.url==='/diagnostic/matt-session';
+  if(isMattRequest){
    if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
     res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
      'Access-Control-Allow-Methods':'POST, OPTIONS',
@@ -62,7 +63,10 @@ function createRenderMattServer({oauth=createGithubOAuth({
       res.end(JSON.stringify({error:'request_too_large'}));return}
      parts.push(chunk);
     }
-    const result=await getLive().handle({headers:req.headers,
+    const gateway=getLive();
+    const action=req.url==='/diagnostic/matt-session'?gateway.diagnose:gateway.handle;
+    if(typeof action!=='function')return response(res,503,{error:'diagnostic_not_configured'});
+    const result=await action({headers:req.headers,
       body:Buffer.concat(parts).toString('utf8')});
     res.writeHead(result.status,{'Content-Type':'application/json; charset=utf-8',
       'Cache-Control':'no-store','Access-Control-Allow-Origin':APP_ORIGIN,

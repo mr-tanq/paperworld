@@ -46,8 +46,28 @@
  send.type='submit';send.setAttribute('aria-label','Send message');
  form.append(field,send);
  const composer=make('footer','world-chat-composer');
+ const diagnoseBtn=make('button','world-dialogue-handoff',
+  'Έλεγχος Copilot · χωρίς AI μήνυμα');
+ diagnoseBtn.type='button';diagnoseBtn.hidden=true;
+ diagnoseBtn.addEventListener('click',async()=>{
+  if(openId!=='matt'||busy||!cloud()?.signedIn())return;
+  const selected=openId;busy=true;diagnoseBtn.disabled=true;
+  field.disabled=true;send.disabled=true;
+  status.textContent='Δοκιμή δημιουργίας συνεδρίας χωρίς αποστολή AI μηνύματος…';
+  try{
+   const result=await cloud().diagnoseMattSession();
+   if(openId===selected)status.textContent=
+    'Η συνεδρία Copilot δημιουργήθηκε επιτυχώς. AI μηνύματα: '+result.aiMessagesSent+
+    '. Τώρα μπορείς να δοκιμάσεις πραγματική απάντηση.';
+  }catch(error){
+   if(openId===selected)status.textContent='Διάγνωση Copilot: '+error.message;
+  }finally{
+   busy=false;diagnoseBtn.disabled=false;
+   if(openId===selected){field.disabled=false;send.disabled=false}
+  }
+ });
  const helper=make('small','world-chat-helper','Copilot AI Credits · Έγκριση ανά μήνυμα · Καμία ενέργεια σε αρχεία');
- composer.append(connectGithub,form,helper);
+ composer.append(connectGithub,diagnoseBtn,form,helper);
  panel.append(top,status,messages,composer);view.append(panel);
 
  function bubble(role,text,when){
@@ -86,6 +106,7 @@
    'Ιδιωτική συνομιλία · ο Director δεν έχει AI ακόμη';
   messages.replaceChildren(system(active?'Φόρτωση ιδιωτικού ιστορικού…':'Απαιτείται σύνδεση.'));
   connectGithub.hidden=true;
+  diagnoseBtn.hidden=!(isMatt&&active);
   if(isMatt&&active&&typeof cloud()?.githubLinkStatus==='function'){
    const selected=openId;
    cloud().githubLinkStatus().then(link=>{

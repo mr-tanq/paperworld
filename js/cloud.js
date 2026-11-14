@@ -169,6 +169,28 @@
    return u.href;
   }
   async function githubLinkStatus(){return mattOAuth('/auth/github/status')}
+  // Tests GitHub Copilot session.create without sending any message or
+  // storing an additional chat note. Does not perform AI inference.
+  async function diagnoseMattSession(){
+   await ensureAuth();
+   const thread=await getAgentThread('matt',true);
+   const payload={threadId:thread.id,requestId:crypto.randomUUID(),
+    consent:'SESSION_ONLY_NO_MODEL_CALL'};
+   const response=await fetcher(MATT_ORIGIN+'/diagnostic/matt-session',{
+    method:'POST',headers:{Authorization:'Bearer '+session.access_token,
+     'Content-Type':'application/json'},
+    body:JSON.stringify(payload),redirect:'error'
+   });
+   let result={};
+   try{result=await response.json()}catch(_){}
+   if(!response.ok)throw Error((result.error||'Diagnostic failed')+
+     (result.stage?' · '+result.stage:'')+
+     (result.reason&&result.reason!=='unclassified'?' · '+result.reason:'')+
+     ' (HTTP '+response.status+')');
+   if(result.sessionCreated!==true||result.aiMessagesSent!==0)
+    throw Error('Diagnostic result not verified');
+   return result;
+  }
   async function askMatt(message){
    const text=String(message||'').trim();
    if(!text||text.length>1200)throw Error('Message must be 1–1200 characters');
@@ -196,7 +218,7 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt};
+   agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt,diagnoseMattSession};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });
