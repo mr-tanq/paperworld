@@ -288,5 +288,14 @@ function openChief(){
  open('town');
  if(client.signedIn())setTimeout(focusChief,350);
 }
-window.PaperworldCloudUI={open,openChief,isActive:()=>active,signedIn:()=>client.signedIn()};
+function sessionForWorld(){
+ if(!client.signedIn())throw Error('Sign in to PAPERWORLD Cloud');
+ if(!mattSession)mattSession=window.PaperworldMattChat.createSession({storage:localStorage,identity:client.identity()});
+ return mattSession;
+}
+window.PaperworldCloudUI={
+ open,openChief,isActive:()=>active,signedIn:()=>client.signedIn(),
+ mattMessages:()=>sessionForWorld().messages(),
+ sendMattMessage:(text)=>{const response=sessionForWorld().send(text,allTasks);mattProposal=response.proposal;if(active&&room==='town')render();return response}
+};
 })();
