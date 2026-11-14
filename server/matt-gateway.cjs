@@ -34,7 +34,7 @@ function createGateway({authenticate,ownsThread,claimApproval,linkedToken,adapte
   if(!identity||typeof identity.ownerId!=='string'||!identity.ownerId)
    return respond(401,{error:'unauthorized'});
   try{
-   if(await ownsThread({threadId,ownerId:identity.ownerId,agentId:'matt'})!==true)
+   if(await ownsThread({threadId,ownerId:identity.ownerId,agentId:'matt',token:bearer.slice(7)})!==true)
     return respond(404,{error:'thread_not_found'});
    // A trusted DB method must atomically consume one explicit, owner-scoped
    // approval for THIS request. No approval means no AI, not even a retry.
