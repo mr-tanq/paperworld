@@ -7,14 +7,14 @@ const thread='22222222-2222-4222-8222-222222222222';
 const request='33333333-3333-4333-8333-333333333333';
 const payload={threadId:thread,requestId:request,message:'Hello, Matt',consent:CONSENT};
 const headers={origin:'https://mr-tanq.github.io',authorization:'Bearer aaaaaaa.bbbbbbb.ccccccc'};
-function mock({connected=true,owns=true,remaining=80,budgetVerified=true}={}){
+function mock({connected=true,owns=true,remaining=80,budgetVerified=true,pricingKnown=true}={}){
  const seen={factory:[],sessions:[],start:0,reply:0};
  const guard={authenticate:async()=>({ownerId:owner}),ownsThread:async()=>owns};
  const oauth={getLinkedToken:()=>connected?'gho_PRIVATE_SERVER_ONLY':null};
  const clientFactory=async opts=>{
   seen.factory.push(opts);
   return {start:async()=>{seen.start++},
-   listModels:async()=>[{id:'gpt-4.1',billing:{tokenPrices:{inputPrice:1,outputPrice:2,batchSize:1000}}}],
+   listModels:async()=>[{id:'gpt-4.1',billing:pricingKnown?{tokenPrices:{inputPrice:1,outputPrice:2,batchSize:1000}}:{}}],
    rpc:{account:{getQuota:async()=>({quotaSnapshots:{ai_credits:{
       entitlementRequests:100,usedRequests:100-remaining}}})}},
    createSession:async cfg=>{
@@ -51,11 +51,11 @@ test('Authenticated explicit single turn returns real SDK result with no tools',
  assert.equal((await seen.sessions[0].hooks.onPreToolUse()).permissionDecision,'deny');
  assert.ok(!JSON.stringify(r).includes('gho_PRIVATE'));
 });
-test('Insufficient included quota rejects before model call',async()=>{
- const {chat,seen}=mock({remaining:0});
+test('Unknown model pricing rejects before model call',async()=>{
+ const {chat,seen}=mock({pricingKnown:false});
  const r=await chat.handle({headers,body:JSON.stringify(payload)});
  assert.equal(r.status,403);
- assert.equal(r.body.error,'ai_credit_quota_not_verified');
+ assert.equal(r.body.error,'no_verified_price_model');
  assert.equal(seen.reply,0);
 });
 test('A GitHub disconnect fails closed',async()=>{
