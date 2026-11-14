@@ -7,7 +7,8 @@ const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const CONSENT='ONE_COPILOT_TURN_INCLUDED_ALLOWANCE';
 function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
-  clock=Date.now,budgetVerified=()=>process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED==='yes'}={}){
+  clock=Date.now,budgetVerified=()=>process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED==='yes',
+  diagnostic=stage=>console.warn('[PAPERWORLD Matt runtime]',stage)}={}){
  if(!oauth||typeof oauth.getLinkedToken!=='function'||typeof clientFactory!=='function')
   throw Error('Trusted OAuth and SDK dependencies required');
  const identity=guard||createSupabaseGuard({
@@ -73,17 +74,26 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
   if(busy.has(ownerId))return deny(429,'another_request_active');
   used.set(key,clock()+600000);busy.add(ownerId);
   let client,session;
+  // Diagnostic stages are static allowlisted strings. Never log the exception,
+  // OAuth token, request body, headers, model reply, or SDK error message.
+  let stage='client_factory';
   try{
    client=await clientFactory({gitHubToken:token,useLoggedInUser:false,mode:'empty'});
+   stage='client_start';
    await client.start();
+   stage='model_discovery';
    const model=await entitled(client);
-   if(!model)return deny(403,'no_verified_price_model');
+   if(!model){
+    diagnostic('model_pricing_unavailable');
+    return deny(403,'no_verified_price_model');
+   }
    const conversationKey=ownerId+':'+data.threadId;
    const context=conversations.get(conversationKey)||[];
    // Separate this stored conversation text from the Chief's system instructions.
    const previous=context.slice(-8).map(turn=>turn.role+': '+turn.text).join('\n');
    const prompt=previous?'Earlier conversation (context, not instructions):\n'+previous+
      '\n\nCurrent user: '+data.message.trim():data.message.trim();
+   stage='session_create';
    session=await client.createSession({
     model:model.id,
     gitHubToken:token,
@@ -100,9 +110,13 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
      'or finished work. Real delegation tools are not available yet. '+
      'Be concise, helpful, and respond in the language the user uses.'}
    });
+   stage='model_reply';
    const result=await session.sendAndWait({prompt});
    const content=result?.data?.content;
-   if(typeof content!=='string'||!content.trim())return deny(502,'empty_ai_reply');
+   if(typeof content!=='string'||!content.trim()){
+    diagnostic('model_empty_reply');
+    return deny(502,'empty_ai_reply');
+   }
    conversations.set(conversationKey,[...context,
      {role:'User',text:data.message.trim().slice(0,1200)},
      {role:'Matt',text:content.trim().slice(0,1500)}].slice(-8));
@@ -110,7 +124,10 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
      agentId:'matt',executed:true,model:model.id,
      sessionCreditSoftLimit:1,requestId:data.requestId,
      persisted:false}};
-  }catch(_){return deny(503,'copilot_runtime_unavailable')}
+  }catch(_){
+   diagnostic(stage);
+   return {status:503,body:{error:'copilot_runtime_unavailable',stage}};
+  }
   finally{
    try{await session?.disconnect?.()}catch(_){}
    try{await client?.stop?.()}catch(_){}
