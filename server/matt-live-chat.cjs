@@ -4,6 +4,9 @@
  */
 'use strict';
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
+const os=require('node:os');
+const path=require('node:path');
+const fs=require('node:fs/promises');
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const CONSENT='ONE_COPILOT_TURN_INCLUDED_ALLOWANCE';
 function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
@@ -131,6 +134,9 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
   finally{
    try{await session?.disconnect?.()}catch(_){}
    try{await client?.stop?.()}catch(_){}
+   if(privateBaseDirectory){
+    try{await fs.rm(privateBaseDirectory,{recursive:true,force:true})}catch(_){}
+   }
    busy.delete(ownerId);
   }
  }
