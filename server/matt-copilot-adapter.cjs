@@ -32,7 +32,8 @@ function createMattAdapter({clientFactory,authorizeRequest}={}){
 
   // SDK is instantiated ONLY after a trusted server approves this specific request.
   // The future gateway owns the lifecycle and injection; no browser token handling.
-  const client=await clientFactory({mode:'empty'});
+  // Explicit user identity with no fallback to CLI login, environment or a host account.
+  const client=await clientFactory({mode:'empty',gitHubToken:input.githubToken,useLoggedInUser:false});
   let session;
   try{
    session=await client.createSession({
