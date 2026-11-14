@@ -58,8 +58,8 @@
  document.addEventListener('keydown',e=>{
   if(e.defaultPrevented||e.altKey||e.ctrlKey||e.metaKey||e.repeat)return;
   const t=e.target;
-  if(t?.closest?.('input,textarea,select,[contenteditable="true"]'))return;
   if(e.key==='Escape'&&openId){hide();return}
+  if(t?.closest?.('input,textarea,select,[contenteditable="true"]'))return;
   if(e.key.toLowerCase()==='m'){e.preventDefault();show('matt')}
   if(e.key.toLowerCase()==='t'){e.preventDefault();nearby()}
  });
