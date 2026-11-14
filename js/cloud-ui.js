@@ -141,7 +141,10 @@ function renderWorkshop(){
      results.append(el('p','Νέα έρευνα AI επιτρέπεται μετά τις '+date+'. Το κουμπί εκκίνησης παραμένει κρυφό μέχρι τότε.','room-footnote'));
     }
     if(run?.conclusion==='failure'&&run.mode==='run-ai'){
-     results.append(el('p','Η πρώτη δοκιμή απέτυχε πριν την ανάλυση επειδή το Copilot απέρριψε ένα παλιό όριο credits. Η ρύθμιση έχει διορθωθεί, αλλά απαιτείται νέα έγκριση όταν λήξει το κλείδωμα.','room-footnote'));
+     const reason=run.id===43533783800?
+      'Η συγκεκριμένη δοκιμή απέτυχε πριν την ανάλυση: το Copilot απέρριψε παλιό όριο 0.5 AI credits. Αυτό διορθώθηκε στο PR #35.':
+      'Η AI εκτέλεση απέτυχε. Άνοιξε το GitHub run για να δεις την πραγματική αιτία, χωρίς να υποθέσουμε ότι ο κώδικας διορθώθηκε.';
+     results.append(el('p',reason,'room-footnote'));
     }
     if(run?.url){
      const link=el('a','Άνοιξε την εκτέλεση στο GitHub');
