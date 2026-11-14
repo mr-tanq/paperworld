@@ -65,6 +65,7 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
   let client,session;
   try{
    client=await clientFactory({gitHubToken:token,useLoggedInUser:false,mode:'empty'});
+   await client.start();
    const models=await client.rpc.models.list({});
    const quota=await client.rpc.account.getQuota({});
    const model=eligible(models,quota);
