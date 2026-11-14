@@ -296,6 +296,8 @@ function sessionForWorld(){
 window.PaperworldCloudUI={
  open,openChief,isActive:()=>active,signedIn:()=>client.signedIn(),
  mattMessages:()=>sessionForWorld().messages(),
- sendMattMessage:(text)=>{const response=sessionForWorld().send(text,allTasks);mattProposal=response.proposal;if(active&&room==='town')render();return response}
+ sendMattMessage:(text)=>{const response=sessionForWorld().send(text,allTasks);mattProposal=response.proposal;if(active&&room==='town')render();return response},
+ privateAgentMessages:(id)=>client.agentMessages(id),
+ sendPrivateAgentMessage:(id,text)=>client.sendAgentNote(id,text)
 };
 })();
