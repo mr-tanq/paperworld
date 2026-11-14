@@ -53,3 +53,5 @@ The user explicitly rejected our permanently displayed beige inspector/sidebar, 
 Approved interaction: village fills the entire viewport, house taps directly open the corresponding in-world agent Messenger, M talks to Matt, T talks to nearby agents, and a small optional work desk contains Cloud login and secondary project data. Task tabs and technical calibration are hidden from the everyday experience, not removed from storage. No fake agent replies or fake worker status. Keep the current papercraft art until separately approved asset changes.
 
 PR `feature/village-first-game-interface` makes these frontend changes only. It does not deploy, auto-merge, spend credits, change Supabase or enable Copilot. Next: validate on Android tablet; implement real user-authorized GitHub OAuth and protected AI endpoint, then real task-to-worker routing.
+
+Additional game-flow improvement: Matt now visually follows the player's walked path (delayed breadcrumb trail); the nearby T action deliberately selects a Director, while M always contacts Matt. No agent actions or model calls are simulated by this movement.
