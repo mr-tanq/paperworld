@@ -33,7 +33,7 @@ concurrency:
 jobs:
   private-chat-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Checkout PAPERWORLD (no persistent token)
         uses: actions/checkout@v4
@@ -43,6 +43,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install pinned Copilot SDK package (NO AI requests)
+        run: npm install --omit=dev --no-audit --no-fund --ignore-scripts
+      - name: Verify Copilot SDK exports without authenticating
+        run: node -e "if (typeof require('@github/copilot-sdk').CopilotClient !== 'function') process.exit(1)"
       - name: Test agent registry, conversation, cloud storage and UI
         run: |
           node --test \
