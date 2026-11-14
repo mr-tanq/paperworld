@@ -214,7 +214,7 @@ aside{min-width:0;min-height:0;overscroll-behavior:contain}
  border:1px solid #424a56;border-radius:14px;background:#242a32}
 .world-dialogue-form .world-chat-input{flex:1;min-width:0;min-height:37px;max-height:105px;
  padding:10px 0 7px;background:transparent;color:#f3f5f8;border:0!important;box-shadow:none!important;
- resize:none;font:13px/1.4 inherit;outline:none}
+ resize:none;font:inherit;line-height:1.4;outline:none}
 .world-dialogue-form .world-chat-input::placeholder{color:#a3aebb;opacity:1}
 .world-dialogue-form .world-chat-send{flex:none;display:grid;place-items:center;width:37px;height:37px;
  min-height:37px;padding:0;border-radius:10px;background:#c9a77a;color:#14171b;
