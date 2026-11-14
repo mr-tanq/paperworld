@@ -5,6 +5,7 @@
 const http=require('node:http');
 const {createGithubOAuth,APP_ORIGIN}=require('./github-oauth.cjs');
 const {makeMattChat}=require('./matt-live-chat.cjs');
+const {createCopilotClient}=require('./copilot-client-loader.cjs');
 function response(res,status,body){
  res.writeHead(status,{'Content-Type':'application/json; charset=utf-8',
   'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
@@ -17,10 +18,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
   clientSecret:process.env.GITHUB_OAUTH_CLIENT_SECRET,
   supabaseUrl:'https://jrevhzvrgenucuozjowm.supabase.co',
   supabaseKey:'sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL'
- }),chatFactory=({oauth})=>makeMattChat({oauth,clientFactory:async options=>{
-  const {CopilotClient}=await import('@github/copilot-sdk');
-  return new CopilotClient(options);
- }})}={}){
+ }),chatFactory=({oauth})=>makeMattChat({oauth,clientFactory:createCopilotClient})}={}){
  let live;
  function getLive(){if(!live)live=chatFactory({oauth});return live}
  const server=http.createServer(async(req,res)=>{
@@ -87,7 +85,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
  return Object.freeze({server,listen,close:()=>new Promise((resolve,reject)=>server.close(e=>e?reject(e):resolve()))});
 }
 if(require.main===module){
- createRenderMattServer().listen().then(()=>process.stdout.write('PAPERWORLD hosting check ready (AI DISABLED)\n'))
+ createRenderMattServer().listen().then(()=>process.stdout.write('PAPERWORLD Matt server ready (AI guarded; no model call during startup)\n'))
   .catch(()=>{process.stderr.write('PAPERWORLD hosting check failed\n');process.exitCode=1});
 }
 module.exports=Object.freeze({createRenderMattServer});
