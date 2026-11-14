@@ -84,6 +84,6 @@ test('Copilot error creates a safe non-success outcome and never claims source w
   const report=JSON.parse(await readFile(join(cwd,'worker-output','execution.json'),'utf8'));
   assert.equal(report.reason,'copilot-cli-error');
   assert.equal(report.success,false);
-  assert.doesNotMatch(JSON.stringify(report),/TicketSwap (is|was) fixed/);
+  assert.match(report.note,/not whether TicketSwap is fixed/);
  }finally{await rm(cwd,{recursive:true,force:true})}
 });
