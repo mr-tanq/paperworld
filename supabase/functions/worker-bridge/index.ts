@@ -19,8 +19,9 @@ async function github(path:string,init:RequestInit={}){
 }
 
 // Only expose runs tagged with the supplied mission UUID. Older manual runs do not qualify.
-const matchingRun=(runs:any[],id:string)=>runs.find(r=>
-  typeof r.display_title==="string" && r.display_title.endsWith(" | "+id));
+const matchingRun=(runs:any[],id:string,mode?:string)=>runs.find(r=>
+  typeof r.display_title==="string" && r.display_title.endsWith(" | "+id) &&
+  (!mode || r.display_title.startsWith("PAPERWORLD "+mode+" | ")));
 async function ownedMission(id:string,userId:string,auth:string){
  const url=PROJECT+"/rest/v1/paperworld_missions?id=eq."+encodeURIComponent(id)+
   "&select=id,owner_id,repository,project_room,title,mode,status&limit=1";
@@ -33,11 +34,11 @@ async function ownedMission(id:string,userId:string,auth:string){
    return null;
  return m;
 }
-async function missionRuns(id:string){
+async function missionRuns(id:string,mode?:string){
  const r=await github("/actions/workflows/"+WORKFLOW+"/runs?event=workflow_dispatch&per_page=40");
  if(!r.ok)throw Error("GitHub runs unavailable");
  const data=await r.json();
- return matchingRun(data.workflow_runs||[],id);
+ return matchingRun(data.workflow_runs||[],id,mode);
 }
 async function readReport(runId:number){
  const artifactResponse=await github("/actions/runs/"+runId+"/artifacts?per_page=15");
@@ -85,7 +86,8 @@ Deno.serve(async(req:Request)=>{
      if(!TOKEN)return respond(200,{connected:false,prepareOnly:true,run:null,note:"Bridge token missing."});
      const run=await missionRuns(missionId);
      const tracked=run?{id:run.id,status:run.status,conclusion:run.conclusion,
-       createdAt:run.created_at,url:run.html_url,mode:"prepare-only"}:null;
+       createdAt:run.created_at,url:run.html_url,
+       mode:run.display_title?.startsWith("PAPERWORLD run-ai | ")?"run-ai":"prepare-only"}:null;
      const result:Record<string,unknown>={connected:true,prepareOnly:true,missionId,run:tracked,
        note:run?"This GitHub Actions run is tagged with this mission.":"No tagged run for this mission yet."};
      if(run?.status==="completed"&&params.get("report")==="1")
@@ -94,23 +96,31 @@ Deno.serve(async(req:Request)=>{
    }
    if(req.headers.get("content-type")?.split(";")[0]!=="application/json")return respond(415,{error:"JSON required"});
    const data=await req.json().catch(()=>null);
-   if(!data||Object.keys(data).sort().join(",")!=="confirm_prepare_only,mission_id"||data.confirm_prepare_only!==true||!safeId(data.mission_id))
-     return respond(400,{error:"Explicit prepare-only confirmation and mission ID required"});
+   const keys=data&&typeof data==="object"?Object.keys(data).sort().join(","):"";
+   const prepare=keys==="confirm_prepare_only,mission_id"&&data.confirm_prepare_only===true;
+   const ai=keys==="confirm_ai_credits,mission_id"&&data.confirm_ai_credits==="I_APPROVE_INCLUDED_AI_CREDITS";
+   if(!data||(!prepare&&!ai)||!safeId(data.mission_id))
+     return respond(400,{error:"Specific mission ID and explicit action confirmation required"});
    // Browser cannot dispatch arbitrary prompts, repositories, refs, or input modes.
    const mission=await ownedMission(data.mission_id,userId,auth);
    if(!mission||mission.status!=="ready_for_review")
      return respond(403,{error:"Only your review-ready TicketSwap investigation is permitted"});
    if(!TOKEN)return respond(503,{error:"Secure GitHub Actions bridge not connected. No workflow started.",
      setupRequired:true,workflowUrl:"https://github.com/"+REPO+"/actions/workflows/"+WORKFLOW});
-   const previous=await missionRuns(data.mission_id);
-   if(previous && Date.now()-Date.parse(previous.created_at)<10*60*1000)
-     return respond(409,{error:"This mission was requested recently. Check its existing run before retrying."});
+   // A user-initiated AI run can consume included Copilot credits. No paid overage is authorized.
+   // Read the GitHub Free budget settings before ever clicking it.
+   const mode=ai?"run-ai":"prepare-only";
+   const previous=await missionRuns(data.mission_id,mode);
+   const cooldown=ai?24*60*60*1000:10*60*1000;
+   if(previous && Date.now()-Date.parse(previous.created_at)<cooldown)
+     return respond(409,{error:"This mission already has a recent "+mode+" run. View its report before retrying."});
    const dispatched=await github("/actions/workflows/"+WORKFLOW+"/dispatches",{
      method:"POST",body:JSON.stringify({ref:"main",inputs:{
-       mission_id:data.mission_id,mode:"prepare-only",approve_credits:""
+       mission_id:data.mission_id,mode,approve_credits:ai?"I_APPROVE_AI_CREDITS":""
      }})});
-   if(dispatched.status!==204)return respond(502,{error:"GitHub did not accept the prepare-only dispatch",githubStatus:dispatched.status});
-   return respond(202,{accepted:true,mode:"prepare-only",inference:false,creditsRequested:false,
-     note:"Only the free preparation job was requested. No AI worker, code write or deployment."});
+   if(dispatched.status!==204)return respond(502,{error:"GitHub did not accept the "+mode+" request",githubStatus:dispatched.status});
+   return respond(202,{accepted:true,mode,inference:ai,creditsRequested:ai,
+     note:ai?"AI analysis requested using available GitHub Copilot credits. No paid overage authorized.":
+     "Free preparation requested. No AI agent, code write or deployment."});
  }catch(_){return respond(502,{error:"Worker bridge temporarily unavailable"})}
 });
