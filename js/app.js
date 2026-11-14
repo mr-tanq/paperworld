@@ -84,6 +84,7 @@ const agentJourney={mode:'following',route:[],phase:'idle',meeting:false};
 window.PaperworldWorld=Object.freeze({
  agents:()=>actors.map(a=>({...a})),
  // T addresses a nearby Director; M talks to the always-available Matt.
+ setAgentWorkflowStage,
  nearestAgent:(radius=100)=>actors.filter(a=>a.id!=='matt')
    .map(a=>({...a,distance:Math.hypot(a.x-state.walker.x,a.y-state.walker.y)}))
    .filter(a=>a.distance<=radius).sort((a,b)=>a.distance-b.distance)[0]||null
@@ -119,8 +120,7 @@ function setAgentWorkflowStage(stateName){
  }
  return true;
 }
-window.PaperworldWorld.setAgentWorkflowStage=setAgentWorkflowStage;
-window.PaperworldWorld.agentWorkflowStatus=()=>({...agentJourney,route:agentJourney.route.length});
+
 function resize(){const r=canvas.getBoundingClientRect();state.width=r.width;state.height=r.height;state.dpr=Math.min(2,devicePixelRatio||1);canvas.width=Math.max(1,Math.round(r.width*state.dpr));canvas.height=Math.max(1,Math.round(r.height*state.dpr));ctx.setTransform(state.dpr,0,0,state.dpr,0,0);state.fit=Math.min((r.width-14)/W,(r.height-14)/H);resetCamera()}
 function resetCamera(){state.scale=state.fit;state.x=(state.width-W*state.scale)/2;state.y=(state.height-H*state.scale)/2}
 function localPoint(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
