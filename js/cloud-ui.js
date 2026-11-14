@@ -99,6 +99,16 @@ if(chief){
        message=response.accepted?'GitHub accepted the prepare-only job. Use Check worker run to see the latest status.':'No workflow was started.'
      }),'primary'))
    }
+   if(mission.status==='ready_for_review'&&mission.repository==='mr-tanq/concerts'&&/ticketswap/i.test(mission.title)){
+     buttons.append(btn('Run AI investigation',()=>work(async()=>{
+       const info='This uses your included GitHub Copilot Free AI credits (if available). You have configured $0 overage, but PAPERWORLD cannot independently verify GitHub billing settings. The AI can edit ONLY a temporary checkout; it cannot push, merge or deploy. To approve one run, type I_APPROVE_INCLUDED_AI_CREDITS.';
+       const approval=prompt(info);
+       if(approval===null){message='AI run cancelled. No credits consumed.';return;}
+       if(approval!=='I_APPROVE_INCLUDED_AI_CREDITS')throw Error('Acknowledgement mismatch; AI not started');
+       const result=await client.runApprovedAiMission(mission.id,approval);
+       message=result.accepted?'GitHub accepted this ONE AI analysis run. Check this mission to see progress; actual credit use depends on the Copilot allowance.':'AI run was not started.';
+     }),'chief-ai-run'))
+   }
    if(mission.status!=='cancelled'){
      buttons.append(btn('Check this mission',()=>work(async()=>{
        const status=await client.workerStatus(mission.id);
