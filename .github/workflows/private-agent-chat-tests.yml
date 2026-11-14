@@ -5,6 +5,7 @@ on:
       - 'server/supabase-identity-guard.cjs'
       - 'server/matt-approval-claimer.cjs'
       - 'render.yaml'
+      - 'server/github-oauth.cjs'
       - 'server/render-matt.cjs'
       - 'server/matt-http-server.cjs'
       - 'server/matt-gateway.cjs'
@@ -53,6 +54,7 @@ jobs:
             tests/supabase-identity-guard.test.cjs \
             tests/matt-http-server.test.cjs \
             tests/render-matt.test.cjs \
+            tests/github-oauth.test.cjs \
             tests/matt-approval-claimer.test.cjs
 
 # No Copilot permissions, no AI dispatch, no deployment, no secrets or write token.
