@@ -12,7 +12,7 @@ const TEST_FILE=/^tests\/autofix\/ticketswap-[a-z0-9-]{1,40}\.test\.mjs$/;
 const SHA=/^[a-f0-9]{40}$/;
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const MAX_FILES=3,MAX_CHANGED_LINES=80,MAX_BYTES=20000,MAX_TEST_BYTES=8000;
-const FORBIDDEN_ADDITIONS=/\b(?:eval|Function|XMLHttpRequest|WebSocket|fetch|sendBeacon|localStorage|sessionStorage|require|process|child_process|exec|spawn|Deno|Bun|document\.cookie|navigator\.credentials|import\s*\()\b|\b(?:putFile|getGithubConfig)\s*\(|(?:https?:\/\/|github\.com|api\.github\.com)|(?:\.\.\/|\.\.\\)/i;
+const FORBIDDEN_ADDITIONS=/\b(?:eval|Function|XMLHttpRequest|WebSocket|fetch|sendBeacon|localStorage|sessionStorage|require|process|child_process|exec|spawn|Deno|Bun|document\.cookie|navigator\.credentials)\b|\bimport\s*\(|\b(?:putFile|getGithubConfig)\s*\(|(?:https?:\/\/|github\.com|api\.github\.com)|(?:\.\.\/|\.\.\\)/i;
 function deny(code){const e=new Error(code);e.code=code;throw e}
 function validContent(value,max){
  return typeof value==='string'&&Buffer.byteLength(value,'utf8')<=max&&
