@@ -57,7 +57,6 @@ test('Matt offers OAuth reconnect inside Messenger, including Render Free sleep'
  assert.match(source,/connectGithub/);
  assert.match(source,/githubLinkStatus\(\)/);
  assert.match(source,/beginGithubLink\(\)/);
- assert.match(source,/githubLinkStatus\\(\\)/);
  assert.match(source,/runMattWorkflow\(text\)/);
  assert.match(source,/delegateMattWorker\(text,\{onStart/);
  assert.match(source,/setAgentWorkflowStage/);
