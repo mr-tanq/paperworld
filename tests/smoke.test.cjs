@@ -448,10 +448,12 @@ test('authenticated prepare-only bridge wiring',()=>{
  assert.ok(html.includes('cloud.js?v=32'));
  assert.ok(html.includes('cloud-ui.js?v=32'));
 });
-test('bridge only dispatches allowlisted prepare-only workflow',()=>{
+test('bridge only dispatches review-ready mission with explicit per-run authorization',()=>{
  const code=read('supabase/functions/worker-bridge/index.ts');
- for(const part of ['/auth/v1/user','paperworld_missions','owner_id!==userId','confirm_prepare_only!==true','mode:"prepare-only"','if(!TOKEN)','Origin denied'])assert.ok(code.includes(part),part);
- assert.ok(!code.includes('mode:"run-ai"'));
+ for(const part of ['/auth/v1/user','paperworld_missions','owner_id!==userId','confirm_prepare_only','I_APPROVE_INCLUDED_AI_CREDITS','if(!TOKEN)','Origin denied','mission.status!=="ready_for_review"'])assert.ok(code.includes(part),part);
+ assert.ok(code.includes('ai?"run-ai":"prepare-only"'));
+ assert.ok(code.includes('ai?24*60*60*1000:10*60*1000'));
+ assert.ok(code.includes('approve_credits:ai?"I_APPROVE_AI_CREDITS":""'));
 });
 
 test('Each GitHub run is tagged to one PAPERWORLD mission, never another task',()=>{
@@ -464,13 +466,36 @@ test('Each GitHub run is tagged to one PAPERWORLD mission, never another task',(
  assert.ok(workflow.includes('mission_id:'));
  assert.ok(edge.includes('r.display_title.endsWith(" | "+id)'));
  assert.ok(edge.includes('ownedMission(missionId,userId,auth)'));
- assert.ok(edge.includes('mode:"prepare-only"'));
+ assert.ok(edge.includes('ai?"run-ai":"prepare-only"'));
  assert.ok(edge.includes('mission_id:data.mission_id'));
  assert.ok(edge.includes('10*60*1000'));
  assert.ok(edge.includes('readReport(run.id)'));
- assert.ok(!edge.includes('mode:"run-ai"'));
+ assert.ok(edge.includes('I_APPROVE_INCLUDED_AI_CREDITS'));
+ assert.ok(edge.includes('24*60*60*1000'));
+ assert.ok(edge.includes('readReport(run.id)'));
  assert.ok(client.includes('async function workerStatus(id,includeReport=false)'));
  assert.ok(ui.includes('client.workerStatus(mission.id,true)'));
  assert.ok(ui.includes('Open matching GitHub run'));
  assert.ok(ui.includes('workerReports=new Map()'));
+});
+
+test('AI execution is a one-shot human-only Copilot Free credit opt-in',()=>{
+ const edge=read('supabase/functions/worker-bridge/index.ts');
+ const ui=read('js/cloud-ui.js');
+ const client=read('js/cloud.js');
+ const workflow=read('.github/workflows/worker-review.yml');
+ assert.ok(ui.includes('Run AI investigation'));
+ assert.ok(ui.includes('prompt(info)'));
+ assert.ok(ui.includes('I_APPROVE_INCLUDED_AI_CREDITS'));
+ assert.ok(ui.includes('client.runApprovedAiMission(mission.id,approval)'));
+ assert.ok(client.includes('runApprovedAiMission'));
+ assert.ok(client.includes('confirm_ai_credits:approval'));
+ assert.ok(edge.includes('keys==="confirm_ai_credits,mission_id"'));
+ assert.ok(edge.includes('mission.status!=="ready_for_review"'));
+ assert.ok(edge.includes('mode=ai?"run-ai":"prepare-only"'));
+ assert.ok(edge.includes('approve_credits:ai?"I_APPROVE_AI_CREDITS":""'));
+ assert.ok(edge.includes('cooldown=ai?24*60*60*1000'));
+ assert.ok(workflow.includes('--max-ai-credits=0.50'));
+ assert.ok(workflow.includes('--model=claude-haiku-4.5'));
+ assert.ok(!workflow.includes('contents: write'));
 });
