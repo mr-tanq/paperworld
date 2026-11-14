@@ -34,8 +34,8 @@
    status.textContent='Συνδέσου στο PAPERWORLD Cloud από το πλαϊνό μενού για να μιλήσεις στον Matt. Δεν αποστέλλονται μηνύματα χωρίς σύνδεση.';
    messages.append(make('p','world-dialogue-agent','Το ιστορικό Matt είναι συνδεδεμένο με τον λογαριασμό σου.'));
   }else{
-   status.textContent='Ο Director έχει θέση στον κόσμο, αλλά δεν είναι ακόμη συνδεδεμένος με μοντέλο ή σύστημα συνομιλίας.';
-   messages.append(make('p','world-dialogue-agent','Η πραγματική συνομιλία αυτού του Director θα ενεργοποιηθεί σε επόμενο βήμα. Δεν θα εμφανίσω ψεύτικες απαντήσεις.'));
+   status.textContent='Τα μηνύματά σου αποθηκεύονται ιδιωτικά. Ο Director δεν έχει ακόμη AI μοντέλο ή σύστημα εκτέλεσης.';
+   messages.append(make('p','world-dialogue-agent','Μπορείς να αφήσεις μήνυμα για αργότερα. Κανένας Worker δεν ξεκινά και δεν δημιουργείται αυτόματη απάντηση.'));
   }
   privateLog.replaceChildren();
   if(active&&typeof cloud()?.privateAgentMessages==='function'){
@@ -71,12 +71,13 @@
   e.preventDefault();if(!openId||!cloud()?.signedIn()||field.disabled||busy)return;
   const id=openId,text=field.value;
   busy=true;send.disabled=true;field.disabled=true;
+  let failure=null;
   try{
    await cloud().sendPrivateAgentMessage(id,text);
    if(id==='matt')cloud().sendMattMessage(text);
    field.value='';
-  }catch(error){if(openId===id)status.textContent='Μήνυμα δεν αποθηκεύτηκε: '+error.message}
-  finally{busy=false;if(openId===id)paint()}
+  }catch(error){failure=error}
+  finally{busy=false;if(openId===id){paint();if(failure)status.textContent='Μήνυμα δεν αποθηκεύτηκε: '+failure.message}}
  });
  document.addEventListener('keydown',e=>{
   if(e.defaultPrevented||e.altKey||e.ctrlKey||e.metaKey||e.repeat)return;
