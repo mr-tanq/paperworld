@@ -105,3 +105,13 @@ Approved scope: first incremental agent-coordination foundation, no merge/deploy
 - Added offline node tests for role hierarchy, evidence origin/duplicates, source truncation, job transitions and handoff prompt presence.
 - Deliberately unchanged: fixed three-file read allowlists, zero-dollar additional usage hard stop, explicit per-request consent, denied Copilot tools, read-only GitHub fetching, ephemeral chat results, existing UI and Supabase access rules.
 - Future, separately approved steps: wire verified status transitions to a durable owner-scoped database record with migration/RLS review, and consider adding safe project-specific worker tools with explicit approval. No claim of durable agent memory or independent autonomous jobs in v1.
+
+## Durable job memory groundwork — draft review (14 November 2026)
+
+User authorized a separate PR for persistent Matt/Director/Worker job history, not live DB changes or deployment. The actual PAPERWORLD Supabase project `jrevhzvrgenucuozjowm` was inspected read-only: existing owner-scoped tasks, missions, agent threads and messages remain untouched.
+
+- `supabase/paperworld_agent_job_history_review.sql` is a **review-only SQL proposal**, not applied. It defines two owner-scoped, RLS-protected tables: jobs and append-only events, with existing thread ownership FK and no UPDATE/DELETE grants to clients.
+- `server/agent-job-memory.cjs` provides a dormant server-side PostgREST adapter for creating jobs, appending limited events and reading thread-scoped history with the owner's existing JWT. **It is not wired to any live route or delegation workflow yet.**
+- `tests/agent-job-memory.test.cjs` contains mock tests; CI must pass. Database migration and live end-to-end persistence remain unverified.
+- The rows can be inserted by the signed-in owner, so they are **non-authoritative history** only, not proof of model execution or valid permission to act. They cannot authorize spending, deployment, merges, emails or file changes. No full model replies, code excerpts, secrets or OAuth credentials are stored.
+- Before activation: separate owner approval for a reviewed migration in only PAPERWORLD, RLS/security-advisor checks, integration into the trusted backend with explicit consent and failure behavior, and tests for persistent read-after-refresh. No cost/settings changes.
