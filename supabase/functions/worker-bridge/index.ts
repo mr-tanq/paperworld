@@ -52,7 +52,7 @@ async function readReport(runId:number){
  const zip=new Uint8Array(await bytesResponse.arrayBuffer());
  if(zip.byteLength>1500000)throw Error("Artifact download exceeds review size limit");
  const files=unzipSync(zip);
- const wanted=["scope.json","analysis.md","audit.json","tests.log","worker.patch","prompt.txt"];
+ const wanted=["execution.json","scope.json","analysis.md","audit.json","tests.log","worker.patch","prompt.txt"];
  const content:Record<string,string>={};
  for(const key of wanted){
   const file=files[key];if(file){

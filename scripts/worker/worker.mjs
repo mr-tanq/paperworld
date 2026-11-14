@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // PAPERWORLD Worker controller: explicit allowlist, no remote writes, no API keys.
-import {writeFile,mkdir} from 'node:fs/promises';
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
 import {resolve,join} from 'node:path';
 
@@ -41,6 +41,21 @@ if(process.argv[3]==='prepare'){
  await writeFile(join(output,'prompt.txt'),prompt+'\n');
  await writeFile(join(output,'scope.json'),JSON.stringify({job,repository:task.repo,allowed:task.allowed,mode:'review-only',remoteWrites:false},null,2));
  console.log('Prepared review-only AI task: '+job);
+}else if(process.argv[3]==='diagnose'){
+ const code=Number(process.env.COPILOT_EXIT_CODE);
+ if(!Number.isSafeInteger(code)||code<0||code>255)fail('Invalid Copilot exit code');
+ const stderr=await readFile('/tmp/paperworld-copilot-stderr.log','utf8').catch(()=>'');
+ const reason=code===0?'cli-exited-successfully':
+  /max-ai-credits|at least 30 AI credits/i.test(stderr)?'invalid-credit-limit':
+  /not authorized|permission denied|unauthorized|authentication failed|401|403/i.test(stderr)?'authentication-or-permission':
+  /model.*(unavailable|unsupported|not allowed)|unsupported.*model/i.test(stderr)?'model-not-available':
+  /network|timed out|connection refused|429|rate limit/i.test(stderr)?'network-or-rate-limit':
+  'copilot-cli-error';
+ await writeFile(join(output,'execution.json'),JSON.stringify({
+  stage:'copilot-cli',success:code===0,reason,exitCode:code,
+  note:'This records whether Copilot CLI exited successfully, not whether TicketSwap is fixed. No provider logs or secrets are included.'
+ },null,2));
+ console.log('Copilot execution status recorded: '+reason);
 }else if(process.argv[3]==='collect'){
  const raw=execFileSync('git',['status','--porcelain','-z','--untracked-files=all'],{cwd:checkout,encoding:'utf8'});
  const records=raw.split('\0').filter(Boolean);
@@ -62,4 +77,4 @@ if(process.argv[3]==='prepare'){
   hasPatch:!!patch,prCreated:false,pushPerformed:false
  },null,2));
  console.log('Sandbox patch captured; no remote writes. Changed files: '+changed.length);
-}else fail('Usage: node worker.mjs <mission> prepare|collect');
+}else fail('Usage: node worker.mjs <mission> prepare|collect|diagnose');

@@ -62,3 +62,28 @@ test('Unknown missions fail closed',async()=>{
  try{assert.notEqual(execute(process.execPath,[runner,'unapproved','prepare'],cwd).status,0)}
  finally{await rm(cwd,{recursive:true,force:true})}
 });
+
+test('Copilot exit success generates structured outcome without passing raw provider logs',async()=>{
+ const {cwd}=await fixture();
+ try{
+  const result=spawnSync(process.execPath,[runner,'ticketswap-diagnostics','diagnose'],
+   {cwd,encoding:'utf8',env:{...process.env,COPILOT_EXIT_CODE:'0'}});
+  assert.equal(result.status,0,result.stderr);
+  const report=JSON.parse(await readFile(join(cwd,'worker-output','execution.json'),'utf8'));
+  assert.equal(report.reason,'cli-exited-successfully');
+  assert.equal(report.success,true);
+  assert.equal(report.exitCode,0);
+ }finally{await rm(cwd,{recursive:true,force:true})}
+});
+test('Copilot error creates a safe non-success outcome and never claims source was fixed',async()=>{
+ const {cwd}=await fixture();
+ try{
+  const result=spawnSync(process.execPath,[runner,'ticketswap-diagnostics','diagnose'],
+   {cwd,encoding:'utf8',env:{...process.env,COPILOT_EXIT_CODE:'1'}});
+  assert.equal(result.status,0,result.stderr);
+  const report=JSON.parse(await readFile(join(cwd,'worker-output','execution.json'),'utf8'));
+  assert.equal(report.reason,'copilot-cli-error');
+  assert.equal(report.success,false);
+  assert.match(report.note,/not whether TicketSwap is fixed/);
+ }finally{await rm(cwd,{recursive:true,force:true})}
+});
