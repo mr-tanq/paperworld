@@ -94,12 +94,17 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           COPILOT_AUTO_UPDATE: 'false'
         run: |
+          set +e
           copilot -p "$(cat ../worker-output/prompt.txt)" -s --no-ask-user \
             --model=auto --max-ai-credits=30 \
             --available-tools='view,grep,glob,edit,create,apply_patch' \
             --allow-tool=read --allow-tool=write \
             --deny-tool=shell --deny-tool=url --deny-tool=memory \
-            > ../worker-output/analysis.md
+            > ../worker-output/analysis.md 2>/tmp/paperworld-copilot-stderr.log
+          result=$?
+          cd ..
+          COPILOT_EXIT_CODE="$result" node controller/scripts/worker/worker.mjs ticketswap-diagnostics diagnose
+          exit "$result"
       - name: Check allowed files and capture uncommitted patch
         run: node controller/scripts/worker/worker.mjs ticketswap-diagnostics collect
       - name: Check isolated worker controller rules (no AI credits)
@@ -109,13 +114,14 @@ jobs:
         shell: bash
         run: |
           set +e
-          node --test scripts/ticketswap-matching.test.mjs scripts/ticketswap-confirmation.test.mjs scripts/ticketswap-diagnostics.test.mjs > ../worker-output/tests.log 2>&1
-          status=$?
-          if [ "$status" -eq 1 ] && ! test -f scripts/ticketswap-diagnostics.test.mjs; then
-            node --test scripts/ticketswap-matching.test.mjs scripts/ticketswap-confirmation.test.mjs >> ../worker-output/tests.log 2>&1
+          tests=(scripts/ticketswap-matching.test.mjs scripts/ticketswap-confirmation.test.mjs)
+          if test -f scripts/ticketswap-diagnostics.test.mjs; then
+            tests+=(scripts/ticketswap-diagnostics.test.mjs)
           fi
-          echo "Regression test outcome requires human review; no push or deploy." >> ../worker-output/tests.log
-          exit 0
+          node --test "${tests[@]}" > ../worker-output/tests.log 2>&1
+          status=$?
+          echo "Offline regression test exit status: $status. No push or deployment was performed." >> ../worker-output/tests.log
+          exit "$status"
       - name: Upload review artifact — never push or merge
         if: always()
         uses: actions/upload-artifact@v4
