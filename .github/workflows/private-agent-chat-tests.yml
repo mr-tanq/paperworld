@@ -14,6 +14,8 @@ on:
       - 'server/agent-job-history-api.cjs'
       - 'supabase/paperworld_agent_job_history_review.sql'
       - 'server/listening-repo-reader.cjs'
+      - 'server/autofix-candidate-policy.cjs'
+      - 'server/autofix-draft-workflow.cjs'
       - 'server/github-oauth.cjs'
       - 'server/copilot-client-loader.cjs'
       - 'server/render-matt.cjs'
@@ -86,6 +88,8 @@ jobs:
             tests/matt-live-chat.test.cjs \
             tests/matt-delegation.test.cjs \
             tests/listening-repo-reader.test.cjs \
+            tests/autofix-candidate-policy.test.cjs \
+            tests/autofix-draft-workflow.test.cjs \
             tests/matt-worker-delegation.test.cjs \
             tests/matt-session-config.test.cjs \
             tests/matt-approval-claimer.test.cjs
