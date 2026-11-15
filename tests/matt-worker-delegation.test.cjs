@@ -289,3 +289,60 @@ test('Targeted festival run never falsely claims proposal persistence without co
  assert.equal(response.body.proposalStorage,'not_configured');
  assert.equal(response.body.proposalStatus,'analysis_only');
 });
+
+test('Matt presents verified source access even when its AI response is mistaken',async()=>{
+ const {gateway,seen}=fake();
+ const response=await gateway.handle({headers,body:body(payload)});
+ assert.equal(response.status,200);
+ assert.match(response.body.content,/^Επαληθευμένη κατάσταση εργασίας:/);
+ assert.match(response.body.content,/Ο Developer διάβασε μέσω GitHub/);
+ assert.match(response.body.content,/mr-tanq\/concerts/);
+ assert.match(response.body.content,/Δεν/); 
+ assert.match(response.body.content,/ολοκλήρωσε μόνο διάγνωση/);
+ assert.equal(response.body.proposalIssue,'analysis_only');
+ assert.equal(response.body.proposalStorage,'not_attempted');
+ assert.equal(response.body.attemptedAiTurns,5);
+ assert.equal(seen.calls,5);
+ assert.match(seen.prompts[4],/VERIFIED SERVER FACTS/);
+ assert.match(seen.prompts[4],/Do not claim missing repository access/);
+});
+test('Malformed Worker proposal is rejected without a storage write or fake success',async()=>{
+ const tag='PAPERWORLD_CHANGE_PROPOSAL_V1:';
+ let saves=0;
+ const {gateway}=fake({workerReply:'Report from L1. '+tag+'{this is invalid}',
+  proposalMemory:{save:async()=>{saves++;return {persisted:true}}}});
+ const response=await gateway.handle({headers,body:body(payload)});
+ assert.equal(response.status,200);
+ assert.equal(response.body.proposalIssue,'invalid_or_unverified_proposal');
+ assert.equal(response.body.proposalStorage,'not_attempted');
+ assert.equal(response.body.proposalStatus,'analysis_only');
+ assert.match(response.body.content,/δεν πέρασε τον έλεγχο/);
+ assert.equal(saves,0);
+});
+test('Verified proposal with absent storage is not reported as persisted',async()=>{
+ const draft={jobId:requestId,repository:'mr-tanq/concerts',baseRef:'main',
+  summary:'Proposed one file edit',edits:[{path:'js/concert-image-quality.js',
+   expectedSha:'a'.repeat(40),replacement:'const safe = true;'}]};
+ const {gateway}=fake({workerReply:'L1 change. PAPERWORLD_CHANGE_PROPOSAL_V1:'+JSON.stringify(draft)});
+ const response=await gateway.handle({headers,body:body(payload)});
+ assert.equal(response.status,200);
+ assert.equal(response.body.proposalIssue,null);
+ assert.equal(response.body.proposalStatus,'storage_not_configured');
+ assert.equal(response.body.proposalStorage,'not_configured');
+ assert.equal(response.body.proposalPersisted,false);
+ assert.match(response.body.content,/αποθήκευση δεν έχει ρυθμιστεί/);
+});
+test('Storage exception yields a safe diagnostic without pretending success',async()=>{
+ const draft={jobId:requestId,repository:'mr-tanq/concerts',baseRef:'main',
+  summary:'Proposed one file edit',edits:[{path:'js/concert-image-quality.js',
+   expectedSha:'a'.repeat(40),replacement:'const safe = true;'}]};
+ const {gateway,seen}=fake({workerReply:'L1 change. PAPERWORLD_CHANGE_PROPOSAL_V1:'+JSON.stringify(draft),
+  proposalMemory:{save:async()=>{throw Error('SENSITIVE_STORAGE_SECRET')}}});
+ const response=await gateway.handle({headers,body:body(payload)});
+ assert.equal(response.status,200);
+ assert.equal(response.body.proposalStorage,'save_failed');
+ assert.equal(response.body.proposalPersisted,false);
+ assert.match(response.body.content,/η αποθήκευση απέτυχε/);
+ assert.ok(seen.stages.includes('proposal_storage_unavailable'));
+ assert.doesNotMatch(JSON.stringify(response.body),/SENSITIVE_STORAGE_SECRET/);
+});
