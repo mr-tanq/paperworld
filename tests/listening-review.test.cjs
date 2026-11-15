@@ -38,7 +38,10 @@ test('Approval cannot be activated by the browser review UI',()=>{
  assert.match(source,/approve.disabled=true/);
  assert.match(source,/approvalEnabled:false/);
  assert.match(source,/node.textContent=value/);
- assert.doesNotMatch(source,/fetch\(|sendAndWait|createPullRequest|localStorage|approve\.addEventListener/);
+ assert.doesNotMatch(source,/fetch\(|sendAndWait|createPullRequest|localStorage/);
+ assert.match(source,/review\?\.persisted===true&&review\.status==='pending_review'/);
+ assert.match(source,/approve\.disabled=false/);
+ assert.match(source,/approve\.addEventListener/);
  const work=fs.readFileSync('js/cloud-ui.js','utf8');
  const messenger=fs.readFileSync('js/world-dialogue.js','utf8');
  assert.match(work,/PaperworldListeningReview\?\.create\(reviewHost\)/);
