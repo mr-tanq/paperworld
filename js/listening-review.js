@@ -53,18 +53,22 @@
   if(!host||typeof host.append!=='function')throw Error('review_host_required');
   let current=null,review=null;
   const root=el('section','listening-review');
-  root.setAttribute('aria-label','Έλεγχος προτεινόμενων αλλαγών');
+  root.setAttribute('aria-label','Πρόταση λύσης για έγκριση');
   function paint(){
    root.replaceChildren();
-   root.append(el('h3','Έλεγχος αλλαγών · Listening Mirror'));
+   root.append(el('h3',null,'Προτεινόμενη λύση'));
+   root.append(el('p','listening-review-eyebrow','Listening Mirror · Από τη Luna και τον Developer'));
    if(!current){
-    root.append(el('p','listening-review-note','Δεν υπάρχει ακόμη εγκεκριμένη προς ανασκόπηση πρόταση. Ο Developer μπορεί να έχει ολοκληρώσει μόνο διάγνωση.'));
+    root.append(el('p','listening-review-note','Δεν υπάρχει κάποια λύση που χρειάζεται την απόφασή σου αυτή τη στιγμή.'));
     return;
    }
    root.append(el('p','listening-review-summary',current.summary));
-   root.append(el('p','listening-review-meta','Repository: '+current.repository+' · Βάση: '+current.branch+
-    ' · Εργασία: '+current.jobId));
-   root.append(el('p','listening-review-warning','Μόνο προεπισκόπηση · καμία αλλαγή δεν έχει πραγματοποιηθεί.'));
+   root.append(el('p','listening-review-warning',
+    'Η αλλαγή δεν έχει εφαρμοστεί. Αν εγκρίνεις, θα προετοιμαστεί μόνο για τελικό έλεγχο — όχι δημοσίευση.'));
+   const technical=el('details','listening-review-technical');
+   technical.append(el('summary',null,'Τεχνικές λεπτομέρειες (προαιρετικά)'));
+   technical.append(el('p','listening-review-meta','Repository: '+current.repository+
+    ' · Βάση: '+current.branch+' · Εργασία: '+current.jobId));
    for(const file of current.files){
     const section=el('details','listening-review-file');
     const summary=el('summary',null,file.path+' · '+file.sha.slice(0,10));
@@ -72,13 +76,14 @@
     section.append(el('pre','listening-review-before',file.before));
     section.append(el('h4',null,'Προτεινόμενο πλήρες περιεχόμενο αρχείου'));
     section.append(el('pre','listening-review-after',file.after));
-    root.append(section);
+    technical.append(section);
    }
+   root.append(technical);
    const actions=el('div','listening-review-actions');
    const ready=review?.persisted===true&&review.status==='pending_review'&&
     /^[a-f0-9]{64}$/.test(review.digest||'');
-   const approve=el('button',null,ready?'Δημιουργία Draft PR με έγκριση':
-    'Έγκριση εγγραφής · μη ενεργή');
+   const approve=el('button','listening-review-approve',ready?'Εγκρίνω την προετοιμασία':
+    'Αναμονή ολοκλήρωσης της πρότασης');
    approve.type='button';approve.disabled=true;
    approve.setAttribute('aria-describedby','listening-review-disabled-reason');
    if(ready&&typeof publish==='function'){
@@ -87,15 +92,15 @@
    }
    actions.append(approve);
    if(ready&&typeof reject==='function'){
-    const rejectButton=el('button',null,'Απόρριψη πρότασης');
+    const rejectButton=el('button','listening-review-later','Δεν εγκρίνω');
     rejectButton.type='button';
     rejectButton.addEventListener('click',()=>reject(current,review.digest));
     actions.append(rejectButton);
    }
    root.append(actions);
    const label=review?.status==='rejected'?'Η πρόταση απορρίφθηκε.':
-    review?.status==='draft_created'?'Δημιουργήθηκε Draft PR · δεν έγινε merge.':
-    ready?'Απαιτείται η δική σου επιβεβαίωση για το συγκεκριμένο περιεχόμενο.':
+    review?.status==='draft_created'?'Η αλλαγή προετοιμάστηκε για τελικό έλεγχο. Δεν εφαρμόστηκε στην εφαρμογή.':
+    ready?'Θα χρειαστεί ξεχωριστή απόφασή σου πριν η αλλαγή εφαρμοστεί στην εφαρμογή.':
     'Μόνο προεπισκόπηση: δεν έχει αποθηκευτεί ακόμη επιβεβαιωμένη πρόταση.';
    const reason=el('p','listening-review-note',label);
    reason.id='listening-review-disabled-reason';root.append(reason);
