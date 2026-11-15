@@ -2,6 +2,8 @@
 const host=document.querySelector('#project-room'),model=window.PaperworldProjects,client=window.PaperworldCloud.createClient();
 let room='town',tasks=[],allTasks=[],busy=false,message='',edit=null,active=false;
 let memoryOpen=false,memoryView=null;
+// Display-only proposals. No approval grant or server write capability.
+let listeningReviewPayload=null;
 
 const el=(tag,text,cls)=>{let e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
 const btn=(text,fn,cls)=>{let b=el('button',text,cls);b.type='button';b.disabled=busy;b.addEventListener('click',fn);return b};
@@ -95,6 +97,13 @@ function renderWorkshop(){
  if(edit)tasksPanel.append(form(edit===true?null:edit));
  for(const task of tasks)tasksPanel.append(taskRow(task));
  host.append(tasksPanel);
+ const reviewHost=el('div',undefined,'listening-review-host');
+ const review=window.PaperworldListeningReview?.create(reviewHost);
+ if(review&&listeningReviewPayload){
+  try{review.show(listeningReviewPayload.plan,listeningReviewPayload.evidence)}
+  catch(_){listeningReviewPayload=null;review.clear()}
+ }
+ host.append(reviewHost);
 }
 function renderMattConversation(){
  const sec=el('section',undefined,'developer-chat');
@@ -178,6 +187,15 @@ window.PaperworldCloudUI={
  mattJobHistory:()=>client.mattJobHistory(),
  diagnoseMattSession:()=>client.diagnoseMattSession(),
  githubLinkStatus:()=>client.githubLinkStatus(),
- beginGithubLink:()=>client.beginGithubLink()
+ beginGithubLink:()=>client.beginGithubLink(),
+ // Display-only hook for future trusted proposals. Never implies user consent.
+ previewListeningChange:(plan,evidence)=>{
+  if(!window.PaperworldListeningReview)throw Error('Listening review unavailable');
+  const snapshot=window.PaperworldListeningReview.summarize(plan,evidence);
+  listeningReviewPayload={plan,evidence};
+  if(client.signedIn()){room='workshop';active=true;edit=null;memoryOpen=false;render()}
+  return snapshot;
+ },
+ clearListeningChangePreview:()=>{listeningReviewPayload=null;if(active&&room==='workshop')render()}
 };
 })();
