@@ -12,7 +12,8 @@ function createMattPersistence({fetcher=globalThis.fetch,secret=process.env.PAPE
   if(content.length>2000)return false;
   try{const response=await fetcher(BASE+'/rest/v1/paperworld_agent_messages',{
    method:'POST',redirect:'error',headers:{
-    apikey:secret,Authorization:'Bearer '+secret,
+    apikey:secret,
+    ...(secret.startsWith('eyJ')?{Authorization:'Bearer '+secret}:{}),
     'Content-Type':'application/json',Prefer:'return=minimal'
    },body:JSON.stringify({id:requestId,thread_id:threadId,owner_id:ownerId,
     role:'agent',content}),signal:AbortSignal.timeout(8000)
