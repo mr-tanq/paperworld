@@ -33,6 +33,7 @@ on:
       - 'server/matt-copilot-adapter.cjs'
       - 'js/cloud.js'
       - 'js/cloud-ui.js'
+      - 'js/director-memory-review.js'
       - 'js/visual-agent-workflow.js'
       - 'js/agent-conversation-store.js'
       - 'index.html'
@@ -80,6 +81,7 @@ jobs:
             tests/agent-job-memory.test.cjs \
             tests/director-memory-policy.test.cjs \
             tests/director-memory-store.test.cjs \
+            tests/director-memory-review.test.cjs \
             tests/agent-job-history-api.test.cjs \
             tests/agent-conversation-store.test.cjs \
             tests/agent-cloud-integration.test.cjs \
