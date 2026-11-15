@@ -26,7 +26,7 @@ function createProposalMemory({fetcher=globalThis.fetch,
    ...(body===undefined?{}:{body:JSON.stringify(body)})
   });
   if(!res?.ok)throw Error('proposal_storage_unavailable');
-  if(method==='GET'||prefer==='return=representation'){
+  if(method==='GET'||(typeof prefer==='string'&&prefer.includes('return=representation'))){
    const data=await res.json();
    if(!Array.isArray(data))throw Error('proposal_storage_invalid');
    return data;
