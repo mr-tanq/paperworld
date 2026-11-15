@@ -47,6 +47,9 @@ on:
       - 'style.css'
       - 'js/app.js'
       - 'js/world-dialogue.js'
+      - 'js/human-first-hub.js'
+      - 'js/town-hall-briefing.js'
+      - 'js/team-panel.js'
       - 'js/agents.js'
       - 'tests/**'
       - '.github/workflows/private-agent-chat-tests.yml'
@@ -80,12 +83,17 @@ jobs:
         run: |
           node --check js/app.js
           node --check js/world-dialogue.js
+          node --check js/human-first-hub.js
+          node --check js/town-hall-briefing.js
+          node --check js/cloud-ui.js
           node --check js/visual-agent-workflow.js
           node --check tests/integration/supabase-two-auth-memory.mjs
       - name: Test agent registry, conversation, cloud storage and UI
         run: |
           node --test \
             tests/agent-profiles-ui.test.cjs \
+            tests/human-first-integrated-v4.test.cjs \
+            tests/listening-review.test.cjs \
             tests/portrait-art-v2.test.cjs \
             tests/agents.test.cjs \
             tests/agent-job-memory.test.cjs \
