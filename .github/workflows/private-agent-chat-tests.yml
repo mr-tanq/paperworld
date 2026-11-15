@@ -17,6 +17,7 @@ on:
       - 'server/autofix-candidate-policy.cjs'
       - 'server/autofix-draft-workflow.cjs'
       - 'server/autofix-github-draft-publisher.cjs'
+      - 'server/autofix-sandbox-plan.cjs'
       - 'server/github-oauth.cjs'
       - 'server/copilot-client-loader.cjs'
       - 'server/render-matt.cjs'
@@ -93,6 +94,7 @@ jobs:
             tests/autofix-candidate-policy.test.cjs \
             tests/autofix-draft-workflow.test.cjs \
             tests/autofix-github-draft-publisher.test.cjs \
+            tests/autofix-sandbox-plan.test.cjs \
             tests/matt-worker-delegation.test.cjs \
             tests/matt-session-config.test.cjs \
             tests/matt-approval-claimer.test.cjs
