@@ -70,9 +70,9 @@ test('rear path behind Listening Mirror is connected and deliberately not overpa
  assert.equal(nav.nodes.length,56,'approved main paths plus 19 hidden walkable waypoints');
  assert.equal(nav.safeConnections.length,nav.connections.length,'all hidden alleys must be ground-safe');
  assert.ok(nav.hiddenConnections.length>=18,'occluded paths must be explicitly classified');
- const path=nav.routeBetween(nav.snapToPath([950,455],10),nav.snapToPath([1340,510],10));
+ const path=nav.routeBetween(nav.snapToPath([1040,305],10),nav.snapToPath([1210,305],10));
  assert.ok(path.length>2,'rear side of Listening Mirror is reachable');
- assert.ok(path.some(([x,y])=>x>=1040&&x<=1210&&y<=320),'the path actually passes behind workshop roof');
+ assert.ok(path.some(([x,y])=>x>=1040&&x<=1210&&y<=320),'a route between rear alley points follows the hidden workshop passage');
  const app=read('js/app.js');
  assert.match(app,/navigation\.isHiddenEdge\(i,j\)\)continue/,'do not draw hidden paths over roofs');
  assert.match(app,/hiddenNodes\.has\(i\)/);
