@@ -57,3 +57,11 @@ The proposed migration `supabase/paperworld_director_memory_v1_REVIEW.sql` defin
 - A separate approval for merge and deployment.
 
 **Privacy note:** even a server-side role label does not substitute for real authorization checks. PostgreSQL RLS currently isolates owners; Director-project scoping is enforced by the backend policy and must be validated at every request. Public repository artifacts contain schema, code and synthetic tests only.
+
+## Phase 1G — private review desk (draft, read-only)
+
+The Work Desk now has an authenticated **Μνήμη Directors** button leading to a project-filtered review of owner-scoped Supabase rows. It reuses the current PAPERWORLD Cloud login and a fixed five-project registry, and shows full proposal text, lifecycle status, source/date/version/sensitivity. Text is rendered with `textContent` (not HTML), with a 100-record cap and strict project response checks. Only `GET /rest/v1/paperworld_director_memory` is allowed. This view is accessible from the secondary Work Desk, rather than a permanently displayed world overlay.
+
+**Approval/rejection remains unavailable:** the actual applied database has owner-RLS and proposed-only inserts, but has no reviewed approval RPC. The original `paperworld_director_memory_v1_REVIEW.sql` should **never** be run: it includes a malformed and inappropriate security-definer review function. The new UI clearly labels every proposed memory as waiting for review, and provides no fake approve action. A separate review of authenticated one-time human approval, audit history and correct permissions is required before an operational Approve/Reject button can be added.
+
+The new interface does not send any prompt to Matt/Copilot, change Supabase statuses, expose private source text through public GitHub, or grant a Director context access. The read-only UI and its tests require a separate merge/deployment approval before they become available on the live website.

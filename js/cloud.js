@@ -98,6 +98,21 @@
    return {imported,skipped};
   }
 
+  // Owner-only Director Memory review, read-only. RLS is enforced in
+  // Supabase; agents cannot gain additional permissions from this method.
+  const directorMemoryFields='id,project_id,kind,status,title,body,source_type,source_ref,observed_at,version,sensitivity';
+  async function listDirectorMemory(projectId){
+   if(!ROOMS.has(projectId))throw Error('Invalid Director Memory project');
+   const query='/rest/v1/paperworld_director_memory?select='+directorMemoryFields+
+    '&project_id=eq.'+encodeURIComponent(projectId)+
+    '&order=observed_at.desc,id.asc&limit=100';
+   const rows=await withAuth(query);
+   if(!Array.isArray(rows)||rows.length>100||
+    rows.some(row=>row?.project_id!==projectId))
+    throw Error('Invalid private Director Memory response');
+   return rows;
+  }
+
   const missionFields='id,source_task_id,project_room,repository,title,brief,mode,status,created_at,updated_at';
   async function listMissions(){
    return withAuth('/rest/v1/paperworld_missions?select='+missionFields+'&order=created_at.desc&limit=500');
@@ -286,7 +301,7 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,mattJobHistory,diagnoseMattSession};
+   listDirectorMemory,agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,mattJobHistory,diagnoseMattSession};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });
