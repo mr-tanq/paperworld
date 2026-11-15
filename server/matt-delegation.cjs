@@ -72,7 +72,9 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,fetcher=glo
    data.consent!==CONSENT||!TARGETS.includes(data.targetDirector??'auto')||
    (data.targetDirector==='wellbeing-director'&&
     data.wellbeingConsent!==WELLBEING_CONSENT)||
-   (data.wellbeingConsent!==undefined&&data.wellbeingConsent!==WELLBEING_CONSENT))
+   (data.wellbeingConsent!==undefined&&
+    (data.targetDirector!=='wellbeing-director'||
+     data.wellbeingConsent!==WELLBEING_CONSENT)))
    return deny(400,'explicit_multi_call_consent_required');
   let ownerId;
   try{
