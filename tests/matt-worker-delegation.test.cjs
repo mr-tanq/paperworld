@@ -32,7 +32,8 @@ function fake({route='listening-director',category='artwork',
   },
   reader:{read:async (name,options)=>{
    seen.read.push(name);seen.readerAuth=options?.token;
-   const categoryPaths=FILES[name]||[];
+   const categoryPaths=options?.selectedPaths||FILES[name]||[];
+   seen.selectedPaths=options?.selectedPaths;
    return {repository:badEvidence?'other/repo':'mr-tanq/concerts',
     ref:'main',category:name,readOnly:true,
     files:categoryPaths.map((path,i)=>({path:tamperPath&&i===0?'secret.env':path,sha:'a'.repeat(40),
@@ -267,4 +268,24 @@ test('Analysis-only results do not claim saved changes and do not call storage',
  assert.equal(result.body.proposalStatus,'analysis_only');
  assert.equal('reviewProposal' in result.body,false);
  assert.equal(writes,0);
+});
+
+test('Festival poster request targets only the precise festival artwork source without an extra AI turn',async()=>{
+ const {gateway,seen}=fake();
+ const req={...payload,message:'Matt, στις αφίσες φεστιβάλ εμφανίζονται λάθος χρονιές στο Listening Mirror'};
+ const response=await gateway.handle({headers,body:body(req)});
+ assert.equal(response.status,200);
+ assert.equal(response.body.attemptedAiTurns,5);
+ assert.deepEqual(seen.selectedPaths,['js/festival-artwork.js']);
+ assert.deepEqual(response.body.evidence.files.map(f=>f.path),['js/festival-artwork.js']);
+ assert.match(seen.prompts[2],/FILE js\/festival-artwork\.js/);
+ assert.doesNotMatch(seen.prompts[2],/FILE scripts\/cache-share-photos/);
+});
+test('Targeted festival run never falsely claims proposal persistence without configured storage',async()=>{
+ const {gateway}=fake();
+ const req={...payload,message:'Festival posters in Listening Mirror are from last year'};
+ const response=await gateway.handle({headers,body:body(req)});
+ assert.equal(response.status,200);
+ assert.equal(response.body.proposalStorage,'not_configured');
+ assert.equal(response.body.proposalStatus,'analysis_only');
 });
