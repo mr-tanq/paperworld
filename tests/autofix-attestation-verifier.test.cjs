@@ -7,6 +7,9 @@ const other=generateKeyPairSync('ed25519');
 const pem=keys.publicKey.export({type:'spki',format:'pem'});
 const taskId='11111111-1111-4111-8111-111111111111';
 const baseCommitSha='a'.repeat(40),candidateDigest='b'.repeat(64);
+const candidate={repository:'mr-tanq/concerts',taskId,baseCommitSha,
+ files:[{path:'js/ticketswap-check.js',kind:'modify'},
+  {path:'tests/autofix/ticketswap-regression.test.mjs',kind:'new-test'}]};
 const now=Date.parse('2026-11-15T00:00:00Z');
 function claims(){
  return {version:1,issuer:'paperworld-dedicated-verifier',
@@ -34,7 +37,7 @@ function fixture({consume=true}={}){
    consumed.add(args.nonce);return true;
   }});
  const input=(signedAttestation=envelope())=>({
-  taskId,repository:'mr-tanq/concerts',baseCommitSha,candidateDigest,
+  taskId,repository:'mr-tanq/concerts',baseCommitSha,candidateDigest,candidate,
   verification:{signedAttestation}
  });
  return {verifier,seen,input};
@@ -104,4 +107,17 @@ test('Cannot start without trusted public key and durable atomic nonce adapter',
 test('A nonce store denial fails closed rather than authorizing publishing',async()=>{
  const f=fixture({consume:false});
  assert.equal(await f.verifier.verifyAttestation(f.input()),false);
+});
+
+test('Attestation cannot omit syntax check for another modified source file',async()=>{
+ const f=fixture();
+ const twoSources={...candidate,files:[
+  ...candidate.files,{path:'js/concert-ticketswap.js',kind:'modify'}]};
+ assert.equal(await f.verifier.verifyAttestation({...f.input(),candidate:twoSources}),false);
+ assert.equal(f.seen.length,0);
+});
+test('Attestation cannot claim success for a candidate missing from verifier inputs',async()=>{
+ const f=fixture();
+ const request=f.input();delete request.candidate;
+ assert.equal(await f.verifier.verifyAttestation(request),false);
 });
