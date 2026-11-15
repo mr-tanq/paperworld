@@ -7,7 +7,7 @@ const {validateEntry,PROJECT_IDS}=require('./director-memory-policy.cjs');
 const TOKEN=/^[A-Za-z0-9_.-]{12,4096}$/;
 const ID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 function deny(code){const e=new Error(code);e.code=code;throw e}
-function createDirectorMemoryStore({fetcher,baseUrl,publicKey,authenticate}={}){
+function createDirectorMemoryStore({fetcher,baseUrl,publicKey,authenticate,verifyOwnerReview}={}){
  if(typeof fetcher!=='function'||typeof authenticate!=='function'||
   typeof baseUrl!=='string'||!/^https:\/\/[a-z0-9.-]+$/.test(baseUrl)||
   typeof publicKey!=='string'||publicKey.length<5||publicKey.length>250)
@@ -58,6 +58,28 @@ function createDirectorMemoryStore({fetcher,baseUrl,publicKey,authenticate}={}){
     sensitivity:row.sensitivity});
   }));
  }
- return Object.freeze({propose,list});
+ async function review({token,ownerId,entryId,decision,approvalId}={}){
+  if(typeof verifyOwnerReview!=='function')deny('owner_review_not_configured');
+  if(!TOKEN.test(token||'')||!ID.test(ownerId||'')||
+   !ID.test(entryId||'')||!ID.test(approvalId||'')||
+   !['approved','rejected'].includes(decision))deny('review_invalid');
+  const user=await authenticate(token);
+  if(user?.ownerId!==ownerId)deny('memory_owner_mismatch');
+  const approved=await verifyOwnerReview({ownerId,entryId,decision,approvalId});
+  if(approved!==true)deny('explicit_owner_approval_required');
+  let result;
+  try{result=await fetcher(baseUrl+'/rest/v1/rpc/paperworld_review_director_memory',{
+   method:'POST',redirect:'error',signal:AbortSignal.timeout(8000),
+   headers:{apikey:publicKey,Authorization:'Bearer '+token,
+    Accept:'application/json','Content-Type':'application/json'},
+   body:JSON.stringify({p_id:entryId,p_decision:decision})
+  })}catch(_){deny('memory_storage_unavailable')}
+  if(!result?.ok)deny('memory_storage_unavailable');
+  let done;
+  try{done=await result.json()}catch(_){deny('memory_storage_unavailable')}
+  if(done!==true)deny('memory_review_not_applied');
+  return Object.freeze({id:entryId,status:decision});
+ }
+ return Object.freeze({propose,list,review});
 }
 module.exports=Object.freeze({createDirectorMemoryStore});
