@@ -11,6 +11,9 @@ on:
       - 'server/matt-delegation.cjs'
       - 'server/matt-worker-delegation.cjs'
       - 'server/agent-job-memory.cjs'
+      - 'server/director-memory-policy.cjs'
+      - 'server/director-memory-store.cjs'
+      - 'supabase/paperworld_director_memory_v1_REVIEW.sql'
       - 'server/agent-job-history-api.cjs'
       - 'supabase/paperworld_agent_job_history_review.sql'
       - 'server/listening-repo-reader.cjs'
@@ -75,6 +78,8 @@ jobs:
           node --test \
             tests/agents.test.cjs \
             tests/agent-job-memory.test.cjs \
+            tests/director-memory-policy.test.cjs \
+            tests/director-memory-store.test.cjs \
             tests/agent-job-history-api.test.cjs \
             tests/agent-conversation-store.test.cjs \
             tests/agent-cloud-integration.test.cjs \
