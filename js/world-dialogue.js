@@ -44,6 +44,21 @@
  const askMode=make('button','world-chat-mode selected','Ρώτα τον Director · έως 3 AI κλήσεις');
  const workMode=make('button','world-chat-mode','Ανάθεσε σε Worker · έως 5 AI κλήσεις');
  const modeHint=make('small','world-chat-mode-hint');
+ const projectLabel=make('label','world-chat-project-label','Project Director για ερωτήσεις');
+ const projectSelect=make('select','world-chat-project-select');
+ const projects=[
+  ['auto','Αυτόματη επιλογή Matt (όχι Wellbeing)'],
+  ['listening-director','Listening Mirror'],
+  ['studio-director','The Lost Wanderer'],
+  ['pokemon-director','Pokémon Echoes'],
+  ['wellbeing-director','Wellbeing — ευαίσθητη ιδιωτική μνήμη']
+ ];
+ for(const [value,label] of projects){
+  const option=make('option','',label);option.value=value;projectSelect.append(option);
+ }
+ projectSelect.value='auto';
+ const projectTarget=make('div','world-chat-project-target');
+ projectLabel.append(projectSelect);projectTarget.append(projectLabel);
  function setWorkflowMode(mode){
   if(!['ask','work'].includes(mode)||busy)return;
   workflowMode=mode;
@@ -51,6 +66,7 @@
   workMode.classList.toggle('selected',mode==='work');
   askMode.setAttribute('aria-pressed',String(mode==='ask'));
   workMode.setAttribute('aria-pressed',String(mode==='work'));
+  projectTarget.hidden=mode!=='ask';
   modeHint.textContent=mode==='ask'
    ?'Ερωτήσεις, αποφάσεις και εγκεκριμένη μνήμη · Matt → Director, χωρίς Worker.'
    :'Τεχνικός έλεγχος · Matt → Director → Worker, μόνο ανάγνωση.';
@@ -95,6 +111,8 @@
   // The human chooses the route before consent; never infer permission
   // to engage a Worker from an ambiguous natural-language message.
   const isWork=workflowMode==='work';
+  const targetDirector=isWork?'auto':projectSelect.value;
+  const includesWellbeing=targetDirector==='wellbeing-director';
   const consentText=isWork?
    'Ανάθεση τεχνικής διερεύνησης: Matt → Director → Worker. Έως 5 AI κλήσεις '+
    'με τα υπάρχοντα Copilot Credits και επιπλέον budget $0. Μόνο ανάγνωση κώδικα.':
@@ -102,6 +120,13 @@
    'με τα υπάρχοντα Copilot Credits και επιπλέον budget $0. Χωρίς Worker.';
   if(!window.confirm(consentText+
    ' Καμία αλλαγή αρχείων, δικαιώματα εργαλείων ή deployment. Συνέχεια;'))return;
+  // Private wellbeing history is forwarded to the selected GitHub Copilot
+  // model only after a second, explicit sensitive-data confirmation.
+  if(includesWellbeing&&!window.confirm(
+   'ΕΙΔΙΚΗ ΣΥΝΑΙΝΕΣΗ WELLBEING: Μόνο αυτή τη φορά, ο Wellbeing Director '+
+   'μπορεί να χρησιμοποιήσει εγκεκριμένα ευαίσθητα δεδομένα της υγείας σου '+
+   'μέσα σε αίτημα προς το GitHub Copilot AI. Δεν θα τα δει Worker ή άλλος '+
+   'Director. Εγκρίνεις αυτή την αποστολή;'))return;
   busy=true;field.disabled=true;send.disabled=true;
   let requestId=null,lastPhase=null,polling=false,watcher=null,failed=null;
   const showStage=phase=>{
@@ -132,7 +157,9 @@
      requestId=id;
      watcher=setInterval(poll,1300);
     }}):
-    await cloud().delegateMatt(text);
+    await cloud().delegateMatt(text,{
+     targetDirector,wellbeingConsent:includesWellbeing
+    });
    if(isWork)await poll();
    if(result.delegated){
     if(isWork)showStage('reported');
@@ -182,7 +209,7 @@
   }finally{busy=false;historyBtn.disabled=false}
  });
  const helper=make('small','world-chat-helper','Copilot AI Credits · Έγκριση ανά μήνυμα · Καμία ενέργεια σε αρχεία');
- composer.append(connectGithub,historyBtn,modePicker,modeHint,form,helper);
+ composer.append(connectGithub,historyBtn,modePicker,modeHint,projectTarget,form,helper);
  panel.append(top,status,messages,composer);view.append(panel);
 
  function bubble(role,text,when){
@@ -228,6 +255,7 @@
   historyBtn.hidden=!(isMatt&&active);
   modePicker.hidden=!isMatt;
   modeHint.hidden=!isMatt;
+  projectTarget.hidden=!isMatt||workflowMode!=='ask';
   if(isMatt&&active&&typeof cloud()?.githubLinkStatus==='function'){
    const selected=openId;
    cloud().githubLinkStatus().then(link=>{
