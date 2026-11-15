@@ -136,11 +136,18 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
     return deny(422,'director_scope_unverified');
    await record('scoped','listening-director','Allowed source category: '+category);
    stage='repository_read';
-   const evidence=await reader.read(category,{token});
+   // For explicitly festival-poster reports, read the one verified small
+   // festival file instead of distracting the Worker with unrelated sources.
+   // This is not a broad AI-selected path or a client-supplied path.
+   const festivalFocused=category==='artwork'&&
+    /festival|φεστιβάλ|φεστιβαλ/i.test(input.message)&&
+    /poster|artwork|image|picture|photo|αφίσ|αφισ|εικόν|εικον|φωτογραφ/i.test(input.message);
+   const selectedPaths=festivalFocused?['js/festival-artwork.js']:FILES[category];
+   const evidence=await reader.read(category,{token,selectedPaths});
    if(evidence.repository!=='mr-tanq/concerts'||evidence.readOnly!==true||
     evidence.category!==category||!Array.isArray(evidence.files)||
-    evidence.files.length!==FILES[category].length||
-    !evidence.files.every((file,i)=>file?.path===FILES[category][i]&&
+    evidence.files.length!==selectedPaths.length||
+    !evidence.files.every((file,i)=>file?.path===selectedPaths[i]&&
      typeof file.lines==='string'&&file.lines.length<=38000&&
      file.url==='https://github.com/mr-tanq/concerts/blob/main/'+file.path))
     throw Error('unverified_repository_evidence');
@@ -207,18 +214,22 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
    // Optional, server-injected persistence: OFF in production until a reviewed
    // private Supabase table and owner-verified read API are activated.
    let proposalPersisted=false;
+   let storageState=proposalMemory?'ready':'not_configured';
    if(reviewProposal&&proposalMemory){
     try{
      const stored=await proposalMemory.save({
       ownerId,threadId:input.threadId,jobId:input.requestId,reviewProposal
      });
      proposalPersisted=stored?.persisted===true;
+     if(!proposalPersisted)storageState='save_not_confirmed';
     }catch(_){
      // An unavailable store cannot turn a read-only finding into a failure,
      // but MUST NOT be reported as a successful persistent review.
+     storageState='save_failed';
      diagnostic('proposal_storage_unavailable');
     }
    }
+   // Prevent a model from promising review readiness when storage is absent.
    stage='matt_report';
    const content=await turn('You are Matt, Chief of Staff of PAPERWORLD. '+
     'Report the Listening Mirror Director findings and Worker evidence to the user. '+
@@ -236,7 +247,9 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
     execution:'read_only_analysis',requestId:input.requestId,
     memory:{projectId:memory.projectId,included:memory.included},
     persisted:jobCreated&&historyComplete,jobId:input.requestId,
-    proposalStatus:reviewProposal?(proposalPersisted?'ready_for_review':'preview_only'):'analysis_only',
+    proposalStatus:reviewProposal?(proposalPersisted?'ready_for_review':
+     (storageState==='not_configured'?'storage_not_configured':'preview_only')):'analysis_only',
+    proposalStorage:storageState,
     ...(reviewProposal?{reviewProposal,proposalPersisted}:{})}};
   }catch(error){
    // Expose only enumerated failure classes, never raw GitHub responses or tokens.
