@@ -7,6 +7,9 @@
  if(!view)return;
  let openId=null,revision=0,busy=false;
  const mattReplies=[];
+  // Short-lived conversation context for multi-turn continuity; no localStorage secrets.
+  let activeMattDirector=null;
+  const mattConversation=[];
  const make=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e};
  const actions=make('div','world-talk-actions');
  const mattBtn=make('button','','M · Matt'),nearBtn=make('button','','T · Talk');
@@ -70,7 +73,18 @@
    finally{polling=false}
   };
   try{
-   const result=await cloud().delegateMatt(text,{targetDirector:'auto'});
+   const result=await cloud().delegateMatt(text,{targetDirector:'auto',
+     conversation:{activeDirector:activeMattDirector,turns:mattConversation.slice(-8)}});
+   if(result.delegated&&['listening-director','studio-director','pokemon-director'].includes(result.directorId)){
+    if(activeMattDirector!==result.directorId)mattConversation.length=0;
+    activeMattDirector=result.directorId;
+    mattConversation.push({role:'human',text:text.slice(0,600)},
+     {role:'assistant',text:String(result.content||'').slice(0,900)});
+    if(mattConversation.length>8)mattConversation.splice(0,mattConversation.length-8);
+   }else{
+    activeMattDirector=null;
+    mattConversation.length=0;
+   }
    mattReplies.push({content:String(result.content||
     'Δεν μπόρεσα να προσδιορίσω με ασφάλεια τον αρμόδιο Director.'),
     time:new Date().toISOString()});
