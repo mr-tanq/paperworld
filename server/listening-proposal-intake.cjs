@@ -9,8 +9,15 @@ function parseWorkerProposal(report,{job,evidence}={}){
  if(typeof report!=='string'||report.length>16000||!job||!evidence)return null;
  const at=report.lastIndexOf(TAG);
  if(at<0||report.indexOf(TAG)!==at)return null;
- const raw=report.slice(at+TAG.length).trim();
+ let raw=report.slice(at+TAG.length).trim();
  if(!raw||raw.length>13500)return null;
+ // An otherwise exact JSON code fence is accepted; extra prose, multiple
+ // proposals and any text after the fence remain invalid.
+ if(raw.startsWith('```')){
+  const fenced=/^```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```$/i.exec(raw);
+  if(!fenced)return null;
+  raw=fenced[1].trim();
+ }
  let candidate;
  try{candidate=JSON.parse(raw)}catch(_){return null}
  if(!candidate||typeof candidate!=='object'||Array.isArray(candidate))return null;
