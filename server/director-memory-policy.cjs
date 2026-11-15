@@ -42,7 +42,7 @@ function validateEntry(input){
   typeof input.sourceRef!=='string'||input.sourceRef.length>400||
   !input.sourceRef.trim()||
   typeof input.observedAt!=='string'||
-  !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(input.observedAt)||
+  !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(input.observedAt)||
   !Number.isFinite(Date.parse(input.observedAt)))
   fail('invalid_memory_record');
  const title=textField(input.title,140),body=textField(input.body,4000);
@@ -51,7 +51,7 @@ function validateEntry(input){
  return Object.freeze({
   id:input.id,projectId:input.projectId,kind:input.kind,status:input.status,
   title,body,sourceType:input.sourceType,sourceRef,
-  observedAt:input.observedAt,version:input.version,
+  observedAt:new Date(input.observedAt).toISOString(),version:input.version,
   sensitivity:input.sensitivity
  });
 }
