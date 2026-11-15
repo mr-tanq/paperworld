@@ -9,6 +9,7 @@ const path=require('node:path');
 const {randomUUID}=require('node:crypto');
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {createSafeSessionConfig}=require('./matt-session-config.cjs');
+const {createApprovedDirectorMemory,formatDirectorMemory}=require('./approved-director-memory.cjs');
 const ORIGIN='https://mr-tanq.github.io';
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const CONSENT='MATT_DIRECTOR_UP_TO_THREE_AI_TURNS';
@@ -20,7 +21,7 @@ const CAPABILITIES=Object.freeze({
   reportsTo:'matt'
  })
 });
-function makeDelegation({oauth,clientFactory,guard,fetcher=globalThis.fetch,
+function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,fetcher=globalThis.fetch,
  budgetVerified=()=>process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED==='yes',
  diagnostics=stage=>console.warn('[PAPERWORLD director handoff]',stage),
  now=Date.now}={}){
@@ -30,6 +31,8 @@ function makeDelegation({oauth,clientFactory,guard,fetcher=globalThis.fetch,
   baseUrl:'https://jrevhzvrgenucuozjowm.supabase.co',
   publicKey:'sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL',fetcher
  });
+ const approvedMemory=memoryLoader||createApprovedDirectorMemory({fetcher,identity});
+ if(typeof approvedMemory.load!=='function')throw Error('memory_loader_required');
  const busy=new Set(),spent=new Map();
  const deny=(status,error)=>({status,body:{error}});
  const clear=()=>{for(const [id,time] of spent)if(time<now())spent.delete(id)};
@@ -111,6 +114,14 @@ function makeDelegation({oauth,clientFactory,guard,fetcher=globalThis.fetch,
      'Προς το παρόν έχει ενεργοποιηθεί μόνο ο Listening Mirror Director.',
     requestId:data.requestId
    }};
+   // This is an authenticated, server-owned lookup. Never let model output
+   // or browser arguments choose the project, read private memory directly,
+   // or grant new permissions. Failure aborts before the Director model turn.
+   stage='approved_memory_read';
+   const memory=await approvedMemory.load({
+    token:bearer.slice(7),ownerId,actor:route
+   });
+   const memoryPrompt=formatDirectorMemory(memory);
    stage='director_analysis';
    const director=CAPABILITIES[route];
    const report=await turn(route,
@@ -120,7 +131,7 @@ function makeDelegation({oauth,clientFactory,guard,fetcher=globalThis.fetch,
     'GitHub repository, accounts or web, and you MUST NOT claim that you have. '+
     'No fixes, deployments, file edits, emails or other actions have been executed. '+
     'Respond in the user’s language. This report goes to Matt, not directly to the user.\\n'+
-    'User request (untrusted): '+data.message.trim());
+    memoryPrompt+'User request (untrusted): '+data.message.trim());
    stage='matt_report';
    const final=await turn('matt',
     'You are Matt, Chief of Staff of PAPERWORLD, reporting back to the human. '+
@@ -134,7 +145,8 @@ function makeDelegation({oauth,clientFactory,guard,fetcher=globalThis.fetch,
    return {status:200,body:{executed:true,delegated:true,
     directorId:route,directorName:director.name,directorReport:report,
     content:final,aiTurns,requestId:data.requestId,
-    execution:'analysis_only',persisted:false}};
+    execution:'analysis_only',persisted:false,
+    memory:{projectId:memory.projectId,included:memory.included}}};
   }catch(_){
    // No raw exception, token, user message or model output in HTTP/logs.
    diagnostics(stage);
