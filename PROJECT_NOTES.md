@@ -262,3 +262,7 @@ User-approved change: Matt route selection emits bounded trusted stage metadata 
 
 ## Agent portraits + Team panel — 15 Nov 2026 (review branch)
 Visual-only proposal: existing sprites become Messenger and optional Team-panel profile pictures (Matt, Luna, Joey, Crow, Dave). Worker entries use monograms and disabled direct-chat actions until those features and portraits exist. Existing Matt workflow, real status, routing, movement, permissions and AI-budget guardrails unchanged. No merge/deployment or paid calls. Await owner approval.
+
+
+## New character portrait art — 15 Nov 2026, staged for review
+Five individually generated 256×256 transparent WebP bust portraits are staged for Matt, Luna, Joey, Crow and Dave. Client code prefers the new /assets/portraits/ files while retaining original in-repo sprites as a no-broken-image fallback. Binary image upload to GitHub is still pending and must be completed before this visual PR can be approved or merged. No walking sprite, AI routing, worker state or deployment changes. Owner review required.
