@@ -10,7 +10,7 @@ const {randomUUID}=require('node:crypto');
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {createSafeSessionConfig}=require('./matt-session-config.cjs');
 const {createApprovedDirectorMemory,formatDirectorMemory}=require('./approved-director-memory.cjs');
-const {parseRoute,routePrompt}=require('./matt-semantic-router.cjs');
+const {parseIntent,routePrompt}=require('./matt-semantic-router.cjs');
 const ORIGIN='https://mr-tanq.github.io';
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const CONSENT='MATT_DIRECTOR_UP_TO_THREE_AI_TURNS';
@@ -130,7 +130,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,fetcher=glo
     await session.disconnect();session=null;
     return output;
    }
-   let route;
+   let route,workProposal=null;
    const routeMethod=data.targetDirector&&data.targetDirector!=='auto'?
     'owner_selected':'ai_semantic';
    if(routeMethod==='owner_selected'){
@@ -140,7 +140,15 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,fetcher=glo
    }else{
     stage='matt_route';
     const routing=await turn('matt',routePrompt(data.message));
-    route=parseRoute(routing);
+    const intent=parseIntent(routing);
+    route=intent?.director||null;
+    if(intent?.action==='investigate'&&intent.workerId){
+     workProposal=Object.freeze({directorId:intent.director,workerId:intent.workerId,
+      sourceScope:intent.director==='pokemon-director'?
+       'Private mr-tanq/pokemon-echoes/project.godot':
+       'Allowlisted mr-tanq/concerts source files',
+      requiresSeparateConsent:true,execution:'none'});
+    }
    }
    if(!Object.prototype.hasOwnProperty.call(CAPABILITIES,route)||
     (route==='wellbeing-director'&&
@@ -192,7 +200,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,fetcher=glo
    return {status:200,body:{executed:true,delegated:true,
     directorId:route,directorName:director.name,directorReport:report,
     content:final,aiTurns,requestId:data.requestId,
-    routeMethod,routeStatus:'selected',
+    routeMethod,routeStatus:'selected',workProposal,
     execution:'analysis_only',persisted:false,
     memory:{projectId:memory.projectId,included:memory.included}}};
   }catch(_){
