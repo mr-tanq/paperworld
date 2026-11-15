@@ -258,3 +258,7 @@ Owner reports AI reply appears after closing/reopening Messenger but not while o
 
 ## 2026-11-15 — Draft PR #109: genuine routed timing and docked Messenger
 User-approved change: Matt route selection emits bounded trusted stage metadata (routed, director_reported) in the original authenticated /delegate/matt POST using NDJSON streaming. No new model calls, polling endpoint, tokens, Supabase schema change or additional billing. Browser moves Matt to actual server-selected non-sensitive Director on the first routing event. Arrival remains in meeting state while Director/Matt inference runs; final answer is held until the path-following return is finished (with a bounded fallback if animation is suspended). Failure does not fabricate successful reply. Messenger is right docked instead of centered; the map remains visible and interactive. PR is draft, no merge or deployment.
+
+
+## Agent portraits + Team panel — 15 Nov 2026 (review branch)
+Visual-only proposal: existing sprites become Messenger and optional Team-panel profile pictures (Matt, Luna, Joey, Crow, Dave). Worker entries use monograms and disabled direct-chat actions until those features and portraits exist. Existing Matt workflow, real status, routing, movement, permissions and AI-budget guardrails unchanged. No merge/deployment or paid calls. Await owner approval.
