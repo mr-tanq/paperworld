@@ -88,10 +88,14 @@
       'αλλαγές αρχείων ή δημοσίευση. '+
       'Ισχύει το επαληθευμένο όριο μηδενικής επιπλέον χρέωσης.'))return;
      lastAgenda=text;meetingBusy=true;message='Οι Directors συζητούν το θέμα σου…';
+     const consentRevision=revision;
      transcript.length=0;paint(data);
      try{
       const speaker=[ACTORS[1],ACTORS[2],ACTORS[3]];
       for(const actor of speaker){
+       // Closing the meeting prevents subsequent AI turns; the already
+       // started server request must finish before the client can abort it.
+       if(!shown||consentRevision!==revision)break;
        const prior=transcript.map(x=>x.name+': '+x.reply.slice(0,130)).join('\\n');
        const request=('Συνάντηση Town Hall. Θέμα από τον χρήστη: '+lastAgenda+
         '. Πες με συντομία (μέχρι 4 προτάσεις) τι προτείνεις για το δικό σου '+
@@ -107,7 +111,9 @@
        message=actor.name+' απάντησε · '+transcript.length+'/3';
        paint(data);
       }
-      message='Η AI συζήτηση ολοκληρώθηκε. Καμία εργασία δεν εφαρμόστηκε.';
+      message=!shown||consentRevision!==revision?
+       'Η συνάντηση διακόπηκε από τον χρήστη. Δεν έγιναν άλλες AI κλήσεις.':
+       'Η AI συζήτηση ολοκληρώθηκε. Καμία εργασία δεν εφαρμόστηκε.';
      }catch(err){
       message='Η συνάντηση διακόπηκε: '+String(err.message||'').slice(0,120)+
        '. Δεν έγιναν άλλες AI κλήσεις.';
