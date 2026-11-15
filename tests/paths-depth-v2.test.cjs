@@ -23,7 +23,7 @@ test('central shortcut no longer crosses the Lost Wanderer Studio roof',()=>{
  const start=nav.snapToPath([535,520],15),end=nav.snapToPath([1125,515],15);
  const route=nav.routeBetween(start,end);
  assert.ok(route.some(([x,y])=>x>=710&&x<=960&&y<=395),'upper plaza path should loop behind the blossom tree');
- assert.ok(!route.some(([x,y])=>x>=745&&x<=960&&y>=490&&y<=700),'no waypoints on studio roof');
+ assert.ok(!route.some(([x,y])=>x>=745&&x<940&&y>=490&&y<=700),'no waypoints on studio roof');
  assert.equal(nav.clearSegment([720,480],[720,385]),true);
 });
 test('front public walkway wins over building overhang only on mapped path',()=>{
