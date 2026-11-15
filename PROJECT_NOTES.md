@@ -211,3 +211,7 @@ Owner requested continuing with the existing free PAPERWORLD Supabase instead of
 ## 2026-11-15 — Owner-approved permanent Director Memory audit migration
 
 Explicitly approved installation of the review audit SQL on existing Free PAPERWORLD Supabase. Migration `director_memory_owner_review_audit_v2` successfully applied. Verified 74 proposed memories, 0 approved, 0 audit entries, protected audit RLS, status-column-only update rights, anonymous audit denied, and two review triggers. No public data in commits and no separate project, paid branch, GitHub merge, Render deployment, AI activation or automatic approvals. PR #87 still draft with `enableReview:false` and no live two-account Auth JWT test. Owner-only browser review activation is a distinct future step.
+
+## 2026-11-15 — Prepare owner-confirmed Director Memory review UI in PR #87
+
+After owner's 'Πάμε' to proceed to the owner review interface, changed the draft PR to show individual approve/reject actions for each signed-in owner-visible memory, with a source+body confirmation prompt and an extra live `/auth/v1/user` identity re-check before each guarded status-only PATCH. Tests use synthetic responses and check identity-mismatch stops before any write. Cache-busted the browser scripts. Production schema was already applied under separate approval. Browser UI remains unmerged/undeployed, with all 74 entries proposed; AI Director memory not connected and no automatic review. Merge/deployment requires another explicit authorization.
