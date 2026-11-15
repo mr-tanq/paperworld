@@ -45,5 +45,5 @@ test('Failure indication does not masquerade as successful Director meeting',()=
  assert.match(app,/⚠ Εργασία απέτυχε/);
  assert.match(ui,/setAgentWorkflowFailure\?\.\(\)/);
  assert.match(ui,/⚠ Η εργασία απέτυχε/);
- assert.ok(read('index.html').includes('js/app.js?v=56'));
+ assert.ok(read('index.html').includes('js/app.js?v=57-visual-meeting'));
 });

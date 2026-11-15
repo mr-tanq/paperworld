@@ -14,7 +14,7 @@ test('Listening Mirror Director is rendered as sprite with fallback; agent ident
  assert.match(s,/a.id==='listening-director' && drawListeningDirectorSprite\(a\)/);
  assert.match(s,/listeningDirectorVisual.src='\.\/assets\/listening-director-walk-v1.png'/);
  assert.match(s,/a\.moving\?Math\.floor\(\(a\.walkDistance\|\|0\)\/14\)%4:1/);
- assert.match(s,/a\.moving=traveled>0\.25/);
+ assert.match(fs.readFileSync(path.join(root,'js/director-movement.js'),'utf8'),/actor\.moving=true/);
  assert.match(s,/depth\.sortLayers\(layers\)/);
  assert.match(s,/workshop:'listening-director'/);
 });

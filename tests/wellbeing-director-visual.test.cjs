@@ -14,7 +14,7 @@ test('Existing wellbeing-director renders without changing AI identity or creati
  assert.match(src,/wellbeingDirectorVisual.src='\.\/assets\/wellbeing-director-walk-hq-v2.png'/);
  assert.match(src,/a.id==='wellbeing-director' && drawWellbeingDirectorSprite\(a\)/);
  assert.match(src,/Math\.floor\(\(a\.walkDistance\|\|0\)\/14\)%4:1/);
- assert.match(src,/a\.moving=traveled>0\.25/);
+ assert.match(fs.readFileSync(path.join(root,'js/director-movement.js'),'utf8'),/actor\.moving=true/);
  assert.match(src,/depth\.sortLayers\(layers\)/);
 });
 

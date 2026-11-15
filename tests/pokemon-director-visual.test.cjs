@@ -17,6 +17,6 @@ test('Existing pokemon-director uses animated visual fallback and stable AI iden
  assert.match(s,/pokemonDirectorVisual.src='\.\/assets\/pokemon-director-walk-hq-v2.png'/);
  assert.match(s,/if\(a.id==='pokemon-director' && drawPokemonDirectorSprite\(a\)\)return/);
  assert.match(s,/Math\.floor\(\(a\.walkDistance\|\|0\)\/14\)%4:1/);
- assert.match(s,/a\.moving=traveled>0\.25/);
+ assert.match(fs.readFileSync(path.join(root,'js/director-movement.js'),'utf8'),/actor\.moving=true/);
  assert.match(s,/depth\.sortLayers\(layers\)/);
 });
