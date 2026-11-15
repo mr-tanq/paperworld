@@ -69,8 +69,13 @@ function createListeningProposalApi({oauth,memory,store,
     },proposal:{jobId:plan.jobId,repository:plan.repository,baseRef:plan.baseRef,
      summary:plan.summary,edits:plan.edits},evidence
    });
+   let tracked=false;
+   try{
+    tracked=await memory.markDraftCreated({ownerId,threadId:data.threadId,
+     jobId:data.jobId,digest:saved.digest,url:result.url});
+   }catch(_){/* Real GitHub PR success is still reported accurately. */}
    return {status:200,body:{created:true,url:result.url,number:result.number,
-    draft:true,merged:false,testsRun:false}};
+    draft:true,merged:false,testsRun:false,tracked}};
   }catch(_){
    // Avoid disclosing credentials, GitHub error bodies, or source text.
    return {status:503,body:{error:'proposal_action_unavailable'}};
