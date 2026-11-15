@@ -29,9 +29,10 @@ function openDirectorMemory(){
  if(!module?.createView){note('Το Director Memory Review δεν φορτώθηκε.',true);return}
  if(!memoryView)memoryView=module.createView({
   document,load:projectId=>client.listDirectorMemory(projectId),
-  // Deliberate fail-closed gate: no owner review UI until migration,
-  // real cross-account RLS tests and separately approved deployment.
-  enableReview:false,
+  // The owner-approved audit migration is installed. The confirmation UI
+  // becomes active only when this PR is separately merged and deployed.
+  // Every individual decision re-verifies Supabase Auth and uses owner RLS.
+  enableReview:true,
   requestReview:args=>client.reviewDirectorMemory(args),
   confirmDecision:({entry,decision})=>window.confirm(
    (decision==='approved'?'Να εγκριθεί αυτή η ανάμνηση;':'Να απορριφθεί αυτή η ανάμνηση;')+
