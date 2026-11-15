@@ -8,6 +8,7 @@
  let openId=null,revision=0,busy=false;
  const mattReplies=[];
  let mattCachedEntries=null; // Keep visible replies while owner history refreshes.
+ let mattJourneyCaption='';
  const historyCodec=()=>window.PaperworldMattHistory;
   // Short-lived conversation context for multi-turn continuity; no localStorage secrets.
   let activeMattDirector=null;
@@ -61,7 +62,7 @@
    'τον κατάλληλο μη ευαίσθητο Director. Δεν θα εκτελεστεί εργασία ή ανάγνωση '+
    'αρχείων χωρίς νέα έγκριση. Συνέχεια;'))return;
   busy=true;field.disabled=true;send.disabled=true;
-  veil.classList.remove('world-chat-journey');
+  veil.classList.remove('world-chat-journey');mattJourneyCaption='';
   status.textContent='Ο Matt επεξεργάζεται το αίτημα…';
   let failure=null,requestId=null,watcher=null,polling=false;
   const poll=async()=>{
@@ -97,12 +98,15 @@
     time:new Date().toISOString()});
    const journeyStarted=result.delegated===true&&
     world()?.startMattDirectorJourney?.(result.directorId)===true;
-   if(journeyStarted)veil.classList.add('world-chat-journey');
-   field.value='';
-   if(openId==='matt'){
-    paint();
-    if(journeyStarted)status.textContent='Ο Matt επισκέφθηκε τον αρμόδιο Director · οπτική αναπαράσταση της ανάθεσης';
+   if(journeyStarted){
+    veil.classList.add('world-chat-journey');
+    const names={'studio-director':'Crow','pokemon-director':'Joey',
+     'listening-director':'Luna'};
+    mattJourneyCaption='Matt → '+(names[result.directorId]||'Director')+
+     ' → Εσύ · αναπαράσταση επιβεβαιωμένης ανάθεσης';
    }
+   field.value='';
+   if(openId==='matt')paint();
    const plan=result.delegated?result.workProposal:null;
    const permitted=plan?.requiresSeparateConsent===true&&
     plan.execution==='none'&&
@@ -190,7 +194,7 @@
   const active=cloud()?.signedIn()===true;
   const available=active&&typeof cloud()?.privateAgentMessages==='function'&&!busy;
   status.textContent=!active?'Συνδέσου στο PAPERWORLD Cloud για να στείλεις μηνύματα.':
-   isMatt?'Συνομιλία με τον Matt · καμία εργασία χωρίς έγκριση':
+   isMatt?(mattJourneyCaption||'Συνομιλία με τον Matt · καμία εργασία χωρίς έγκριση'):
    'Ιδιωτική συνομιλία · ο Director δεν έχει AI ακόμη';
   if(active&&isMatt&&(mattCachedEntries!==null||mattReplies.length))
    appendEntries(mattCachedEntries||[]);
