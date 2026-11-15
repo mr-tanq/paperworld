@@ -42,3 +42,14 @@ test('map overlay is opt-in and displays only checked segments',()=>{
  assert.match(js,/depth\.actorWalkwayDepth\(w,navigation,defs\)/);
  assert.doesNotMatch(read('js/navigation.js'),/fetch\(/);
 });
+
+test('tablet navigation keeps Paths toggle in the visible Work Desk, not overflowing top controls',()=>{
+ const html=read('index.html');
+ const start=html.indexOf('<div class="workspace-actions">');
+ const end=html.indexOf('</div>',start);
+ assert.ok(start>0&&end>start);
+ assert.match(html.slice(start,end),/id="walkway-overlay"/);
+ const controls=html.slice(html.indexOf('<div class="controls">'),html.indexOf('</div>',html.indexOf('<div class="controls">')));
+ assert.doesNotMatch(controls,/id="walkway-overlay"/);
+ assert.equal((html.match(/id="walkway-overlay"/g)||[]).length,1);
+});
