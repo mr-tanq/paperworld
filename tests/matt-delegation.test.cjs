@@ -323,6 +323,8 @@ test('Trusted Matt history writer accepts verified owner thread and refuses miss
   director:'studio-director',text:'Χαλαρό τραγούδι'});
  assert.equal(saved,true);
  assert.equal(writes.length,1);
+ assert.equal(writes[0].opts.headers.apikey,'eyJTEST_SERVER_ONLY');
+ assert.equal(writes[0].opts.headers.Authorization,'Bearer eyJTEST_SERVER_ONLY');
  const body=JSON.parse(writes[0].opts.body);
  assert.equal(body.id,request);
  assert.equal(body.owner_id,owner);
@@ -335,4 +337,18 @@ test('Trusted Matt history writer accepts verified owner thread and refuses miss
  const disabled=createMattPersistence({secret:'',fetcher:async()=>{throw Error('unexpected fetch')}});
  assert.equal(await disabled.save({threadId:thread,ownerId:owner,requestId:request,
   director:'studio-director',text:'hello'}),false);
+});
+
+test('Current Supabase secret keys are sent ONLY as apikey, never Bearer tokens',async()=>{
+ const {createMattPersistence}=require('../server/matt-conversation-persistence.cjs');
+ const captured=[];
+ const secret='sb_secret_FAKE_UNIT_TEST_ONLY';
+ const store=createMattPersistence({secret,fetcher:async(_url,options)=>{
+  captured.push(options);return {ok:true};
+ }});
+ assert.equal(await store.save({threadId:thread,ownerId:owner,requestId:request,
+  director:'studio-director',text:'Χαλαρό τραγούδι'}),true);
+ assert.equal(captured.length,1);
+ assert.equal(captured[0].headers.apikey,secret);
+ assert.equal(Object.hasOwn(captured[0].headers,'Authorization'),false);
 });
