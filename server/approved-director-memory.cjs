@@ -19,7 +19,7 @@ function createApprovedDirectorMemory({fetcher,identity}={}){
  async function load({token,ownerId,actor}={}){
   // Actor is supplied only by the trusted, allowlisted server routing code.
   // Do not let client-supplied strings select an actor or a project.
-  if(!DIRECTORS.includes(actor))
+  if(!Object.prototype.hasOwnProperty.call(DIRECTORS,actor))
    throw Error('approved_memory_director_required');
   const projectId=projectForActor(actor);
   if(!projectId||projectId==='town')
