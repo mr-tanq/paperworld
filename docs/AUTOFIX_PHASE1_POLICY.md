@@ -43,3 +43,18 @@ Status: **not activated**. The user approved building Phase 1, not merging, depl
 - Stage 2 independent protected gates, Stage 3 limited auto-merge and Stage 4 verified rollback/deploy remain separately approved future phases.
 
 **No real GitHub writes, model calls, sandbox executions, auto PR creations, merges or deployments are enabled by this framework.** Passing offline tests proves the guards are exercised against mock data, not that the complete autonomous system is operational.
+
+## Phase 1B: draft-only GitHub publishing adapter (proposal, inactive)
+
+The new `server/autofix-github-draft-publisher.cjs` includes an explicit REST implementation for a future GitHub App publisher. It:
+- Refuses ordinary user OAuth tokens; requires a short-lived, trusted GitHub App installation credential for the exact `mr-tanq/concerts` repository.
+- Requires an **independently verified sandbox attestation tied to the SHA-256 of the proposed candidate**. Merely displaying passing tests or self-reporting results is insufficient.
+- Confirms the base branch SHA, independently fetches source blobs and ensures the regression test is absent; re-runs the deterministic candidate policy before any writes.
+- Uses GitHub Git database tree + commit APIs to construct an isolated task-specific commit, creates a new `paperworld/autofix/<taskId>` branch, confirms main has not moved, and opens **only a draft PR**.
+- Provides **no methods** to merge, update an existing ref, delete, change settings, dispatch workflows or deploy. Does not bind any HTTP endpoint, token provider or installed GitHub App. Tests use a simulated fetcher, dummy token and fake independent attestation.
+
+**Important security qualification:** GitHub's `contents:write` permission may itself be sufficient to invoke other GitHub endpoints (including merge operations); restrictions in application code are not a substitute for platform-enforced branch protection, a strictly isolated publisher service, repository rulesets, GitHub App installation scope, and an audit trail. Do not assert that possession of the installation token makes merging technically impossible.
+
+Before real activation, independently implement and audit trusted source snapshot, attestation issuer/verifier, zero-network test sandbox, separate per-owner quota, one-time approvals and installation token isolation. Even an approved draft-PR pipeline must not execute model-generated code in the same environment as the GitHub write credential. Branch creation can leave an orphaned branch if a later verification fails; safe cleanup would need a separately reviewed policy.
+
+Current state: Offline-only. No installed GitHub App, live OAuth write permission, model calls, background jobs, publish endpoint, merge or deploy were created.
