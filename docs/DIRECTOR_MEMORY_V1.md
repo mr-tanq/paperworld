@@ -1,6 +1,6 @@
 # PAPERWORLD — Director Memory System v1
 
-**Status: draft, inactive.** This change does not apply the SQL migration, install backend routes, import personal history, make AI calls, merge, deploy or modify any other project. It is the shared foundation for all registered Directors.
+**Status (2026-11-15): the private Supabase memory table has been applied and contains 74 owner-scoped, unapproved proposals.** The read-only review screen is merged in source, but no deployment, approval schema, agent-to-memory inference connection or autonomous model calls were activated by this draft.
 
 ## Registered project namespaces
 
@@ -34,9 +34,9 @@ Each entry has project, type, title/body, source type/reference, observation dat
 
 ## Persistence and review
 
-The proposed migration `supabase/paperworld_director_memory_v1_REVIEW.sql` defines a private owner-scoped table with RLS and owner-scoped SELECT / proposed-only INSERT, plus an owner-restricted review RPC for approving or rejecting proposals. It has **not** been run. No browser or agent gets `service_role`.
+The safe applied schema is recorded in `supabase/paperworld_director_memory_v1_APPLIED_AUDIT.sql` (audit only; **do not execute again**). Supabase already has owner-RLS with authenticated SELECT and proposed-only INSERT. The original `supabase/paperworld_director_memory_v1_REVIEW.sql` was **not applied**: its review RPC is malformed and unsafe. The audit copy does not install any review RPC. No browser or agent gets `service_role`.
 
-`server/director-memory-policy.cjs` validates and filters entries, and `server/director-memory-store.cjs` defines authenticated Supabase reads/proposals. The optional review operation fails closed until separately implemented trusted **one-time owner confirmation** is injected. Neither module is currently mounted on the Render server, exposed to the UI or integrated with Copilot. This means there is **not yet persistent live Director memory**, only reviewed storage design and tested adapters.
+`server/director-memory-policy.cjs` validates and filters entries, and `server/director-memory-store.cjs` defines authenticated Supabase reads/proposals. The backend adapter's `review()` method **always fails closed**, because no compatible review RPC exists. Neither the backend adapter nor the context bridge is mounted on the Render server or integrated with Copilot. Durable **proposed** history is already privately persisted, but it is not yet used by the AI.
 
 ## Preparing existing project histories
 
@@ -48,7 +48,7 @@ The proposed migration `supabase/paperworld_director_memory_v1_REVIEW.sql` defin
 
 ## Still required before activation
 
-- Review/apply private database migration with owner consent; test RLS with two distinct accounts and intentional cross-project access attempts.
+- The initial private schema was already applied. Simulated authenticated database-role checks showed 74 rows with a claim matching the owner and 0 with a different claim. **These checks do not substitute for two real logged-in users or a live negative mutation test.**
 - Backend authenticated API for owner review, project-scoped read, proposals, version conflict handling, pagination and provenance verification.
 - Durable atomic one-time owner-approval claims, tamper-resistant actor/project authorization and audit history.
 - Opt-in, reviewed ingestion of private historical sources and conflict/supersession semantics.
@@ -64,7 +64,7 @@ The Work Desk now has an authenticated **Μνήμη Directors** button leading t
 
 **Approval/rejection remains unavailable:** the actual applied database has owner-RLS and proposed-only inserts, but has no reviewed approval RPC. The original `paperworld_director_memory_v1_REVIEW.sql` should **never** be run: it includes a malformed and inappropriate security-definer review function. The new UI clearly labels every proposed memory as waiting for review, and provides no fake approve action. A separate review of authenticated one-time human approval, audit history and correct permissions is required before an operational Approve/Reject button can be added.
 
-The new interface does not send any prompt to Matt/Copilot, change Supabase statuses, expose private source text through public GitHub, or grant a Director context access. The read-only UI and its tests require a separate merge/deployment approval before they become available on the live website.
+The new interface does not send any prompt to Matt/Copilot, change Supabase statuses, expose private source text through public GitHub, or grant a Director context access. The read-only UI from PR #84 is merged into main but still requires a separate deployment approval before it appears on the live website.
 
 ## Phase 1H — reviewed human decisions and private context adapter (draft only)
 
@@ -76,4 +76,10 @@ The approved plan is to let the signed-in owner approve/reject **one proposal at
 
 `server/director-memory-context.cjs` defines a future server-only bridge which rechecks identity, actor and authorized project, rejects mixed-project responses, excludes unapproved records, and filters private content from Matt/Workers. It returns untrusted data without tool or action rights. The bridge is **not mounted in Render**, not sent to Copilot, and cannot initiate inference.
 
-**Open prerequisite:** PR #83 remains a separate unmerged adapter correction; this draft also normalizes PostgREST timestamps in the shared policy to prevent real Supabase timezone data from being rejected. Reconcile duplicate patches before merging either branch. No 74 historical proposals have been approved.
+**PR #83 reconciliation:** its applied-schema audit file, fail-closed backend store adapter and updated tests have been copied into the draft PR #87 branch; the timestamp normalization is included here as well. PR #83 remains open but must **not** be merged separately without re-review, to avoid redundant/conflicting changes. No historical proposals have been approved.
+
+## Phase 1I — current read-only RLS test evidence
+
+On 2026-11-15, the connected PAPERWORLD Supabase project was inspected without modifying memory records. The initial table has RLS enabled, and `anon` has no SELECT grant while `authenticated` lacks direct UPDATE privilege. Inside **rolled-back, transaction-local SQL simulations**, `SET LOCAL ROLE authenticated` with `request.jwt.claim.sub` matching the existing owner saw **74 entries**; a synthetic different user ID saw **0 entries**. This confirms the current owner filter under simulated database claims, **not** end-to-end token validation. No real secondary Supabase Auth account or JWT was used.
+
+The v2 owner-approval SQL remains **unapplied**. Review requires independent verification of role grants, PostgreSQL trigger privileges, audit uniqueness, cross-owner UPDATE denial, replay attempts, and two actual authenticated user sessions. Test with synthetic records in a dedicated staging environment before enabling any browser buttons. No individual private history was copied into the GitHub PR.
