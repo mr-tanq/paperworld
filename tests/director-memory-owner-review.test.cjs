@@ -71,33 +71,55 @@ test('Browser review writes status only, with owner JWT and proposed-only compar
   expires_at:Date.now()+3600000}):null,setItem(){},removeItem(){}};
  const client=cloud.createClient({storage,fetcher:async(url,opts)=>{
   requests.push({url:String(url),...opts});
-  return {ok:true,status:200,text:async()=>JSON.stringify([{
-   id:ID,project_id:'studio',status:'approved',reviewed_at:'2026-11-15T00:00:00Z'
-  }])};
+  const payload=String(url).endsWith('/auth/v1/user')?
+   {id:OWNER,email:'person@example.org'}:
+   [{id:ID,project_id:'studio',status:'approved',reviewed_at:'2026-11-15T00:00:00Z'}];
+  return {ok:true,status:200,text:async()=>JSON.stringify(payload)};
  }});
  const outcome=await client.reviewDirectorMemory({
   projectId:'studio',entryId:ID,decision:'approved'});
  assert.equal(outcome.status,'approved');
- assert.equal(requests.length,1);
- assert.equal(requests[0].method,'PATCH');
- assert.match(requests[0].url,/status=eq.proposed/);
- assert.match(requests[0].url,/project_id=eq.studio/);
- assert.deepEqual(JSON.parse(requests[0].body),{status:'approved'});
+ assert.equal(requests.length,2);
+ assert.equal(requests[0].method,'GET');
+ assert.match(requests[0].url,/\/auth\/v1\/user$/);
+ assert.equal(requests[1].method,'PATCH');
+ assert.match(requests[1].url,/status=eq.proposed/);
+ assert.match(requests[1].url,/project_id=eq.studio/);
+ assert.deepEqual(JSON.parse(requests[1].body),{status:'approved'});
  assert.equal(requests[0].headers.Authorization,'Bearer '+JWT);
+ assert.equal(requests[1].headers.Authorization,'Bearer '+JWT);
  await assert.rejects(client.reviewDirectorMemory({projectId:'town',entryId:ID,
   decision:'deployed'}),/Invalid Director Memory review/);
- assert.equal(requests.length,1);
+ assert.equal(requests.length,2);
 });
 test('A zero-row response is never reported as an approval',async()=>{
  const storage={getItem:key=>key===cloud.TOKEN_STORAGE?JSON.stringify({
   access_token:JWT,refresh_token:'refresh-test',expires_at:Date.now()+3600000
  }):null};
- const client=cloud.createClient({storage,fetcher:async()=>({
-  ok:true,status:200,text:async()=>JSON.stringify([])
+ const client=cloud.createClient({storage,fetcher:async(url)=>({
+  ok:true,status:200,text:async()=>JSON.stringify(
+   String(url).endsWith('/auth/v1/user')?{id:OWNER}:[])
  })});
  await assert.rejects(client.reviewDirectorMemory({projectId:'studio',entryId:ID,
   decision:'approved'}),/Review not applied/);
 });
+test('Live Auth identity failure prevents any owner status update',async()=>{
+ const calls=[];
+ const storage={getItem:key=>key===cloud.TOKEN_STORAGE?JSON.stringify({
+  access_token:JWT,refresh_token:'refresh-test',user:{id:OWNER},
+  expires_at:Date.now()+3600000}):null};
+ const client=cloud.createClient({storage,fetcher:async(url,options)=>{
+  calls.push({url:String(url),method:options.method});
+  return {ok:true,status:200,text:async()=>JSON.stringify({id:OTHER})};
+ }});
+ await assert.rejects(client.reviewDirectorMemory({
+  projectId:'studio',entryId:ID,decision:'approved'
+ }),/identity could not be verified/);
+ assert.equal(calls.length,1);
+ assert.equal(calls[0].method,'GET');
+ assert.match(calls[0].url,/\/auth\/v1\/user$/);
+});
+
 test('Review migration grants only status UPDATE and append-only private audit',()=>{
  const migration=fs.readFileSync('supabase/director_memory_review_v2_REVIEW_ONLY.sql','utf8');
  assert.match(migration,/REVIEW-ONLY migration/);
@@ -110,10 +132,10 @@ test('Review migration grants only status UPDATE and append-only private audit',
  assert.match(migration,/grant select on public.paperworld_director_memory_review_log to authenticated/);
  assert.doesNotMatch(migration,/grant (?:insert|update|delete|all) on public.paperworld_director_memory_review_log to authenticated/);
 });
-test('Current UI remains disabled until separate deployment and migration review',()=>{
+test('Owner review UI is ready in draft PR, requires per-entry confirmation',()=>{
  const source=fs.readFileSync('js/cloud-ui.js','utf8');
- assert.match(source,/enableReview:false/);
- assert.doesNotMatch(source,/enableReview:true/);
+ assert.match(source,/enableReview:true/);
+ assert.doesNotMatch(source,/enableReview:false/);
  const view=fs.readFileSync('js/director-memory-review.js','utf8');
  assert.match(view,/confirmDecision/);
  assert.match(view,/requestReview/);
