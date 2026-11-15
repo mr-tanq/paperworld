@@ -59,7 +59,26 @@ test('Matt offers OAuth reconnect inside Messenger, including Render Free sleep'
  assert.match(source,/beginGithubLink\(\)/);
  assert.match(source,/runMattWorkflow\(text\)/);
  assert.match(source,/delegateMattWorker\(text,\{onStart/);
+ assert.match(source,/delegateMatt\(text\)/);
+ assert.match(source,/workflowMode==='work'/);
+ assert.match(source,/const isWork=workflowMode==='work'/);
+ assert.match(source,/modePicker/);
+ assert.match(source,/aria-pressed/);
+ assert.match(source,/Έως 3 AI κλήσεις/);
+ assert.match(source,/Έως 5 AI κλήσεις/);
  assert.match(source,/setAgentWorkflowStage/);
  assert.match(source,/window\.confirm\(/);
  assert.match(source,/mattReplies\.push/);
+});
+
+test('Director questions default to 3-turn path, Worker investigation requires explicit mode',()=>{
+ assert.match(source,/workflowMode='ask'/);
+ assert.match(source,/setWorkflowMode\('ask'\)/);
+ assert.match(source,/setWorkflowMode\('work'\)/);
+ assert.match(source,/const result=isWork\?/);
+ assert.match(source,/await cloud\(\)\.delegateMatt\(text\)/);
+ assert.match(source,/await cloud\(\)\.delegateMattWorker\(text,\{onStart/);
+ assert.match(source,/if\(isWork\)await poll\(\)/);
+ assert.match(source,/if\(isWork\)showStage\('reported'\)/);
+ assert.doesNotMatch(source,/if\(\/festival\//);
 });
