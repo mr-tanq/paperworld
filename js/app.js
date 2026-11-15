@@ -285,8 +285,10 @@ if(!navigation)throw new Error('PAPERWORLD navigation module not loaded');
 const directorMovement=window.PaperworldDirectorMovement;
 if(!directorMovement)throw new Error('PAPERWORLD director movement module not loaded');
 const directorAssembly=directorMovement.create(navigation,actors);
-const villageLife=window.PaperworldVillageLife?.create(navigation,actors);
-if(!villageLife)throw new Error('PAPERWORLD Village Life module not loaded');
+// Village art must still render if an optional ambient module fails to load.
+const villageLife=window.PaperworldVillageLife?.create(navigation,actors)||
+ Object.freeze({tick(){},recallAll(){},ready:()=>true,resume:()=>true,
+  greetings:()=>[],homeOf:()=>null});
 
 function planMattRoute(target){
  const start=navigation.snapToPath([mattActor.x,mattActor.y],110);
