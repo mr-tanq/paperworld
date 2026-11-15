@@ -91,3 +91,18 @@ test('Reply reconciliation removes saved bubbles by exact ID, keeps unsaved and 
  assert.deepEqual(reconcileReplies(pending,actual),pending.slice(1));
  assert.deepEqual(reconcileReplies(pending,[]),pending);
 });
+
+test('Natural language Matt handoff streams progress and holds answer for return',()=>{
+ const js=fs.readFileSync('js/cloud.js','utf8');
+ assert.match(js,/Accept:'application\/x-ndjson'/);
+ assert.match(js,/response\.body\.getReader\(\)/);
+ assert.match(js,/event\.type==='progress'/);
+ assert.match(js,/event\.type==='result'/);
+ assert.match(source,/onProgress:event=>/);
+ assert.match(source,/waitMattDirectorReturn\?\.\(\)/);
+ assert.ok(source.indexOf('await Promise.race(')<
+  source.indexOf('mattReplies.push({id:result.persisted===true'));
+ const css=fs.readFileSync('style.css','utf8');
+ assert.match(css,/right:12px!important/);
+ assert.match(css,/transform:none!important/);
+});
