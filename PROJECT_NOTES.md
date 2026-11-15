@@ -153,3 +153,9 @@ User requested that PAPERWORLD agents eventually fix, test, merge and deploy *sm
 Added `server/autofix-candidate-policy.cjs` (source allowlist of two TicketSwap browser files, max three files, max 80 changed source lines, one new regression test, strict static import and high-risk addition checks), and `server/autofix-draft-workflow.cjs` (requires trusted owner approval, durable daily quota, bounded inference, source snapshot, no-network/no-secrets sandbox verifier, and a publisher restricted to a draft PR). Both modules are **not mounted in the Render server**; all external adapters and permissions remain unconfigured. New mock-only tests, CI coverage and full design/limitations in `docs/AUTOFIX_PHASE1_POLICY.md`.
 
 Do not mistake purely mocked green CI for safe real code execution. Follow-up items include separate narrow GitHub App consent, auditable sandbox, atomic owner quotas, and independently verified CI. No merge or deployment without separate approval.
+
+## 2026-11-15 — Auto Fix Phase 1B GitHub draft publisher (separate PR)
+
+After user-approved merge of PR #74 (squash commit `47cb234761db0865d85e7601fceeb91cfb30560e`), prepared the NEXT isolated component: `server/autofix-github-draft-publisher.cjs`. This includes frozen base verification, independent blob re-read, strict allowlist validation, sandbox attestation hash, one atomic Git tree/commit into a new task branch, final main-branch recheck, and draft-only PR creation. It is deliberately not connected to Render routing, model inference, a GitHub App credential, a sandbox or a daily quota. Offline tests use mocked HTTP calls. See `docs/AUTOFIX_PHASE1_POLICY.md`.
+
+**Security caveat:** a GitHub App token with contents write may also have other write capabilities, including merge if protections permit. Actual enforcement needs isolation/branch rules, not only absent API methods. This PR must stay draft until verification; no merge or deployment without a new approval.
