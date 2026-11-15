@@ -1,4 +1,4 @@
-/* PAPERWORLD Preview 010: conservative, explicit walking network.
+/* PAPERWORLD path survey v2: conservative, explicit walking network.
    The map is artwork, not walkable terrain; these are reviewed sidewalk waypoints.
    No automated movement may enter a building's ground footprint. */
 (function(root,factory){
@@ -8,8 +8,23 @@
  else root.PaperworldNavigation=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
  'use strict';
- const nodes=[[535,520],[475,580],[415,625],[390,710],[430,750],[520,797],[670,846],[835,854],[1000,846],[1155,797],[1270,738],[1340,710],[1190,680],[1170,625],[1125,515],[620,530],[700,570],[835,575],[955,570],[1040,534],[385,665],[1240,690]];
- const connections=[[0,1],[1,2],[2,20],[20,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],[10,11],[11,21],[21,12],[12,13],[13,14],[0,15],[15,16],[16,17],[17,18],[18,19],[19,14]];
+ // v2 pavement survey: all waypoints are feet locations on photographed brick roads.
+// Preserve existing home/meeting waypoint positions; replace the old center shortcut
+// that cut across The Lost Wanderer Studio's roof with a route around the plaza tree.
+const nodes=[
+ [535,520],[475,580],[415,625],[390,710],[430,750],[520,797],
+ [670,846],[835,854],[1000,846],[1155,797],[1270,738],[1340,710],
+ [1190,680],[1170,625],[1125,515],
+ [620,530],[690,530],[720,480],[720,385],[960,385],
+ [385,665],[1240,690],[960,515],[1020,535]
+];
+ // Lower outer loop, project approaches, and an upper-plaza connection
+// around—not THROUGH—the central flower bed and studio roof.
+const connections=[
+ [0,1],[1,2],[2,20],[20,3],[3,4],[4,5],[5,6],[6,7],
+ [7,8],[8,9],[9,10],[10,11],[11,21],[21,12],[12,13],[13,14],
+ [0,15],[15,16],[16,17],[17,18],[18,19],[19,22],[22,23],[23,14]
+];
  // Conservative ground-base ellipses: not the roofs, which overhang footpaths.
  const obstacles=[
   {name:'Town Hall',x:535,y:462,rx:155,ry:40},
