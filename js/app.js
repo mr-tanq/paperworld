@@ -389,13 +389,17 @@ layers.push({id:'player',depth:depth.actorWalkwayDepth(w,navigation,defs),paint:
   ctx.save();ctx.lineWidth=4;ctx.strokeStyle='rgba(229,48,53,.92)';
   ctx.setLineDash([8,5]);ctx.beginPath();
   for(const [i,j] of navigation.safeConnections){
+   // Rear alleys are genuine walkable paths, but never paint them on rooftops.
+   if(navigation.isHiddenEdge(i,j))continue;
    const a=navigation.nodes[i],b=navigation.nodes[j];
    ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);
   }
   ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#ff6464';
-  for(const [x,y] of navigation.nodes){
+  const hiddenNodes=new Set(navigation.hiddenConnections.flat());
+  navigation.nodes.forEach(([x,y],i)=>{
+   if(hiddenNodes.has(i))return;
    ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();
-  }
+  });
   ctx.restore();
  }
  if(agentJourney.failed){
