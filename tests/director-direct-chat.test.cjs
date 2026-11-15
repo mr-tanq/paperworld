@@ -7,7 +7,7 @@ const id='33333333-3333-4333-8333-333333333333';
 const headers={origin:'https://mr-tanq.github.io',authorization:'Bearer aaa.bbb.fake12345678'};
 const request={agentId:'listening-director',threadId:thread,requestId:id,
  message:'How is our music app?',consent:CONSENT};
-function setup({owns=true,budget=true,link=true,wrongMemory=false,modelKnown=true}={}){
+function setup({owns=true,budget=true,link=true,wrongMemory=false,modelKnown=true,save=false}={}){
  const seen={calls:0,models:0,threads:[],owner:null,prompts:[],configs:[],actors:[]};
  const api=makeDirectorChat({
   oauth:{getLinkedToken:()=>link?'gho_TEST123456789':null},
@@ -19,6 +19,7 @@ function setup({owns=true,budget=true,link=true,wrongMemory=false,modelKnown=tru
     capabilitiesGranted:[],untrustedContent:true}
   }},
   threadRecall:{load:async()=>({text:'User: Earlier private app discussion',messageCount:1})},
+  replyPersistence:{save:async a=>{seen.saved=a;return save}},
   budgetVerified:()=>budget,
   clientFactory:async opts=>{seen.owner=opts;return {
    start:async()=>{},stop:async()=>{},
@@ -94,4 +95,17 @@ test('Director conversation route is POST-only and owner-verified, preserving Ma
  assert.match(ui,/askDirector\(id,text\)/);
  assert.match(ui,/window.confirm\('Άμεση συνομιλία/);
  assert.match(ui,/sendPrivateAgentMessage\(id,text\)/);
+});
+
+test('Successful reply persistence is accurately reported without adding model calls',async()=>{
+ const {api,seen}=setup({save:true});
+ const r=await run(api);
+ assert.equal(r.status,200);
+ assert.equal(r.body.persisted,true);
+ assert.equal(r.body.persistedExcerpt,false);
+ assert.equal(seen.saved.ownerId,owner);
+ assert.equal(seen.saved.threadId,thread);
+ assert.equal(seen.saved.agentId,'listening-director');
+ assert.equal(seen.saved.requestId,id);
+ assert.equal(seen.calls,1);
 });
