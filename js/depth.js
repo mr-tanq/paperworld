@@ -14,6 +14,29 @@
   [882,439],[857,453],[824,455],[789,443],[760,420],
   [766,391],[787,375]
  ]};
+ // Building PNGs include roofs that overhang the surveyed brick roads.
+ // Preserve ordinary feet-based sorting except on explicit foreground sidewalks.
+ // Otherwise a roof obscures a walker whose FEET are clearly on the public road.
+ const roadFrontages=Object.freeze({
+  pokemon:{left:365,right:565,top:578,bottom:710},
+  wellbeing:{left:1100,right:1300,top:610,bottom:750},
+  studio:{left:500,right:1120,top:790,bottom:900}
+ });
+ function actorWalkwayDepth(actor,navigation,buildings){
+  const y=actor.y;
+  if(!navigation||!Number.isFinite(actor.x)||!Number.isFinite(y))return y;
+  // Never allow an off-road NPC to be drawn on top of a building.
+  const snapped=navigation.snapToPath([actor.x,y],17);
+  if(!snapped)return y;
+  let result=y;
+  for(const building of buildings||[]){
+   const zone=roadFrontages[building.id];
+   if(!zone)continue;
+   if(actor.x>=zone.left&&actor.x<=zone.right&&y>=zone.top&&y<=zone.bottom)
+    result=Math.max(result,building.bottom+0.5);
+  }
+  return result;
+ }
  function sortLayers(layers){
   return layers.map((layer,index)=>({...layer,_seq:index}))
    .sort((a,b)=>(a.depth-b.depth)||(a._seq-b._seq));
@@ -31,5 +54,5 @@
   if(!backgroundReady)return[];
   return [{id:tree.id,depth:tree.depth,paint:()=>drawSourcePolygon(ctx,image,tree.polygon,w,h)}];
  }
- return {tree,sortLayers,drawSourcePolygon,foregroundLayers};
+ return {tree,sortLayers,drawSourcePolygon,foregroundLayers,actorWalkwayDepth,roadFrontages};
 });

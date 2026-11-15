@@ -42,6 +42,7 @@ function exportCalibration(){
 exportMarkerButton.addEventListener('click',exportCalibration);
 // Isolated visual tests of painter depth. Neither test actor changes the real path graph.
 const demoButton=document.querySelector('#depth-demo');
+let showSurveyedPaths=false;
 const demoPositions=[null,{x:835,y:705,label:'Behind the Studio'},{x:831,y:434,label:'Behind the plaza tree'}];
 demoButton.addEventListener('click',()=>{state.depthDemo=(state.depthDemo+1)%demoPositions.length;demoButton.textContent='Depth test: '+(demoPositions[state.depthDemo]?.label||'Off')});
 // Placeholders: Directors stand at approved path approach coordinates, not inside buildings.
@@ -366,7 +367,7 @@ const w=state.walker;
  const layers=defs.filter(d=>d.ready).map(d=>({
    id:d.id,depth:d.bottom,paint:()=>{const b=spriteBox(d);ctx.drawImage(d.image,b.x,b.y,b.width,b.height)}
  }));
- for(const a of actors)layers.push({id:'agent-'+a.id,depth:a.y,paint:()=>{
+ for(const a of actors)layers.push({id:'agent-'+a.id,depth:depth.actorWalkwayDepth(a,navigation,defs),paint:()=>{
  if(a.id==='matt' && drawMattSprite(a,now))return;
  if(a.id==='listening-director' && drawListeningDirectorSprite(a))return;
  if(a.id==='pokemon-director' && drawPokemonDirectorSprite(a))return;
@@ -378,11 +379,25 @@ const w=state.walker;
  ctx.fillStyle='#fff9e8';ctx.font='bold 15px system-ui';ctx.textAlign='center';ctx.fillText(actorDisplayName(a),a.x,a.y+23);
  ctx.restore();
 }});
-layers.push({id:'player',depth:w.y,paint:()=>{if(!drawPlayerSprite(w))drawFigure(w)}});
+layers.push({id:'player',depth:depth.actorWalkwayDepth(w,navigation,defs),paint:()=>{if(!drawPlayerSprite(w))drawFigure(w)}});
  const d=demoPositions[state.depthDemo];
  if(d)layers.push({id:'depth-demo',depth:d.y,paint:()=>drawFigure(d,true)});
  layers.push(...depth.foregroundLayers(ctx,scene.ready,scene.image,W,H));
  depth.sortLayers(layers).forEach(item=>item.paint());
+ // Optional developer overlay: visualize only collision-checked walkable edges.
+ if(showSurveyedPaths){
+  ctx.save();ctx.lineWidth=3;ctx.strokeStyle='rgba(32,228,213,.88)';
+  ctx.setLineDash([8,5]);ctx.beginPath();
+  for(const [i,j] of navigation.safeConnections){
+   const a=navigation.nodes[i],b=navigation.nodes[j];
+   ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);
+  }
+  ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#0af0d6';
+  for(const [x,y] of navigation.nodes){
+   ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();
+  }
+  ctx.restore();
+ }
  if(agentJourney.failed){
   ctx.save();
   ctx.textAlign='center';ctx.textBaseline='middle';
@@ -492,6 +507,11 @@ document.querySelector('#open-chief')?.addEventListener('click',()=>{
  drawer.hidden=true;window.PaperworldWorldDialogue?.show('matt');
 });
 document.querySelector('#world-talk-matt')?.addEventListener('click',()=>window.PaperworldWorldDialogue?.show('matt'));
+document.querySelector('#walkway-overlay')?.addEventListener('click',e=>{
+ showSurveyedPaths=!showSurveyedPaths;
+ e.currentTarget.textContent='Paths: '+(showSurveyedPaths?'On':'Off');
+ e.currentTarget.setAttribute('aria-pressed',String(showSurveyedPaths));
+});
 document.querySelector('#call-visual-meeting')?.addEventListener('click',()=>{
  const started=directorAssembly.call();
  nameEl.textContent='Town Hall · visual meeting';
