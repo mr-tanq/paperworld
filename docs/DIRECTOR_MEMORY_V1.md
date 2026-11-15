@@ -65,3 +65,15 @@ The Work Desk now has an authenticated **Μνήμη Directors** button leading t
 **Approval/rejection remains unavailable:** the actual applied database has owner-RLS and proposed-only inserts, but has no reviewed approval RPC. The original `paperworld_director_memory_v1_REVIEW.sql` should **never** be run: it includes a malformed and inappropriate security-definer review function. The new UI clearly labels every proposed memory as waiting for review, and provides no fake approve action. A separate review of authenticated one-time human approval, audit history and correct permissions is required before an operational Approve/Reject button can be added.
 
 The new interface does not send any prompt to Matt/Copilot, change Supabase statuses, expose private source text through public GitHub, or grant a Director context access. The read-only UI and its tests require a separate merge/deployment approval before they become available on the live website.
+
+## Phase 1H — reviewed human decisions and private context adapter (draft only)
+
+The approved plan is to let the signed-in owner approve/reject **one proposal at a time**, with a full text/source confirmation. `js/director-memory-review.js` has optional per-row controls, but `js/cloud-ui.js` explicitly passes `enableReview:false` today. The owner cannot yet approve in the live UI.
+
+`supabase/director_memory_review_v2_REVIEW_ONLY.sql` is a **new, unexecuted** migration. It grants only `UPDATE(status)` on owner-owned `proposed` rows, with RLS checking `approved` or `rejected` status, and stores a private append-only audit record from locked-down, non-API trigger functions. It must be independently reviewed and tested with real distinct users before application. This approach does not install or call the **unsafe old review RPC** from the original v1 REVIEW SQL.
+
+`js/cloud.js` proposes a status-only, project+id+proposed filtered PATCH using the authenticated owner's Supabase JWT. A missing or conflicting row cannot be presented as an applied decision. The UI requires an explicit user confirmation containing the full entry and provenance. These controls are **not a cryptographic human-presence proof**: browser JWTs are owner credentials, so AI and workers must never receive the user JWT or an authenticated review endpoint. The existing project- and owner-RLS boundary remains authoritative.
+
+`server/director-memory-context.cjs` defines a future server-only bridge which rechecks identity, actor and authorized project, rejects mixed-project responses, excludes unapproved records, and filters private content from Matt/Workers. It returns untrusted data without tool or action rights. The bridge is **not mounted in Render**, not sent to Copilot, and cannot initiate inference.
+
+**Open prerequisite:** PR #83 remains a separate unmerged adapter correction; this draft also normalizes PostgREST timestamps in the shared policy to prevent real Supabase timezone data from being rejected. Reconcile duplicate patches before merging either branch. No 74 historical proposals have been approved.
