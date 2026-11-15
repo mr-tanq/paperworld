@@ -58,13 +58,13 @@
    root.replaceChildren();
    root.append(el('h3','Έλεγχος αλλαγών · Listening Mirror'));
    if(!current){
-    root.append(el('p','Δεν υπάρχει ακόμη εγκεκριμένη προς ανασκόπηση πρόταση. Ο Worker παραμένει μόνο για ανάγνωση.','listening-review-note'));
+    root.append(el('p','listening-review-note','Δεν υπάρχει ακόμη εγκεκριμένη προς ανασκόπηση πρόταση. Ο Developer μπορεί να έχει ολοκληρώσει μόνο διάγνωση.'));
     return;
    }
-   root.append(el('p',current.summary,'listening-review-summary'));
-   root.append(el('p','Repository: '+current.repository+' · Βάση: '+current.branch+
-    ' · Εργασία: '+current.jobId,'listening-review-meta'));
-   root.append(el('p','Μόνο προεπισκόπηση · καμία αλλαγή δεν έχει πραγματοποιηθεί.','listening-review-warning'));
+   root.append(el('p','listening-review-summary',current.summary));
+   root.append(el('p','listening-review-meta','Repository: '+current.repository+' · Βάση: '+current.branch+
+    ' · Εργασία: '+current.jobId));
+   root.append(el('p','listening-review-warning','Μόνο προεπισκόπηση · καμία αλλαγή δεν έχει πραγματοποιηθεί.'));
    for(const file of current.files){
     const section=el('details','listening-review-file');
     const summary=el('summary',null,file.path+' · '+file.sha.slice(0,10));
