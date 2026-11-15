@@ -7,6 +7,7 @@ const {createGithubOAuth,APP_ORIGIN}=require('./github-oauth.cjs');
 const {makeMattChat}=require('./matt-live-chat.cjs');
 const {makeDelegation}=require('./matt-delegation.cjs');
 const {makeWorkerDelegation}=require('./matt-worker-delegation.cjs');
+const {makePokemonWorkerDelegation}=require('./pokemon-worker-delegation.cjs');
 const {makeJobHistoryApi}=require('./agent-job-history-api.cjs');
 const {createCopilotClient}=require('./copilot-client-loader.cjs');
 function response(res,status,body){
@@ -24,11 +25,13 @@ function createRenderMattServer({oauth=createGithubOAuth({
  }),chatFactory=({oauth})=>makeMattChat({oauth,clientFactory:createCopilotClient}),
  delegationFactory=({oauth})=>makeDelegation({oauth,clientFactory:createCopilotClient}),
  workerFactory=({oauth})=>makeWorkerDelegation({oauth,clientFactory:createCopilotClient}),
+ pokemonWorkerFactory=({oauth})=>makePokemonWorkerDelegation({oauth,clientFactory:createCopilotClient}),
  historyFactory=()=>makeJobHistoryApi()}={}){
- let live,delegation,worker,history;
+ let live,delegation,worker,pokemonWorker,history;
  function getLive(){if(!live)live=chatFactory({oauth});return live}
  function getDelegation(){if(!delegation)delegation=delegationFactory({oauth});return delegation}
  function getWorker(){if(!worker)worker=workerFactory({oauth});return worker}
+ function getPokemonWorker(){if(!pokemonWorker)pokemonWorker=pokemonWorkerFactory({oauth});return pokemonWorker}
  function getHistory(){if(!history)history=historyFactory();return history}
  const server=http.createServer(async(req,res)=>{
   // Never enable CORS or accept browser credentials until a full OAuth review.
@@ -56,6 +59,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
   }
   const isMattRequest=req.url==='/chat/matt'||req.url==='/diagnostic/matt-session'||
    req.url==='/delegate/matt'||req.url==='/delegate/matt/worker'||
+   req.url==='/delegate/matt/pokemon/worker'||
    req.url==='/history/matt/jobs';
   if(isMattRequest){
    if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
@@ -76,6 +80,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
     }
     const gateway=req.url==='/history/matt/jobs'?getHistory():
       req.url==='/delegate/matt/worker'?getWorker():
+      req.url==='/delegate/matt/pokemon/worker'?getPokemonWorker():
       req.url==='/delegate/matt'?getDelegation():getLive();
     const action=req.url==='/diagnostic/matt-session'?gateway.diagnose:gateway.handle;
     if(typeof action!=='function')return response(res,503,{error:'diagnostic_not_configured'});
