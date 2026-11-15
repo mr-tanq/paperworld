@@ -56,11 +56,14 @@
  // village actors worked merely because an animation played.
  const decisions=make('div','world-chat-decisions');
  decisions.hidden=true;
- let decisionView=null,decisionLoading=false;
- async function refreshDecisions(){
+ let decisionView=null,decisionLoading=false,lastDecisionRead=0;
+ async function refreshDecisions({force=false}={}){
   if(!cloud()?.signedIn()||!decisionView||decisionLoading)return;
+  // Avoid repeated owner-scoped HTTP reads whenever Messenger repaints.
+  // A newly finished Worker run bypasses this brief UI-only cooldown.
+  if(!force&&Date.now()-lastDecisionRead<30000)return;
   decisionLoading=true;
-  try{await decisionView.refresh()}
+  try{await decisionView.refresh();lastDecisionRead=Date.now()}
   finally{decisionLoading=false}
  }
  function setupDecisions(){
@@ -203,7 +206,7 @@
      mattReplies.push({content:String(worker.content||''),time:new Date().toISOString()});
      if(openId==='matt')paint();
      // Refresh the one real, persisted decision in the same conversation.
-     if(!pokemon)await refreshDecisions();
+     if(!pokemon)await refreshDecisions({force:true});
     }else{
      mattReplies.push({content:'Δεν ξεκίνησα τον Worker. Μπορούμε να συνεχίσουμε τη συζήτηση.',
       time:new Date().toISOString()});
