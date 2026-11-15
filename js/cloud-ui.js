@@ -92,7 +92,7 @@ function renderWorkshop(){
  // Project diagnosis and worker routing must come from authorized AI, not keywords.
  const section=el('section',undefined,'developer-chat');
  section.append(el('h3','Listening Mirror'));
- section.append(el('p','Ο αρμόδιος Director και ο Developer θα χειρίζονται οποιοδήποτε αίτημα ανατεθεί από τον Matt. Το AI δεν έχει συνδεθεί ακόμη.','room-footnote'));
+ section.append(el('p','Πες στον Matt τι χρειάζεσαι. Θα συνεργαστεί με τη Luna και την ομάδα της, και θα σου δείξει τη λύση όταν χρειάζεται έγκριση.','room-footnote'));
  section.append(btn('Μίλα στον Matt',()=>{
   if(window.PaperworldWorldDialogue?.show)window.PaperworldWorldDialogue.show('matt');
   else note('Το Messenger δεν είναι διαθέσιμο.',true);
@@ -103,7 +103,7 @@ function renderWorkshop(){
  const pendingReviews=listeningStoredProposals.filter(p=>p.status==='pending_review');
  const completedReviews=listeningStoredProposals.filter(p=>p.status!=='pending_review');
  reviewHost.append(el('h3',undefined,pendingReviews.length?
-  'Χρειάζεται η απόφασή σου ('+pendingReviews.length+')':'Οι προτάσεις σου'));
+  'Χρειάζεται η απόφασή σου ('+pendingReviews.length+')':'Λύσεις και αποφάσεις'));
  reviewHost.append(el('p','Οι λύσεις παρουσιάζονται απλά. Η τεχνική διαδικασία παραμένει κρυμμένη μέχρι να τη ζητήσεις.','room-footnote'));
  const publish=(summary,digest)=>{
   const lines=summary.files.map(f=>f.path).join(', ');
@@ -173,7 +173,7 @@ function renderWorkshop(){
 function renderMattConversation(){
  const sec=el('section',undefined,'developer-chat');
  sec.append(el('h3','Matt · Chief of Staff'));
- sec.append(el('p','Μίλα ελεύθερα στον Matt μέσω GitHub Copilot. Η AI συνομιλία ζητά ξεχωριστή έγκριση ανά μήνυμα. Ο Matt μπορεί να απαντήσει και να σχεδιάσει, αλλά δεν μπορεί ακόμη να αναθέσει πραγματική εργασία ή να αλλάξει αρχεία.','room-footnote'));
+ sec.append(el('p','Μίλα ελεύθερα στον Matt μέσω GitHub Copilot. Η AI συνομιλία ζητά ξεχωριστή έγκριση ανά μήνυμα. Ο Matt μπορεί να συνεργάζεται με τους Directors και να ζητά ξεχωριστή έγκριση πριν από διερευνήσεις που διαβάζουν αρχεία.','room-footnote'));
  sec.append(el('p','GitHub Copilot · οι AI κλήσεις γίνονται μόνο μετά τη δική σου έγκριση ανά μήνυμα και τον έλεγχο διαθέσιμου ορίου.','room-footnote'));
  sec.append(btn('Σύνδεσε το GitHub',()=>work(async()=>{
   const authorizationUrl=await client.beginGithubLink();
