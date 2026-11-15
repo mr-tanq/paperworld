@@ -74,7 +74,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
    try{
     for await(const chunk of req){
      total+=chunk.length;
-     if(total>4000){res.writeHead(413,{'Content-Type':'application/json'});
+     if(total>(req.url==='/delegate/matt'?26000:4000)){res.writeHead(413,{'Content-Type':'application/json'});
       res.end(JSON.stringify({error:'request_too_large'}));return}
      parts.push(chunk);
     }
