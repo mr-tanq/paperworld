@@ -53,7 +53,7 @@ test('Matt walks to the real server-confirmed director and returns on surveyed p
  const ui=read('js/world-dialogue.js');
  assert.match(app,/function startMattDirectorJourney\(directorId\)/);
  assert.match(app,/actors\.find\(a=>a\.id===directorId/);
- assert.match(app,/planMattRoute\(\[target\.x,target\.y\]\)/);
+ assert.match(app,/planMattEncounter\(target\)/);
  assert.match(app,/agentJourney\.pendingReturn=true/);
  assert.match(app,/agentJourney\.mode='outbound'/);
  assert.match(app,/agentJourney\.mode==='meeting'&&agentJourney\.pendingReturn/);
@@ -63,7 +63,8 @@ test('Matt walks to the real server-confirmed director and returns on surveyed p
  assert.match(ui,/world-chat-journey/);
  assert.doesNotMatch(app,/planMattRoute\(\[1125,515\]\)/);
  const nav=require('../js/navigation.js');
- const targets=[[620,530],[475,580],[415,625]];
+ const meeting=require('../js/director-movement.js');
+ const targets=['listening-director','pokemon-director','studio-director'].map(id=>meeting.talkSpots[id]);
  const origin=nav.snapToPath([835,854],110);
  for(const target of targets){
   const end=nav.snapToPath(target,55);
