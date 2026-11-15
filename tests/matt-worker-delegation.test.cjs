@@ -12,12 +12,14 @@ const headers={origin:'https://mr-tanq.github.io',authorization:'Bearer aaaaa.bb
 const payload={threadId,requestId,message:'Investigate missing concert pictures in Listening Mirror',consent:CONSENT};
 function fake({route='listening-director',category='artwork',
  owns=true,linked=true,budget=true,badEvidence=false,tamperPath=false,failTurn=0,
- failHistoryCreate=false,failHistoryEvent=false,memoryFails=false}={}){
+ failHistoryCreate=false,failHistoryEvent=false,memoryFails=false,
+ workerReply=null,proposalMemory=null}={}){
  const seen={calls:0,models:0,configs:[],prompts:[],stages:[],read:[],jobs:[],events:[]};
  const gateway=makeWorkerDelegation({
   oauth:{getLinkedToken:()=>linked?'gho_VALID_FAKE_ONLY':null},
   guard:{authenticate:async()=>({ownerId:owner}),ownsThread:async()=>owns},
   budgetVerified:async()=>budget,
+  proposalMemory,
   memoryLoader:{load:async params=>{
    seen.memoryParams=params;
    if(memoryFails)throw Error('PRIVATE_MEMORY_FAILURE');
@@ -48,7 +50,7 @@ function fake({route='listening-director',category='artwork',
       seen.calls++;seen.prompts.push(prompt);
       if(failTurn===seen.calls)throw Error('DO_NOT_LEAK_USER_PRIVATE_TOKEN');
       const responses=[route,category,
-       'Worker observed const stable at FILE L1. No edit or test was done.',
+       workerReply??'Worker observed const stable at FILE L1. No edit or test was done.',
        'Director confirms L1; next request approval for change.',
        'Matt reports code reviewed read-only and no changes made.'];
       return {data:{content:responses[seen.calls-1]}};
@@ -228,4 +230,41 @@ test('Memory lookup error prevents project history creation and worker inference
  assert.deepEqual(seen.jobs,[]);
  assert.deepEqual(seen.events,[]);
  assert.doesNotMatch(JSON.stringify(response),/PRIVATE_MEMORY_FAILURE/);
+});
+
+test('A long complete-file proposal is preserved, validated and stored without an extra AI turn',async()=>{
+ const tag='PAPERWORLD_CHANGE_PROPOSAL_V1:';
+ const draft={jobId:requestId,repository:'mr-tanq/concerts',baseRef:'main',
+  summary:'Keep a small artifact safe',edits:[{path:'js/concert-image-quality.js',
+   expectedSha:'a'.repeat(40),replacement:'const stable = true;\\n// clarified behavior'}]};
+ const longReport='Source confirms L1. '+('Inspection detail. '.repeat(400))+
+  '\\n'+tag+JSON.stringify(draft);
+ assert.ok(longReport.length>6000);
+ const saves=[];
+ const {gateway,seen}=fake({workerReply:longReport,
+  proposalMemory:{save:async input=>{saves.push(input);return {persisted:true}}}});
+ const result=await gateway.handle({headers,body:body(payload)});
+ assert.equal(result.status,200);
+ assert.equal(result.body.attemptedAiTurns,5);
+ assert.equal(seen.calls,5);
+ assert.equal(result.body.proposalStatus,'ready_for_review');
+ assert.equal(result.body.proposalPersisted,true);
+ assert.equal(saves.length,1);
+ assert.equal(saves[0].jobId,requestId);
+ assert.equal(saves[0].ownerId,owner);
+ assert.equal(saves[0].reviewProposal.plan.edits[0].replacement,draft.edits[0].replacement);
+ assert.match(seen.prompts[2],/primary deliverable/);
+ assert.match(seen.prompts[2],/ONE minimal/);
+ assert.ok(!seen.prompts[3].includes(tag));
+ assert.doesNotMatch(JSON.stringify(result.body),/gho_VALID_FAKE_ONLY/);
+});
+
+test('Analysis-only results do not claim saved changes and do not call storage',async()=>{
+ let writes=0;
+ const {gateway}=fake({proposalMemory:{save:async()=>{writes++;return {persisted:true}}}});
+ const result=await gateway.handle({headers,body:body(payload)});
+ assert.equal(result.status,200);
+ assert.equal(result.body.proposalStatus,'analysis_only');
+ assert.equal('reviewProposal' in result.body,false);
+ assert.equal(writes,0);
 });
