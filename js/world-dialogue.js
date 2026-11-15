@@ -7,6 +7,7 @@
  if(!view)return;
  let openId=null,revision=0,busy=false;
  const mattReplies=[];
+ let mattCachedEntries=null; // Keep visible replies while owner history refreshes.
  const historyCodec=()=>window.PaperworldMattHistory;
   // Short-lived conversation context for multi-turn continuity; no localStorage secrets.
   let activeMattDirector=null;
@@ -60,6 +61,8 @@
    'τον κατάλληλο μη ευαίσθητο Director. Δεν θα εκτελεστεί εργασία ή ανάγνωση '+
    'αρχείων χωρίς νέα έγκριση. Συνέχεια;'))return;
   busy=true;field.disabled=true;send.disabled=true;
+  veil.classList.remove('world-chat-journey');
+  status.textContent='Ο Matt επεξεργάζεται το αίτημα…';
   let failure=null,requestId=null,watcher=null,polling=false;
   const poll=async()=>{
    if(!requestId||polling)return;
@@ -86,11 +89,20 @@
     activeMattDirector=null;
     mattConversation.length=0;
    }
-   if(result.persisted!==true)mattReplies.push({content:String(result.content||
-    'Δεν μπόρεσα να προσδιορίσω με ασφάλεια τον αρμόδιο Director.'),
+   // Always render the verified reply immediately, including successful saves.
+   // The authenticated history will replace it once the same message ID arrives.
+   mattReplies.push({id:result.persisted===true?result.requestId:null,
+    content:String(result.content||
+     'Δεν μπόρεσα να προσδιορίσω με ασφάλεια τον αρμόδιο Director.'),
     time:new Date().toISOString()});
+   const journeyStarted=result.delegated===true&&
+    world()?.startMattDirectorJourney?.(result.directorId)===true;
+   if(journeyStarted)veil.classList.add('world-chat-journey');
    field.value='';
-   if(openId==='matt')paint();
+   if(openId==='matt'){
+    paint();
+    if(journeyStarted)status.textContent='Ο Matt επισκέφθηκε τον αρμόδιο Director · οπτική αναπαράσταση της ανάθεσης';
+   }
    const plan=result.delegated?result.workProposal:null;
    const permitted=plan?.requiresSeparateConsent===true&&
     plan.execution==='none'&&
@@ -180,7 +192,9 @@
   status.textContent=!active?'Συνδέσου στο PAPERWORLD Cloud για να στείλεις μηνύματα.':
    isMatt?'Συνομιλία με τον Matt · καμία εργασία χωρίς έγκριση':
    'Ιδιωτική συνομιλία · ο Director δεν έχει AI ακόμη';
-  messages.replaceChildren(system(active?'Φόρτωση ιδιωτικού ιστορικού…':'Απαιτείται σύνδεση.'));
+  if(active&&isMatt&&(mattCachedEntries!==null||mattReplies.length))
+   appendEntries(mattCachedEntries||[]);
+  else messages.replaceChildren(system(active?'Φόρτωση ιδιωτικού ιστορικού…':'Απαιτείται σύνδεση.'));
   connectGithub.hidden=true;
   if(isMatt&&active&&typeof cloud()?.githubLinkStatus==='function'){
    const selected=openId;
@@ -198,6 +212,12 @@
     if(token!==revision||openId!==selected)return;
     if(selected==='matt'&&historyCodec()){
      const recovered=historyCodec().recover(history);
+     // Persisted ID = original request UUID. Discard only the matching
+     // temporary bubble to prevent duplicates, not all unsaved replies.
+     const savedIds=new Set(history.filter(m=>m.role==='agent').map(m=>m.id));
+     for(let i=mattReplies.length-1;i>=0;i--)
+      if(mattReplies[i].id&&savedIds.has(mattReplies[i].id))mattReplies.splice(i,1);
+     mattCachedEntries=recovered.display;
      if(!busy){activeMattDirector=recovered.activeDirector;
       mattConversation.splice(0,mattConversation.length,...recovered.turns)}
      appendEntries(recovered.display);
@@ -211,7 +231,7 @@
   field.placeholder=available?'Γράψε μήνυμα…':'Συνδέσου για να στείλεις μήνυμα';
  }
  function show(id){openId=id;paint();if(!field.disabled)field.focus()}
- function hide(){openId=null;paint();mattBtn.focus()}
+ function hide(){openId=null;veil.classList.remove('world-chat-journey');paint();mattBtn.focus()}
  function nearby(){
   const target=world()?.nearestAgent(100);
   if(!target){showNotice('Δεν υπάρχει agent κοντά σου. Πλησίασε έναν χαρακτήρα.');return}
