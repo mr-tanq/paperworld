@@ -113,6 +113,25 @@
    return rows;
   }
 
+  // Explicit user-directed decision for exactly one proposed memory.
+  // Requires live reviewed SQL migration; until then Supabase denies PATCH.
+  // The browser sends only the status column. PostgreSQL RLS and an append-
+  // only trigger log become the authority when the migration is applied.
+  async function reviewDirectorMemory({projectId,entryId,decision}={}){
+   if(!ROOMS.has(projectId)||!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(entryId||'')||
+    !['approved','rejected'].includes(decision))
+    throw Error('Invalid Director Memory review');
+   const query='/rest/v1/paperworld_director_memory?select=id,project_id,status,reviewed_at'+
+    '&id=eq.'+encodeURIComponent(entryId)+'&project_id=eq.'+encodeURIComponent(projectId)+
+    '&status=eq.proposed';
+   const result=await withAuth(query,{method:'PATCH',data:{status:decision},
+    extra:{Prefer:'return=representation'}});
+   if(!Array.isArray(result)||result.length!==1||result[0]?.id!==entryId||
+    result[0]?.project_id!==projectId||result[0]?.status!==decision)
+    throw Error('Review not applied; refresh to confirm current status');
+   return Object.freeze({id:entryId,projectId,status:decision});
+  }
+
   const missionFields='id,source_task_id,project_room,repository,title,brief,mode,status,created_at,updated_at';
   async function listMissions(){
    return withAuth('/rest/v1/paperworld_missions?select='+missionFields+'&order=created_at.desc&limit=500');
@@ -301,7 +320,7 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   listDirectorMemory,agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,mattJobHistory,diagnoseMattSession};
+   listDirectorMemory,reviewDirectorMemory,agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,mattJobHistory,diagnoseMattSession};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });
