@@ -9,6 +9,7 @@ on:
       - 'server/matt-session-config.cjs'
       - 'server/matt-live-chat.cjs'
       - 'server/matt-delegation.cjs'
+      - 'server/matt-semantic-router.cjs'
       - 'server/matt-worker-delegation.cjs'
       - 'server/agent-job-memory.cjs'
       - 'server/director-memory-policy.cjs'
@@ -112,6 +113,7 @@ jobs:
             tests/github-oauth.test.cjs \
             tests/matt-live-chat.test.cjs \
             tests/matt-delegation.test.cjs \
+            tests/matt-semantic-router.test.cjs \
             tests/listening-repo-reader.test.cjs \
             tests/autofix-candidate-policy.test.cjs \
             tests/autofix-draft-workflow.test.cjs \

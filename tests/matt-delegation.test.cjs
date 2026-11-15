@@ -156,6 +156,39 @@ test('Zero approved memories are represented as absence, not fabricated history'
  assert.match(seen.prompts[1],/No approved memories for this project/);
 });
 
+test('Matt routes naturally phrased rejected-festival questions to Listening Mirror from one safe model response',async()=>{
+ const {gateway,seen}=make({route:'{"director":"listening-director"}'});
+ const result=await gateway.handle({headers,body:requestBody({
+  ...data,message:'Έχω απορρίψει ένα φεστιβάλ. Τώρα ανακοίνωσαν τους MONO. Τι κάνουμε;',
+  targetDirector:'auto'})});
+ assert.equal(result.status,200);
+ assert.equal(result.body.delegated,true);
+ assert.equal(result.body.directorId,'listening-director');
+ assert.equal(result.body.directorName,'Listening Mirror Director');
+ assert.equal(result.body.routeMethod,'ai_semantic');
+ assert.equal(result.body.routeStatus,'selected');
+ assert.equal(result.body.aiTurns,3);
+ assert.match(seen.prompts[0],/rejected festival revisits after lineup changes/);
+ assert.match(seen.prompts[0],/MONO/);
+ assert.equal(seen.memoryParams.actor,'listening-director');
+ assert.doesNotMatch(seen.prompts[0],/APPROVED_PROJECT_NOTE_ONLY/);
+});
+test('Unresolved automatic routes do not read memory or add a second model routing call',async()=>{
+ for(const route of ['not_ready','listening-director\\nnot_ready',
+  'I recommend listening-director','{"director":"wellbeing-director"}']){
+  const {gateway,seen}=make({route});
+  const result=await gateway.handle({headers,body:requestBody({...data,
+   message:'Έχω απορρίψει ένα φεστιβάλ και τώρα αλλάζει το πρόγραμμα.'})});
+  assert.equal(result.status,200);
+  assert.equal(result.body.delegated,false);
+  assert.equal(result.body.routeMethod,'ai_semantic');
+  assert.equal(result.body.routeStatus,'unresolved');
+  assert.equal(result.body.aiTurns,1);
+  assert.equal(seen.sent,1);
+  assert.equal(seen.memoryParams,undefined);
+  assert.doesNotMatch(result.body.content,/ιδιωτικ.*μνήμη/);
+ }
+});
 test('Explicit project selections load the correct isolated Director memory without an AI routing turn',async()=>{
  for(const actor of ['listening-director','studio-director','pokemon-director']){
   const {gateway,seen}=make({route:'WRONG_AI_ROUTE_IS_NOT_USED'});

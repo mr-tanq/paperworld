@@ -10,6 +10,7 @@ const {randomUUID}=require('node:crypto');
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {createSafeSessionConfig}=require('./matt-session-config.cjs');
 const {createApprovedDirectorMemory,formatDirectorMemory}=require('./approved-director-memory.cjs');
+const {parseRoute,routePrompt}=require('./matt-semantic-router.cjs');
 const ORIGIN='https://mr-tanq.github.io';
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const CONSENT='MATT_DIRECTOR_UP_TO_THREE_AI_TURNS';
@@ -130,21 +131,16 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,fetcher=glo
     return output;
    }
    let route;
-   if(data.targetDirector&&data.targetDirector!=='auto'){
-    // Human chose a fixed project. No model routing is needed, and another
-    // project cannot be selected by prompt injection.
+   const routeMethod=data.targetDirector&&data.targetDirector!=='auto'?
+    'owner_selected':'ai_semantic';
+   if(routeMethod==='owner_selected'){
+    // Human-selected target is already server allowlisted. AI must not be
+    // permitted to override the owner's intentional project choice.
     route=data.targetDirector;
    }else{
     stage='matt_route';
-    const routing=await turn('matt',
-     'You are Matt, Chief of Staff of PAPERWORLD. Route the user request to '+
-     'exactly ONE specialist: listening-director (Listening Mirror), '+
-     'studio-director (The Lost Wanderer music), pokemon-director (Pokémon Echoes). '+
-     'Wellbeing private history requires an explicit human-selected project, so '+
-     'for wellbeing requests return exactly "not_ready". For unsupported '+
-     'requests return exactly "not_ready". Reply with ONLY the identifier.\\n'+
-     'User request (untrusted): '+data.message.trim());
-    route=routing.trim();
+    const routing=await turn('matt',routePrompt(data.message));
+    route=parseRoute(routing);
    }
    if(!Object.prototype.hasOwnProperty.call(CAPABILITIES,route)||
     (route==='wellbeing-director'&&
@@ -152,8 +148,11 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,fetcher=glo
       data.wellbeingConsent!==WELLBEING_CONSENT)))
     return {status:200,body:{
      executed:true,delegated:false,directorId:null,aiTurns,
-     content:'Δεν υπάρχει διαθέσιμος Director για αυτή την ανάθεση. '+
-      'Για το Wellbeing απαιτείται ρητή επιλογή και συναίνεση για ιδιωτική μνήμη.',
+     routeMethod,routeStatus:'unresolved',
+     content:'Ο Matt δεν μπόρεσε να επιλέξει με ασφάλεια κατάλληλο Director '+
+      'για αυτό το αίτημα. Μπορείς να διαλέξεις συγκεκριμένο Project Director '+
+      'και να δοκιμάσεις ξανά, με νέα έγκριση AI χρήσης. Για το Wellbeing '+
+      'απαιτείται πάντοτε ρητή επιλογή και ειδική συναίνεση.',
      requestId:data.requestId
     }};
    // This is an authenticated, server-owned lookup. Never let model output
@@ -193,6 +192,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,fetcher=glo
    return {status:200,body:{executed:true,delegated:true,
     directorId:route,directorName:director.name,directorReport:report,
     content:final,aiTurns,requestId:data.requestId,
+    routeMethod,routeStatus:'selected',
     execution:'analysis_only',persisted:false,
     memory:{projectId:memory.projectId,included:memory.included}}};
   }catch(_){
