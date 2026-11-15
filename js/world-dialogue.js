@@ -166,6 +166,11 @@
    }
   }catch(error){
    failure=error;
+   // An AI error after routing must not leave Matt stuck at the Director.
+   if(journeyStarted){
+    world()?.completeMattDirectorJourney?.();
+    world()?.setAgentWorkflowFailure?.();
+   }
    if(requestId)world()?.setAgentWorkflowFailure?.();
    if(openId==='matt')status.textContent='Δεν ολοκληρώθηκε: '+error.message;
    showNotice('⚠ Η εργασία απέτυχε ή η συνομιλία δεν ολοκληρώθηκε: '+error.message);
