@@ -120,6 +120,26 @@ function drawWellbeingDirectorSprite(a){
  ctx.restore();
  return true;
 }
+// Existing The Lost Wanderer Studio Director, visual identity only.
+const studioDirectorVisual=new Image();
+studioDirectorVisual.decoding='async';
+studioDirectorVisual.src='./assets/studio-director-hooded-v1.png';
+function drawStudioDirectorSprite(a){
+ if(!studioDirectorVisual.complete || studioDirectorVisual.naturalWidth!==256 || studioDirectorVisual.naturalHeight!==352)return false;
+ const row={down:0,left:1,up:2,right:3}[a.direction]??0;
+ const frame=a.moving?Math.floor((a.walkDistance||0)/14)%4:1;
+ const sw=64,sh=88,dw=60,dh=88;
+ ctx.save();
+ ctx.fillStyle='rgba(31,24,18,.28)';
+ ctx.beginPath();ctx.ellipse(a.x,a.y-2,14,5,0,0,Math.PI*2);ctx.fill();
+ ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+ ctx.drawImage(studioDirectorVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh,dw,dh);
+ ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+ ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;
+ ctx.fillStyle='#fff4db';ctx.fillText('Director',a.x,a.y+14);
+ ctx.restore();
+ return true;
+}
 const pokemonDirectorVisual=new Image();
 pokemonDirectorVisual.decoding='async';
 pokemonDirectorVisual.src='./assets/pokemon-director-walk-hq-v2.png';
@@ -196,6 +216,13 @@ if(pokemonDirectorActor){
  pokemonDirectorActor.walkDistance=14;
  pokemonDirectorActor.lastVisualX=pokemonDirectorActor.x;
  pokemonDirectorActor.lastVisualY=pokemonDirectorActor.y;
+}
+const studioDirectorActor=actors.find(a=>a.id==='studio-director');
+if(studioDirectorActor){
+ studioDirectorActor.direction='down';studioDirectorActor.moving=false;
+ studioDirectorActor.walkDistance=14;
+ studioDirectorActor.lastVisualX=studioDirectorActor.x;
+ studioDirectorActor.lastVisualY=studioDirectorActor.y;
 }
 const wellbeingDirectorActor=actors.find(a=>a.id==='wellbeing-director');
 if(wellbeingDirectorActor){
@@ -330,6 +357,7 @@ const w=state.walker;
  if(a.id==='listening-director' && drawListeningDirectorSprite(a))return;
  if(a.id==='pokemon-director' && drawPokemonDirectorSprite(a))return;
  if(a.id==='wellbeing-director' && drawWellbeingDirectorSprite(a))return;
+ if(a.id==='studio-director' && drawStudioDirectorSprite(a))return;
  ctx.save();ctx.fillStyle='#42362999';ctx.beginPath();ctx.ellipse(a.x,a.y,13,5,0,0,Math.PI*2);ctx.fill();
  ctx.fillStyle=a.id==='matt'?'#c9a56e':'#8ca7af';ctx.beginPath();ctx.arc(a.x,a.y-24,10,0,Math.PI*2);ctx.fill();
  ctx.fillStyle='#3c4d58';ctx.fillRect(a.x-10,a.y-14,20,20);
@@ -371,6 +399,15 @@ layers.push({id:'player',depth:w.y,paint:()=>{if(!drawPlayerSprite(w))drawFigure
  if(state.destination){const p=state.destination;ctx.strokeStyle='#fef3d9';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x-7,p.y);ctx.lineTo(p.x+7,p.y);ctx.moveTo(p.x,p.y-7);ctx.lineTo(p.x,p.y+7);ctx.stroke()}
  ctx.restore()}
 function tick(now){
+ // The studio Director remains at the studio unless real actor motion is introduced elsewhere.
+ if(studioDirectorActor){
+  const a=studioDirectorActor,dx=a.x-a.lastVisualX,dy=a.y-a.lastVisualY;
+  const traveled=Math.hypot(dx,dy);
+  a.moving=traveled>0.25;
+  if(a.moving){a.direction=mattDirection(dx,dy,a.direction);a.walkDistance+=traveled}
+  a.lastVisualX=a.x;a.lastVisualY=a.y;
+ }
+
  // Animate only real movement of the existing Wellbeing Director; no invented patrol.
  if(wellbeingDirectorActor){
   const a=wellbeingDirectorActor,dx=a.x-a.lastVisualX,dy=a.y-a.lastVisualY;
