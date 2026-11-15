@@ -76,6 +76,7 @@ jobs:
           node --check js/app.js
           node --check js/world-dialogue.js
           node --check js/visual-agent-workflow.js
+          node --check tests/integration/supabase-two-auth-memory.mjs
       - name: Test agent registry, conversation, cloud storage and UI
         run: |
           node --test \
