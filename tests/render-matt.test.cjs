@@ -47,3 +47,32 @@ test('Server has no embedded GitHub secrets or unguarded tool execution',()=>{
  assert.match(source,/aiEnabled:true/);
  assert.match(source,/chatFactory/);
 });
+
+test('Pokémon Worker HTTP route is isolated, POST-only, origin-checked and dispatches to explicit gateway',async()=>{
+ let used=0;
+ const app=createRenderMattServer({
+  oauth:{callback:async()=>({status:302,headers:{Location:'/'}})},
+  pokemonWorkerFactory:()=>({handle:async()=>{used++;return {
+   status:200,body:{executed:true,delegated:true,directorId:'pokemon-director',
+    workerId:'pokemon-developer',content:'Synthetic read-only report',persisted:false}
+  }}})
+ });
+ const address=await app.listen({port:0,host:'127.0.0.1'});
+ const call=(origin,method)=>new Promise((resolve,reject)=>{
+  const request=http.request({host:'127.0.0.1',port:address.port,
+   path:'/delegate/matt/pokemon/worker',method,headers:origin?{Origin:origin}:{}
+  },res=>{let raw='';res.on('data',x=>raw+=x);
+   res.on('end',()=>resolve({status:res.statusCode,
+    body:raw?JSON.parse(raw):null}))});
+  request.on('error',reject);request.end('{}');
+ });
+ try{
+  assert.equal((await call(null,'POST')).status,403);
+  assert.equal((await call('https://mr-tanq.github.io','GET')).status,405);
+  const result=await call('https://mr-tanq.github.io','POST');
+  assert.equal(result.status,200);
+  assert.equal(result.body.workerId,'pokemon-developer');
+  assert.equal(result.body.persisted,false);
+  assert.equal(used,1);
+ }finally{await app.close()}
+});
