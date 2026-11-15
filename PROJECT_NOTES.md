@@ -145,3 +145,11 @@ Proposed repair:
 - A failure is always marked visibly in village UI as **«⚠ Εργασία απέτυχε»**, including when the failure happened before the Matt->Director walk began. The actual error is not misrepresented as success. New JS cache-bust versions are included for tablet use.
 - Offline mocked tests cover token-limited source reads, failure classification, security redaction, worker propagation, and visual status. No actual GitHub Copilot requests, additional budget, Supabase schema changes or live production deployment in the PR.
 - **Human authorization:** user explicitly approved preparing a draft PR only. Merge and deployment require separate authorization after CI.
+
+## 2026-11-15 — Stage 1 Auto Fix guardrails (user-authorized draft implementation)
+
+User requested that PAPERWORLD agents eventually fix, test, merge and deploy *small safe bugs* automatically, with hard restrictions. They approved proceeding after the policy discussion. **The current step covers the preparatory Phase 1 draft-PR framework only**; no real automated model editing or write permission has been activated.
+
+Added `server/autofix-candidate-policy.cjs` (source allowlist of two TicketSwap browser files, max three files, max 80 changed source lines, one new regression test, strict static import and high-risk addition checks), and `server/autofix-draft-workflow.cjs` (requires trusted owner approval, durable daily quota, bounded inference, source snapshot, no-network/no-secrets sandbox verifier, and a publisher restricted to a draft PR). Both modules are **not mounted in the Render server**; all external adapters and permissions remain unconfigured. New mock-only tests, CI coverage and full design/limitations in `docs/AUTOFIX_PHASE1_POLICY.md`.
+
+Do not mistake purely mocked green CI for safe real code execution. Follow-up items include separate narrow GitHub App consent, auditable sandbox, atomic owner quotas, and independently verified CI. No merge or deployment without separate approval.
