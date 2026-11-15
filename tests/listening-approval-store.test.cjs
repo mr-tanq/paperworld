@@ -48,11 +48,14 @@ test('Malformed or wrong-repository grants never touch storage',async()=>{
  }
  assert.equal(n,0);
 });
-test('Store fails closed without backend secret and has no public API route',()=>{
+test('Store fails closed without backend secret and is wired only through owner-checked API',()=>{
  assert.throws(()=>createDurableApprovalStore({secret:''}));
  const fs=require('node:fs');
  const server=fs.readFileSync('server/render-matt.cjs','utf8');
+ const api=fs.readFileSync('server/listening-proposal-api.cjs','utf8');
  const ui=fs.readFileSync('js/cloud-ui.js','utf8');
- assert.doesNotMatch(server,/listening-approval-store|paperworld_write_approvals/);
+ assert.match(server,/getApprovalStore\(\)/);
+ assert.match(api,/guard\.authenticate\(token\)/);
+ assert.match(api,/guard\.ownsThread/);
  assert.doesNotMatch(ui,/paperworld_write_approvals/);
 });
