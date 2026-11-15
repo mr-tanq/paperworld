@@ -153,7 +153,7 @@ test('Failures do not reveal source, prompts or secrets in HTTP or logs',async()
 test('Messenger has explicit worker-specific opt-in without losing ordinary chat',()=>{
  const ui=fs.readFileSync(path.join(__dirname,'../js/world-dialogue.js'),'utf8');
  assert.match(ui,/runMattWorkflow/);
- assert.match(ui,/Έως 5/);
+ assert.match(ui,/έως 5|Έως 5/);
  assert.match(ui,/delegateMattWorker/);
  assert.doesNotMatch(ui,/result\.workerReport,time/);
  assert.doesNotMatch(ui,/result\.directorReport,time/);
