@@ -15,3 +15,15 @@ test('portrait fallback never masks a loaded upgraded portrait',()=>{
  assert.match(src,/querySelector\('canvas\[data-portrait-ready\]'\)/);
  for(const worker of profiles.entries('worker'))assert.equal(worker.portrait,undefined);
 });
+
+
+test('all five portrait files are present and correctly encoded WebP images',()=>{
+ for(const file of Object.values(named)){
+  const full=path.join(__dirname,'../assets/portraits',file);
+  assert.ok(fs.existsSync(full),'missing '+file);
+  const bytes=fs.readFileSync(full);
+  assert.ok(bytes.length>1000,'empty portrait '+file);
+  assert.equal(bytes.toString('ascii',0,4),'RIFF','invalid RIFF header '+file);
+  assert.equal(bytes.toString('ascii',8,12),'WEBP','invalid WebP signature '+file);
+ }
+});
