@@ -147,7 +147,8 @@ jobs:
             tests/matt-worker-delegation.test.cjs \
             tests/matt-session-config.test.cjs \
             tests/matt-approval-claimer.test.cjs
-
+      - name: Run complete offline Node regression suite (no network/model calls)
+        run: npm test
 
   director-memory-postgres-rls:
     name: Memory owner RLS (isolated PostgreSQL)
