@@ -94,6 +94,7 @@ jobs:
             tests/human-player-visual.test.cjs \
             tests/listening-director-visual.test.cjs \
             tests/characters-hq.test.cjs \
+            tests/pokemon-director-visual.test.cjs \
             tests/matt-copilot-adapter.test.cjs \
             tests/matt-gateway.test.cjs \
             tests/supabase-identity-guard.test.cjs \
