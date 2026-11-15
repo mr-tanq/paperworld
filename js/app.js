@@ -254,7 +254,7 @@ mattActor.direction='down';mattActor.moving=false;mattActor.walkDistance=16;
 mattActor.x=state.walker.x-36;mattActor.y=state.walker.y;
 const followTrail=[{x:state.walker.x,y:state.walker.y}];
 const agentJourney={mode:'following',route:[],phase:'idle',meeting:false,
- pendingReturn:false,meetingSince:0,failed:false};
+ pendingReturn:false,meetingSince:0,failed:false,meetingDirectorId:null,priorDirectorDirection:null};
 const mattReturnWaiters=[];
 function resolveMattReturn(){while(mattReturnWaiters.length)mattReturnWaiters.shift()()}
 window.PaperworldWorld=Object.freeze({
@@ -289,6 +289,29 @@ function planMattRoute(target){
  agentJourney.route=points.map(([x,y])=>({x,y})).filter(p=>Math.hypot(p.x-mattActor.x,p.y-mattActor.y)>1);
  return true;
 }
+function planMattEncounter(director){
+ const encounter=directorMovement.stagedEncounter(navigation,director);
+ if(!encounter||!planMattRoute(encounter.point))return false;
+ agentJourney.meetingDirectorId=director.id;
+ agentJourney.priorDirectorDirection=null;
+ return true;
+}
+function startFaceToFace(){
+ const director=actors.find(a=>a.id===agentJourney.meetingDirectorId);
+ const encounter=directorMovement.stagedEncounter(navigation,director);
+ if(!director||!encounter)return;
+ agentJourney.priorDirectorDirection=director.direction||'down';
+ mattActor.direction=directorMovement.facingToward(mattActor,director,mattActor.direction);
+ director.direction=directorMovement.facingToward(director,mattActor,director.direction);
+ mattActor.moving=false;director.moving=false;
+}
+function endFaceToFace(){
+ const director=actors.find(a=>a.id===agentJourney.meetingDirectorId);
+ if(director&&agentJourney.priorDirectorDirection!==null)
+  director.direction=agentJourney.priorDirectorDirection;
+ agentJourney.priorDirectorDirection=null;
+ agentJourney.meetingDirectorId=null;
+}
 // Re-enact only a verified AI handoff: select the ACTUAL project Director.
  // The inference has already finished. This is visual playback, not a live
  // claim that a model is physically walking between agents.
@@ -296,7 +319,7 @@ function startMattDirectorJourney(directorId){
  const target=actors.find(a=>a.id===directorId&&
   ['listening-director','pokemon-director','studio-director'].includes(a.id));
  if(!target||agentJourney.mode!=='following')return false;
- if(!planMattRoute([target.x,target.y]))return false;
+ if(!planMattEncounter(target))return false;
  agentJourney.phase='routed';agentJourney.failed=false;
  agentJourney.pendingReturn=false;agentJourney.meeting=false;
  agentJourney.mode='outbound';
@@ -314,6 +337,7 @@ function waitMattDirectorReturn(){
 function setAgentWorkflowFailure(){
  // A worker failure is not a completed meeting. Never invent a journey.
  agentJourney.failed=true;
+ if(agentJourney.mode==='meeting')endFaceToFace();
  if(agentJourney.mode==='outbound'||agentJourney.mode==='meeting')
   setAgentWorkflowStage('failed');
  else agentJourney.phase='failed';
@@ -336,7 +360,7 @@ function setAgentWorkflowStage(stateName){
   }
  }else if(projection.travel&&agentJourney.mode==='following'){
   const target=actors.find(a=>a.id==='listening-director');
-  if(target&&planMattRoute([target.x,target.y]))agentJourney.mode='outbound';
+  if(target&&planMattEncounter(target))agentJourney.mode='outbound';
  }
  return true;
 }
@@ -440,7 +464,7 @@ layers.push({id:'player',depth:depth.actorWalkwayDepth(w,navigation,defs),paint:
   ctx.restore();
  }
  if(agentJourney.meeting){
-  const d=actors.find(a=>a.id==='listening-director');
+  const d=actors.find(a=>a.id===agentJourney.meetingDirectorId);
   ctx.save();ctx.font='bold 22px system-ui';ctx.fillStyle='#fff4db';
   ctx.shadowColor='#15211e';ctx.shadowBlur=7;
   ctx.fillText('…',mattActor.x,mattActor.y-96);
@@ -494,7 +518,7 @@ const dt=Math.min(.05,(now-(tick.last||now))/1000);tick.last=now;
    }
    if(dist<=speed+0.01)agentJourney.route.shift();
   }else if(agentJourney.mode==='outbound'){
-   agentJourney.mode='meeting';agentJourney.meeting=true;agentJourney.meetingSince=now;
+   agentJourney.mode='meeting';agentJourney.meeting=true;agentJourney.meetingSince=now;startFaceToFace();
   }else{
    agentJourney.mode='following';agentJourney.meeting=false;
    resolveMattReturn();
@@ -504,6 +528,7 @@ const dt=Math.min(.05,(now-(tick.last||now))/1000);tick.last=now;
  if(agentJourney.mode==='meeting'&&agentJourney.pendingReturn&&
     now-agentJourney.meetingSince>1600){
   agentJourney.meeting=false;agentJourney.pendingReturn=false;
+  endFaceToFace();
   if(planMattRoute([state.walker.x,state.walker.y]))agentJourney.mode='returning';
   else{agentJourney.mode='following';resolveMattReturn()}
  }
