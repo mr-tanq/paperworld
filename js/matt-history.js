@@ -38,5 +38,9 @@
   }
   return {activeDirector,turns,display};
  }
- return Object.freeze({encode,decode,recover});
+ function reconcileReplies(pending,history){
+  const saved=new Set((Array.isArray(history)?history:[]).filter(m=>m.role==='agent').map(m=>m.id));
+  return (Array.isArray(pending)?pending:[]).filter(reply=>!reply.id||!saved.has(reply.id));
+ }
+ return Object.freeze({encode,decode,recover,reconcileReplies});
 });

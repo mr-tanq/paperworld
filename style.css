@@ -330,3 +330,6 @@ body>header span{font-size:10px;color:#a3afa6;letter-spacing:.04em}
 .world-chat-project-label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#d3d7df}
 .world-chat-project-select{width:100%;min-height:42px;background:#252d36;color:#f7f1e8;border:1px solid #797476;border-radius:9px;padding:8px 10px;font:inherit;font-size:13px}
 .world-chat-project-select:focus-visible{outline:2px solid #f3c487;outline-offset:2px}
+
+/* Verified Matt handoff playback: leave the surveyed village paths visible. */
+.world-chat-veil.world-chat-journey{background:rgba(7,9,13,.30);backdrop-filter:blur(.5px);-webkit-backdrop-filter:blur(.5px)}

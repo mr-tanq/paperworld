@@ -260,6 +260,7 @@ window.PaperworldWorld=Object.freeze({
  // T addresses a nearby Director; M talks to the always-available Matt.
  setAgentWorkflowStage,
  setAgentWorkflowFailure,
+ startMattDirectorJourney,
  nearestAgent:(radius=100)=>actors.filter(a=>a.id!=='matt')
    .map(a=>({...a,distance:Math.hypot(a.x-state.walker.x,a.y-state.walker.y)}))
    .filter(a=>a.distance<=radius).sort((a,b)=>a.distance-b.distance)[0]||null
@@ -282,6 +283,19 @@ function planMattRoute(target){
  if(!points.length)return false;
  // Preserve physical movement. No teleporting to the target actor/building.
  agentJourney.route=points.map(([x,y])=>({x,y})).filter(p=>Math.hypot(p.x-mattActor.x,p.y-mattActor.y)>1);
+ return true;
+}
+// Re-enact only a verified AI handoff: select the ACTUAL project Director.
+ // The inference has already finished. This is visual playback, not a live
+ // claim that a model is physically walking between agents.
+function startMattDirectorJourney(directorId){
+ const target=actors.find(a=>a.id===directorId&&
+  ['listening-director','pokemon-director','studio-director'].includes(a.id));
+ if(!target||agentJourney.mode!=='following')return false;
+ if(!planMattRoute([target.x,target.y]))return false;
+ agentJourney.phase='routed';agentJourney.failed=false;
+ agentJourney.pendingReturn=true;agentJourney.meeting=false;
+ agentJourney.mode='outbound';
  return true;
 }
 function setAgentWorkflowFailure(){
@@ -308,7 +322,8 @@ function setAgentWorkflowStage(stateName){
    if(planMattRoute([state.walker.x,state.walker.y]))agentJourney.mode='returning';
   }
  }else if(projection.travel&&agentJourney.mode==='following'){
-  if(planMattRoute([1125,515]))agentJourney.mode='outbound';
+  const target=actors.find(a=>a.id==='listening-director');
+  if(target&&planMattRoute([target.x,target.y]))agentJourney.mode='outbound';
  }
  return true;
 }

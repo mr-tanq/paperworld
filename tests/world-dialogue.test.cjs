@@ -75,3 +75,19 @@ test('Persistent Matt history restores active project after reopening the chat',
  assert.equal(result.display[1].text,'Τι ατμόσφαιρα;');
  assert.equal(recover([{role:'human',content:'hello'}]).activeDirector,null);
 });
+
+test('Matt renders the verified response before an owner-history refresh finishes',()=>{
+ assert.match(source,/mattReplies\.push\(\{id:result\.persisted===true\?result\.requestId:null/);
+ assert.match(source,/if\(active&&isMatt&&\(mattCachedEntries!==null\|\|mattReplies\.length\)\)/);
+ assert.match(source,/appendEntries\(mattCachedEntries\|\|\[\]\)/);
+ assert.match(source,/historyCodec\(\)\.reconcileReplies\(mattReplies,history\)/);
+ assert.match(source,/startMattDirectorJourney\?\.\(result\.directorId\)/);
+});
+test('Reply reconciliation removes saved bubbles by exact ID, keeps unsaved and unrelated replies',()=>{
+ const {reconcileReplies}=require('../js/matt-history.js');
+ const pending=[{id:'a',content:'saved'},{id:'b',content:'not yet saved'},
+  {id:null,content:'unsaved local'}];
+ const actual=[{id:'a',role:'agent'},{id:'b',role:'human'}];
+ assert.deepEqual(reconcileReplies(pending,actual),pending.slice(1));
+ assert.deepEqual(reconcileReplies(pending,[]),pending);
+});
