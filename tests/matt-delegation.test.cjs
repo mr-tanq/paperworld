@@ -3,7 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const {makeDelegation,CONSENT,CAPABILITIES}=require('../server/matt-delegation.cjs');
+const {makeDelegation,CONSENT,WELLBEING_CONSENT,CAPABILITIES}=require('../server/matt-delegation.cjs');
 const owner='11111111-1111-4111-8111-111111111111';
 const thread='22222222-2222-4222-8222-222222222222';
 const request='33333333-3333-4333-8333-333333333333';
@@ -40,8 +40,10 @@ function make({route='listening-director',owns=true,linked=true,budget=true,fail
   memoryLoader:{load:async params=>{
    seen.memoryParams=params;
    if(memoryFails)throw Error('PRIVATE_DB_FAILURE_NEVER_EXPOSE');
-   return {projectId:'workshop',actor:'listening-director',untrustedContent:true,
-    included:memoryIncluded,text:memoryIncluded?'FESTIVAL_APPROVED_RULE_ONLY':'',
+   const projects={'listening-director':'workshop','studio-director':'studio',
+    'pokemon-director':'pokemon','wellbeing-director':'wellbeing'};
+   return {projectId:projects[params.actor],actor:params.actor,untrustedContent:true,
+    included:memoryIncluded,text:memoryIncluded?'APPROVED_PROJECT_NOTE_ONLY':'',
     capabilitiesGranted:[]};
   }},
   clientFactory,diagnostics:stage=>seen.diagnostics.push(stage)
@@ -71,15 +73,15 @@ test('Listening Mirror director is real routed AI turn and reports via Matt, wit
  assert.equal(seen.options.useLoggedInUser,false);
  assert.equal(seen.stopped,1);
  assert.ok(seen.prompts[1].includes('CANNOT inspect their source code'));
- assert.match(seen.prompts[1],/FESTIVAL_APPROVED_RULE_ONLY/);
- assert.doesNotMatch(seen.prompts[0],/FESTIVAL_APPROVED_RULE_ONLY/);
- assert.doesNotMatch(seen.prompts[2],/FESTIVAL_APPROVED_RULE_ONLY/);
+ assert.match(seen.prompts[1],/APPROVED_PROJECT_NOTE_ONLY/);
+ assert.doesNotMatch(seen.prompts[0],/APPROVED_PROJECT_NOTE_ONLY/);
+ assert.doesNotMatch(seen.prompts[2],/APPROVED_PROJECT_NOTE_ONLY/);
  assert.equal(out.body.memory.included,1);
  assert.equal(seen.memoryParams.actor,'listening-director');
  assert.equal(seen.memoryParams.ownerId,owner);
 });
 test('Matt AI routing cannot delegate to nonexistent or unauthorized directors',async()=>{
- for(const route of ['pokemon-director','not_ready','listening-developer','unknown-route']){
+ for(const route of ['not_ready','listening-developer','unknown-route']){
   const {gateway,seen}=make({route});
   const r=await gateway.handle({headers,body:requestBody(data)});
   assert.equal(r.status,200);
@@ -124,8 +126,9 @@ test('Director turn errors fail closed and never disclose exception text',async(
  assert.equal(seen.diagnostics[0],'model_reply');
  assert.doesNotMatch(JSON.stringify(r),/SECRET|gho_VALID/);
 });
-test('Only Listening Mirror Director has enabled AI delegation in this PR',()=>{
- assert.deepEqual(Object.keys(CAPABILITIES),['listening-director']);
+test('Registered Directors are available for read-only Q&A, Worker remains Listening-only',()=>{
+ assert.deepEqual(Object.keys(CAPABILITIES).sort(),[
+  'listening-director','studio-director','pokemon-director','wellbeing-director'].sort());
  assert.equal(CAPABILITIES['listening-director'].reportsTo,'matt');
  const server=fs.readFileSync(path.join(__dirname,'../server/render-matt.cjs'),'utf8');
  assert.match(server,/\/delegate\/matt/);
@@ -151,4 +154,60 @@ test('Zero approved memories are represented as absence, not fabricated history'
  assert.equal(out.status,200);
  assert.equal(out.body.memory.included,0);
  assert.match(seen.prompts[1],/No approved memories for this project/);
+});
+
+test('Explicit project selections load the correct isolated Director memory without an AI routing turn',async()=>{
+ for(const actor of ['listening-director','studio-director','pokemon-director']){
+  const {gateway,seen}=make({route:'WRONG_AI_ROUTE_IS_NOT_USED'});
+  const result=await gateway.handle({headers,body:requestBody({...data,
+   targetDirector:actor})});
+  assert.equal(result.status,200);
+  assert.equal(result.body.directorId,actor);
+  assert.equal(result.body.aiTurns,2);
+  assert.equal(seen.sent,2);
+  assert.equal(seen.memoryParams.actor,actor);
+  assert.match(seen.prompts[0],/APPROVED_PROJECT_NOTE_ONLY/);
+  assert.doesNotMatch(seen.prompts[1],/APPROVED_PROJECT_NOTE_ONLY/);
+  assert.deepEqual(seen.created.map(x=>x.availableTools),[[],[]]);
+ }
+});
+test('Wellbeing AI history requires selected target and explicit per-turn sensitive consent',async()=>{
+ const selected={...data,targetDirector:'wellbeing-director'};
+ for(const bad of [
+  selected,
+  {...selected,wellbeingConsent:false},
+  {...data,wellbeingConsent:WELLBEING_CONSENT},
+  {...data,targetDirector:'studio-director',wellbeingConsent:'INVALID'}
+ ]){
+  const {gateway,seen}=make();
+  const result=await gateway.handle({headers,body:requestBody(bad)});
+  assert.equal(result.status,400);
+  assert.equal(seen.sent,0);
+  assert.equal(seen.memoryParams,undefined);
+ }
+ const {gateway,seen}=make({route:'not_ready'});
+ const good=await gateway.handle({headers,body:requestBody({
+  ...selected,wellbeingConsent:WELLBEING_CONSENT})});
+ assert.equal(good.status,200);
+ assert.equal(good.body.directorId,'wellbeing-director');
+ assert.equal(good.body.memory.projectId,'wellbeing');
+ assert.equal(good.body.aiTurns,2);
+ assert.equal(seen.memoryParams.actor,'wellbeing-director');
+ assert.doesNotMatch(seen.prompts[1],/APPROVED_PROJECT_NOTE_ONLY/);
+});
+test('Automatic router may not select wellbeing even if AI produces this route',async()=>{
+ const {gateway,seen}=make({route:'wellbeing-director'});
+ const r=await gateway.handle({headers,body:requestBody(data)});
+ assert.equal(r.status,200);
+ assert.equal(r.body.delegated,false);
+ assert.equal(seen.sent,1);
+ assert.equal(seen.memoryParams,undefined);
+});
+test('No approved records for a new project are not misrepresented as known facts',async()=>{
+ const {gateway,seen}=make({memoryIncluded:0});
+ const out=await gateway.handle({headers,body:requestBody({
+  ...data,targetDirector:'studio-director'})});
+ assert.equal(out.status,200);
+ assert.equal(out.body.memory.included,0);
+ assert.match(seen.prompts[0],/No approved memories for this project/);
 });

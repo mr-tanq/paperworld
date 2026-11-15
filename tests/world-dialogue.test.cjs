@@ -59,7 +59,7 @@ test('Matt offers OAuth reconnect inside Messenger, including Render Free sleep'
  assert.match(source,/beginGithubLink\(\)/);
  assert.match(source,/runMattWorkflow\(text\)/);
  assert.match(source,/delegateMattWorker\(text,\{onStart/);
- assert.match(source,/delegateMatt\(text\)/);
+ assert.match(source,/delegateMatt\(text,\{/);
  assert.match(source,/workflowMode==='work'/);
  assert.match(source,/const isWork=workflowMode==='work'/);
  assert.match(source,/modePicker/);
@@ -76,9 +76,27 @@ test('Director questions default to 3-turn path, Worker investigation requires e
  assert.match(source,/setWorkflowMode\('ask'\)/);
  assert.match(source,/setWorkflowMode\('work'\)/);
  assert.match(source,/const result=isWork\?/);
- assert.match(source,/await cloud\(\)\.delegateMatt\(text\)/);
+ assert.match(source,/await cloud\(\)\.delegateMatt\(text,\{/);
  assert.match(source,/await cloud\(\)\.delegateMattWorker\(text,\{onStart/);
  assert.match(source,/if\(isWork\)await poll\(\)/);
  assert.match(source,/if\(isWork\)showStage\('reported'\)/);
  assert.doesNotMatch(source,/if\(\/festival\//);
+});
+
+test('Owner selects a fixed project when asking Director and explicitly consents to sensitive wellbeing',()=>{
+ assert.match(source,/projectSelect\.value='auto'/);
+ for(const name of ['listening-director','studio-director','pokemon-director','wellbeing-director'])
+  assert.ok(source.includes(name));
+ assert.match(source,/targetDirector=isWork\?'auto':projectSelect\.value/);
+ assert.match(source,/includesWellbeing=targetDirector==='wellbeing-director'/);
+ assert.match(source,/SHARE_APPROVED_WELLBEING_MEMORY_FOR_THIS_TURN|ΕΙΔΙΚΗ ΣΥΝΑΙΝΕΣΗ WELLBEING/);
+ assert.match(source,/wellbeingConsent:includesWellbeing/);
+ assert.match(source,/targetDirector,wellbeingConsent/);
+ assert.match(source,/projectTarget\.hidden=!isMatt\|\|workflowMode!=='ask'/);
+ assert.match(source,/projectTarget\.hidden=mode!=='ask'/);
+ const browser=fs.readFileSync(path.join(__dirname,'../js/cloud.js'),'utf8');
+ assert.match(browser,/targetDirector='auto'/);
+ assert.match(browser,/targetDirector==='wellbeing-director'&&wellbeingConsent!==true/);
+ assert.match(browser,/SHARE_APPROVED_WELLBEING_MEMORY_FOR_THIS_TURN/);
+ assert.match(browser,/delegateMattWorker\(message/);
 });

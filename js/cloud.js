@@ -281,14 +281,23 @@
     return result;
    }catch(error){error.noteSaved=true;throw error}
   }
-  async function delegateMatt(message){
+  async function delegateMatt(message,{targetDirector='auto',wellbeingConsent=false}={}){
+   const choices=['auto','listening-director','studio-director',
+    'pokemon-director','wellbeing-director'];
+   if(!choices.includes(targetDirector)||
+    (targetDirector==='wellbeing-director'&&wellbeingConsent!==true)||
+    (targetDirector!=='wellbeing-director'&&wellbeingConsent===true))
+    throw Error('Explicit project selection and wellbeing consent required');
    const text=String(message||'').trim();
    if(!text||text.length>1200)throw Error('Message must be 1–1200 characters');
    await ensureAuth();
    const thread=await getAgentThread('matt',true);
    await agentStore().say(thread.id,text);
    const payload={threadId:thread.id,requestId:crypto.randomUUID(),message:text,
-    consent:'MATT_DIRECTOR_UP_TO_THREE_AI_TURNS'};
+    consent:'MATT_DIRECTOR_UP_TO_THREE_AI_TURNS',targetDirector,
+    ...(targetDirector==='wellbeing-director'&&wellbeingConsent===true?{
+     wellbeingConsent:'SHARE_APPROVED_WELLBEING_MEMORY_FOR_THIS_TURN'
+    }:{})};
    try{
     const response=await fetcher(MATT_ORIGIN+'/delegate/matt',{
      method:'POST',headers:{Authorization:'Bearer '+session.access_token,

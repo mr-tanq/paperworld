@@ -1,5 +1,5 @@
-/* PAPERWORLD first real Director: explicit multi-agent conversation, NO tools.
- * Matt (AI routing) → Listening Mirror Director (AI analysis) → Matt (AI report).
+/* PAPERWORLD project-isolated Directors: explicit multi-agent conversation, NO tools.
+ * Matt (AI routing) → approved Director (analysis) → Matt (report).
  * All calls charge included GitHub AI Credits; no unattended background actions.
  */
 'use strict';
@@ -13,11 +13,35 @@ const {createApprovedDirectorMemory,formatDirectorMemory}=require('./approved-di
 const ORIGIN='https://mr-tanq.github.io';
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const CONSENT='MATT_DIRECTOR_UP_TO_THREE_AI_TURNS';
+const WELLBEING_CONSENT='SHARE_APPROVED_WELLBEING_MEMORY_FOR_THIS_TURN';
+const TARGETS=Object.freeze(['auto','listening-director','studio-director',
+ 'pokemon-director','wellbeing-director']);
 const CAPABILITIES=Object.freeze({
  'listening-director':Object.freeze({
   name:'Listening Mirror Director',project:'Listening Mirror',
   domain:'Concert discovery and the Listening Mirror app; data sources, UI, '+
    'scrobbling and concert recommendations. No repository access, web access or execution yet.',
+  reportsTo:'matt'
+ }),
+ 'studio-director':Object.freeze({
+  name:'The Lost Wanderer Director',project:'The Lost Wanderer',
+  domain:'The Lost Wanderer musical history, album timelines, artistic direction, '+
+   'songwriting, visual identity and unreleased concepts. Clearly distinguish '+
+   'older drafts from released or approved canon. No catalog or file access.',
+  reportsTo:'matt'
+ }),
+ 'pokemon-director':Object.freeze({
+  name:'Pokémon Echoes Director',project:'Pokémon Echoes',
+  domain:'Godot 4 Android 2D pixel RPG, map, character sprites, narrative, '+
+   'battle prototypes and design decisions. No source access or changes.',
+  reportsTo:'matt'
+ }),
+ 'wellbeing-director':Object.freeze({
+  name:'Wellbeing Director',project:'Wellbeing',
+  domain:'Careful discussion of user-approved wellness history and exercise '+
+   'preferences; not a medical professional, avoid diagnosis or unsafe '+
+   'prescriptions. Treat all personal context as sensitive and never share with '+
+   'other projects, Matt routing or Workers.',
   reportsTo:'matt'
  })
 });
@@ -45,7 +69,13 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,fetcher=glo
   try{data=JSON.parse(body)}catch(_){return deny(400,'invalid_json')}
   if(!data||!UUID.test(data.threadId||'')||!UUID.test(data.requestId||'')||
    typeof data.message!=='string'||!data.message.trim()||data.message.length>1200||
-   data.consent!==CONSENT)return deny(400,'explicit_multi_call_consent_required');
+   data.consent!==CONSENT||!TARGETS.includes(data.targetDirector??'auto')||
+   (data.targetDirector==='wellbeing-director'&&
+    data.wellbeingConsent!==WELLBEING_CONSENT)||
+   (data.wellbeingConsent!==undefined&&
+    (data.targetDirector!=='wellbeing-director'||
+     data.wellbeingConsent!==WELLBEING_CONSENT)))
+   return deny(400,'explicit_multi_call_consent_required');
   let ownerId;
   try{
    const account=await identity.authenticate(bearer.slice(7));
@@ -99,21 +129,33 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,fetcher=glo
     await session.disconnect();session=null;
     return output;
    }
-   stage='matt_route';
-   const routing=await turn('matt',
-    'You are Matt, Chief of Staff of PAPERWORLD. Route the user request to a specialist. '+
-    'Only ONE director exists for now: listening-director (Listening Mirror app). '+
-    'If the user intent concerns Listening Mirror, return exactly "listening-director". '+
-    'For all other intents return exactly "not_ready". No explanation.\\n'+
-    'User request (untrusted): '+data.message.trim());
-   const route=routing.trim();
-   // No hardcoded keyword routing; only exact, allowlisted AI route is accepted.
-   if(route!=='listening-director')return {status:200,body:{
-    executed:true,delegated:false,directorId:null,aiTurns,
-    content:'Ο Matt εξέτασε το αίτημά σου, αλλά δεν υπάρχει ακόμη ενεργός Director γι’ αυτό το project. '+
-     'Προς το παρόν έχει ενεργοποιηθεί μόνο ο Listening Mirror Director.',
-    requestId:data.requestId
-   }};
+   let route;
+   if(data.targetDirector&&data.targetDirector!=='auto'){
+    // Human chose a fixed project. No model routing is needed, and another
+    // project cannot be selected by prompt injection.
+    route=data.targetDirector;
+   }else{
+    stage='matt_route';
+    const routing=await turn('matt',
+     'You are Matt, Chief of Staff of PAPERWORLD. Route the user request to '+
+     'exactly ONE specialist: listening-director (Listening Mirror), '+
+     'studio-director (The Lost Wanderer music), pokemon-director (Pokémon Echoes). '+
+     'Wellbeing private history requires an explicit human-selected project, so '+
+     'for wellbeing requests return exactly "not_ready". For unsupported '+
+     'requests return exactly "not_ready". Reply with ONLY the identifier.\\n'+
+     'User request (untrusted): '+data.message.trim());
+    route=routing.trim();
+   }
+   if(!Object.prototype.hasOwnProperty.call(CAPABILITIES,route)||
+    (route==='wellbeing-director'&&
+     (data.targetDirector!=='wellbeing-director'||
+      data.wellbeingConsent!==WELLBEING_CONSENT)))
+    return {status:200,body:{
+     executed:true,delegated:false,directorId:null,aiTurns,
+     content:'Δεν υπάρχει διαθέσιμος Director για αυτή την ανάθεση. '+
+      'Για το Wellbeing απαιτείται ρητή επιλογή και συναίνεση για ιδιωτική μνήμη.',
+     requestId:data.requestId
+    }};
    // This is an authenticated, server-owned lookup. Never let model output
    // or browser arguments choose the project, read private memory directly,
    // or grant new permissions. Failure aborts before the Director model turn.
@@ -137,8 +179,10 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,fetcher=glo
    stage='matt_report';
    const final=await turn('matt',
     'You are Matt, Chief of Staff of PAPERWORLD, reporting back to the human. '+
-    'You assigned the issue to the Listening Mirror Director for analysis. '+
+    'You assigned the issue to '+director.name+' for analysis. '+
     'The Director is a real AI model but has NO repository/tools access. '+
+    'Never disclose private memories beyond the user question or leak sensitive '+
+    'wellbeing facts into unrelated reports. '+
     'Answer the original question directly using the Director report; do not '+
     'turn a memory or preference question into a code investigation. '+
     'Summarize the specialist report faithfully. Distinguish proposed actions '+
@@ -165,4 +209,4 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,fetcher=glo
  }
  return Object.freeze({handle,CAPABILITIES});
 }
-module.exports=Object.freeze({makeDelegation,CONSENT,CAPABILITIES});
+module.exports=Object.freeze({makeDelegation,CONSENT,WELLBEING_CONSENT,CAPABILITIES});
