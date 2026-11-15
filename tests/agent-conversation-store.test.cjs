@@ -31,3 +31,12 @@ test('API is explicitly bounded and never dispatches Copilot',()=>{
  assert.doesNotMatch(source,/copilot|github\.com|dispatch|\/functions\/v1/i);
  assert.match(source,/limit=100/);
 });
+
+test('History loads latest 100 messages and returns them in chronological order',async()=>{
+ const messages=[{id:'3'},{id:'2'},{id:'1'}];
+ const calls=[];
+ const store=create({transport:async(url)=>{calls.push(url);return messages.slice()}});
+ const out=await store.history(ID);
+ assert.match(calls[0],/order=created_at.desc,id.desc&limit=100/);
+ assert.deepEqual(out.map(m=>m.id),['1','2','3']);
+});

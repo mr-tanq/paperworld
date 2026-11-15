@@ -249,3 +249,6 @@ Owner explicitly rejected the visible «Ρώτα Director», «Ανάθεσε σ
 ## 2026-11-15 — Matt multi-turn context (PR #101 draft, not deployed)
 
 Owner reported that after beginning a song in Lost Wanderer, replying «να είναι χαλαρό» lost the conversational context because Matt re-routed each isolated message. Added bounded, same-page conversation context with active non-sensitive Director; latest four chat pairs inform routing, and only same-project turns reach Director/Matt analysis. Project switching clears the local context. Wellbeing exclusion and separate Worker consent remain. No Supabase policy weakening: assistant replies still do not persist across reloads. New offline regression cases added; no live Copilot calls, merge or deployment.
+
+## 2026-11-15 — Draft Matt persistent conversation
+Server-owned persistence uses PAPERWORLD_SUPABASE_SERVICE_ROLE_KEY and existing authenticated owner history; browser still cannot INSERT role=agent. Verifies thread owner before model calls. Stores capped Matt reply and project director, with requestId as idempotency UUID. Without server-held secret, persisted=false; no deployment, AI billing or Supabase policy changes. Validate before activation.

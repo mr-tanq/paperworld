@@ -24,8 +24,9 @@
   }
   async function history(threadId){
    const id=ensureUuid(threadId);
-   return transport(path+'paperworld_agent_messages?select=id,thread_id,role,content,created_at&thread_id=eq.'+
-     encodeURIComponent(id)+'&order=created_at.asc,id.asc&limit=100');
+   const rows=await transport(path+'paperworld_agent_messages?select=id,thread_id,role,content,created_at&thread_id=eq.'+
+     encodeURIComponent(id)+'&order=created_at.desc,id.desc&limit=100');
+   return Array.isArray(rows)?rows.reverse():rows;
   }
   async function say(threadId,content){
    const thread_id=ensureUuid(threadId);

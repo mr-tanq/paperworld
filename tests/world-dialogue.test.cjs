@@ -60,3 +60,18 @@ test('Dark responsive Messenger remains styled',()=>{
  assert.match(css,/world-chat-message/);
  assert.match(css,/@media\(max-width:640px\)/);
 });
+
+test('Persistent Matt history restores active project after reopening the chat',()=>{
+ const {encode,recover}=require('../js/matt-history.js');
+ const records=[
+  {role:'human',content:'Θέλω νέο τραγούδι'},
+  {role:'agent',content:encode('studio-director','Τι ατμόσφαιρα;')},
+  {role:'human',content:'Θέλω χαλαρό'},
+  {role:'agent',content:encode('studio-director','Χαμηλό τέμπο')}
+ ];
+ const result=recover(records);
+ assert.equal(result.activeDirector,'studio-director');
+ assert.equal(result.turns.length,4);
+ assert.equal(result.display[1].text,'Τι ατμόσφαιρα;');
+ assert.equal(recover([{role:'human',content:'hello'}]).activeDirector,null);
+});

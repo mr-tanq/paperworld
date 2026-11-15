@@ -7,6 +7,7 @@
  if(!view)return;
  let openId=null,revision=0,busy=false;
  const mattReplies=[];
+ const historyCodec=()=>window.PaperworldMattHistory;
   // Short-lived conversation context for multi-turn continuity; no localStorage secrets.
   let activeMattDirector=null;
   const mattConversation=[];
@@ -85,7 +86,7 @@
     activeMattDirector=null;
     mattConversation.length=0;
    }
-   mattReplies.push({content:String(result.content||
+   if(result.persisted!==true)mattReplies.push({content:String(result.content||
     'Δεν μπόρεσα να προσδιορίσω με ασφάλεια τον αρμόδιο Director.'),
     time:new Date().toISOString()});
    field.value='';
@@ -161,7 +162,7 @@
   for(const m of entries)messages.append(bubble(m.role,m.text,m.time));
   if(openId==='matt')for(const reply of mattReplies)messages.append(bubble('agent',reply.content,reply.time));
   if(!entries.length&&!mattReplies.length)messages.append(system(openId==='matt'?
-   'Μίλησε στον Matt όπως σε έναν συνεργάτη. Οι AI απαντήσεις δεν αποθηκεύονται ακόμη μόνιμα.':
+   'Μίλησε στον Matt όπως σε έναν συνεργάτη. Το ιστορικό αποθηκεύεται όταν ο server είναι ρυθμισμένος.':
    'Μπορείς να αφήσεις ένα ιδιωτικό μήνυμα. Ο Director δεν απαντά ακόμη με AI.'));
   scrollBottom();
  }
@@ -195,7 +196,12 @@
    const selected=openId;
    cloud().privateAgentMessages(selected).then(history=>{
     if(token!==revision||openId!==selected)return;
-    appendEntries(history.map(m=>({role:m.role==='human'?'human':'agent',text:m.content,time:m.created_at})));
+    if(selected==='matt'&&historyCodec()){
+     const recovered=historyCodec().recover(history);
+     if(!busy){activeMattDirector=recovered.activeDirector;
+      mattConversation.splice(0,mattConversation.length,...recovered.turns)}
+     appendEntries(recovered.display);
+    }else appendEntries(history.map(m=>({role:m.role==='human'?'human':'agent',text:m.content,time:m.created_at})));
    }).catch(error=>{
     if(token!==revision||openId!==selected)return;
     messages.replaceChildren(system('Το ιστορικό δεν φορτώθηκε: '+error.message));
