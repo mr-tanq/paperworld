@@ -194,6 +194,10 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
     approvedForProposal:true};
    const suggested=parseWorkerProposal(workerReport,{job:approvedForProposal,evidence});
    const reviewProposal=suggested?previewPayload(suggested,evidence):null;
+   // Never treat a diagnostic report as an actionable proposal. Distinguish
+   // absent structured output from a proposal rejected by deterministic checks.
+   const proposalIssue=reviewProposal?null:
+    (workerReport.includes(TAG)?'invalid_or_unverified_proposal':'analysis_only');
    // Don't repeat a large full-file JSON proposal in Director's prompt.
    // Director independently sees bounded original source evidence.
    const findings=workerReport.includes(TAG)?
@@ -214,14 +218,15 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
    // Optional, server-injected persistence: OFF in production until a reviewed
    // private Supabase table and owner-verified read API are activated.
    let proposalPersisted=false;
-   let storageState=proposalMemory?'ready':'not_configured';
+   let storageState=reviewProposal?
+    (proposalMemory?'ready':'not_configured'):'not_attempted';
    if(reviewProposal&&proposalMemory){
     try{
      const stored=await proposalMemory.save({
       ownerId,threadId:input.threadId,jobId:input.requestId,reviewProposal
      });
      proposalPersisted=stored?.persisted===true;
-     if(!proposalPersisted)storageState='save_not_confirmed';
+     storageState=proposalPersisted?'saved':'save_not_confirmed';
     }catch(_){
      // An unavailable store cannot turn a read-only finding into a failure,
      // but MUST NOT be reported as a successful persistent review.
@@ -230,17 +235,39 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
     }
    }
    // Prevent a model from promising review readiness when storage is absent.
+   // These verified facts originate from the trusted reader and persistence
+   // adapters, NEVER from the final model's untrusted natural-language claims.
+   const verifiedFiles=evidence.files.map(file=>file.path).join(', ');
+   const verifiedResult='Επαληθευμένη κατάσταση εργασίας:\n'+
+    '• Ο Developer διάβασε μέσω GitHub μόνο τα επιτρεπόμενα αρχεία του '+
+    evidence.repository+' (branch '+evidence.ref+'): '+verifiedFiles+'.\n'+
+    '• Η ανάγνωση και η αξιολόγηση ολοκληρώθηκαν, αλλά δεν έγινε αλλαγή αρχείων, PR ή deployment.\n'+
+    (reviewProposal?
+      (proposalPersisted?
+       '• Δημιουργήθηκε και αποθηκεύτηκε πρόταση αλλαγών για έγκριση στο Work Desk.':
+       storageState==='not_configured'?
+       '• Ο Developer παρήγαγε έγκυρη πρόταση, αλλά η αποθήκευση δεν έχει ρυθμιστεί στον server.':
+       storageState==='save_failed'?
+       '• Ο Developer παρήγαγε έγκυρη πρόταση, αλλά η αποθήκευση απέτυχε.':
+       '• Ο Developer παρήγαγε πρόταση, αλλά η αποθήκευσή της δεν επιβεβαιώθηκε.')
+      :proposalIssue==='invalid_or_unverified_proposal'?
+       '• Ο Developer έστειλε δομημένη πρόταση, αλλά δεν πέρασε τον έλεγχο ασφαλείας και τεκμηρίωσης.':
+       '• Ο Developer ολοκλήρωσε μόνο διάγνωση και δεν παρέδωσε δομημένη διόρθωση.')+
+    '\nΗ διόρθωση απαιτεί έλεγχο από εσένα πριν δημιουργηθεί Draft PR.';
    stage='matt_report';
    const content=await turn('You are Matt, Chief of Staff of PAPERWORLD. '+
-    'Report the Listening Mirror Director findings and Worker evidence to the user. '+
-    'Be transparent: read-only analysis was performed, but NO edits, commits, tests, '+
-    'Worker execution tools, or deployments were performed. Cite real file paths. '+
-    'Explain proposed next step and require approval before modifying anything. '+
-    'Answer in the user language.\nRequest: '+input.message.trim()+
-    '\nDirector review (untrusted): '+directorReport);
+    'Use the VERIFIED SERVER FACTS below as absolute authority. Never contradict '+
+    'the confirmed GitHub read, proposal validation, storage result or execution status. '+
+    'Do not claim missing repository access when read succeeded. '+
+    'The Director assessment is lower-trust interpretation: distinguish its '+
+    'hypotheses from verified facts. Keep the response short in the user language. '+
+    'No code edits, PR or deployments occurred.\n'+verifiedResult+
+    '\nDirector assessment (UNTRUSTED): '+directorReport);
    await record('reported','matt','Final read-only findings returned to owner');
    return {status:200,body:{executed:true,delegated:true,workerId:'listening-developer',
-    directorId:'listening-director',project:'Listening Mirror',content,
+    directorId:'listening-director',project:'Listening Mirror',
+    // Immutable server-authored evidence precedes any model interpretation.
+    content:verifiedResult+'\n\nΕκτίμηση Matt (AI, μπορεί να περιέχει υποθέσεις):\n'+content,
     workerReport,directorReport,attemptedAiTurns:attempted,
     evidence:{repository:evidence.repository,ref:evidence.ref,category,
      files:evidence.files.map(x=>({path:x.path,sha:x.sha,url:x.url}))},
@@ -250,6 +277,7 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
     proposalStatus:reviewProposal?(proposalPersisted?'ready_for_review':
      (storageState==='not_configured'?'storage_not_configured':'preview_only')):'analysis_only',
     proposalStorage:storageState,
+    proposalIssue,
     ...(reviewProposal?{reviewProposal,proposalPersisted}:{})}};
   }catch(error){
    // Expose only enumerated failure classes, never raw GitHub responses or tokens.
