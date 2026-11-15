@@ -44,7 +44,8 @@ test('Approval cannot be activated by the browser review UI',()=>{
  assert.match(source,/approve\.addEventListener/);
  const work=fs.readFileSync('js/cloud-ui.js','utf8');
  const messenger=fs.readFileSync('js/world-dialogue.js','utf8');
- assert.match(work,/PaperworldListeningReview\?\.create\(reviewHost\)/);
+ assert.match(work,/PaperworldListeningReview/);
+ assert.match(work,/reviewModule\?\.create\(place,\{publish,reject\}\)/);
  assert.match(work,/previewListeningChange:/);
  assert.doesNotMatch(messenger,/PaperworldListeningReview|listening-review/);
  const html=fs.readFileSync('index.html','utf8');
