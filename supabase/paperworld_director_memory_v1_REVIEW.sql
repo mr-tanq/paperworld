@@ -32,11 +32,36 @@ create policy "director_memory_select_owner" on public.paperworld_director_memor
 create policy "director_memory_insert_proposed_owner" on public.paperworld_director_memory
  for insert to authenticated
  with check ((select auth.uid())=owner_id and status='proposed');
+-- One-way, owner-only approval/rejection. Invocation must be behind an
+-- explicit human review action; AI cannot call this on its own.
+create or replace function public.paperworld_review_director_memory(
+ p_id uuid,p_decision text
+) returns boolean
+ language plpgsql security definer
+ set search_path = ''
+as $
+declare did_update boolean;
+begin
+ if (select auth.uid()) is null or
+    p_decision not in ('approved','rejected') then
+   return false;
+ end if;
+ update public.paperworld_director_memory
+  set status=p_decision,reviewed_at=now()
+  where id=p_id and owner_id=(select auth.uid()) and status='proposed';
+ get diagnostics did_update = row_count;
+ return did_update;
+end;
+$;
+revoke all on function public.paperworld_review_director_memory(uuid,text)
+ from public,anon,authenticated;
+grant execute on function public.paperworld_review_director_memory(uuid,text)
+ to authenticated;
 commit;
 
 -- SECURITY: all rows are readable only by their owner via RLS. Agent identities
 -- are not database user accounts; trusted backend must independently validate
 -- director-to-project mapping before sharing any snippets with an AI.
--- Approval requires separate owner-authorized server mutation and audit policy.
+-- Approval requires a deliberate owner-authorized call to the review RPC.\n-- The RPC is NOT exposed by a public agent endpoint and cannot be invoked\n-- automatically by Workers; the user's own JWT must be verified.
 -- NEVER grant the model, worker, or browser a service_role credential.
 -- No historical owner facts are seeded by this migration.
