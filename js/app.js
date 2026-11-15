@@ -397,7 +397,7 @@ layers.push({id:'player',depth:depth.actorWalkwayDepth(w,navigation,defs),paint:
   ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#ff6464';
   const hiddenNodes=new Set(navigation.hiddenConnections.flat());
   navigation.nodes.forEach(([x,y],i)=>{
-   if(hiddenNodes.has(i))return;
+   if(hiddenNodes.has(i)&&i>=37)return;
    ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();
   });
   ctx.restore();
