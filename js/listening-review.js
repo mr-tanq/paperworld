@@ -47,9 +47,11 @@
   if(value!==undefined)node.textContent=value;
   return node;
  }
- function create(host){
+ function create(host,{publish,reject}={}){
+  // UI callbacks cannot authorize themselves: server always rechecks owner,
+  // exact immutable proposal digest and a one-use grant.
   if(!host||typeof host.append!=='function')throw Error('review_host_required');
-  let current=null;
+  let current=null,review=null;
   const root=el('section','listening-review');
   root.setAttribute('aria-label','Έλεγχος προτεινόμενων αλλαγών');
   function paint(){
@@ -73,19 +75,35 @@
     root.append(section);
    }
    const actions=el('div','listening-review-actions');
-   const approve=el('button',null,'Έγκριση εγγραφής · μη ενεργή');
+   const ready=review?.persisted===true&&review.status==='pending_review'&&
+    /^[a-f0-9]{64}$/.test(review.digest||'');
+   const approve=el('button',null,ready?'Δημιουργία Draft PR με έγκριση':
+    'Έγκριση εγγραφής · μη ενεργή');
    approve.type='button';approve.disabled=true;
    approve.setAttribute('aria-describedby','listening-review-disabled-reason');
+   if(ready&&typeof publish==='function'){
+    approve.disabled=false;
+    approve.addEventListener('click',()=>publish(current,review.digest));
+   }
    actions.append(approve);
+   if(ready&&typeof reject==='function'){
+    const rejectButton=el('button',null,'Απόρριψη πρότασης');
+    rejectButton.type='button';
+    rejectButton.addEventListener('click',()=>reject(current,review.digest));
+    actions.append(rejectButton);
+   }
    root.append(actions);
-   const reason=el('p','listening-review-note',
-    'Η έγκριση θα ενεργοποιηθεί μόνο μετά από ασφαλή, μοναδική εξουσιοδότηση στον server. Δεν δημιουργείται ακόμη branch ή Draft PR.');
+   const label=review?.status==='rejected'?'Η πρόταση απορρίφθηκε.':
+    review?.status==='draft_created'?'Δημιουργήθηκε Draft PR · δεν έγινε merge.':
+    ready?'Απαιτείται η δική σου επιβεβαίωση για το συγκεκριμένο περιεχόμενο.':
+    'Μόνο προεπισκόπηση: δεν έχει αποθηκευτεί ακόμη επιβεβαιωμένη πρόταση.';
+   const reason=el('p','listening-review-note',label);
    reason.id='listening-review-disabled-reason';root.append(reason);
   }
   host.append(root);paint();
   return Object.freeze({
-   show:(plan,evidence)=>{current=summarize(plan,evidence);paint()},
-   clear:()=>{current=null;paint()},
+   show:(plan,evidence,status={})=>{current=summarize(plan,evidence);review=status;paint()},
+   clear:()=>{current=null;review=null;paint()},
    hasProposal:()=>current!==null
   });
  }

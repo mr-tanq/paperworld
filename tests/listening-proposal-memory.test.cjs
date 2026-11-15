@@ -98,11 +98,14 @@ test('Missing backend secret, unverified input, and network failures fail closed
  const dead=createProposalMemory({secret,fetcher:async()=>({ok:false})});
  await assert.rejects(dead.save(args),/storage_unavailable/);
 });
-test('Integration stays optional and disabled on Render; no write/grant path',()=>{
+test('Runtime injects private memory and exposes only authenticated proposal routes',()=>{
  const worker=fs.readFileSync('server/matt-worker-delegation.cjs','utf8');
  const gateway=fs.readFileSync('server/render-matt.cjs','utf8');
  assert.match(worker,/proposalMemory=null/);
  assert.match(worker,/if\(reviewProposal&&proposalMemory\)/);
  assert.match(worker,/proposalPersisted=stored\?\.persisted===true/);
- assert.doesNotMatch(gateway,/listening-proposal-memory|\/proposals\/approve|\/draft\/publish/);
+ assert.match(gateway,/getProposalMemory\(\)/);
+ assert.match(gateway,/proposalApiFactory/);
+ assert.match(gateway,/req\.headers\.origin!==APP_ORIGIN/);
+ assert.match(gateway,/req\.method!=='POST'/);
 });

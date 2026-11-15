@@ -255,6 +255,46 @@
     throw Error('Unverified history reply');
    return result;
   }
+  async function listeningProposalAction(action,details={}){
+   if(!['list','reject','publish'].includes(action))throw Error('Invalid proposal action');
+   await ensureAuth();
+   const thread=await getAgentThread('matt',false);
+   if(!thread){
+    if(action==='list')return {proposals:[]};
+    throw Error('Matt thread unavailable');
+   }
+   const payload={threadId:thread.id,...details};
+   const response=await fetcher(MATT_ORIGIN+'/listening/proposals/'+action,{
+    method:'POST',redirect:'error',
+    headers:{Authorization:'Bearer '+session.access_token,
+     'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+   });
+   let result={};
+   try{result=await response.json()}catch(_){}
+   if(!response.ok)throw Error((result.error||'Proposal action unavailable')+
+    ' (HTTP '+response.status+')');
+   return result;
+  }
+  async function listListeningProposals(){
+   const result=await listeningProposalAction('list');
+   if(!Array.isArray(result.proposals))throw Error('Unverified proposal response');
+   return result.proposals;
+  }
+  async function rejectListeningProposal(jobId,digest){
+   const result=await listeningProposalAction('reject',{jobId,digest});
+   if(result.rejected!==true)throw Error('Rejection unverified');
+   return true;
+  }
+  async function publishListeningProposal(jobId,digest){
+   const result=await listeningProposalAction('publish',{
+    jobId,digest,confirm:'CREATE_LISTENING_DRAFT_PR'
+   });
+   if(result.created!==true||result.draft!==true||
+    !/^https:\/\/github\.com\/mr-tanq\/concerts\/pull\/[0-9]+$/.test(result.url||''))
+    throw Error('Draft PR creation unverified');
+   return result;
+  }
   // Delegation is explicitly a separate, up-to-three Copilot-turn operation.
   // Do not silently send multiple model calls from the ordinary chat button.
   // Separate user-authorized five-call path for evidence-based Worker analysis.
@@ -395,7 +435,8 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,mattJobHistory,diagnoseMattSession};
+   listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,mattJobHistory,diagnoseMattSession,
+   listListeningProposals,rejectListeningProposal,publishListeningProposal};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });
