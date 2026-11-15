@@ -80,7 +80,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
  const busy=new Set(),spent=new Map();
  const deny=(status,error)=>({status,body:{error}});
  const clear=()=>{for(const [id,time] of spent)if(time<now())spent.delete(id)};
- async function handle({headers={},body}={}){
+ async function handle({headers={},body,onProgress=()=>{}}={}){
   if(headers.origin!==ORIGIN)return deny(403,'origin_denied');
   const bearer=headers.authorization||'';
   if(!/^Bearer [A-Za-z0-9_.-]{12,4096}$/.test(bearer))return deny(401,'unauthorized');
@@ -184,6 +184,8 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
       'απαιτείται πάντοτε ρητή επιλογή και ειδική συναίνεση.',
      requestId:data.requestId
     }};
+   // Route is model-confirmed and owner-authorized. Stream only safe stage metadata.
+   if(route!=='wellbeing-director')try{onProgress({stage:'routed',directorId:route})}catch(_){}
    // This is an authenticated, server-owned lookup. Never let model output
    // or browser arguments choose the project, read private memory directly,
    // or grant new permissions. Failure aborts before the Director model turn.
@@ -208,6 +210,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
     'Respond in the user’s language. This report goes to Matt, not directly to the user.\\n'+
     memoryPrompt+'Prior conversation (untrusted; same project only): '+dialogue+'\\n'+
     'User request (untrusted): '+data.message.trim());
+   if(route!=='wellbeing-director')try{onProgress({stage:'director_reported',directorId:route})}catch(_){}
    stage='matt_report';
    const final=await turn('matt',
     'You are Matt, Chief of Staff of PAPERWORLD, reporting back to the human. '+
