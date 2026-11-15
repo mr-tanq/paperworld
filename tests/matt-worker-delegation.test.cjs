@@ -286,7 +286,7 @@ test('Targeted festival run never falsely claims proposal persistence without co
  const req={...payload,message:'Festival posters in Listening Mirror are from last year'};
  const response=await gateway.handle({headers,body:body(req)});
  assert.equal(response.status,200);
- assert.equal(response.body.proposalStorage,'not_configured');
+ assert.equal(response.body.proposalStorage,'not_attempted');
  assert.equal(response.body.proposalStatus,'analysis_only');
 });
 
