@@ -84,12 +84,34 @@ function createRenderMattServer({oauth=createGithubOAuth({
       req.url==='/delegate/matt'?getDelegation():getLive();
     const action=req.url==='/diagnostic/matt-session'?gateway.diagnose:gateway.handle;
     if(typeof action!=='function')return response(res,503,{error:'diagnostic_not_configured'});
+    // NDJSON streams verified routing stages in the SAME consented AI call.
+    // Legacy JSON requests retain their original response and status codes.
+    const wantsStages=req.url==='/delegate/matt'&&
+     typeof req.headers.accept==='string'&&
+     req.headers.accept.includes('application/x-ndjson');
+    let streaming=false;
+    const headers={'Content-Type':'application/x-ndjson; charset=utf-8',
+     'Cache-Control':'no-store','Access-Control-Allow-Origin':APP_ORIGIN,
+     'Vary':'Origin','X-Content-Type-Options':'nosniff'};
+    const onProgress=event=>{
+     if(!wantsStages||!event||
+      !['routed','director_reported'].includes(event.stage)||
+      !['listening-director','studio-director','pokemon-director'].includes(event.directorId))return;
+     if(!streaming){res.writeHead(200,headers);streaming=true}
+     res.write(JSON.stringify({type:'progress',stage:event.stage,
+      directorId:event.directorId})+'\n');
+    };
     const result=await action({headers:req.headers,
-      body:Buffer.concat(parts).toString('utf8')});
-    res.writeHead(result.status,{'Content-Type':'application/json; charset=utf-8',
+      body:Buffer.concat(parts).toString('utf8'),onProgress});
+    if(streaming){
+     res.end(JSON.stringify({type:'result',status:result.status,body:result.body})+'\n');
+    }else{
+     res.writeHead(result.status,{'Content-Type':'application/json; charset=utf-8',
       'Cache-Control':'no-store','Access-Control-Allow-Origin':APP_ORIGIN,
       'Vary':'Origin','X-Content-Type-Options':'nosniff'});
-    res.end(JSON.stringify(result.body));return;
+     res.end(JSON.stringify(result.body));
+    }
+    return;
    }catch(_){return response(res,503,{error:'chat_unavailable'})}
   }
   return response(res,404,{error:'not_found'});
