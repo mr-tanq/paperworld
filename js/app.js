@@ -71,6 +71,27 @@ function drawPlayerSprite(p){
  ctx.restore();
  return true;
 }
+// Listening Mirror Director visual only; preserves her existing agent id and permissions.
+const listeningDirectorVisual=new Image();
+listeningDirectorVisual.decoding='async';
+listeningDirectorVisual.src='./assets/listening-director-walk-v1.png';
+function drawListeningDirectorSprite(a){
+ if(!listeningDirectorVisual.complete || !listeningDirectorVisual.naturalWidth)return false;
+ const row={down:0,right:1,up:2,left:3}[a.direction]??0;
+ const frame=a.moving?Math.floor((a.walkDistance||0)/14)%4:1;
+ const sw=listeningDirectorVisual.naturalWidth/4;
+ const sh=listeningDirectorVisual.naturalHeight/4;
+ const dw=60,dh=88;
+ ctx.save();
+ ctx.fillStyle='rgba(31,24,18,.28)';
+ ctx.beginPath();ctx.ellipse(a.x,a.y-2,14,5,0,0,Math.PI*2);ctx.fill();
+ ctx.drawImage(listeningDirectorVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh,dw,dh);
+ ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+ ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;
+ ctx.fillStyle='#fff4db';ctx.fillText('Director',a.x,a.y+14);
+ ctx.restore();
+ return true;
+}
 const mattVisual=new Image();
 mattVisual.decoding='async';
 // v2 has normalized per-frame feet positions and isolated transparent silhouettes.
@@ -98,6 +119,13 @@ function drawMattSprite(a,now){
  ctx.fillStyle='#fff4db';ctx.fillText('Matt',a.x,a.y+14);
  ctx.restore();
  return true;
+}
+const listeningDirectorActor=actors.find(a=>a.id==='listening-director');
+if(listeningDirectorActor){
+ listeningDirectorActor.direction='down';listeningDirectorActor.moving=false;
+ listeningDirectorActor.walkDistance=14;
+ listeningDirectorActor.lastVisualX=listeningDirectorActor.x;
+ listeningDirectorActor.lastVisualY=listeningDirectorActor.y;
 }
 const mattActor=actors.find(a=>a.id==='matt');
 mattActor.direction='down';mattActor.moving=false;mattActor.walkDistance=16;
@@ -215,6 +243,7 @@ const w=state.walker;
  }));
  for(const a of actors)layers.push({id:'agent-'+a.id,depth:a.y,paint:()=>{
  if(a.id==='matt' && drawMattSprite(a,now))return;
+ if(a.id==='listening-director' && drawListeningDirectorSprite(a))return;
  ctx.save();ctx.fillStyle='#42362999';ctx.beginPath();ctx.ellipse(a.x,a.y,13,5,0,0,Math.PI*2);ctx.fill();
  ctx.fillStyle=a.id==='matt'?'#c9a56e':'#8ca7af';ctx.beginPath();ctx.arc(a.x,a.y-24,10,0,Math.PI*2);ctx.fill();
  ctx.fillStyle='#3c4d58';ctx.fillRect(a.x-10,a.y-14,20,20);
@@ -256,6 +285,15 @@ layers.push({id:'player',depth:w.y,paint:()=>{if(!drawPlayerSprite(w))drawFigure
  if(state.destination){const p=state.destination;ctx.strokeStyle='#fef3d9';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x-7,p.y);ctx.lineTo(p.x+7,p.y);ctx.moveTo(p.x,p.y-7);ctx.lineTo(p.x,p.y+7);ctx.stroke()}
  ctx.restore()}
 function tick(now){
+ // Follow actual Director movement only. Do not add fake patrols or change AI routing.
+ if(listeningDirectorActor){
+  const a=listeningDirectorActor,dx=a.x-a.lastVisualX,dy=a.y-a.lastVisualY;
+  const traveled=Math.hypot(dx,dy);
+  a.moving=traveled>0.25;
+  if(a.moving){a.direction=mattDirection(dx,dy,a.direction);a.walkDistance+=traveled}
+  a.lastVisualX=a.x;a.lastVisualY=a.y;
+ }
+
  const dt=Math.min(.05,(now-(tick.last||now))/1000);tick.last=now;
  const player=state.walker;
  player.moving=false;
