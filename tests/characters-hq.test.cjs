@@ -13,7 +13,7 @@ test('All three retain movement, visual fallbacks and stable identities',()=>{
  assert.match(s,/charactersHD\.src='\.\/assets\/characters-hq-v2\.png'/);
  assert.match(s,/drawHDCharacter\(p,0,'You'\)/);
  assert.match(s,/drawHDCharacter\(a,1,'Matt'\)/);
- assert.match(s,/drawHDCharacter\(a,2,'Director'\)/);
+ assert.match(s,/drawHDCharacter\(a,2,actorDisplayName\(a\)\)/);
  assert.match(s,/Math\.floor\(\(a\.walkDistance\|\|0\)\/14\)%4/);
  assert.match(s,/ctx\.imageSmoothingQuality='high'/);
  assert.match(s,/if\(a\.id==='listening-director' && drawListeningDirectorSprite\(a\)\)return/);

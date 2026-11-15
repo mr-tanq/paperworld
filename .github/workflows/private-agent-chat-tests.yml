@@ -106,6 +106,7 @@ jobs:
             tests/pokemon-director-visual.test.cjs \
             tests/wellbeing-director-visual.test.cjs \
             tests/studio-director-visual.test.cjs \
+            tests/director-display-names.test.cjs \
             tests/matt-copilot-adapter.test.cjs \
             tests/matt-gateway.test.cjs \
             tests/supabase-identity-guard.test.cjs \
