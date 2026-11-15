@@ -258,12 +258,12 @@
   // Delegation is explicitly a separate, up-to-three Copilot-turn operation.
   // Do not silently send multiple model calls from the ordinary chat button.
   // Separate user-authorized five-call path for evidence-based Worker analysis.
-  async function delegatePokemonWorker(message,{onStart}={}){
+  async function delegatePokemonWorker(message,{onStart,saveNote=true}={}){
    const text=String(message||'').trim();
    if(!text||text.length>1200)throw Error('Message must be 1–1200 characters');
    await ensureAuth();
    const thread=await getAgentThread('matt',true);
-   await agentStore().say(thread.id,text);
+   if(saveNote)await agentStore().say(thread.id,text);
    const payload={threadId:thread.id,requestId:crypto.randomUUID(),message:text,
     projectDirector:'pokemon-director',
     consent:'MATT_POKEMON_WORKER_READONLY_UP_TO_FIVE_AI_TURNS'};
@@ -282,12 +282,12 @@
     return result;
    }catch(error){error.noteSaved=true;throw error}
   }
-  async function delegateMattWorker(message,{onStart}={}){
+  async function delegateMattWorker(message,{onStart,saveNote=true}={}){
    const text=String(message||'').trim();
    if(!text||text.length>1200)throw Error('Message must be 1–1200 characters');
    await ensureAuth();
    const thread=await getAgentThread('matt',true);
-   await agentStore().say(thread.id,text);
+   if(saveNote)await agentStore().say(thread.id,text);
    const payload={threadId:thread.id,requestId:crypto.randomUUID(),message:text,
     consent:'MATT_DIRECTOR_WORKER_UP_TO_FIVE_AI_TURNS'};
    if(typeof onStart==='function')onStart(payload.requestId);

@@ -244,3 +244,39 @@ test('No approved records for a new project are not misrepresented as known fact
  assert.equal(out.body.memory.included,0);
  assert.match(seen.prompts[0],/No approved memories for this project/);
 });
+
+test('AI may recommend a Worker but cannot trigger it or access sources in Director chat',async()=>{
+ for(const [director,expected] of [
+  ['pokemon-director','pokemon-developer'],
+  ['listening-director','listening-developer']
+ ]){
+  const {gateway,seen}=make({route:JSON.stringify({director,action:'investigate'})});
+  const out=await gateway.handle({headers,body:requestBody(data)});
+  assert.equal(out.status,200);
+  assert.equal(out.body.delegated,true);
+  assert.equal(out.body.workProposal.workerId,expected);
+  assert.equal(out.body.workProposal.directorId,director);
+  assert.equal(out.body.workProposal.requiresSeparateConsent,true);
+  assert.equal(out.body.workProposal.execution,'none');
+  assert.equal(out.body.execution,'analysis_only');
+  assert.equal(seen.sent,3);
+  assert.equal(seen.memoryParams.actor,director);
+ }
+});
+test('Routine advice is not converted into Worker access, and Wellbeing stays excluded',async()=>{
+ for(const route of [
+  '{"director":"studio-director","action":"answer"}',
+  '{"director":"pokemon-director","action":"answer"}',
+  'listening-director'
+ ]){
+  const {gateway}=make({route});
+  const response=await gateway.handle({headers,body:requestBody(data)});
+  assert.equal(response.status,200);
+  assert.equal(response.body.workProposal,null);
+ }
+ const {gateway,seen}=make({route:'{"director":"wellbeing-director","action":"investigate"}'});
+ const out=await gateway.handle({headers,body:requestBody(data)});
+ assert.equal(out.body.delegated,false);
+ assert.equal(out.body.workProposal,undefined);
+ assert.equal(seen.sent,1);
+});

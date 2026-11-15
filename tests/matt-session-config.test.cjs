@@ -51,7 +51,8 @@ test('Diagnostic HTTP route and browser client do not dispatch chat prompts',()=
  assert.match(frontend,/async function diagnoseMattSession\(\)/);
  assert.match(frontend,/\/diagnostic\/matt-session/);
  const messenger=fs.readFileSync(path.join(__dirname,'../js/world-dialogue.js'),'utf8');
- assert.match(messenger,/Έλεγχος Copilot · χωρίς AI μήνυμα/);
+ assert.doesNotMatch(messenger,/Έλεγχος Copilot · χωρίς AI μήνυμα/);
+ assert.match(messenger,/composer.append\(connectGithub,form\)/);
 });
 
 test('Baseline diagnostic session disables tools and rejects permissions without optional SDK settings',async()=>{
