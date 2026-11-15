@@ -323,3 +323,10 @@ body>header span{font-size:10px;color:#a3afa6;letter-spacing:.04em}
 .world-chat-mode:focus-visible{outline:2px solid #f3c487;outline-offset:2px}
 .world-chat-mode-hint{display:block;font-size:11px;color:#b8bec7;margin-bottom:8px}
 @media(max-width:420px){.world-chat-mode-picker{grid-template-columns:1fr}}
+
+/* Explicit owner-selected Director, no implicit sensitive-memory routing. */
+.world-chat-project-target{margin:6px 0 10px}
+.world-chat-project-target[hidden]{display:none!important}
+.world-chat-project-label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#d3d7df}
+.world-chat-project-select{width:100%;min-height:42px;background:#252d36;color:#f7f1e8;border:1px solid #797476;border-radius:9px;padding:8px 10px;font:inherit;font-size:13px}
+.world-chat-project-select:focus-visible{outline:2px solid #f3c487;outline-offset:2px}
