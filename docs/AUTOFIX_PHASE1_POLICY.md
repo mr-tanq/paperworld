@@ -58,3 +58,25 @@ The new `server/autofix-github-draft-publisher.cjs` includes an explicit REST im
 Before real activation, independently implement and audit trusted source snapshot, attestation issuer/verifier, zero-network test sandbox, separate per-owner quota, one-time approvals and installation token isolation. Even an approved draft-PR pipeline must not execute model-generated code in the same environment as the GitHub write credential. Branch creation can leave an orphaned branch if a later verification fails; safe cleanup would need a separately reviewed policy.
 
 Current state: Offline-only. No installed GitHub App, live OAuth write permission, model calls, background jobs, publish endpoint, merge or deploy were created.
+
+## Phase 1C: proposed sandbox execution plan (inactive)
+
+Added `server/autofix-sandbox-plan.cjs` which creates a deterministic **plan** for testing prevalidated TicketSwap candidates against a trusted, SHA-256-pinned Node 22 Alpine container image. This is not a runner and has no Docker call; no test of AI-authored code was executed.
+
+Plan constraints:
+- Fixed dedicated workspace path bound to a UUID task, a trusted GitHub base SHA and the same candidate SHA-256 digest required by the future publisher.
+- Docker options include `--pull=never`, `--network=none`, read-only root filesystem and read-only bind mount, dropped Linux capabilities, `no-new-privileges`, unprivileged UID, resource limits and restricted temporary storage.
+- Exactly static `node --check` for each approved source and `node --test` on the new regression test; arrays of process arguments, never shell commands.
+- Maximum 15 seconds and 16 KB output **per check** must be independently enforced by the future executor, not merely by the plan.
+- The plan explicitly reports `attestation: not_issued` and `approvedForPublish: false` so no model-generated report or mere plan can unlock publishing.
+
+### Activation blockers / required security review
+
+1. **Isolation:** A dedicated trusted sandbox host/service, **not** the Render production application and not a broad shared CI environment with credentials or a Docker socket. Pre-pull and independently approve the exact image digest; configure stronger kernel isolation (seccomp/AppArmor/rootless VM/container, egress firewall) and fully ephemeral execution.
+2. **Workspace staging:** Trusted fetch of a pinned clean Git tree; stage only exact candidate content; reject symlinks, absolute paths, hardlinks and non-regular files; mount sanitized worktree without credentials, config secrets or private user files.
+3. **Execution:** Enforce process wall-clock timeout and kill the entire container on timeout; strict captured stdout/stderr and output limits; external attestation of the exit codes, actual checks, base SHA, candidate digest and image digest; sign/store proof using a key never accessible to the Worker or sandbox.
+4. **Integration testing:** The plan currently does syntax + one regression test; it does **not yet** prove all pre-existing Listening Mirror tests or deployed behavior. Define and run an approved baseline suite (including TicketSwap request and result workflows) before any PR can be described as fully tested.
+5. **No publisher credential inside executor:** Separate the write-capable GitHub App publisher from the no-network sandbox with a one-way, signed attestation boundary; verify source freshness before publishing; keep human review for every merge and deployment.
+6. **Budget and owner controls:** Trusted quota, direct owner approval, $0 extra AI spend, immutable audit and cancellation controls still required.
+
+Do not deploy, merge for activation, or connect generated tests to production until these items are demonstrated with independent integration tests.
