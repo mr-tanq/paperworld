@@ -267,7 +267,7 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
    return {status:200,body:{executed:true,delegated:true,workerId:'listening-developer',
     directorId:'listening-director',project:'Listening Mirror',
     // Immutable server-authored evidence precedes any model interpretation.
-    content:verifiedResult+'\\n\\nΕκτίμηση Matt (AI, μπορεί να περιέχει υποθέσεις):\\n'+content,
+    content:verifiedResult+'\n\nΕκτίμηση Matt (AI, μπορεί να περιέχει υποθέσεις):\n'+content,
     workerReport,directorReport,attemptedAiTurns:attempted,
     evidence:{repository:evidence.repository,ref:evidence.ref,category,
      files:evidence.files.map(x=>({path:x.path,sha:x.sha,url:x.url}))},
