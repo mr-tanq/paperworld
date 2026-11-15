@@ -78,3 +78,12 @@ test('Model intent is advisory: only allowlisted Directors and separate-consent 
  assert.match(prompt,/separate human/);
  assert.match(prompt,/source investigation/);
 });
+
+test('Router is instructed to preserve conversational context and switch on explicit new goals',()=>{
+ const prompt=routePrompt('Να είναι χαλαρό',{activeDirector:'studio-director',
+  turns:[{role:'human',text:'Νέο τραγούδι'},{role:'assistant',text:'Τι ύφος;'}]});
+ assert.match(prompt,/Stay with the active project/);
+ assert.match(prompt,/Νέο τραγούδι/);
+ assert.match(prompt,/studio-director/);
+ assert.match(prompt,/clearly switches to another project/);
+});

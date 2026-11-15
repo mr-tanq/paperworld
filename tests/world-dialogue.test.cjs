@@ -17,7 +17,9 @@ test('Messenger is one unified in-world conversation with Matt, not a technical 
 test('Every Matt message starts with owner-approved, model-driven, non-sensitive Director routing',()=>{
  assert.match(source,/runMattWorkflow\(text\)/);
  assert.match(source,/window\.confirm\(/);
- assert.match(source,/delegateMatt\(text,\{targetDirector:'auto'\}\)/);
+ assert.match(source,/delegateMatt\(text,\{targetDirector:'auto',/);
+ assert.match(source,/activeMattDirector/);
+ assert.match(source,/mattConversation\.slice\(-8\)/);
  assert.match(source,/έως 3 GitHub Copilot|Έως 3 GitHub Copilot/);
  assert.doesNotMatch(source,/targetDirector:'wellbeing-director'/);
  assert.match(source,/result\.workProposal/);

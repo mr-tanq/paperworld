@@ -305,7 +305,7 @@
     return result;
    }catch(error){error.noteSaved=true;throw error}
   }
-  async function delegateMatt(message,{targetDirector='auto',wellbeingConsent=false}={}){
+  async function delegateMatt(message,{targetDirector='auto',wellbeingConsent=false,conversation=null}={}){
    const choices=['auto','listening-director','studio-director',
     'pokemon-director','wellbeing-director'];
    if(!choices.includes(targetDirector)||
@@ -319,6 +319,7 @@
    await agentStore().say(thread.id,text);
    const payload={threadId:thread.id,requestId:crypto.randomUUID(),message:text,
     consent:'MATT_DIRECTOR_UP_TO_THREE_AI_TURNS',targetDirector,
+     ...(conversation?{conversation}:{}),
     ...(targetDirector==='wellbeing-director'&&wellbeingConsent===true?{
      wellbeingConsent:'SHARE_APPROVED_WELLBEING_MEMORY_FOR_THIS_TURN'
     }:{})};
