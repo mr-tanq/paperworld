@@ -81,7 +81,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,fetcher=glo
   if(headers.origin!==ORIGIN)return deny(403,'origin_denied');
   const bearer=headers.authorization||'';
   if(!/^Bearer [A-Za-z0-9_.-]{12,4096}$/.test(bearer))return deny(401,'unauthorized');
-  if(typeof body!=='string'||Buffer.byteLength(body)>9500)return deny(413,'invalid_body');
+  if(typeof body!=='string'||Buffer.byteLength(body)>26000)return deny(413,'invalid_body');
   let data;
   try{data=JSON.parse(body)}catch(_){return deny(400,'invalid_json')}
   const conversation=parseConversation(data?.conversation);
