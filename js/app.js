@@ -269,6 +269,10 @@ function load(item){item.image=new Image();item.ready=false;item.image.onload=()
 function renderStatus(){assetEl.innerHTML=[scene,...defs].map(d=>'<div class="'+(d.ready?'good':'bad')+'">'+(d.ready?'✓ ':'○ ')+d.name+'</div>').join('')}
 const navigation=window.PaperworldNavigation;
 if(!navigation)throw new Error('PAPERWORLD navigation module not loaded');
+const directorMovement=window.PaperworldDirectorMovement;
+if(!directorMovement)throw new Error('PAPERWORLD director movement module not loaded');
+const directorAssembly=directorMovement.create(navigation,actors);
+
 function planMattRoute(target){
  const start=navigation.snapToPath([mattActor.x,mattActor.y],110);
  const end=navigation.snapToPath(target,55);
@@ -409,42 +413,9 @@ layers.push({id:'player',depth:w.y,paint:()=>{if(!drawPlayerSprite(w))drawFigure
  if(state.destination){const p=state.destination;ctx.strokeStyle='#fef3d9';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x-7,p.y);ctx.lineTo(p.x+7,p.y);ctx.moveTo(p.x,p.y-7);ctx.lineTo(p.x,p.y+7);ctx.stroke()}
  ctx.restore()}
 function tick(now){
- // The studio Director remains at the studio unless real actor motion is introduced elsewhere.
- if(studioDirectorActor){
-  const a=studioDirectorActor,dx=a.x-a.lastVisualX,dy=a.y-a.lastVisualY;
-  const traveled=Math.hypot(dx,dy);
-  a.moving=traveled>0.25;
-  if(a.moving){a.direction=mattDirection(dx,dy,a.direction);a.walkDistance+=traveled}
-  a.lastVisualX=a.x;a.lastVisualY=a.y;
- }
-
- // Animate only real movement of the existing Wellbeing Director; no invented patrol.
- if(wellbeingDirectorActor){
-  const a=wellbeingDirectorActor,dx=a.x-a.lastVisualX,dy=a.y-a.lastVisualY;
-  const traveled=Math.hypot(dx,dy);
-  a.moving=traveled>0.25;
-  if(a.moving){a.direction=mattDirection(dx,dy,a.direction);a.walkDistance+=traveled}
-  a.lastVisualX=a.x;a.lastVisualY=a.y;
- }
-
- // Track actual movement for Pokémon Director. Existing location/AI workflows remain untouched.
- if(pokemonDirectorActor){
-  const a=pokemonDirectorActor,dx=a.x-a.lastVisualX,dy=a.y-a.lastVisualY;
-  const traveled=Math.hypot(dx,dy);
-  a.moving=traveled>0.25;
-  if(a.moving){a.direction=mattDirection(dx,dy,a.direction);a.walkDistance+=traveled}
-  a.lastVisualX=a.x;a.lastVisualY=a.y;
- }
- // Follow actual Director movement only. Do not add fake patrols or change AI routing.
- if(listeningDirectorActor){
-  const a=listeningDirectorActor,dx=a.x-a.lastVisualX,dy=a.y-a.lastVisualY;
-  const traveled=Math.hypot(dx,dy);
-  a.moving=traveled>0.25;
-  if(a.moving){a.direction=mattDirection(dx,dy,a.direction);a.walkDistance+=traveled}
-  a.lastVisualX=a.x;a.lastVisualY=a.y;
- }
-
- const dt=Math.min(.05,(now-(tick.last||now))/1000);tick.last=now;
+ // Directors move only during explicitly requested visual meetings.
+const dt=Math.min(.05,(now-(tick.last||now))/1000);tick.last=now;
+ directorAssembly.tick(dt);
  const player=state.walker;
  player.moving=false;
  if(state.route.length){
@@ -521,5 +492,13 @@ document.querySelector('#open-chief')?.addEventListener('click',()=>{
  drawer.hidden=true;window.PaperworldWorldDialogue?.show('matt');
 });
 document.querySelector('#world-talk-matt')?.addEventListener('click',()=>window.PaperworldWorldDialogue?.show('matt'));
+document.querySelector('#call-visual-meeting')?.addEventListener('click',()=>{
+ const started=directorAssembly.call();
+ nameEl.textContent='Town Hall · visual meeting';
+ descEl.textContent=started
+  ?'Directors are walking on mapped paths for an illustrative gathering. No AI meeting, model call, task, or approval has been started.'
+  :'A visual gathering is already underway or no safe route is available.';
+});
+
 new ResizeObserver(resize).observe(canvas);renderStatus();updateMarkerControls();requestAnimationFrame(tick);
 })();
