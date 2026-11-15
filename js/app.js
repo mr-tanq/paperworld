@@ -55,7 +55,7 @@ const actors=defs.map(d=>({id:({town:'matt',workshop:'listening-director',pokemo
 // Preserves character size and original sprites as a safe fallback.
 const charactersHD=new Image();
 charactersHD.decoding='async';
-charactersHD.src='./assets/characters-hq-v1.png';
+charactersHD.src='./assets/characters-hq-v2.png';
 function drawHDCharacter(a,group,label){
  if(!charactersHD.complete||!charactersHD.naturalWidth)return false;
  if(charactersHD.naturalWidth!==256||charactersHD.naturalHeight!==1056)return false;
