@@ -52,7 +52,7 @@ const actors=defs.map(d=>({id:({town:'matt',workshop:'listening-director',pokemo
 // Chief Human Officer: contemporary clothes distinguish the human visitor from AI residents.
 const playerVisual=new Image();
 playerVisual.decoding='async';
-playerVisual.src='./assets/player-walk-v1.png';
+playerVisual.src='./assets/player-walk-v2.png';
 function drawPlayerSprite(p){
  if(!playerVisual.complete||!playerVisual.naturalWidth)return false;
  const rows={down:0,right:1,up:2,left:3};
