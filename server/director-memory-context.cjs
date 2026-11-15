@@ -9,7 +9,7 @@ function deny(code){const e=new Error(code);e.code=code;throw e}
 function createDirectorMemoryContext({store,authenticate}={}){
  if(typeof store?.list!=='function'||typeof authenticate!=='function')
   deny('trusted_context_dependencies_required');
- async function load({token,ownerId,actor,projectId,taskGrant=null}={}){
+ async function load({token,ownerId,actor,projectId,taskGrant=null,query=''}={}){
   const verified=await authenticate(token);
   if(!verified?.ownerId||verified.ownerId!==ownerId)
    deny('memory_owner_denied');
@@ -32,7 +32,7 @@ function createDirectorMemoryContext({store,authenticate}={}){
   return projectContext(rows,{actor,projectId,
    explicitHandoff:isMatt&&taskGrant?.approved===true&&
     taskGrant?.actor==='matt'&&taskGrant?.projectId===projectId,
-   workerTaskApproved:hasWorkerGrant,maxChars:6000});
+   workerTaskApproved:hasWorkerGrant,maxChars:6000,query});
  }
  return Object.freeze({load});
 }
