@@ -120,6 +120,44 @@ test('Live Auth identity failure prevents any owner status update',async()=>{
  assert.match(calls[0].url,/\/auth\/v1\/user$/);
 });
 
+test('Review panel requires user confirmation, then changes only one proposed entry',async()=>{
+ const review=require('../js/director-memory-review.js');
+ const makeNode=tag=>({
+  tagName:tag,textContent:'',children:[],disabled:false,
+  setAttribute(){},addEventListener(event,handler){this.handlers??={};this.handlers[event]=handler},
+  append(...children){this.children.push(...children)},
+  replaceChildren(...children){this.children=[...children]}
+ });
+ const find=(root,predicate)=>[...(predicate(root)?[root]:[]),
+  ...root.children.flatMap(child=>find(child,predicate))];
+ let status='proposed',allow=false,decisions=[],submitted=[],loads=0;
+ const view=review.createView({
+  document:{createElement:makeNode},enableReview:true,
+  load:async projectId=>{
+   loads++;assert.equal(projectId,'workshop');
+   return [{id:ID,project_id:projectId,kind:'decision',status,
+    title:'Recorded artistic decision',body:'Document the accepted change',
+    source_type:'conversation',source_ref:'conversation/test',
+    observed_at:'2026-11-15T00:00:00Z',version:1,sensitivity:'standard'}]
+  },
+  confirmDecision:async args=>{decisions.push(args);return allow},
+  requestReview:async args=>{submitted.push(args);status=args.decision}
+ });
+ const host=makeNode('div');await view.refresh(host);
+ const button=()=>find(host,x=>x.tagName==='button'&&x.textContent==='Έγκριση')[0];
+ assert.ok(button(),'An approve button appears for one proposed entry');
+ assert.equal(submitted.length,0,'display cannot change state');
+ await button().handlers.click();
+ assert.equal(decisions.length,1);
+ assert.equal(decisions[0].entry.body,'Document the accepted change');
+ assert.equal(decisions[0].entry.sourceRef,'conversation/test');
+ assert.equal(submitted.length,0,'rejection of confirmation cannot write');
+ allow=true;await button().handlers.click();
+ assert.deepEqual(submitted,[{projectId:'workshop',entryId:ID,decision:'approved'}]);
+ assert.equal(loads,2);
+ assert.equal(button(),undefined,'reviewed entry has no active approval button');
+});
+
 test('Review migration grants only status UPDATE and append-only private audit',()=>{
  const migration=fs.readFileSync('supabase/director_memory_review_v2_REVIEW_ONLY.sql','utf8');
  assert.match(migration,/REVIEW-ONLY migration/);
