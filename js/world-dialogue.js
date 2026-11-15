@@ -218,9 +218,8 @@
      const recovered=historyCodec().recover(history);
      // Persisted ID = original request UUID. Discard only the matching
      // temporary bubble to prevent duplicates, not all unsaved replies.
-     const savedIds=new Set(history.filter(m=>m.role==='agent').map(m=>m.id));
-     for(let i=mattReplies.length-1;i>=0;i--)
-      if(mattReplies[i].id&&savedIds.has(mattReplies[i].id))mattReplies.splice(i,1);
+     const freshReplies=historyCodec().reconcileReplies(mattReplies,history);
+     mattReplies.splice(0,mattReplies.length,...freshReplies);
      mattCachedEntries=recovered.display;
      if(!busy){activeMattDirector=recovered.activeDirector;
       mattConversation.splice(0,mattConversation.length,...recovered.turns)}
