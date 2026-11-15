@@ -111,6 +111,7 @@ jobs:
             tests/studio-director-visual.test.cjs \
             tests/director-display-names.test.cjs \
             tests/director-movement.test.cjs \
+            tests/face-to-face-staging.test.cjs \
             tests/paths-depth-v2.test.cjs \
             tests/matt-copilot-adapter.test.cjs \
             tests/matt-gateway.test.cjs \
