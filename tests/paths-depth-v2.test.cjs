@@ -24,7 +24,7 @@ test('central shortcut no longer crosses the Lost Wanderer Studio roof',()=>{
  const route=nav.routeBetween(start,end);
  assert.ok(route.some(([x,y])=>x>=710&&x<=960&&y<=395),'upper plaza path should loop behind the blossom tree');
  assert.ok(!route.some(([x,y])=>x>=745&&x<940&&y>=490&&y<=700),'no waypoints on studio roof');
- assert.equal(nav.clearSegment([720,480],[720,385]),true);
+ assert.equal(nav.clearSegment([720,480],[720,420]),true);
 });
 test('front public walkway wins over building overhang only on mapped path',()=>{
  const besidePokemon={x:415,y:625};
@@ -52,4 +52,15 @@ test('tablet navigation keeps Paths toggle in the visible Work Desk, not overflo
  const controls=html.slice(html.indexOf('<div class="controls">'),html.indexOf('</div>',html.indexOf('<div class="controls">')));
  assert.doesNotMatch(controls,/id="walkway-overlay"/);
  assert.equal((html.match(/id="walkway-overlay"/g)||[]).length,1);
+});
+
+test('annotated red routes are curved and visible at the correct locations',()=>{
+ const expected=[[535,520],[385,665],[835,854],[1240,690],[1125,515],[720,480],[850,365],[950,500]];
+ for(const point of expected){
+  assert.ok(nav.nodes.some(n=>n[0]===point[0]&&n[1]===point[1]),'missing annotated waypoint '+point);
+ }
+ const app=read('js/app.js');
+ assert.match(app,/strokeStyle='rgba\(229,48,53,\.92\)'/);
+ assert.ok(nav.nodes.length>=35,'curve should have intermediate steps, not shortcuts');
+ assert.equal(nav.safeConnections.length,nav.connections.length,'all edges must remain safe');
 });
