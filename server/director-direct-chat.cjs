@@ -54,7 +54,7 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,fetcher=globa
   used.set(key,clock()+600000);busy.add(ownerId);
   let client,session,directory,stage='memory_read';
   try{
-   const approved=await memory.load({token,ownerId,actor:agentId});
+   const approved=await memory.load({token,ownerId,actor:agentId,query:data.message.trim()});
    if(!approved||approved.actor!==agentId||approved.projectId!==
      (agentId==='listening-director'?'workshop':
       agentId==='pokemon-director'?'pokemon':
