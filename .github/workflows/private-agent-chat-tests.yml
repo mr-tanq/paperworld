@@ -21,6 +21,8 @@ on:
       - 'server/agent-job-history-api.cjs'
       - 'supabase/paperworld_agent_job_history_review.sql'
       - 'server/listening-repo-reader.cjs'
+      - 'server/pokemon-worker-handoff.cjs'
+      - 'server/pokemon-repo-reader.cjs'
       - 'server/autofix-candidate-policy.cjs'
       - 'server/autofix-draft-workflow.cjs'
       - 'server/autofix-github-draft-publisher.cjs'
@@ -115,6 +117,7 @@ jobs:
             tests/matt-delegation.test.cjs \
             tests/matt-semantic-router.test.cjs \
             tests/listening-repo-reader.test.cjs \
+            tests/pokemon-worker-handoff.test.cjs \
             tests/autofix-candidate-policy.test.cjs \
             tests/autofix-draft-workflow.test.cjs \
             tests/autofix-github-draft-publisher.test.cjs \

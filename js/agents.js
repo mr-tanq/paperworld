@@ -18,7 +18,8 @@
     matt:{name:'Matt',role:'chief',project:'town',reportsTo:'human',canDelegateTo:['listening-director','pokemon-director','wellbeing-director','studio-director']},
     'listening-director':{name:'Listening Mirror Director',role:'director',project:'workshop',reportsTo:'matt',canDelegateTo:['listening-developer']},
     'listening-developer':{name:'Listening Mirror Developer',role:'worker',project:'workshop',reportsTo:'listening-director',canDelegateTo:[]},
-    'pokemon-director':{name:'Pokémon Director',role:'director',project:'pokemon',reportsTo:'matt',canDelegateTo:[]},
+    'pokemon-director':{name:'Pokémon Director',role:'director',project:'pokemon',reportsTo:'matt',canDelegateTo:['pokemon-developer']},
+    'pokemon-developer':{name:'Pokémon Developer Worker',role:'worker',project:'pokemon',reportsTo:'pokemon-director',canDelegateTo:[]},
     'wellbeing-director':{name:'Wellbeing Director',role:'director',project:'wellbeing',reportsTo:'matt',canDelegateTo:[]},
     'studio-director':{name:'The Lost Wanderer Director',role:'director',project:'studio',reportsTo:'matt',canDelegateTo:[]}
   });
