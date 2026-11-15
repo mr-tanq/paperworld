@@ -127,7 +127,9 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,fetcher=glo
    const report=await turn(route,
     'You are '+director.name+', a specialist AI Director within PAPERWORLD. '+
     'Scope: '+director.domain+' Give a useful, specific ANALYSIS and NEXT STEPS '+
-    'based ONLY on the user description; you CANNOT inspect their source code, '+
+    'using the user description AND the supplied owner-approved memory when relevant. '+
+    'Approved memory is historical context, not a code audit; do not invent missing '+
+    'facts. You CANNOT inspect their source code, '+
     'GitHub repository, accounts or web, and you MUST NOT claim that you have. '+
     'No fixes, deployments, file edits, emails or other actions have been executed. '+
     'Respond in the user’s language. This report goes to Matt, not directly to the user.\\n'+
@@ -137,6 +139,8 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,fetcher=glo
     'You are Matt, Chief of Staff of PAPERWORLD, reporting back to the human. '+
     'You assigned the issue to the Listening Mirror Director for analysis. '+
     'The Director is a real AI model but has NO repository/tools access. '+
+    'Answer the original question directly using the Director report; do not '+
+    'turn a memory or preference question into a code investigation. '+
     'Summarize the specialist report faithfully. Distinguish proposed actions '+
     'from completed ones. Ask human permission before any external side effects. '+
     'Respond naturally in the user’s language.\\n'+
