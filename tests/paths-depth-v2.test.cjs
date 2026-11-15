@@ -19,12 +19,13 @@ test('all published walkable links are obstacle-free and connected',()=>{
   assert.ok(nav.routeBetween(start,end).length>1,'all project homes must be mutually reachable');
  }
 });
-test('central shortcut no longer crosses the Lost Wanderer Studio roof',()=>{
+test('route around the central blossom uses checked pavement or hidden rear alley',()=>{
  const start=nav.snapToPath([535,520],15),end=nav.snapToPath([1125,515],15);
  const route=nav.routeBetween(start,end);
- assert.ok(route.some(([x,y])=>x>=710&&x<=960&&y<=395),'upper plaza path should loop behind the blossom tree');
- assert.ok(!route.some(([x,y])=>x>=745&&x<940&&y>=490&&y<=700),'no waypoints on studio roof');
- assert.equal(nav.clearSegment([720,480],[720,420]),true);
+ assert.ok(route.length>1,'Town Hall and Listening Mirror remain connected');
+ for(let i=1;i<route.length;i++)assert.ok(nav.clearSegment(route[i-1],route[i]),'do not cross a ground-level obstruction');
+ assert.equal(nav.isHiddenEdge(16,37),true,'inner hidden rear route is declared');
+ assert.equal(nav.clearSegment([700,560],[755,562]),true,'rear path clears ground collision');
 });
 test('front public walkway wins over building overhang only on mapped path',()=>{
  const besidePokemon={x:415,y:625};
@@ -63,4 +64,18 @@ test('annotated red routes are curved and visible at the correct locations',()=>
  assert.match(app,/strokeStyle='rgba\(229,48,53,\.92\)'/);
  assert.ok(nav.nodes.length>=35,'curve should have intermediate steps, not shortcuts');
  assert.equal(nav.safeConnections.length,nav.connections.length,'all edges must remain safe');
+});
+
+test('rear path behind Listening Mirror is connected and deliberately not overpainted',()=>{
+ assert.equal(nav.nodes.length,56,'approved main paths plus 19 hidden walkable waypoints');
+ assert.equal(nav.safeConnections.length,nav.connections.length,'all hidden alleys must be ground-safe');
+ assert.ok(nav.hiddenConnections.length>=18,'occluded paths must be explicitly classified');
+ const path=nav.routeBetween(nav.snapToPath([1040,305],10),nav.snapToPath([1210,305],10));
+ assert.ok(path.length>2,'rear side of Listening Mirror is reachable');
+ assert.ok(path.some(([x,y])=>x>=1040&&x<=1210&&y<=320),'a route between rear alley points follows the hidden workshop passage');
+ const app=read('js/app.js');
+ assert.match(app,/navigation\.isHiddenEdge\(i,j\)\)continue/,'do not draw hidden paths over roofs');
+ assert.match(app,/hiddenNodes\.has\(i\)/);
+ const dep=depth.actorWalkwayDepth({x:1120,y:300},nav,[{id:'workshop',bottom:468}]);
+ assert.ok(dep<468,'rear passage is rendered behind the workshop image');
 });
