@@ -7,6 +7,7 @@ const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {createSafeSessionConfig}=require('./matt-session-config.cjs');
 const {createApprovedDirectorMemory,formatDirectorMemory}=require('./approved-director-memory.cjs');
 const {createDirectorThreadRecall}=require('./director-thread-recall.cjs');
+const {createDirectorReplyPersistence}=require('./director-reply-persistence.cjs');
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const ORIGIN='https://mr-tanq.github.io',CONSENT='ONE_DIRECTOR_COPILOT_TURN_INCLUDED_ALLOWANCE';
 const DIRECTORS=Object.freeze({
@@ -15,7 +16,7 @@ const DIRECTORS=Object.freeze({
  'studio-director':{name:'Crow',project:'The Lost Wanderer'},
  'wellbeing-director':{name:'Wellbeing Director',project:'Wellbeing'}
 });
-function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,fetcher=globalThis.fetch,
+function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,replyPersistence,fetcher=globalThis.fetch,
  clock=Date.now,budgetVerified=()=>process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED==='yes',
  diagnostic=()=>{}}={}){
  if(typeof oauth?.getLinkedToken!=='function'||typeof clientFactory!=='function')
@@ -24,6 +25,7 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
   publicKey:'sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL',fetcher});
  const memory=memoryLoader||createApprovedDirectorMemory({fetcher,identity});
  const recall=threadRecall||createDirectorThreadRecall({fetcher,identity});
+ const persistence=replyPersistence||createDirectorReplyPersistence({fetcher,identity});
  const used=new Map(),busy=new Set();
  const deny=(status,error)=>({status,body:{error}});
  async function handle({headers={},body}={}){
@@ -107,10 +109,17 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
    const reply=await session.sendAndWait({prompt});
    const content=reply?.data?.content;
    if(typeof content!=='string'||!content.trim())return deny(502,'empty_director_reply');
-   // This endpoint does not claim durable AI reply persistence.
+   // Persistence never authorizes actions, merges, tools or additional model turns.
+   // Failure must never be reported as a successfully saved historical reply.
+   let persisted=false;
+   try{
+    persisted=await persistence.save({token,ownerId,agentId,
+     threadId:data.threadId,requestId:data.requestId,content:content.trim()})===true;
+   }catch(_){persisted=false}
    return {status:200,body:{agentId,content:content.trim().slice(0,6000),
     executed:true,model:priced[0].id,requestId:data.requestId,
-    persisted:false,execution:'chat_only',aiTurns:1}};
+    persisted,persistedExcerpt:persisted&&content.trim().length>2000,
+    execution:'chat_only',aiTurns:1}};
   }catch(_){diagnostic(stage);return deny(503,'director_chat_unavailable')}
   finally{
    try{await session?.disconnect?.()}catch(_){}
