@@ -45,6 +45,16 @@ const demoButton=document.querySelector('#depth-demo');
 const demoPositions=[null,{x:835,y:705,label:'Behind the Studio'},{x:831,y:434,label:'Behind the plaza tree'}];
 demoButton.addEventListener('click',()=>{state.depthDemo=(state.depthDemo+1)%demoPositions.length;demoButton.textContent='Depth test: '+(demoPositions[state.depthDemo]?.label||'Off')});
 // Placeholders: Directors stand at approved path approach coordinates, not inside buildings.
+// Display labels only. Keep stable actor IDs and AI-agent routing unchanged.
+const directorDisplayNames=Object.freeze({
+ 'listening-director':'Luna',
+ 'pokemon-director':'Joey',
+ 'wellbeing-director':'Dave',
+ 'studio-director':'Crow'
+});
+function actorDisplayName(actor){
+ return actor.id==='matt'?'Matt':(directorDisplayNames[actor.id]||'Director');
+}
 const actors=defs.map(d=>({id:({town:'matt',workshop:'listening-director',pokemon:'pokemon-director',wellbeing:'wellbeing-director',studio:'studio-director'})[d.id],name:d.id==='town'?'Matt':d.name+' Director',x:d.approach[0],y:d.approach[1]}));
 // Matt follows the player along previously walked positions rather than
 // teleporting through houses. This is visual companionship, not AI execution.
@@ -116,7 +126,7 @@ function drawWellbeingDirectorSprite(a){
  ctx.drawImage(wellbeingDirectorVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh,dw,dh);
  ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
  ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;
- ctx.fillStyle='#fff4db';ctx.fillText('Director',a.x,a.y+14);
+ ctx.fillStyle='#fff4db';ctx.fillText(actorDisplayName(a),a.x,a.y+14);
  ctx.restore();
  return true;
 }
@@ -136,7 +146,7 @@ function drawStudioDirectorSprite(a){
  ctx.drawImage(studioDirectorVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh,dw,dh);
  ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
  ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;
- ctx.fillStyle='#fff4db';ctx.fillText('Director',a.x,a.y+14);
+ ctx.fillStyle='#fff4db';ctx.fillText(actorDisplayName(a),a.x,a.y+14);
  ctx.restore();
  return true;
 }
@@ -155,7 +165,7 @@ function drawPokemonDirectorSprite(a){
  ctx.drawImage(pokemonDirectorVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh,dw,dh);
  ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
  ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;
- ctx.fillStyle='#fff4db';ctx.fillText('Director',a.x,a.y+14);
+ ctx.fillStyle='#fff4db';ctx.fillText(actorDisplayName(a),a.x,a.y+14);
  ctx.restore();
  return true;
 }
@@ -163,7 +173,7 @@ const listeningDirectorVisual=new Image();
 listeningDirectorVisual.decoding='async';
 listeningDirectorVisual.src='./assets/listening-director-walk-v1.png';
 function drawListeningDirectorSprite(a){
- if(drawHDCharacter(a,2,'Director'))return true;
+ if(drawHDCharacter(a,2,actorDisplayName(a)))return true;
  if(!listeningDirectorVisual.complete || !listeningDirectorVisual.naturalWidth)return false;
  const row={down:0,right:1,up:2,left:3}[a.direction]??0;
  const frame=a.moving?Math.floor((a.walkDistance||0)/14)%4:1;
@@ -176,7 +186,7 @@ function drawListeningDirectorSprite(a){
  ctx.drawImage(listeningDirectorVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh,dw,dh);
  ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
  ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;
- ctx.fillStyle='#fff4db';ctx.fillText('Director',a.x,a.y+14);
+ ctx.fillStyle='#fff4db';ctx.fillText(actorDisplayName(a),a.x,a.y+14);
  ctx.restore();
  return true;
 }
@@ -361,7 +371,7 @@ const w=state.walker;
  ctx.save();ctx.fillStyle='#42362999';ctx.beginPath();ctx.ellipse(a.x,a.y,13,5,0,0,Math.PI*2);ctx.fill();
  ctx.fillStyle=a.id==='matt'?'#c9a56e':'#8ca7af';ctx.beginPath();ctx.arc(a.x,a.y-24,10,0,Math.PI*2);ctx.fill();
  ctx.fillStyle='#3c4d58';ctx.fillRect(a.x-10,a.y-14,20,20);
- ctx.fillStyle='#fff9e8';ctx.font='bold 15px system-ui';ctx.textAlign='center';ctx.fillText(a.id==='matt'?'Matt':'Director',a.x,a.y+23);
+ ctx.fillStyle='#fff9e8';ctx.font='bold 15px system-ui';ctx.textAlign='center';ctx.fillText(actorDisplayName(a),a.x,a.y+23);
  ctx.restore();
 }});
 layers.push({id:'player',depth:w.y,paint:()=>{if(!drawPlayerSprite(w))drawFigure(w)}});
