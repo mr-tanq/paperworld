@@ -118,7 +118,7 @@
     world()?.completeMattDirectorJourney?.();
     // If browser animation is paused, do not leave the reply blocked forever.
     await Promise.race([world()?.waitMattDirectorReturn?.()||Promise.resolve(),
-     new Promise(resolve=>setTimeout(resolve,35000))]);
+     new Promise(resolve=>setTimeout(resolve,90000))]);
     mattJourneyCaption='Ο Matt επέστρεψε από τον '+who;
    }
    mattReplies.push({id:result.persisted===true?result.requestId:null,
