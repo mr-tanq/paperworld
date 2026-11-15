@@ -84,33 +84,22 @@ test('Owner review RPC is disabled until trusted one-time human confirmation exi
  await assert.rejects(base.store.review({token:JWT,ownerId:OWNER,
   entryId:ID,decision:'approved',
   approvalId:'33333333-3333-4333-8333-333333333333'}),
-  /owner_review_not_configured/);
+  /memory_review_not_configured/);
  assert.equal(base.requests.length,0);
 });
-test('Approved owner review uses scoped RPC, never direct UPDATE or DELETE',async()=>{
- const calls=[];
+test('Review remains blocked even when a trusted callback is injected',async()=>{
+ let invoked=false;
  const store=createDirectorMemoryStore({
   baseUrl:'https://example.supabase.co',publicKey:'test-public-key',
   authenticate:async()=>({ownerId:OWNER}),
-  verifyOwnerReview:async args=>{
-   assert.equal(args.ownerId,OWNER);
-   assert.equal(args.decision,'approved');return true
-  },
-  fetcher:async(url,opts)=>{
-   calls.push({url,opts});
-   return {ok:true,json:async()=>true};
-  }
+  verifyOwnerReview:async()=>true,
+  fetcher:async()=>{invoked=true;return {ok:true,json:async()=>true}}
  });
- const approvalId='33333333-3333-4333-8333-333333333333';
- const result=await store.review({token:JWT,ownerId:OWNER,entryId:ID,
-  decision:'approved',approvalId});
- assert.equal(result.status,'approved');
- assert.equal(calls.length,1);
- assert.match(calls[0].url,/\/rpc\/paperworld_review_director_memory$/);
- assert.equal(calls[0].opts.method,'POST');
- assert.deepEqual(JSON.parse(calls[0].opts.body),{
-  p_id:ID,p_decision:'approved'
- });
+ await assert.rejects(store.review({token:JWT,ownerId:OWNER,
+  entryId:ID,decision:'approved',
+  approvalId:'33333333-3333-4333-8333-333333333333'}),
+  /memory_review_not_configured/);
+ assert.equal(invoked,false);
 });
 test('Human review callback denial cannot touch persistence',async()=>{
  let invoked=false;
@@ -122,6 +111,18 @@ test('Human review callback denial cannot touch persistence',async()=>{
  });
  await assert.rejects(store.review({token:JWT,ownerId:OWNER,
   entryId:ID,decision:'approved',approvalId:'33333333-3333-4333-8333-333333333333'}),
-  /explicit_owner_approval_required/);
+  /memory_review_not_configured/);
  assert.equal(invoked,false);
+});
+
+test('PostgreSQL timestamp with UTC offset can be read without losing provenance',async()=>{
+ const original=entry();
+ const stored={id:original.id,project_id:'studio',kind:original.kind,
+  status:original.status,title:original.title,body:original.body,
+  source_type:original.sourceType,source_ref:original.sourceRef,
+  observed_at:'2026-11-15T00:00:00+00:00',version:1,
+  sensitivity:original.sensitivity};
+ const s=setup({rows:[stored]});
+ const result=await s.store.list({token:JWT,ownerId:OWNER,projectId:'studio'});
+ assert.equal(result[0].observedAt,'2026-11-15T00:00:00.000Z');
 });
