@@ -4,7 +4,7 @@
  */
 (function(root,factory){'use strict';const api=factory();
  if(typeof module==='object'&&module.exports)module.exports=api;
- else root.PaperworldTownHall=factory;
+ else root.PaperworldTownHall=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){'use strict';
  const ACTORS=Object.freeze([
   {id:'matt',name:'Matt',role:'Chief of Staff',project:'Όλα τα projects'},
