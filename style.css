@@ -314,3 +314,12 @@ body>header span{font-size:10px;color:#a3afa6;letter-spacing:.04em}
 #world-drawer .director-memory-review-actions button:first-child{background:#415a47;color:#f3f9ef}
 #world-drawer .director-memory-review-actions button:last-child{background:#5c4545;color:#fff0e9}
 #world-drawer .director-memory-review-actions button:disabled{opacity:.5;cursor:not-allowed}
+
+/* Matt consented AI modes: memory Q&A default; Worker investigation explicit. */
+.world-chat-mode-picker{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0}
+.world-chat-mode-picker[hidden],.world-chat-mode-hint[hidden]{display:none!important}
+.world-chat-mode{border:1px solid #ffffff33;border-radius:10px;padding:8px 10px;background:#242b32;color:#d5d8de;font:inherit;font-size:12px;line-height:1.3;cursor:pointer;min-height:40px}
+.world-chat-mode.selected{border-color:#d0ad7b;background:#4b4132;color:#ffe9ca}
+.world-chat-mode:focus-visible{outline:2px solid #f3c487;outline-offset:2px}
+.world-chat-mode-hint{display:block;font-size:11px;color:#b8bec7;margin-bottom:8px}
+@media(max-width:420px){.world-chat-mode-picker{grid-template-columns:1fr}}

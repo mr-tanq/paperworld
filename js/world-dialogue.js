@@ -5,7 +5,7 @@
 (()=>{'use strict';
  const view=document.querySelector('#view'),world=()=>window.PaperworldWorld,cloud=()=>window.PaperworldCloudUI;
  if(!view)return;
- let openId=null,revision=0,busy=false;
+ let openId=null,revision=0,busy=false,workflowMode='ask';
  const mattReplies=[];
  const make=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e};
  const actions=make('div','world-talk-actions');
@@ -38,6 +38,28 @@
   try{const url=await cloud().beginGithubLink();window.location.assign(url)}
   catch(e){status.textContent='Η σύνδεση GitHub δεν ξεκίνησε: '+e.message}
  });
+ const modePicker=make('div','world-chat-mode-picker');
+ modePicker.setAttribute('role','group');
+ modePicker.setAttribute('aria-label','Επιλογή λειτουργίας Matt');
+ const askMode=make('button','world-chat-mode selected','Ρώτα τον Director · έως 3 AI κλήσεις');
+ const workMode=make('button','world-chat-mode','Ανάθεσε σε Worker · έως 5 AI κλήσεις');
+ const modeHint=make('small','world-chat-mode-hint');
+ function setWorkflowMode(mode){
+  if(!['ask','work'].includes(mode)||busy)return;
+  workflowMode=mode;
+  askMode.classList.toggle('selected',mode==='ask');
+  workMode.classList.toggle('selected',mode==='work');
+  askMode.setAttribute('aria-pressed',String(mode==='ask'));
+  workMode.setAttribute('aria-pressed',String(mode==='work'));
+  modeHint.textContent=mode==='ask'
+   ?'Ερωτήσεις, αποφάσεις και εγκεκριμένη μνήμη · Matt → Director, χωρίς Worker.'
+   :'Τεχνικός έλεγχος · Matt → Director → Worker, μόνο ανάγνωση.';
+ }
+ askMode.type='button';workMode.type='button';
+ askMode.addEventListener('click',()=>setWorkflowMode('ask'));
+ workMode.addEventListener('click',()=>setWorkflowMode('work'));
+ modePicker.append(askMode,workMode);
+ setWorkflowMode('ask');
  const form=make('form','world-dialogue-form');
  const field=make('textarea','world-chat-input');
  const send=make('button','world-chat-send','➤');
@@ -70,10 +92,16 @@
  // there is no Director/Worker transcript in the human Messenger.
  async function runMattWorkflow(text){
   if(openId!=='matt'||!cloud()?.signedIn()||busy||!text.trim())return;
-  if(!window.confirm('Ο Matt θα εξετάσει το αίτημα και, αν αφορά το Listening Mirror, '+
-    'θα το αναθέσει στον Director και Developer Worker. Έως 5 πραγματικές '+
-    'AI κλήσεις από τα διαθέσιμα GitHub Copilot Credits, με επιπλέον budget $0. '+
-    'Μόνο ανάγνωση επιτρεπόμενου κώδικα, χωρίς αλλαγές, εργαλεία ή deployment. Συνέχεια;'))return;
+  // The human chooses the route before consent; never infer permission
+  // to engage a Worker from an ambiguous natural-language message.
+  const isWork=workflowMode==='work';
+  const consentText=isWork?
+   'Ανάθεση τεχνικής διερεύνησης: Matt → Director → Worker. Έως 5 AI κλήσεις '+
+   'με τα υπάρχοντα Copilot Credits και επιπλέον budget $0. Μόνο ανάγνωση κώδικα.':
+   'Ερώτηση προς Director: Matt → Director → Matt. Έως 3 AI κλήσεις '+
+   'με τα υπάρχοντα Copilot Credits και επιπλέον budget $0. Χωρίς Worker.';
+  if(!window.confirm(consentText+
+   ' Καμία αλλαγή αρχείων, δικαιώματα εργαλείων ή deployment. Συνέχεια;'))return;
   busy=true;field.disabled=true;send.disabled=true;
   let requestId=null,lastPhase=null,polling=false,watcher=null,failed=null;
   const showStage=phase=>{
@@ -95,16 +123,21 @@
   // Close the overlay after the user's explicit AI approval so the village
   // remains visible; the map follows real stored stages only.
   hide();
-  showNotice('Ο Matt εξετάζει την ανάθεση. Η πορεία θα εμφανιστεί όταν καταγραφεί ο Director.');
+  showNotice(isWork?
+   'Ο Matt εξετάζει την εργασία. Η πορεία θα εμφανιστεί όταν καταγραφεί.':
+   'Ο Matt ρωτά τον Director με βάση την εγκεκριμένη μνήμη. Χωρίς Worker.');
   try{
-   const result=await cloud().delegateMattWorker(text,{onStart:id=>{
-    requestId=id;
-    watcher=setInterval(poll,1300);
-   }});
-   await poll();
+   const result=isWork?
+    await cloud().delegateMattWorker(text,{onStart:id=>{
+     requestId=id;
+     watcher=setInterval(poll,1300);
+    }}):
+    await cloud().delegateMatt(text);
+   if(isWork)await poll();
    if(result.delegated){
-    showStage('reported');
-    showNotice('Ο Matt επέστρεψε με ενημέρωση. Πάτησε M για να τη διαβάσεις.');
+    if(isWork)showStage('reported');
+    showNotice('Ο Matt επέστρεψε με '+(isWork?'την αναφορά της εργασίας.':'την απάντηση του Director.')+
+     ' Πάτησε M για να τη διαβάσεις.');
    }else showNotice('Ο Matt δεν έχει ακόμη ενεργό Director για αυτό το αίτημα.');
    mattReplies.push({content:'Matt — ενημέρωση:\n'+result.content,
     time:new Date().toISOString()});
@@ -149,7 +182,7 @@
   }finally{busy=false;historyBtn.disabled=false}
  });
  const helper=make('small','world-chat-helper','Copilot AI Credits · Έγκριση ανά μήνυμα · Καμία ενέργεια σε αρχεία');
- composer.append(connectGithub,historyBtn,form,helper);
+ composer.append(connectGithub,historyBtn,modePicker,modeHint,form,helper);
  panel.append(top,status,messages,composer);view.append(panel);
 
  function bubble(role,text,when){
@@ -193,6 +226,8 @@
   connectGithub.hidden=true;
   diagnoseBtn.hidden=!(isMatt&&active);
   historyBtn.hidden=!(isMatt&&active);
+  modePicker.hidden=!isMatt;
+  modeHint.hidden=!isMatt;
   if(isMatt&&active&&typeof cloud()?.githubLinkStatus==='function'){
    const selected=openId;
    cloud().githubLinkStatus().then(link=>{
