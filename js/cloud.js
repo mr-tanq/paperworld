@@ -194,6 +194,32 @@
    const thread=await getAgentThread(agentId,true);
    return agentStore().say(thread.id,text);
   }
+  const DIRECTOR_CHATS=new Set(['listening-director','pokemon-director',
+   'studio-director','wellbeing-director']);
+  async function askDirector(agentId,message,{saveNote=true}={}){
+   if(!DIRECTOR_CHATS.has(agentId))throw Error('Unsupported Director');
+   const text=String(message||'').trim();
+   if(!text||text.length>1200)throw Error('Message must be 1–1200 characters');
+   await ensureAuth();
+   const thread=await getAgentThread(agentId,true);
+   if(saveNote)await agentStore().say(thread.id,text);
+   const payload={agentId,threadId:thread.id,requestId:crypto.randomUUID(),
+    message:text,consent:'ONE_DIRECTOR_COPILOT_TURN_INCLUDED_ALLOWANCE'};
+   try{
+    const response=await fetcher(MATT_ORIGIN+'/chat/director',{
+     method:'POST',redirect:'error',headers:{Authorization:'Bearer '+session.access_token,
+      'Content-Type':'application/json'},body:JSON.stringify(payload)
+    });
+    let result={};
+    try{result=await response.json()}catch(_){}
+    if(!response.ok)throw Error((result.error||'Director unavailable')+
+     ' (HTTP '+response.status+')');
+    if(result.agentId!==agentId||result.executed!==true||
+     result.aiTurns!==1||typeof result.content!=='string'||!result.content.trim())
+     throw Error('Director response not verified');
+    return result;
+   }catch(e){e.noteSaved=saveNote;throw e}
+  }
   // GitHub OAuth linking uses the current Supabase user, never a browser GitHub token.
   const MATT_ORIGIN='https://paperworld-matt-test-6hmd.onrender.com';
   async function mattOAuth(path){
@@ -435,7 +461,7 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,mattJobHistory,diagnoseMattSession,
+   listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,mattJobHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};

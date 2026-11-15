@@ -32,7 +32,8 @@ function createSupabaseGuard({baseUrl,publicKey,fetcher}={}){
   return Object.freeze({ownerId:person.id});
  }
  async function ownsThread({threadId,ownerId,agentId,token}={}){
-  if(!ID.test(threadId||'')||!ID.test(ownerId||'')||agentId!=='matt')return false;
+  if(!ID.test(threadId||'')||!ID.test(ownerId||'')||
+   !['matt','listening-director','pokemon-director','studio-director','wellbeing-director'].includes(agentId))return false;
   // The same user's Supabase JWT is used. PostgreSQL RLS is still authoritative.
   const auth=await authenticate(token);
   if(auth.ownerId!==ownerId)return false;
@@ -41,7 +42,7 @@ function createSupabaseGuard({baseUrl,publicKey,fetcher}={}){
   const rows=await call(query,token);
   if(!Array.isArray(rows)||rows.length!==1)return false;
   const thread=rows[0];
-  return thread.id===threadId&&thread.owner_id===ownerId&&thread.agent_id==='matt';
+  return thread.id===threadId&&thread.owner_id===ownerId&&thread.agent_id===agentId;
  }
  return Object.freeze({authenticate,ownsThread});
 }
