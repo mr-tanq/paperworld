@@ -37,7 +37,7 @@ function makePublisher({fetcher=globalThis.fetch,installationCredential,attestat
   const expectedDigest=digest(candidate);
   if(verification.candidateDigest!==expectedDigest||
     await attestationVerifier({taskId,repository:REPOSITORY,
-     baseCommitSha,candidateDigest:expectedDigest,verification})!==true)
+     baseCommitSha,candidateDigest:expectedDigest,candidate,verification})!==true)
    deny('independent_attestation_required');
   // Token must be minted by a trusted GitHub App installation provider. The
   // existing user OAuth credential is never accepted as a publisher token.
