@@ -86,7 +86,10 @@ function render(){
   btn('Ανανέωση',()=>work(reload)),
   btn('Μνήμη Directors',openDirectorMemory),
   btn('Sign out',()=>work(async()=>{await client.signout();tasks=[];allTasks=[];edit=null})));
- host.append(userBar);
+ const settings=el('details',undefined,'human-hub-account-settings');
+ settings.append(el('summary','Λογαριασμός και ρυθμίσεις'));
+ settings.append(userBar);
+ host.append(settings);
  if(memoryOpen){renderDirectorMemory();return}
  if(room==='workshop'){
   renderWorkshop();return;
@@ -145,8 +148,10 @@ function renderWorkshop(){
  tasksPanel.append(btn('+ Νέα εργασία',()=>{edit=true;render()},'primary'));
  if(edit)tasksPanel.append(form(edit===true?null:edit));
  for(const task of tasks)tasksPanel.append(taskRow(task));
- host.append(tasksPanel);
  renderHumanWork(host);
+ const manual=el('details',undefined,'human-hub-manual');
+ manual.append(el('summary','Χειροκίνητες εργασίες project (προαιρετικά)'));
+ manual.append(tasksPanel);host.append(manual);
  const reviewHost=el('div',undefined,'listening-review-host');
  const reviewModule=window.PaperworldListeningReview;
  const publish=(summary,digest)=>{
@@ -213,8 +218,8 @@ function renderWorkshop(){
 function renderMattConversation(){
  const sec=el('section',undefined,'developer-chat');
  sec.append(el('h3','Matt · Chief of Staff'));
- sec.append(el('p','Μίλα ελεύθερα στον Matt μέσω GitHub Copilot. Η AI συνομιλία ζητά ξεχωριστή έγκριση ανά μήνυμα. Ο Matt μπορεί να απαντήσει και να σχεδιάσει, αλλά δεν μπορεί ακόμη να αναθέσει πραγματική εργασία ή να αλλάξει αρχεία.','room-footnote'));
- sec.append(el('p','GitHub Copilot · οι AI κλήσεις γίνονται μόνο μετά τη δική σου έγκριση ανά μήνυμα και τον έλεγχο διαθέσιμου ορίου.','room-footnote'));
+ sec.append(el('p','Ο Matt συζητά μαζί σου, συμβουλεύεται τον αρμόδιο Director και μπορεί να ξεκινήσει εγκεκριμένη, περιορισμένη διερεύνηση με Worker. Δεν εφαρμόζει αλλαγές χωρίς ξεχωριστή έγκριση.','room-footnote'));
+ sec.append(el('p','Οι AI κλήσεις απαιτούν δική σου έγκριση και επαληθευμένο όριο κόστους.','room-footnote'));
  sec.append(btn('Σύνδεσε το GitHub',()=>work(async()=>{
   const authorizationUrl=await client.beginGithubLink();
   // Redirect only to verified github.com OAuth authorization URL.
