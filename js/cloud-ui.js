@@ -70,14 +70,14 @@ function render(){
   host.append(el('h2','PAPERWORLD · Sign in'),el('p','Sign in to open your private project workspace.'),loginForm());return;
  }
  const top=el('div',undefined,'room-heading');
- top.append(el('h2',room==='workshop'?'Listening Mirror Workshop':room==='town'?'Chief of Staff':model.ROOMS.find(r=>r.id===room).name));
+ top.append(el('h2',room==='workshop'?'Listening Mirror · Η ομάδα μου':room==='town'?'Οι εργασίες μου':model.ROOMS.find(r=>r.id===room).name));
  top.append(btn('Back to local',()=>{active=false;window.PaperworldRooms.open(room,true)}));
  host.append(top);
  if(message)host.append(el('p',message,message.startsWith('Error:')?'room-error':'room-notice'));
  if(busy)host.append(el('p','Working…','room-footnote'));
  const userBar=el('div',undefined,'room-ops');
  userBar.append(el('small',client.identity()),
-  btn('Refresh',()=>work(reload)),
+  btn('Ανανέωση',()=>work(reload)),
   btn('Μνήμη Directors',openDirectorMemory),
   btn('Sign out',()=>work(async()=>{await client.signout();tasks=[];allTasks=[];edit=null})));
  host.append(userBar);
@@ -92,7 +92,7 @@ function renderWorkshop(){
  // Project diagnosis and worker routing must come from authorized AI, not keywords.
  const section=el('section',undefined,'developer-chat');
  section.append(el('h3','Listening Mirror'));
- section.append(el('p','Ο αρμόδιος Director και ο Developer θα χειρίζονται οποιοδήποτε αίτημα ανατεθεί από τον Matt. Το AI δεν έχει συνδεθεί ακόμη.','room-footnote'));
+ section.append(el('p','Πες στον Matt τι χρειάζεσαι. Η ομάδα θα διερευνήσει το πρόβλημα και θα σου παρουσιάσει μια λύση για έγκριση.','room-footnote'));
  section.append(btn('Μίλα στον Matt',()=>{
   if(window.PaperworldWorldDialogue?.show)window.PaperworldWorldDialogue.show('matt');
   else note('Το Messenger δεν είναι διαθέσιμο.',true);
@@ -107,32 +107,34 @@ function renderWorkshop(){
  const reviewHost=el('div',undefined,'listening-review-host');
  const reviewModule=window.PaperworldListeningReview;
  const publish=(summary,digest)=>{
-  const lines=summary.files.map(f=>f.path).join(', ');
-  if(!window.confirm('Δημιουργία Draft PR στο mr-tanq/concerts;\\n'+
-   'Αρχεία: '+lines+'\\nΗ ενέργεια θα δημιουργήσει GitHub branch και Draft PR '+
-   'αλλά ΟΧΙ merge ή deployment. Η άδεια ισχύει μόνο μία φορά. Εγκρίνεις;'))return;
+  if(!window.confirm('Εγκρίνεις να ετοιμάσουμε την προτεινόμενη λύση;\n\n'+
+   summary.summary+'\n\n'+
+   'Θα δημιουργηθεί μόνο μια προτεινόμενη αλλαγή για έλεγχο. '+
+   'Η εφαρμογή ΔΕΝ αλλάζει τώρα. Δεν θα γίνει αυτόματο merge ή δημοσίευση.'))return;
   work(async()=>{
    const result=await client.publishListeningProposal(summary.jobId,digest);
    await reload();
-   message='Το Draft PR δημιουργήθηκε: '+result.url+
-    ' · Δεν έγινε merge ή deployment.';
+   message='Η λύση προετοιμάστηκε για τελικό έλεγχο. Δεν έχει εφαρμοστεί στην εφαρμογή. '+result.url;
   });
  };
  const reject=(summary,digest)=>{
-  if(!window.confirm('Να απορριφθεί οριστικά αυτή η πρόταση αλλαγής;'))return;
+  if(!window.confirm('Να απορρίψουμε οριστικά αυτή τη λύση; Δεν θα εφαρμοστεί καμία αλλαγή.'))return;
   work(async()=>{
    await client.rejectListeningProposal(summary.jobId,digest);
    await reload();message='Η πρόταση απορρίφθηκε. Δεν έγινε καμία αλλαγή.';
   });
  };
- reviewHost.append(el('h3','Προτάσεις Developer · έλεγχος πριν από κάθε PR'));
- reviewHost.append(btn('Ανανέωση προτάσεων',()=>work(reload)));
- reviewHost.append(btn('GitHub · εξουσιοδότηση για Draft PR',()=>work(async()=>{
+ reviewHost.append(el('h3','Λύσεις που περιμένουν την απόφασή μου'));
+ reviewHost.append(el('p','Η ομάδα προτείνει, εσύ αποφασίζεις. Καμία αλλαγή δεν εφαρμόζεται χωρίς ξεχωριστή έγκριση.','room-footnote'));
+ reviewHost.append(btn('Ανανέωση',()=>work(reload),'human-first-utility'));
+ const advanced=el('details','human-first-settings');
+ advanced.append(el('summary','', 'Ρυθμίσεις σύνδεσης (προαιρετικά)'));
+ advanced.append(btn('Σύνδεση GitHub για προετοιμασία αλλαγών',()=>work(async()=>{
   const link=await client.beginGithubLink();
   window.location.assign(link);
  })));
- reviewHost.append(el('p','Η σύνδεση GitHub θα ζητήσει ρητή άδεια public_repo. '+
-  'Το Paperworld περιορίζει τις εγγραφές μόνο σε Draft PR του Listening Mirror.','room-footnote'));
+ advanced.append(el('p','Η σύνδεση ζητά πρόσβαση public_repo και επιτρέπει μόνο την προετοιμασία Draft PR του Listening Mirror. Δεν γίνεται αυτόματη εφαρμογή.','room-footnote'));
+ reviewHost.append(advanced);
  if(listeningProposalError)reviewHost.append(el('p',listeningProposalError,'room-footnote'));
  if(listeningStoredProposals.length){
   for(const proposal of listeningStoredProposals.slice(0,8)){
@@ -147,7 +149,7 @@ function renderWorkshop(){
     /^https:\/\/github\.com\/mr-tanq\/concerts\/pull\/[1-9][0-9]*$/.test(proposal.draftUrl||'')){
     const link=document.createElement('a');
     link.href=proposal.draftUrl;
-    link.textContent='Άνοιξε το Draft PR στο GitHub';
+    link.textContent='Τεχνικός έλεγχος στο GitHub (προαιρετικά)';
     link.target='_blank';link.rel='noopener noreferrer';
     place.append(link);
    }
