@@ -17,3 +17,10 @@ One Messenger, one natural language chat with Matt. The visible Director/Worker 
 
 ## Verification
 Offline regression suite checks safe structured model-output validation, worker proposal isolation, Wellbeing exclusion, plain Messenger, client forwarding and independent consent.
+## Conversation continuity — draft extension
+- The Matt UI keeps up to four recent human/assistant turn pairs **in memory for the open page** and includes them with the next authorized request. This is not durable server-side storage of AI replies.
+- The router receives the active non-sensitive Director as a hint and the previous bounded turns; it is instructed to preserve natural follow-up context while recognizing explicit project changes.
+- Only when the newly selected Director matches the previous one does the backend pass earlier dialogue to that Director and Matt's final response. Switching project clears the in-memory turns, and no wellbeing route is permitted through this feature.
+- Browser-provided context is untrusted, shape/size checked server-side, cannot choose new permissions or read different Director memory, and remains subject to per-turn consent and zero-overage checks.
+- This does **not** retain AI dialogue after page reload or offer permanent per-project conversations. Durable AI reply history requires a separate authenticated server-write design and database policy review. AI routing still might misclassify follow-ups: no Worker executes without a second approval.
+- Pending: run the regression suite and verify in a live browser after explicit merge/deployment approval.
