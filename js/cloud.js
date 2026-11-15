@@ -305,7 +305,7 @@
     return result;
    }catch(error){error.noteSaved=true;throw error}
   }
-  async function delegateMatt(message,{targetDirector='auto',wellbeingConsent=false,conversation=null}={}){
+  async function delegateMatt(message,{targetDirector='auto',wellbeingConsent=false,conversation=null,onStart=null,onProgress=null}={}){
    const choices=['auto','listening-director','studio-director',
     'pokemon-director','wellbeing-director'];
    if(!choices.includes(targetDirector)||
@@ -323,15 +323,43 @@
     ...(targetDirector==='wellbeing-director'&&wellbeingConsent===true?{
      wellbeingConsent:'SHARE_APPROVED_WELLBEING_MEMORY_FOR_THIS_TURN'
     }:{})};
+   if(typeof onStart==='function')onStart(payload.requestId);
    try{
     const response=await fetcher(MATT_ORIGIN+'/delegate/matt',{
      method:'POST',headers:{Authorization:'Bearer '+session.access_token,
-      'Content-Type':'application/json'},body:JSON.stringify(payload),redirect:'error'
+      'Content-Type':'application/json',
+      ...(typeof onProgress==='function'?{Accept:'application/x-ndjson'}:{})},
+     body:JSON.stringify(payload),redirect:'error'
     });
-    let result={};
-    try{result=await response.json()}catch(_){}
-    if(!response.ok)throw Error((result.error||'Delegation failed')+
-     (result.stage?' · '+result.stage:'')+' (HTTP '+response.status+')');
+    let result={},reportedStatus=response.status;
+    if(response.headers?.get?.('content-type')?.includes('application/x-ndjson')){
+     if(!response.body?.getReader)throw Error('Progress stream unavailable');
+     const reader=response.body.getReader(),decoder=new TextDecoder();
+     let buffer='',size=0,gotResult=false;
+     while(true){
+      const {done,value}=await reader.read();
+      if(done)break;
+      size+=value.byteLength;
+      if(size>65000)throw Error('Progress stream exceeded safe limit');
+      buffer+=decoder.decode(value,{stream:true});
+      let end;
+      while((end=buffer.indexOf('\n'))>=0){
+       const line=buffer.slice(0,end);buffer=buffer.slice(end+1);
+       if(!line.trim())continue;
+       const event=JSON.parse(line);
+       if(event.type==='progress'&&typeof onProgress==='function'){
+        try{onProgress(event)}catch(_){}
+       }else if(event.type==='result'&&!gotResult){
+        gotResult=true;reportedStatus=event.status;result=event.body||{};
+       }
+      }
+     }
+     if(!gotResult)throw Error('Incomplete Matt progress stream');
+    }else{
+     try{result=await response.json()}catch(_){}
+    }
+    if(!response.ok||reportedStatus!==200)throw Error((result.error||'Delegation failed')+
+     (result.stage?' · '+result.stage:'')+' (HTTP '+reportedStatus+')');
     if(result.executed!==true||typeof result.content!=='string')
      throw Error('No verified Matt delegation response');
     return result;
