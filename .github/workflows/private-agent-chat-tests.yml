@@ -14,6 +14,7 @@ on:
       - 'server/director-memory-policy.cjs'
       - 'server/director-memory-store.cjs'
       - 'server/director-memory-context.cjs'
+      - 'server/approved-director-memory.cjs'
       - 'supabase/director_memory_review_v2_REVIEW_ONLY.sql'
       - 'supabase/paperworld_director_memory_v1_REVIEW.sql'
       - 'server/agent-job-history-api.cjs'
@@ -86,6 +87,7 @@ jobs:
             tests/director-memory-store.test.cjs \
             tests/director-memory-review.test.cjs \
             tests/director-memory-owner-review.test.cjs \
+            tests/approved-director-memory.test.cjs \
             tests/agent-job-history-api.test.cjs \
             tests/agent-conversation-store.test.cjs \
             tests/agent-cloud-integration.test.cjs \
