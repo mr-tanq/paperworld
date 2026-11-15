@@ -32,7 +32,7 @@ test('promoted app uses correct root-relative assets and shares local task state
  assert.match(cloud,/const TOKEN_STORAGE='paperworld-cloud-session-v1'/);
  assert.match(read('preview-010/cloud.js'),/const TOKEN_STORAGE='paperworld-cloud-session-v1'/);
  assert.equal(projects,read('preview-010/projects.js'));
- assert.match(main,/PaperworldRooms\?\.open\('town'\)/);
+ assert.match(main,/PaperworldCloudUI\?\.openChief\(\)/);
 });
 test('no network integrations in prototype JavaScript',()=>{
  const js=read('village.js');
@@ -329,19 +329,21 @@ test('cloud client validates rooms and avoids duplicate local import IDs',()=>{
  })();
 });
 
-test('tablet orientation keeps map next to independent scrollable project panel',()=>{
+test('tablet orientation retains an independent scrollable village Work Desk and usable mobile Messenger',()=>{
  const html=read('index.html'),css=read('style.css');
  assert.match(html,/<style id="paperworld-critical-layout">/);
- assert.match(html,/@media \(orientation:landscape\) and \(min-width:641px\)/);
- assert.match(html, /\.layout>aside\{height:100%;overflow-y:auto\}/);
- assert.match(css, /@media \(orientation:portrait\), \(max-width:640px\)/);
- assert.match(css, /#view\{flex:none;height:clamp\(280px,52dvh,550px\)/);
- assert.match(html, /style\.css\?v=[^\"]+/);
+ assert.match(html,/\.layout>aside\{position:absolute;right:12px/);
+ assert.match(html,/max-height:calc\(100% - 78px\);overflow-y:auto/);
+ assert.match(html,/@media\(max-width:640px\)/);
+ assert.match(css,/@media\(max-width:640px\)/);
+ assert.match(css,/\.human-hub-item/);
+ assert.match(css,/\.world-dialogue\{/);
+ assert.match(html,/style\.css\?v=[^\"]+/);
 });
 
 test('main PAPERWORLD prioritizes cloud workspaces and hides diagnostics',()=>{
  const page=read('index.html'),local=read('js/rooms-ui.js'),cloud=read('js/cloud-ui.js'),css=read('style.css');
- assert.match(page,/Open village dashboard/);
+ assert.match(page,/Οι εργασίες μου/);
  assert.match(page,/Map calibration tools/);
  assert.match(page,/Technical asset status/);
  assert.match(page,/<details class="dev-tools">/);
@@ -377,7 +379,7 @@ test('Chief of Staff makes transparent, safe recommendations without side effect
 test('Chief is oversight, Workshop is the hands-on Developer',()=>{
  const html=read('index.html'),ui=read('js/cloud-ui.js'),css=read('style.css');
  assert.ok(html.indexOf('js/chief.js')<html.indexOf('js/cloud-ui.js'));
- for(const label of ['Chief of Staff','Listening Mirror Workshop','renderWorkshop','renderChiefOrRoom'])assert.ok(ui.includes(label),label);
+ for(const label of ['Chief of Staff','Listening Mirror · Η ομάδα μου','renderWorkshop','renderChiefOrRoom','renderHumanWork'])assert.ok(ui.includes(label),label);
  assert.ok(ui.includes("if(room==='workshop')"));
  assert.ok(ui.includes('one mission')===false);
  assert.match(css,/\.chief-desk/);
@@ -387,8 +389,8 @@ test('Chief is immediately discoverable and cache-busted on tablet',()=>{
  const html=read('index.html'),app=read('js/app.js'),ui=read('js/cloud-ui.js'),css=read('style.css');
  assert.match(html,/id="open-chief"/);
  assert.match(html,/chief\.js\?v=\d+/);
- assert.match(html,/cloud-ui\.js\?v=\d+/);
- assert.match(html,/app\.js\?v=\d+/);
+ assert.match(html,/cloud-ui\.js\?v=[^\"]+/);
+ assert.match(html,/app\.js\?v=[^\"]+/);
  assert.match(html,/style\.css\?v=[^\"]+/);
  assert.match(app,/PaperworldCloudUI\?\.openChief\(\)/);
  assert.match(ui,/function openChief\(\)/);
