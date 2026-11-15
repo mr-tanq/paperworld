@@ -57,3 +57,19 @@ test('Empty review should not invent jobs or approvals',()=>{
  assert.match(source,/Δεν υπάρχει ακόμη εγκεκριμένη προς ανασκόπηση πρόταση/);
  assert.match(source,/καμία αλλαγή δεν έχει πραγματοποιηθεί/);
 });
+
+test('Empty Work Desk displays a readable sentence, not a CSS class name',()=>{
+ const prior=global.document;
+ global.document={createElement(tag){
+  return {tag,children:[],className:'',textContent:'',append(...nodes){this.children.push(...nodes)},
+   replaceChildren(...nodes){this.children=[...nodes]},setAttribute(){}};
+ }};
+ try{
+  const host={children:[],append(...nodes){this.children.push(...nodes)}};
+  review.create(host);
+  const content=host.children[0].children[1];
+  assert.equal(content.className,'listening-review-note');
+  assert.match(content.textContent,/Δεν υπάρχει ακόμη εγκεκριμένη/);
+  assert.doesNotMatch(content.textContent,/^listening-review-note$/);
+ }finally{global.document=prior}
+});
