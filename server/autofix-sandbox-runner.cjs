@@ -93,17 +93,18 @@ function createSandboxRunner({spawnProcess=spawn,filesystem=fs,stageWorkspace,
   for(let i=0;i<plan.checks.length;i++){
    const check=plan.checks[i];
    const name='pw-autofix-'+plan.taskId+'-'+i;
+   // Omit --rm here: the supervisor must verify explicit container cleanup.
    const args=[...plan.containerOptions.slice(0,1),'--name',name,
-    ...plan.containerOptions.slice(1),...check.command];
+    ...plan.containerOptions.slice(1).filter(flag=>flag!=='--rm'),
+    ...check.command];
    const result=await execute(BIN,args,{timeoutMs:plan.timeoutMsPerCheck,
     maxOutputBytes:plan.maxOutputBytesPerCheck,spawnProcess});
    // Always attempt force removal to handle CLI termination while container
    // continues running; cleanup failure blocks success.
    const cleanup=await execute(BIN,['rm','-f',name],{
     timeoutMs:5000,maxOutputBytes:1024,spawnProcess});
-   // "No such container" must not silently authorize success; a normal
-   // --rm invocation removes it. Cleanup errors prevent certification unless
-   // an isolated supervisor independently attests container termination.
+   // Container was created without --rm so a successful explicit rm -f
+   // is required. A failed cleanup always blocks completion.
    const passed=result.ok&&cleanup.ok;
    records.push(Object.freeze({id:check.id,ok:passed,
     reason:passed?'passed':!result.ok?result.reason:'cleanup_unverified',
