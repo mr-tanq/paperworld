@@ -45,5 +45,32 @@ test('Failure indication does not masquerade as successful Director meeting',()=
  assert.match(app,/⚠ Εργασία απέτυχε/);
  assert.match(ui,/setAgentWorkflowFailure\?\.\(\)/);
  assert.match(ui,/⚠ Η εργασία απέτυχε/);
- assert.ok(read('index.html').includes('js/app.js?v=60-hidden-rear-alleys'));
+ assert.ok(read('index.html').includes('js/app.js?v=61-director-journey'));
+});
+
+test('Matt walks to the real server-confirmed director and returns on surveyed paths',()=>{
+ const app=read('js/app.js');
+ const ui=read('js/world-dialogue.js');
+ assert.match(app,/function startMattDirectorJourney\(directorId\)/);
+ assert.match(app,/actors\.find\(a=>a\.id===directorId/);
+ assert.match(app,/planMattRoute\(\[target\.x,target\.y\]\)/);
+ assert.match(app,/agentJourney\.pendingReturn=true/);
+ assert.match(app,/agentJourney\.mode='outbound'/);
+ assert.match(app,/agentJourney\.mode==='meeting'&&agentJourney\.pendingReturn/);
+ assert.match(app,/agentJourney\.mode='returning'/);
+ assert.match(ui,/result\.delegated===true&&/);
+ assert.match(ui,/startMattDirectorJourney\?\.\(result\.directorId\)/);
+ assert.match(ui,/world-chat-journey/);
+ assert.doesNotMatch(app,/planMattRoute\(\[1125,515\]\)/);
+ const nav=require('../js/navigation.js');
+ const targets=[[620,530],[475,580],[415,625]];
+ const origin=nav.snapToPath([835,854],110);
+ for(const target of targets){
+  const end=nav.snapToPath(target,55);
+  assert.ok(origin&&end,'director and Matt must have valid path anchors');
+  const route=nav.routeBetween(origin,end);
+  assert.ok(route.length>1,'Matt must be able to reach every non-sensitive Director');
+  for(let i=1;i<route.length;i++)
+   assert.ok(nav.clearSegment(route[i-1],route[i]),'route never cuts through buildings');
+ }
 });
