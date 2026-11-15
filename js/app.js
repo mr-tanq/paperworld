@@ -79,13 +79,19 @@ function drawHDCharacter(a,group,label){
  ctx.imageSmoothingEnabled=true;
  ctx.imageSmoothingQuality='high';
  ctx.drawImage(charactersHD,frame*sw,(group*4+facing)*sh,sw,sh,
-   a.x-dw/2,a.y-dh,dw,dh);
+   a.x-dw/2,a.y-dh+idleBob(a),dw,dh);
  ctx.font='bold 13px system-ui';
  ctx.textAlign='center';ctx.textBaseline='middle';
  ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;
  ctx.fillStyle='#fff4db';ctx.fillText(label,a.x,a.y+14);
  ctx.restore();
  return true;
+}
+let spriteNow=0;
+function idleBob(a){
+ if(a.moving)return 0;
+ const seed=(a.id||'player').split('').reduce((n,c)=>n+c.charCodeAt(0),0);
+ return Math.sin(spriteNow/650+seed)*1.25;
 }
 const playerVisual=new Image();
 playerVisual.decoding='async';
@@ -102,7 +108,7 @@ function drawPlayerSprite(p){
  ctx.save();
  ctx.fillStyle='rgba(31,24,18,.28)';
  ctx.beginPath();ctx.ellipse(p.x,p.y-2,14,5,0,0,Math.PI*2);ctx.fill();
- ctx.drawImage(playerVisual,frame*sw,row*sh,sw,sh,p.x-dw/2,p.y-dh,dw,dh);
+ ctx.drawImage(playerVisual,frame*sw,row*sh,sw,sh,p.x-dw/2,p.y-dh+idleBob(p),dw,dh);
  ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 13px system-ui';
  ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;ctx.fillStyle='#fff4db';
  ctx.fillText('You',p.x,p.y+14);
@@ -124,7 +130,7 @@ function drawWellbeingDirectorSprite(a){
  ctx.fillStyle='rgba(31,24,18,.28)';
  ctx.beginPath();ctx.ellipse(a.x,a.y-2,14,5,0,0,Math.PI*2);ctx.fill();
  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
- ctx.drawImage(wellbeingDirectorVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh,dw,dh);
+ ctx.drawImage(wellbeingDirectorVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh+idleBob(a),dw,dh);
  ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
  ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;
  ctx.fillStyle='#fff4db';ctx.fillText(actorDisplayName(a),a.x,a.y+14);
@@ -144,7 +150,7 @@ function drawStudioDirectorSprite(a){
  ctx.fillStyle='rgba(31,24,18,.28)';
  ctx.beginPath();ctx.ellipse(a.x,a.y-2,14,5,0,0,Math.PI*2);ctx.fill();
  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
- ctx.drawImage(studioDirectorVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh,dw,dh);
+ ctx.drawImage(studioDirectorVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh+idleBob(a),dw,dh);
  ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
  ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;
  ctx.fillStyle='#fff4db';ctx.fillText(actorDisplayName(a),a.x,a.y+14);
@@ -163,7 +169,7 @@ function drawPokemonDirectorSprite(a){
  ctx.fillStyle='rgba(31,24,18,.28)';
  ctx.beginPath();ctx.ellipse(a.x,a.y-2,14,5,0,0,Math.PI*2);ctx.fill();
  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
- ctx.drawImage(pokemonDirectorVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh,dw,dh);
+ ctx.drawImage(pokemonDirectorVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh+idleBob(a),dw,dh);
  ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
  ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;
  ctx.fillStyle='#fff4db';ctx.fillText(actorDisplayName(a),a.x,a.y+14);
@@ -184,7 +190,7 @@ function drawListeningDirectorSprite(a){
  ctx.save();
  ctx.fillStyle='rgba(31,24,18,.28)';
  ctx.beginPath();ctx.ellipse(a.x,a.y-2,14,5,0,0,Math.PI*2);ctx.fill();
- ctx.drawImage(listeningDirectorVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh,dw,dh);
+ ctx.drawImage(listeningDirectorVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh+idleBob(a),dw,dh);
  ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
  ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;
  ctx.fillStyle='#fff4db';ctx.fillText(actorDisplayName(a),a.x,a.y+14);
@@ -213,7 +219,7 @@ function drawMattSprite(a,now){
  ctx.save();
  ctx.fillStyle='rgba(31,24,18,.28)';
  ctx.beginPath();ctx.ellipse(a.x,a.y-2,14,5,0,0,Math.PI*2);ctx.fill();
- ctx.drawImage(mattVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh,dw,dh);
+ ctx.drawImage(mattVisual,frame*sw,row*sh,sw,sh,a.x-dw/2,a.y-dh+idleBob(a),dw,dh);
  ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
  ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;
  ctx.fillStyle='#fff4db';ctx.fillText('Matt',a.x,a.y+14);
@@ -254,7 +260,8 @@ mattActor.direction='down';mattActor.moving=false;mattActor.walkDistance=16;
 mattActor.x=state.walker.x-36;mattActor.y=state.walker.y;
 const followTrail=[{x:state.walker.x,y:state.walker.y}];
 const agentJourney={mode:'following',route:[],phase:'idle',meeting:false,
- pendingReturn:false,meetingSince:0,failed:false,meetingDirectorId:null,priorDirectorDirection:null};
+ pendingReturn:false,meetingSince:0,failed:false,meetingDirectorId:null,priorDirectorDirection:null,
+ reportSince:0,reportReady:false,priorPlayerDirection:null};
 const mattReturnWaiters=[];
 function resolveMattReturn(){while(mattReturnWaiters.length)mattReturnWaiters.shift()()}
 window.PaperworldWorld=Object.freeze({
@@ -278,6 +285,8 @@ if(!navigation)throw new Error('PAPERWORLD navigation module not loaded');
 const directorMovement=window.PaperworldDirectorMovement;
 if(!directorMovement)throw new Error('PAPERWORLD director movement module not loaded');
 const directorAssembly=directorMovement.create(navigation,actors);
+const villageLife=window.PaperworldVillageLife?.create(navigation,actors);
+if(!villageLife)throw new Error('PAPERWORLD Village Life module not loaded');
 
 function planMattRoute(target){
  const start=navigation.snapToPath([mattActor.x,mattActor.y],110);
@@ -290,20 +299,62 @@ function planMattRoute(target){
  return true;
 }
 function planMattEncounter(director){
- const encounter=directorMovement.stagedEncounter(navigation,director);
- if(!encounter||!planMattRoute(encounter.point))return false;
+ const home=villageLife.homeOf(director.id);
+ const encounter=directorMovement.stagedEncounter(navigation,home?{...director,...home}:director);
+ if(!encounter)return false;
+ villageLife.recallAll();
+ if(!planMattRoute(encounter.point)){villageLife.resume();return false;}
  agentJourney.meetingDirectorId=director.id;
  agentJourney.priorDirectorDirection=null;
  return true;
 }
 function startFaceToFace(){
  const director=actors.find(a=>a.id===agentJourney.meetingDirectorId);
- const encounter=directorMovement.stagedEncounter(navigation,director);
- if(!director||!encounter)return;
+ if(!director)return;
  agentJourney.priorDirectorDirection=director.direction||'down';
  mattActor.direction=directorMovement.facingToward(mattActor,director,mattActor.direction);
  director.direction=directorMovement.facingToward(director,mattActor,director.direction);
  mattActor.moving=false;director.moving=false;
+}
+function chooseReportSpot(){
+ // The human and Matt must face one another with a gap on approved paving.
+ const player=state.walker,desired=58,offsets=[[0,-1],[-1,0],[1,0],[0,1],[-.7,-.7],[.7,-.7],[-.7,.7],[.7,.7]];
+ const start=navigation.snapToPath([mattActor.x,mattActor.y],110);
+ if(!start)return null;
+ const candidates=[];
+ for(const [dx,dy] of offsets){
+  const snap=navigation.snapToPath([player.x+dx*desired,player.y+dy*desired],50);
+  if(!snap)continue;
+  const distance=Math.hypot(snap.point[0]-player.x,snap.point[1]-player.y);
+  if(distance<42||distance>90||!navigation.clearSegment(snap.point,[player.x,player.y]))continue;
+  const route=navigation.routeBetween(start,snap);
+  if(!route.length)continue;
+  candidates.push({point:snap.point,score:Math.abs(distance-desired)+
+   .005*Math.hypot(snap.point[0]-mattActor.x,snap.point[1]-mattActor.y)});
+ }
+ candidates.sort((a,b)=>a.score-b.score);
+ return candidates[0]?.point||null;
+}
+function planMattReportRoute(){
+ const point=chooseReportSpot();
+ return point?planMattRoute(point):planMattRoute([state.walker.x,state.walker.y]);
+}
+function startReportPose(now){
+ const player=state.walker;
+ if(Math.hypot(mattActor.x-player.x,mattActor.y-player.y)>95){
+  agentJourney.mode='following';resolveMattReturn();villageLife.resume();return;
+ }
+ agentJourney.mode='reporting';agentJourney.reportSince=now;agentJourney.reportReady=false;
+ agentJourney.priorPlayerDirection=player.direction;
+ mattActor.direction=directorMovement.facingToward(mattActor,player,mattActor.direction);
+ player.direction=directorMovement.facingToward(player,mattActor,player.direction);
+ mattActor.moving=false;player.moving=false;
+}
+function endReportPose(){
+ if(agentJourney.priorPlayerDirection!==null)state.walker.direction=agentJourney.priorPlayerDirection;
+ agentJourney.priorPlayerDirection=null;agentJourney.mode='following';
+ villageLife.resume();
+ followTrail.length=0;followTrail.push({x:state.walker.x,y:state.walker.y});
 }
 function endFaceToFace(){
  const director=actors.find(a=>a.id===agentJourney.meetingDirectorId);
@@ -356,7 +407,7 @@ function setAgentWorkflowStage(stateName){
   if(agentJourney.mode==='following'){
    agentJourney.pendingReturn=false;
    agentJourney.meeting=false;
-   if(planMattRoute([state.walker.x,state.walker.y]))agentJourney.mode='returning';
+   if(planMattReportRoute())agentJourney.mode='returning';
   }
  }else if(projection.travel&&agentJourney.mode==='following'){
   const target=actors.find(a=>a.id==='listening-director');
@@ -403,7 +454,7 @@ function tap(p){
  nameEl.textContent='Village paths';
  descEl.textContent=destination.distance>24?'Walking to the nearest paved path.':'Walking along the paved paths.';
 }
-function draw(now){ctx.clearRect(0,0,state.width,state.height);ctx.fillStyle='#151b22';ctx.fillRect(0,0,state.width,state.height);ctx.save();ctx.translate(state.x,state.y);ctx.scale(state.scale,state.scale);
+function draw(now){spriteNow=now;ctx.clearRect(0,0,state.width,state.height);ctx.fillStyle='#151b22';ctx.fillRect(0,0,state.width,state.height);ctx.save();ctx.translate(state.x,state.y);ctx.scale(state.scale,state.scale);
 if(scene.ready)ctx.drawImage(scene.image,0,0,W,H);else{ctx.fillStyle='#a6b398';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='40px system-ui';ctx.fillText('Upload assets/environment-010.png to preview the village',105,440)}
 const w=state.walker;
  const drawFigure=(p,testing=false)=>{
@@ -454,6 +505,17 @@ layers.push({id:'player',depth:depth.actorWalkwayDepth(w,navigation,defs),paint:
   });
   ctx.restore();
  }
+ // A greeting gesture is visual-only, not a fabricated AI conversation.
+ for(const pair of villageLife.greetings()){
+  if(pair.id>=pair.with)continue;
+  const first=actors.find(a=>a.id===pair.id),other=actors.find(a=>a.id===pair.with);
+  if(!first||!other)continue;
+  const x=(first.x+other.x)/2,y=Math.min(first.y,other.y)-98;
+  ctx.save();ctx.font='25px system-ui';ctx.textAlign='center';
+  ctx.shadowColor='#453829';ctx.shadowBlur=6;
+  ctx.fillText('👋',x,y+Math.sin(now/280)*2);
+  ctx.restore();
+ }
  if(agentJourney.failed){
   ctx.save();
   ctx.textAlign='center';ctx.textBaseline='middle';
@@ -463,8 +525,8 @@ layers.push({id:'player',depth:depth.actorWalkwayDepth(w,navigation,defs),paint:
   ctx.fillText('⚠ Εργασία απέτυχε',mattActor.x,mattActor.y-108);
   ctx.restore();
  }
- if(agentJourney.meeting){
-  const d=actors.find(a=>a.id===agentJourney.meetingDirectorId);
+ if(agentJourney.meeting||agentJourney.mode==='reporting'){
+  const d=agentJourney.meeting?actors.find(a=>a.id===agentJourney.meetingDirectorId):state.walker;
   ctx.save();ctx.font='bold 22px system-ui';ctx.fillStyle='#fff4db';
   ctx.shadowColor='#15211e';ctx.shadowBlur=7;
   ctx.fillText('…',mattActor.x,mattActor.y-96);
@@ -484,9 +546,9 @@ layers.push({id:'player',depth:depth.actorWalkwayDepth(w,navigation,defs),paint:
  if(state.destination){const p=state.destination;ctx.strokeStyle='#fef3d9';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x-7,p.y);ctx.lineTo(p.x+7,p.y);ctx.moveTo(p.x,p.y-7);ctx.lineTo(p.x,p.y+7);ctx.stroke()}
  ctx.restore()}
 function tick(now){
- // Directors move only during explicitly requested visual meetings.
-const dt=Math.min(.05,(now-(tick.last||now))/1000);tick.last=now;
+ const dt=Math.min(.05,(now-(tick.last||now))/1000);tick.last=now;
  directorAssembly.tick(dt);
+ villageLife.tick(dt,{allowRoaming:directorAssembly.status()==='idle'});
  const player=state.walker;
  player.moving=false;
  if(state.route.length){
@@ -509,7 +571,7 @@ const dt=Math.min(.05,(now-(tick.last||now))/1000);tick.last=now;
   const next=agentJourney.route[0];
   if(next){
    const dx=next.x-mattActor.x,dy=next.y-mattActor.y;
-   const dist=Math.hypot(dx,dy),speed=260*dt;
+   const dist=Math.hypot(dx,dy),speed=105*dt;
    if(dist>0.001){
     const step=Math.min(dist,speed);
     mattActor.direction=mattDirection(dx,dy,mattActor.direction);
@@ -518,19 +580,27 @@ const dt=Math.min(.05,(now-(tick.last||now))/1000);tick.last=now;
    }
    if(dist<=speed+0.01)agentJourney.route.shift();
   }else if(agentJourney.mode==='outbound'){
-   agentJourney.mode='meeting';agentJourney.meeting=true;agentJourney.meetingSince=now;startFaceToFace();
+   if(villageLife.ready()){
+    agentJourney.mode='meeting';agentJourney.meeting=true;agentJourney.meetingSince=now;startFaceToFace();
+   }
   }else{
-   agentJourney.mode='following';agentJourney.meeting=false;
-   resolveMattReturn();
-   followTrail.length=0;followTrail.push({x:state.walker.x,y:state.walker.y});
+   agentJourney.meeting=false;
+   startReportPose(now);
   }
  }
  if(agentJourney.mode==='meeting'&&agentJourney.pendingReturn&&
     now-agentJourney.meetingSince>1600){
   agentJourney.meeting=false;agentJourney.pendingReturn=false;
   endFaceToFace();
-  if(planMattRoute([state.walker.x,state.walker.y]))agentJourney.mode='returning';
+  if(planMattReportRoute())agentJourney.mode='returning';
   else{agentJourney.mode='following';resolveMattReturn()}
+ }
+ if(agentJourney.mode==='reporting'){
+  const distance=Math.hypot(mattActor.x-state.walker.x,mattActor.y-state.walker.y);
+  if(distance>95||state.route.length){if(!agentJourney.reportReady)resolveMattReturn();endReportPose();}
+  else if(!agentJourney.reportReady&&now-agentJourney.reportSince>900){
+   agentJourney.reportReady=true;resolveMattReturn();
+  }else if(now-agentJourney.reportSince>6000)endReportPose();
  }
  if(agentJourney.mode==='following'&&followTrail.length>4){
   const next=followTrail[0],dx=next.x-mattActor.x,dy=next.y-mattActor.y,
