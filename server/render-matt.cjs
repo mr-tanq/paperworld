@@ -5,6 +5,7 @@
 const http=require('node:http');
 const {createGithubOAuth,APP_ORIGIN}=require('./github-oauth.cjs');
 const {makeMattChat}=require('./matt-live-chat.cjs');
+const {makeDirectorChat}=require('./director-direct-chat.cjs');
 const {makeDelegation}=require('./matt-delegation.cjs');
 const {makeWorkerDelegation}=require('./matt-worker-delegation.cjs');
 const {makePokemonWorkerDelegation}=require('./pokemon-worker-delegation.cjs');
@@ -26,12 +27,13 @@ function createRenderMattServer({oauth=createGithubOAuth({
   supabaseUrl:'https://jrevhzvrgenucuozjowm.supabase.co',
   supabaseKey:'sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL'
  }),chatFactory=({oauth})=>makeMattChat({oauth,clientFactory:createCopilotClient}),
+ directorChatFactory=({oauth})=>makeDirectorChat({oauth,clientFactory:createCopilotClient}),
  delegationFactory=({oauth})=>makeDelegation({oauth,clientFactory:createCopilotClient}),
  workerFactory=({oauth,proposalMemory})=>makeWorkerDelegation({oauth,proposalMemory,clientFactory:createCopilotClient}),
  pokemonWorkerFactory=({oauth})=>makePokemonWorkerDelegation({oauth,clientFactory:createCopilotClient}),
  historyFactory=()=>makeJobHistoryApi(),
  proposalApiFactory=({oauth,memory,store})=>createListeningProposalApi({oauth,memory,store})}={}){
- let live,delegation,worker,pokemonWorker,history,proposalApi;
+ let live,directorChat,delegation,worker,pokemonWorker,history,proposalApi;
  let proposalMemory,approvalStore;
  function getProposalMemory(){
   if(proposalMemory!==undefined)return proposalMemory;
@@ -49,6 +51,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
   return proposalApi;
  }
  function getLive(){if(!live)live=chatFactory({oauth});return live}
+ function getDirectorChat(){if(!directorChat)directorChat=directorChatFactory({oauth});return directorChat}
  function getDelegation(){if(!delegation)delegation=delegationFactory({oauth});return delegation}
  function getWorker(){if(!worker)worker=workerFactory({oauth,proposalMemory:getProposalMemory()});return worker}
  function getPokemonWorker(){if(!pokemonWorker)pokemonWorker=pokemonWorkerFactory({oauth});return pokemonWorker}
@@ -106,7 +109,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
     res.end(JSON.stringify(result.body));return;
    }catch(_){return response(res,503,{error:'proposal_api_unavailable'})}
   }
-  const isMattRequest=req.url==='/chat/matt'||req.url==='/diagnostic/matt-session'||
+  const isMattRequest=req.url==='/chat/director'||req.url==='/chat/matt'||req.url==='/diagnostic/matt-session'||
    req.url==='/delegate/matt'||req.url==='/delegate/matt/worker'||
    req.url==='/delegate/matt/pokemon/worker'||
    req.url==='/history/matt/jobs';
@@ -127,7 +130,8 @@ function createRenderMattServer({oauth=createGithubOAuth({
       res.end(JSON.stringify({error:'request_too_large'}));return}
      parts.push(chunk);
     }
-    const gateway=req.url==='/history/matt/jobs'?getHistory():
+    const gateway=req.url==='/chat/director'?getDirectorChat():
+      req.url==='/history/matt/jobs'?getHistory():
       req.url==='/delegate/matt/worker'?getWorker():
       req.url==='/delegate/matt/pokemon/worker'?getPokemonWorker():
       req.url==='/delegate/matt'?getDelegation():getLive();
