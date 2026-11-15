@@ -127,6 +127,12 @@ function renderWorkshop(){
  };
  reviewHost.append(el('h3','Προτάσεις Developer · έλεγχος πριν από κάθε PR'));
  reviewHost.append(btn('Ανανέωση προτάσεων',()=>work(reload)));
+ reviewHost.append(btn('GitHub · εξουσιοδότηση για Draft PR',()=>work(async()=>{
+  const link=await client.beginGithubLink();
+  window.location.assign(link);
+ })));
+ reviewHost.append(el('p','Η σύνδεση GitHub θα ζητήσει ρητή άδεια public_repo. '+
+  'Το Paperworld περιορίζει τις εγγραφές μόνο σε Draft PR του Listening Mirror.','room-footnote'));
  if(listeningProposalError)reviewHost.append(el('p',listeningProposalError,'room-footnote'));
  if(listeningStoredProposals.length){
   for(const proposal of listeningStoredProposals.slice(0,8)){
@@ -136,6 +142,14 @@ function renderWorkshop(){
     try{review.show(proposal.plan,proposal.evidence,{
      persisted:true,status:proposal.status,digest:proposal.digest
     })}catch(_){place.append(el('p','Μη έγκυρη αποθηκευμένη πρόταση.','room-footnote'))}
+   }
+   if(proposal.status==='draft_created'&&
+    /^https:\/\/github\.com\/mr-tanq\/concerts\/pull\/[1-9][0-9]*$/.test(proposal.draftUrl||'')){
+    const link=document.createElement('a');
+    link.href=proposal.draftUrl;
+    link.textContent='Άνοιξε το Draft PR στο GitHub';
+    link.target='_blank';link.rel='noopener noreferrer';
+    place.append(link);
    }
    reviewHost.append(place);
   }
