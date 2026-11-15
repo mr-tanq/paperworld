@@ -87,10 +87,10 @@ test('Cloud rejects cross-project server responses even with owner JWT',async()=
 test('Review is separate from AI, merge/deploy and status-mutation logic',()=>{
  const source=fs.readFileSync(path.join(__dirname,'../js/director-memory-review.js'),'utf8');
  assert.doesNotMatch(source,/\.innerHTML\s*=|eval\(|createSession\(|fetch\(/);
- assert.match(source,/READ ONLY/);
+ assert.match(source,/owner review desk/);
  assert.match(source,/δεν έχουν ακόμη ενεργοποιηθεί/);
  const cloudSource=fs.readFileSync(path.join(__dirname,'../js/cloud.js'),'utf8');
  const code=cloudSource.slice(cloudSource.indexOf('async function listDirectorMemory('),
-  cloudSource.indexOf('const missionFields='));
- assert.doesNotMatch(code,/PATCH|DELETE|POST|rpc/);
+  cloudSource.indexOf('async function reviewDirectorMemory({'));
+ assert.doesNotMatch(code,/method:\s*['"](?:PATCH|POST|DELETE)['"]/);
 });

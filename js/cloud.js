@@ -113,6 +113,38 @@
    return rows;
   }
 
+  // Auth API re-check before enabling any owner decision: the bearer token
+  // must represent an actual Supabase Auth user, not just a cached UI session.
+  // PostgREST owner RLS remains the authoritative per-row permission check.
+  async function verifiedMemoryReviewer(){
+   const user=await withAuth('/auth/v1/user');
+   const uuid=/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+   if(!user||!uuid.test(user.id||'')||
+    (session?.user?.id&&user.id!==session.user.id))
+    throw Error('Supabase Auth identity could not be verified; sign in again');
+   return user.id;
+  }
+
+  // Explicit user-directed decision for exactly one proposed memory.
+  // Requires installed audited migration; each call verifies live Auth identity.
+  // The browser sends only the status column. PostgreSQL RLS and an append-
+  // only trigger log become the authority when the migration is applied.
+  async function reviewDirectorMemory({projectId,entryId,decision}={}){
+   if(!ROOMS.has(projectId)||!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(entryId||'')||
+    !['approved','rejected'].includes(decision))
+    throw Error('Invalid Director Memory review');
+   await verifiedMemoryReviewer();
+   const query='/rest/v1/paperworld_director_memory?select=id,project_id,status,reviewed_at'+
+    '&id=eq.'+encodeURIComponent(entryId)+'&project_id=eq.'+encodeURIComponent(projectId)+
+    '&status=eq.proposed';
+   const result=await withAuth(query,{method:'PATCH',data:{status:decision},
+    extra:{Prefer:'return=representation'}});
+   if(!Array.isArray(result)||result.length!==1||result[0]?.id!==entryId||
+    result[0]?.project_id!==projectId||result[0]?.status!==decision)
+    throw Error('Review not applied; refresh to confirm current status');
+   return Object.freeze({id:entryId,projectId,status:decision});
+  }
+
   const missionFields='id,source_task_id,project_room,repository,title,brief,mode,status,created_at,updated_at';
   async function listMissions(){
    return withAuth('/rest/v1/paperworld_missions?select='+missionFields+'&order=created_at.desc&limit=500');
@@ -301,7 +333,7 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   listDirectorMemory,agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,mattJobHistory,diagnoseMattSession};
+   listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,agentMessages,sendAgentNote,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,mattJobHistory,diagnoseMattSession};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });

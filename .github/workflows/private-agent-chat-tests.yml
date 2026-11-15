@@ -13,6 +13,8 @@ on:
       - 'server/agent-job-memory.cjs'
       - 'server/director-memory-policy.cjs'
       - 'server/director-memory-store.cjs'
+      - 'server/director-memory-context.cjs'
+      - 'supabase/director_memory_review_v2_REVIEW_ONLY.sql'
       - 'supabase/paperworld_director_memory_v1_REVIEW.sql'
       - 'server/agent-job-history-api.cjs'
       - 'supabase/paperworld_agent_job_history_review.sql'
@@ -74,6 +76,7 @@ jobs:
           node --check js/app.js
           node --check js/world-dialogue.js
           node --check js/visual-agent-workflow.js
+          node --check tests/integration/supabase-two-auth-memory.mjs
       - name: Test agent registry, conversation, cloud storage and UI
         run: |
           node --test \
@@ -82,6 +85,7 @@ jobs:
             tests/director-memory-policy.test.cjs \
             tests/director-memory-store.test.cjs \
             tests/director-memory-review.test.cjs \
+            tests/director-memory-owner-review.test.cjs \
             tests/agent-job-history-api.test.cjs \
             tests/agent-conversation-store.test.cjs \
             tests/agent-cloud-integration.test.cjs \
@@ -116,6 +120,46 @@ jobs:
             tests/matt-worker-delegation.test.cjs \
             tests/matt-session-config.test.cjs \
             tests/matt-approval-claimer.test.cjs
+
+
+  director-memory-postgres-rls:
+    name: Memory owner RLS (isolated PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: memory_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d memory_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout review-only SQL (no saved auth token)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install PostgreSQL client if not on runner
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+      - name: Run owner RLS and audit integration in synthetic database
+        env:
+          PGPASSWORD: synthetic-only
+        run: |
+          psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
+            -h 127.0.0.1 -p 5432 -U postgres -d memory_test \
+            -f tests/sql/director-memory-review-rls.sql
+
+# This PostgreSQL test uses a throwaway CI service, not connected PAPERWORLD
+# Supabase, with synthetic identities only, no private data or AI credits.
 
 # No Copilot permissions, no AI dispatch, no deployment, no secrets or write token.
 # Live SDK behavior must be validated only after separate account-owner permission.

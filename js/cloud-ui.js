@@ -28,7 +28,18 @@ function openDirectorMemory(){
  const module=window.PaperworldDirectorMemoryReview;
  if(!module?.createView){note('Το Director Memory Review δεν φορτώθηκε.',true);return}
  if(!memoryView)memoryView=module.createView({
-  document,load:projectId=>client.listDirectorMemory(projectId)
+  document,load:projectId=>client.listDirectorMemory(projectId),
+  // The owner-approved audit migration is installed. The confirmation UI
+  // becomes active only when this PR is separately merged and deployed.
+  // Every individual decision re-verifies Supabase Auth and uses owner RLS.
+  enableReview:true,
+  requestReview:args=>client.reviewDirectorMemory(args),
+  confirmDecision:({entry,decision})=>window.confirm(
+   (decision==='approved'?'Να εγκριθεί αυτή η ανάμνηση;':'Να απορριφθεί αυτή η ανάμνηση;')+
+   '\n\n'+entry.title+'\n'+entry.body+
+   '\n\nΠηγή: '+entry.sourceType+' / '+entry.sourceRef+
+   '\n\nΗ απόφαση αφορά μόνο αυτή την καταχώριση.'
+  )
  });
  memoryOpen=true;render();
  const target=host.querySelector('#director-memory-panel');
