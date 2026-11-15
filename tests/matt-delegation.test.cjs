@@ -352,3 +352,23 @@ test('Current Supabase secret keys are sent ONLY as apikey, never Bearer tokens'
  assert.equal(captured[0].headers.apikey,secret);
  assert.equal(Object.hasOwn(captured[0].headers,'Authorization'),false);
 });
+
+test('Authenticated AI routing streams actual project selection BEFORE Director responds',async()=>{
+ const {gateway,seen}=make({route:'studio-director'});
+ const events=[];
+ const result=await gateway.handle({headers,body:requestBody(data),
+  onProgress:event=>events.push({event,turns:seen.sent})});
+ assert.equal(result.status,200);
+ assert.deepEqual(events.map(x=>x.event.stage),['routed','director_reported']);
+ assert.deepEqual(events.map(x=>x.event.directorId),['studio-director','studio-director']);
+ assert.equal(events[0].turns,1,'route is known after the first AI turn');
+ assert.equal(events[1].turns,2,'report arrives after Director turn');
+});
+test('Unresolved and unauthorized routes cannot stream any Director stages',async()=>{
+ for(const opts of [{route:'invalid-director'},{owns:false},{budget:false}]){
+  const {gateway}=make(opts),events=[];
+  await gateway.handle({headers,body:requestBody(data),
+   onProgress:event=>events.push(event)});
+  assert.equal(events.length,0);
+ }
+});

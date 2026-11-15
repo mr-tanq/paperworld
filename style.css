@@ -333,3 +333,27 @@ body>header span{font-size:10px;color:#a3afa6;letter-spacing:.04em}
 
 /* Verified Matt handoff playback: leave the surveyed village paths visible. */
 .world-chat-veil.world-chat-journey{background:rgba(7,9,13,.30);backdrop-filter:blur(.5px);-webkit-backdrop-filter:blur(.5px)}
+
+/* PR #109: unobstructed, right-docked conversation while the village is active.
+ * On a narrow screen leave a visible lane of village beside the chat.
+ */
+.world-chat-veil,.world-chat-veil.world-chat-journey{
+ pointer-events:none!important;background:transparent!important;
+ backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+}
+.world-dialogue{
+ left:auto!important;right:12px!important;top:12px!important;
+ bottom:12px!important;transform:none!important;
+ width:min(400px,36vw)!important;height:auto!important;
+ max-height:calc(100% - 24px)!important;min-height:0!important;
+ box-shadow:0 18px 55px rgba(0,0,0,.55)!important;
+}
+@media(max-width:900px){
+ .world-dialogue{right:8px!important;top:12px!important;bottom:12px!important;
+  width:min(345px,44vw)!important;max-height:calc(100% - 24px)!important}
+}
+@media(max-width:640px){
+ .world-dialogue{right:6px!important;left:auto!important;top:46px!important;
+  bottom:6px!important;width:min(310px,72vw)!important;
+  max-height:calc(100% - 52px)!important}
+}

@@ -255,12 +255,16 @@ mattActor.x=state.walker.x-36;mattActor.y=state.walker.y;
 const followTrail=[{x:state.walker.x,y:state.walker.y}];
 const agentJourney={mode:'following',route:[],phase:'idle',meeting:false,
  pendingReturn:false,meetingSince:0,failed:false};
+const mattReturnWaiters=[];
+function resolveMattReturn(){while(mattReturnWaiters.length)mattReturnWaiters.shift()()}
 window.PaperworldWorld=Object.freeze({
  agents:()=>actors.map(a=>({...a})),
  // T addresses a nearby Director; M talks to the always-available Matt.
  setAgentWorkflowStage,
  setAgentWorkflowFailure,
  startMattDirectorJourney,
+ completeMattDirectorJourney,
+ waitMattDirectorReturn,
  nearestAgent:(radius=100)=>actors.filter(a=>a.id!=='matt')
    .map(a=>({...a,distance:Math.hypot(a.x-state.walker.x,a.y-state.walker.y)}))
    .filter(a=>a.distance<=radius).sort((a,b)=>a.distance-b.distance)[0]||null
@@ -294,9 +298,18 @@ function startMattDirectorJourney(directorId){
  if(!target||agentJourney.mode!=='following')return false;
  if(!planMattRoute([target.x,target.y]))return false;
  agentJourney.phase='routed';agentJourney.failed=false;
- agentJourney.pendingReturn=true;agentJourney.meeting=false;
+ agentJourney.pendingReturn=false;agentJourney.meeting=false;
  agentJourney.mode='outbound';
  return true;
+}
+function completeMattDirectorJourney(){
+ if(agentJourney.mode==='following')return true;
+ agentJourney.pendingReturn=true;
+ return true;
+}
+function waitMattDirectorReturn(){
+ if(agentJourney.mode==='following')return Promise.resolve();
+ return new Promise(resolve=>mattReturnWaiters.push(resolve));
 }
 function setAgentWorkflowFailure(){
  // A worker failure is not a completed meeting. Never invent a journey.
@@ -472,7 +485,7 @@ const dt=Math.min(.05,(now-(tick.last||now))/1000);tick.last=now;
   const next=agentJourney.route[0];
   if(next){
    const dx=next.x-mattActor.x,dy=next.y-mattActor.y;
-   const dist=Math.hypot(dx,dy),speed=125*dt;
+   const dist=Math.hypot(dx,dy),speed=260*dt;
    if(dist>0.001){
     const step=Math.min(dist,speed);
     mattActor.direction=mattDirection(dx,dy,mattActor.direction);
@@ -484,6 +497,7 @@ const dt=Math.min(.05,(now-(tick.last||now))/1000);tick.last=now;
    agentJourney.mode='meeting';agentJourney.meeting=true;agentJourney.meetingSince=now;
   }else{
    agentJourney.mode='following';agentJourney.meeting=false;
+   resolveMattReturn();
    followTrail.length=0;followTrail.push({x:state.walker.x,y:state.walker.y});
   }
  }
@@ -491,7 +505,7 @@ const dt=Math.min(.05,(now-(tick.last||now))/1000);tick.last=now;
     now-agentJourney.meetingSince>1600){
   agentJourney.meeting=false;agentJourney.pendingReturn=false;
   if(planMattRoute([state.walker.x,state.walker.y]))agentJourney.mode='returning';
-  else agentJourney.mode='following';
+  else{agentJourney.mode='following';resolveMattReturn()}
  }
  if(agentJourney.mode==='following'&&followTrail.length>4){
   const next=followTrail[0],dx=next.x-mattActor.x,dy=next.y-mattActor.y,

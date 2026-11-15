@@ -45,7 +45,7 @@ test('Failure indication does not masquerade as successful Director meeting',()=
  assert.match(app,/⚠ Εργασία απέτυχε/);
  assert.match(ui,/setAgentWorkflowFailure\?\.\(\)/);
  assert.match(ui,/⚠ Η εργασία απέτυχε/);
- assert.ok(read('index.html').includes('js/app.js?v=61-director-journey'));
+ assert.ok(read('index.html').includes('js/app.js?v=109-live-journey'));
 });
 
 test('Matt walks to the real server-confirmed director and returns on surveyed paths',()=>{
@@ -73,4 +73,22 @@ test('Matt walks to the real server-confirmed director and returns on surveyed p
   for(let i=1;i<route.length;i++)
    assert.ok(nav.clearSegment(route[i-1],route[i]),'route never cuts through buildings');
  }
+});
+
+test('Matt journey is driven by the verified streamed Director, not a completed response',()=>{
+ const app=read('js/app.js'),ui=read('js/world-dialogue.js');
+ assert.match(ui,/onProgress:event=>/);
+ assert.match(ui,/event\.stage==='routed'/);
+ assert.match(ui,/startMattDirectorJourney\?\.\(event\.directorId\)/);
+ assert.match(app,/agentJourney\.pendingReturn=false;agentJourney\.meeting=false/);
+ assert.match(app,/function completeMattDirectorJourney\(\)/);
+ assert.match(app,/function waitMattDirectorReturn\(\)/);
+ assert.match(ui,/completeMattDirectorJourney\?\.\(\)/);
+ assert.match(ui,/waitMattDirectorReturn\?\.\(\)/);
+ const after=ui.indexOf('await Promise.race(');
+ const reply=ui.indexOf('mattReplies.push({id:result.persisted===true');
+ assert.ok(after>=0&&reply>after,'reply bubble must appear after Matt returns');
+ const css=read('style.css');
+ assert.match(css,/\.world-dialogue\{\s*left:auto!important;right:12px!important/);
+ assert.match(css,/\.world-chat-veil,\.world-chat-veil\.world-chat-journey\{/);
 });

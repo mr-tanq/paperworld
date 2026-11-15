@@ -76,3 +76,37 @@ test('Pokémon Worker HTTP route is isolated, POST-only, origin-checked and disp
   assert.equal(used,1);
  }finally{await app.close()}
 });
+
+test('Verified Matt route is streamed using original authenticated POST without model polling',async()=>{
+ const fake={callback:async()=>({status:302,headers:{Location:'/'}})};
+ const app=createRenderMattServer({oauth:fake,
+  delegationFactory:()=>({handle:async({onProgress})=>{
+   onProgress({stage:'routed',directorId:'studio-director'});
+   onProgress({stage:'director_reported',directorId:'studio-director'});
+   return {status:200,body:{executed:true,delegated:true,
+    directorId:'studio-director',content:'Synthetic answer'}};
+  }})
+ });
+ const addr=await app.listen({port:0,host:'127.0.0.1'});
+ const call=accept=>new Promise((resolve,reject)=>{
+  const rq=http.request({host:'127.0.0.1',port:addr.port,
+   path:'/delegate/matt',method:'POST',
+   headers:{Origin:'https://mr-tanq.github.io',...(accept?{Accept:accept}:{})}},
+   response=>{let raw='';response.on('data',chunk=>raw+=chunk);
+    response.on('end',()=>resolve({status:response.statusCode,
+     contentType:response.headers['content-type'],raw}))});
+  rq.on('error',reject);rq.end('{}');
+ });
+ try{
+  const stream=await call('application/x-ndjson');
+  assert.equal(stream.status,200);
+  const events=stream.raw.trim().split('\n').map(x=>JSON.parse(x));
+  assert.deepEqual(events.map(x=>x.type),['progress','progress','result']);
+  assert.equal(events[0].stage,'routed');
+  assert.equal(events[0].directorId,'studio-director');
+  assert.equal(events[2].body.content,'Synthetic answer');
+  const legacy=await call(null);
+  assert.match(legacy.contentType,/application\/json/);
+  assert.equal(JSON.parse(legacy.raw).content,'Synthetic answer');
+ }finally{await app.close()}
+});
