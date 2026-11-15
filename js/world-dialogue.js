@@ -165,8 +165,10 @@
     if(isWork)showStage('reported');
     showNotice('Ο Matt επέστρεψε με '+(isWork?'την αναφορά της εργασίας.':'την απάντηση του Director.')+
      ' Πάτησε M για να τη διαβάσεις.');
-   }else showNotice('Ο Matt δεν έχει ακόμη ενεργό Director για αυτό το αίτημα.');
-   mattReplies.push({content:'Matt — ενημέρωση:\n'+result.content,
+   }else showNotice('Ο Matt δεν βρήκε κατάλληλο Director. Επίλεξε συγκεκριμένο Project Director αν χρειάζεται.');
+   const attribution=result.delegated&&result.directorName?
+    'Matt · '+result.directorName:'Matt';
+   mattReplies.push({content:attribution+' — ενημέρωση:\n'+result.content,
     time:new Date().toISOString()});
    field.value='';
   }catch(error){
