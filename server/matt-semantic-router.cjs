@@ -81,6 +81,10 @@ function parseIntent(answer){
   const director=parseRoute(answer);
   return director?Object.freeze({director,action:'answer',workerId:null}):null;
  }
+ if(typeof data==='string'){
+  const director=parseRoute(answer);
+  return director?Object.freeze({director,action:'answer',workerId:null}):null;
+ }
  if(!data||typeof data!=='object'||Array.isArray(data))return null;
  const keys=Object.keys(data).sort();
  if(keys.length===1&&['director','directorId'].includes(keys[0])){
