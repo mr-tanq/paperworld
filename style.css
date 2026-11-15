@@ -307,3 +307,10 @@ body>header span{font-size:10px;color:#a3afa6;letter-spacing:.04em}
 #world-drawer .director-memory-status{background:#3e473c;color:#f3e7c9;border-radius:8px;font-size:10px;padding:4px 7px;flex-shrink:0}
 #world-drawer .director-memory-entry summary{cursor:pointer;color:#b5cad1;font-size:12px;padding:5px 0}
 #world-drawer .director-memory-entry details p{margin:7px 0;overflow-wrap:anywhere}
+
+/* Hidden until the owner-reviewed RLS migration + separate activation. */
+#world-drawer .director-memory-review-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+#world-drawer .director-memory-review-actions button{min-height:40px;flex:1;font-weight:700}
+#world-drawer .director-memory-review-actions button:first-child{background:#415a47;color:#f3f9ef}
+#world-drawer .director-memory-review-actions button:last-child{background:#5c4545;color:#fff0e9}
+#world-drawer .director-memory-review-actions button:disabled{opacity:.5;cursor:not-allowed}
