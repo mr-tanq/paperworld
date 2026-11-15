@@ -59,6 +59,17 @@
  projectSelect.value='auto';
  const projectTarget=make('div','world-chat-project-target');
  projectLabel.append(projectSelect);projectTarget.append(projectLabel);
+ const workerTarget=make('div','world-chat-project-target');
+ const workerLabel=make('label','world-chat-project-label','Project Worker για διερεύνηση');
+ const workerSelect=make('select','world-chat-project-select');
+ for(const [value,label] of [
+  ['listening-director','Listening Mirror · δημόσιος κώδικας'],
+  ['pokemon-director','Pokémon Echoes · ιδιωτικό project.godot']
+ ]){
+  const option=make('option','',label);option.value=value;workerSelect.append(option);
+ }
+ workerSelect.value='listening-director';
+ workerLabel.append(workerSelect);workerTarget.append(workerLabel);
  function setWorkflowMode(mode){
   if(!['ask','work'].includes(mode)||busy)return;
   workflowMode=mode;
@@ -67,6 +78,7 @@
   askMode.setAttribute('aria-pressed',String(mode==='ask'));
   workMode.setAttribute('aria-pressed',String(mode==='work'));
   projectTarget.hidden=mode!=='ask';
+  workerTarget.hidden=mode!=='work';
   modeHint.textContent=mode==='ask'
    ?'Ερωτήσεις, αποφάσεις και εγκεκριμένη μνήμη · Matt → Director, χωρίς Worker.'
    :'Τεχνικός έλεγχος · Matt → Director → Worker, μόνο ανάγνωση.';
@@ -112,10 +124,17 @@
   // to engage a Worker from an ambiguous natural-language message.
   const isWork=workflowMode==='work';
   const targetDirector=isWork?'auto':projectSelect.value;
+  const workerProject=isWork?workerSelect.value:null;
+  const pokemonWork=isWork&&workerProject==='pokemon-director';
   const includesWellbeing=targetDirector==='wellbeing-director';
   const consentText=isWork?
-   'Ανάθεση τεχνικής διερεύνησης: Matt → Director → Worker. Έως 5 AI κλήσεις '+
-   'με τα υπάρχοντα Copilot Credits και επιπλέον budget $0. Μόνο ανάγνωση κώδικα.':
+   (pokemonWork?
+    'Pokémon Echoes: Matt → Pokémon Director → Pokémon Developer → Director → Matt. '+
+    'Έως 5 AI κλήσεις, επιπλέον budget $0. Θα διαβαστεί ΜΟΝΟ το ιδιωτικό '+
+    'project.godot από το προσωπικό σου GitHub και θα σταλεί ως πηγή στο Copilot. '+
+    'Δεν αποθηκεύεται ακόμη ιστορικό εργασίας.':
+    'Listening Mirror: Matt → Director → Worker. Έως 5 AI κλήσεις '+
+    'με τα υπάρχοντα Copilot Credits και επιπλέον budget $0. Μόνο ανάγνωση κώδικα.'):
    'Ερώτηση προς Director: Matt → Director → Matt. Έως 3 AI κλήσεις '+
    'με τα υπάρχοντα Copilot Credits και επιπλέον budget $0. Χωρίς Worker.';
   if(!window.confirm(consentText+
@@ -149,20 +168,24 @@
   // remains visible; the map follows real stored stages only.
   hide();
   showNotice(isWork?
-   'Ο Matt εξετάζει την εργασία. Η πορεία θα εμφανιστεί όταν καταγραφεί.':
+   (pokemonWork?
+    'Ο Matt εξετάζει το ιδιωτικό Pokémon project.godot. Χωρίς αλλαγές και χωρίς καταγεγραμμένα στάδια.':
+    'Ο Matt εξετάζει την εργασία. Η πορεία θα εμφανιστεί όταν καταγραφεί.'):
    'Ο Matt ρωτά τον Director με βάση την εγκεκριμένη μνήμη. Χωρίς Worker.');
   try{
    const result=isWork?
-    await cloud().delegateMattWorker(text,{onStart:id=>{
-     requestId=id;
-     watcher=setInterval(poll,1300);
-    }}):
+    (pokemonWork?
+     await cloud().delegatePokemonWorker(text):
+     await cloud().delegateMattWorker(text,{onStart:id=>{
+      requestId=id;
+      watcher=setInterval(poll,1300);
+     }})):
     await cloud().delegateMatt(text,{
      targetDirector,wellbeingConsent:includesWellbeing
     });
-   if(isWork)await poll();
+   if(isWork&&!pokemonWork)await poll();
    if(result.delegated){
-    if(isWork)showStage('reported');
+    if(isWork&&!pokemonWork)showStage('reported');
     showNotice('Ο Matt επέστρεψε με '+(isWork?'την αναφορά της εργασίας.':'την απάντηση του Director.')+
      ' Πάτησε M για να τη διαβάσεις.');
    }else showNotice('Ο Matt δεν βρήκε κατάλληλο Director. Επίλεξε συγκεκριμένο Project Director αν χρειάζεται.');
@@ -173,8 +196,8 @@
    field.value='';
   }catch(error){
    failed=error;
-   await poll();
-   world()?.setAgentWorkflowFailure?.();
+   if(!pokemonWork)await poll();
+   if(!pokemonWork)world()?.setAgentWorkflowFailure?.();
    showNotice('⚠ Η εργασία απέτυχε (δεν ολοκληρώθηκε): '+error.message);
    if(error.noteSaved)field.value='';
   }finally{
@@ -211,7 +234,7 @@
   }finally{busy=false;historyBtn.disabled=false}
  });
  const helper=make('small','world-chat-helper','Copilot AI Credits · Έγκριση ανά μήνυμα · Καμία ενέργεια σε αρχεία');
- composer.append(connectGithub,historyBtn,modePicker,modeHint,projectTarget,form,helper);
+ composer.append(connectGithub,historyBtn,modePicker,modeHint,projectTarget,workerTarget,form,helper);
  panel.append(top,status,messages,composer);view.append(panel);
 
  function bubble(role,text,when){
@@ -258,6 +281,7 @@
   modePicker.hidden=!isMatt;
   modeHint.hidden=!isMatt;
   projectTarget.hidden=!isMatt||workflowMode!=='ask';
+  workerTarget.hidden=!isMatt||workflowMode!=='work';
   if(isMatt&&active&&typeof cloud()?.githubLinkStatus==='function'){
    const selected=openId;
    cloud().githubLinkStatus().then(link=>{
