@@ -4,6 +4,8 @@ let room='town',tasks=[],allTasks=[],busy=false,message='',edit=null,active=fals
 let memoryOpen=false,memoryView=null;
 // Display-only proposals. No approval grant or server write capability.
 let listeningReviewPayload=null,listeningStoredProposals=[],listeningProposalError='';
+let workJobs=[],jobHistoryError='',humanHub=null;
+
 
 const el=(tag,text,cls)=>{let e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
 const btn=(text,fn,cls)=>{let b=el('button',text,cls);b.type='button';b.disabled=busy;b.addEventListener('click',fn);return b};
@@ -12,6 +14,10 @@ async function work(fn){if(busy)return;busy=true;message='';render();try{await f
 async function reload(){
  allTasks=await client.list();
  tasks=allTasks.filter(t=>t.room===room);
+ try{
+  const history=await client.mattJobHistory();
+  workJobs=history.jobs;jobHistoryError='';
+ }catch(e){workJobs=[];jobHistoryError='Δεν φορτώθηκε το ιστορικό εργασιών: '+e.message}
  try{
   listeningStoredProposals=await client.listListeningProposals();
   listeningProposalError='';
@@ -87,6 +93,42 @@ function render(){
  }
  renderChiefOrRoom();
 }
+// The Village Hub is driven by authenticated real jobs and persisted proposals.
+// No model call, write grant or fabricated task status is created by this view.
+async function loadHumanWork(){
+ const results=await Promise.all([client.mattJobHistory(),
+  client.listListeningProposals(),client.list()]);
+ return {jobs:results[0].jobs,proposals:results[1],tasks:results[2]};
+}
+async function prepareSolution(item){
+ const result=await client.publishListeningProposal(item.jobId,item.digest);
+ if(result.created!==true||result.draft!==true)
+  throw Error('Η αλλαγή δεν επιβεβαιώθηκε.');
+ message='Η λύση προετοιμάστηκε για τελικό έλεγχο. Δεν έχει εφαρμοστεί.';
+ await reload();render();
+ return result;
+}
+async function discardSolution(item){
+ await client.rejectListeningProposal(item.jobId,item.digest);
+ message='Η λύση απορρίφθηκε. Δεν έγινε καμία αλλαγή.';
+ await reload();render();
+}
+function renderHumanWork(target){
+ const module=window.PaperworldHumanFirstHub;
+ if(!module?.create){target.append(el('p','Το κέντρο εργασιών δεν φορτώθηκε.','room-footnote'));return}
+ const mount=el('div',undefined,'human-hub-mount');
+ target.append(mount);
+ humanHub=module.create(mount,{load:loadHumanWork,
+  approve:prepareSolution,reject:discardSolution,
+  openMatt:()=>window.PaperworldWorldDialogue?.show('matt'),
+  openProject:()=>{room='workshop';render()},
+  onError:e=>{jobHistoryError=e}
+ });
+ humanHub.setData({jobs:workJobs,proposals:listeningStoredProposals,tasks:allTasks});
+ if(jobHistoryError||listeningProposalError){
+  target.append(el('p',jobHistoryError||listeningProposalError,'room-footnote'));
+ }
+}
 function renderWorkshop(){
  // Any Listening Mirror request belongs in the same general project workspace.
  // Project diagnosis and worker routing must come from authorized AI, not keywords.
@@ -104,6 +146,7 @@ function renderWorkshop(){
  if(edit)tasksPanel.append(form(edit===true?null:edit));
  for(const task of tasks)tasksPanel.append(taskRow(task));
  host.append(tasksPanel);
+ renderHumanWork(host);
  const reviewHost=el('div',undefined,'listening-review-host');
  const reviewModule=window.PaperworldListeningReview;
  const publish=(summary,digest)=>{
@@ -124,7 +167,7 @@ function renderWorkshop(){
    await reload();message='Η πρόταση απορρίφθηκε. Δεν έγινε καμία αλλαγή.';
   });
  };
- reviewHost.append(el('h3','Λύσεις που περιμένουν την απόφασή μου'));
+ reviewHost.append(el('h3','Τεχνικός έλεγχος (προαιρετικά)'));
  reviewHost.append(el('p','Η ομάδα προτείνει, εσύ αποφασίζεις. Καμία αλλαγή δεν εφαρμόζεται χωρίς ξεχωριστή έγκριση.','room-footnote'));
  reviewHost.append(btn('Ανανέωση',()=>work(reload),'human-first-utility'));
  const advanced=el('details','human-first-settings');
@@ -162,7 +205,10 @@ function renderWorkshop(){
    catch(_){listeningReviewPayload=null;review.clear()}
   }
  }
- host.append(reviewHost);
+ const technical=el('details',undefined,'human-hub-legacy');
+ technical.append(el('summary','Τεχνικές ρυθμίσεις και λεπτομέρειες'));
+ technical.append(reviewHost);
+ host.append(technical);
 }
 function renderMattConversation(){
  const sec=el('section',undefined,'developer-chat');
@@ -191,8 +237,9 @@ function renderChiefOrRoom(){
  for(const r of model.ROOMS)tabs.append(btn(r.name,()=>work(async()=>{room=r.id;edit=null;await reload()}),r.id===room?'selected':''));
  host.append(tabs);
  if(room==='town'){
+  renderHumanWork(host);
   host.append(renderMattConversation());
-  host.append(el('p','Εδώ παρακολουθείς όλα τα projects. Ο Matt θα κατευθύνει τα αιτήματα στους κατάλληλους Directors και Workers όταν ενεργοποιηθεί το AI.','room-footnote'));
+  host.append(el('p','Μίλησε στον Matt όπως σε έναν συνεργάτη. Οι πραγματικές εργασίες και οι αποφάσεις σου εμφανίζονται εδώ.','room-footnote'));
   const overview=el('div',undefined,'overview-projects');
   for(const r of model.ROOMS){
    const count=allTasks.filter(t=>t.room===r.id&&t.status!=='done').length;
@@ -245,6 +292,12 @@ window.PaperworldCloudUI={
  delegateMattWorker:(text,opts)=>client.delegateMattWorker(text,opts),
  delegatePokemonWorker:(text,opts)=>client.delegatePokemonWorker(text,opts),
  mattJobHistory:()=>client.mattJobHistory(),
+ loadHumanWork,
+ prepareHumanSolution:prepareSolution,
+ discardHumanSolution:discardSolution,
+ refreshHumanWork:async()=>{await reload();if(active)render();return {
+  jobs:workJobs,proposals:listeningStoredProposals,tasks:allTasks}},
+ openHumanWork:()=>{room='town';open('town')},
  diagnoseMattSession:()=>client.diagnoseMattSession(),
  githubLinkStatus:()=>client.githubLinkStatus(),
  beginGithubLink:()=>client.beginGithubLink(),
