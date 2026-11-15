@@ -9,6 +9,9 @@ const {makeDelegation}=require('./matt-delegation.cjs');
 const {makeWorkerDelegation}=require('./matt-worker-delegation.cjs');
 const {makePokemonWorkerDelegation}=require('./pokemon-worker-delegation.cjs');
 const {makeJobHistoryApi}=require('./agent-job-history-api.cjs');
+const {createProposalMemory}=require('./listening-proposal-memory.cjs');
+const {createDurableApprovalStore}=require('./listening-approval-store.cjs');
+const {createListeningProposalApi}=require('./listening-proposal-api.cjs');
 const {createCopilotClient}=require('./copilot-client-loader.cjs');
 function response(res,status,body){
  res.writeHead(status,{'Content-Type':'application/json; charset=utf-8',
@@ -24,13 +27,30 @@ function createRenderMattServer({oauth=createGithubOAuth({
   supabaseKey:'sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL'
  }),chatFactory=({oauth})=>makeMattChat({oauth,clientFactory:createCopilotClient}),
  delegationFactory=({oauth})=>makeDelegation({oauth,clientFactory:createCopilotClient}),
- workerFactory=({oauth})=>makeWorkerDelegation({oauth,clientFactory:createCopilotClient}),
+ workerFactory=({oauth,proposalMemory})=>makeWorkerDelegation({oauth,proposalMemory,clientFactory:createCopilotClient}),
  pokemonWorkerFactory=({oauth})=>makePokemonWorkerDelegation({oauth,clientFactory:createCopilotClient}),
- historyFactory=()=>makeJobHistoryApi()}={}){
- let live,delegation,worker,pokemonWorker,history;
+ historyFactory=()=>makeJobHistoryApi(),
+ proposalApiFactory=({oauth,memory,store})=>createListeningProposalApi({oauth,memory,store})}={}){
+ let live,delegation,worker,pokemonWorker,history,proposalApi;
+ let proposalMemory,approvalStore;
+ function getProposalMemory(){
+  if(proposalMemory!==undefined)return proposalMemory;
+  try{proposalMemory=createProposalMemory()}catch(_){proposalMemory=null}
+  return proposalMemory;
+ }
+ function getApprovalStore(){
+  if(approvalStore!==undefined)return approvalStore;
+  try{approvalStore=createDurableApprovalStore()}catch(_){approvalStore=null}
+  return approvalStore;
+ }
+ function getProposalApi(){
+  if(!proposalApi)proposalApi=proposalApiFactory({oauth,
+   memory:getProposalMemory(),store:getApprovalStore()});
+  return proposalApi;
+ }
  function getLive(){if(!live)live=chatFactory({oauth});return live}
  function getDelegation(){if(!delegation)delegation=delegationFactory({oauth});return delegation}
- function getWorker(){if(!worker)worker=workerFactory({oauth});return worker}
+ function getWorker(){if(!worker)worker=workerFactory({oauth,proposalMemory:getProposalMemory()});return worker}
  function getPokemonWorker(){if(!pokemonWorker)pokemonWorker=pokemonWorkerFactory({oauth});return pokemonWorker}
  function getHistory(){if(!history)history=historyFactory();return history}
  const server=http.createServer(async(req,res)=>{
@@ -56,6 +76,35 @@ function createRenderMattServer({oauth=createGithubOAuth({
     const result=await action({headers:req.headers});
     res.writeHead(result.status,result.headers);res.end(JSON.stringify(result.body));return;
    }catch(_){response(res,503,{error:'oauth_unavailable'});return}
+  }
+  const proposalAction={
+   '/listening/proposals/list':'list',
+   '/listening/proposals/reject':'reject',
+   '/listening/proposals/publish':'publish'
+  }[req.url];
+  if(proposalAction){
+   if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
+    res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
+     'Access-Control-Allow-Methods':'POST, OPTIONS',
+     'Access-Control-Allow-Headers':'authorization,content-type',
+     'Vary':'Origin','Access-Control-Max-Age':'600'});res.end();return;
+   }
+   if(req.method!=='POST')return response(res,405,{error:'method_not_allowed'});
+   if(req.headers.origin!==APP_ORIGIN)return response(res,403,{error:'origin_denied'});
+   try{
+    let parts=[],size=0;
+    for await(const chunk of req){
+     size+=chunk.length;
+     if(size>1600)return response(res,413,{error:'request_too_large'});
+     parts.push(chunk);
+    }
+    const result=await getProposalApi().handle({headers:req.headers,
+     body:Buffer.concat(parts).toString('utf8'),action:proposalAction});
+    res.writeHead(result.status,{'Content-Type':'application/json; charset=utf-8',
+     'Access-Control-Allow-Origin':APP_ORIGIN,'Cache-Control':'no-store',
+     'X-Content-Type-Options':'nosniff','Vary':'Origin'});
+    res.end(JSON.stringify(result.body));return;
+   }catch(_){return response(res,503,{error:'proposal_api_unavailable'})}
   }
   const isMattRequest=req.url==='/chat/matt'||req.url==='/diagnostic/matt-session'||
    req.url==='/delegate/matt'||req.url==='/delegate/matt/worker'||
