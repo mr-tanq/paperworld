@@ -113,6 +113,7 @@ jobs:
             tests/director-movement.test.cjs \
             tests/face-to-face-staging.test.cjs \
             tests/village-life-v2.test.cjs \
+            tests/village-boot-script-tags.test.cjs \
             tests/paths-depth-v2.test.cjs \
             tests/matt-copilot-adapter.test.cjs \
             tests/matt-gateway.test.cjs \
