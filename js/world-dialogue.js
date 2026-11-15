@@ -7,6 +7,7 @@
  if(!view)return;
  let openId=null,revision=0,busy=false;
  const mattReplies=[];
+ const directorReplies=new Map(); // Ephemeral; never claim AI replies were saved.
  let mattCachedEntries=null; // Keep visible replies while owner history refreshes.
  let mattJourneyCaption='';
  const historyCodec=()=>window.PaperworldMattHistory;
@@ -225,9 +226,11 @@
   messages.replaceChildren();
   for(const m of entries)messages.append(bubble(m.role,m.text,m.time));
   if(openId==='matt')for(const reply of mattReplies)messages.append(bubble('agent',reply.content,reply.time));
-  if(!entries.length&&!mattReplies.length)messages.append(system(openId==='matt'?
+  else for(const reply of directorReplies.get(openId)||[])
+   messages.append(bubble('agent',reply.content,reply.time));
+  if(!entries.length&&!(openId==='matt'?mattReplies.length:(directorReplies.get(openId)||[]).length))messages.append(system(openId==='matt'?
    'Μίλησε στον Matt όπως σε έναν συνεργάτη. Το ιστορικό αποθηκεύεται όταν ο server είναι ρυθμισμένος.':
-   'Μπορείς να αφήσεις ένα ιδιωτικό μήνυμα. Ο Director δεν απαντά ακόμη με AI.'));
+   'Μίλα απευθείας στον Director. Κάθε AI απάντηση χρειάζεται δική σου έγκριση.'));
   scrollBottom();
  }
  function paint(){
@@ -240,12 +243,12 @@
   heading.textContent=profile?.name||(isMatt?'Matt':agent?.name||'Director');
   if(window.PaperworldProfiles)window.PaperworldProfiles.paintAvatar(avatar,openId);
   else avatar.textContent=heading.textContent.charAt(0).toUpperCase();
-  activity.textContent=isMatt?'Chief of Staff · GitHub Copilot':(profile?.project||'Project')+' · '+(profile?.role||'Director')+' · AI not connected';
+  activity.textContent=isMatt?'Chief of Staff · GitHub Copilot':(profile?.project||'Project')+' · Director · GitHub Copilot';
   const active=cloud()?.signedIn()===true;
   const available=active&&typeof cloud()?.privateAgentMessages==='function'&&!busy;
   status.textContent=!active?'Συνδέσου στο PAPERWORLD Cloud για να στείλεις μηνύματα.':
    isMatt?(mattJourneyCaption||'Συνομιλία με τον Matt · καμία εργασία χωρίς έγκριση'):
-   'Ιδιωτική συνομιλία · ο Director δεν έχει AI ακόμη';
+   'Απευθείας συνομιλία Director · κάθε AI απάντηση χρειάζεται έγκριση';
   if(active&&isMatt&&(mattCachedEntries!==null||mattReplies.length))
    appendEntries(mattCachedEntries||[]);
   else messages.replaceChildren(system(active?'Φόρτωση ιδιωτικού ιστορικού…':'Απαιτείται σύνδεση.'));
@@ -306,8 +309,29 @@
    return;
   }
   busy=true;field.disabled=true;send.disabled=true;
-  try{await cloud().sendPrivateAgentMessage(id,text);field.value=''}
-  catch(error){status.textContent='Το μήνυμα δεν αποθηκεύτηκε: '+error.message}
+  try{
+   const isDirector=['listening-director','pokemon-director',
+    'studio-director','wellbeing-director'].includes(id);
+   if(isDirector){
+    const approved=window.confirm('Άμεση συνομιλία με τον Director. '+
+     'Εγκρίνεις 1 AI κλήση μέσω GitHub Copilot; '+
+     'Χρησιμοποιούνται διαθέσιμα AI Credits, με επιπλέον χρέωση $0 '+
+     'εφόσον ισχύει το επαληθευμένο όριο του λογαριασμού. '+
+     'ΜΟΝΟ συνομιλία: χωρίς εργαλεία, αλλαγές αρχείων ή ανάθεση εργασίας.');
+    if(!approved)return;
+    const result=await cloud().askDirector(id,text);
+    const existing=directorReplies.get(id)||[];
+    directorReplies.set(id,[...existing,{content:result.content,
+     time:new Date().toISOString()}].slice(-12));
+    field.value='';
+   }else{
+    await cloud().sendPrivateAgentMessage(id,text);
+    field.value='';
+   }
+  }catch(error){
+   status.textContent='Η συνομιλία δεν ολοκληρώθηκε: '+error.message;
+   if(error.noteSaved)field.value='';
+  }
   finally{busy=false;if(openId===id)paint()}
  });
  field.addEventListener('keydown',e=>{
