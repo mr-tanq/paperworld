@@ -49,3 +49,32 @@ test('Routing is not based on a fixed user keyword classifier',()=>{
  assert.throws(()=>routePrompt(''),/invalid_route_message/);
  assert.throws(()=>routePrompt('x'.repeat(1201)),/invalid_route_message/);
 });
+
+test('Model intent is advisory: only allowlisted Directors and separate-consent Workers',()=>{
+ const {parseIntent}=require('../server/matt-semantic-router.cjs');
+ for(const [raw,director,worker] of [
+  ['{"director":"pokemon-director","action":"investigate"}','pokemon-director','pokemon-developer'],
+  ['{"director":"listening-director","action":"investigate"}','listening-director','listening-developer'],
+  ['{"director":"studio-director","action":"answer"}','studio-director',null],
+  ['listening-director','listening-director',null],
+  ['"pokemon-director"','pokemon-director',null],
+  ['{"director":"listening-director"}','listening-director',null]
+ ]){
+  const result=parseIntent(raw);
+  assert.equal(result.director,director,raw);
+  assert.equal(result.workerId,worker,raw);
+  assert.equal(result.action,worker?'investigate':'answer',raw);
+ }
+ for(const raw of [
+  '{"director":"wellbeing-director","action":"investigate"}',
+  '{"director":"wellbeing-director","action":"answer"}',
+  '{"director":"studio-director","action":"investigate"}',
+  '{"director":"pokemon-director","action":"deploy"}',
+  '{"director":"pokemon-director","action":"investigate","tools":true}',
+  '{"director":"pokemon-director","action":"investigate","workerId":"matt"}',
+  '{"director":"pokemon-director","action":"investigate"}\\n{"director":"listening-director","action":"answer"}'
+ ])assert.equal(parseIntent(raw),null,raw);
+ const prompt=routePrompt('Can you inspect the real source of our game?');
+ assert.match(prompt,/separate human/);
+ assert.match(prompt,/source investigation/);
+});
