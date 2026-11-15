@@ -4,7 +4,8 @@
  * Requires scoped GitHub App installation credential + independent attestation.
  */
 'use strict';
-const {prepareCandidate,REPOSITORY}=require('./autofix-candidate-policy.cjs');
+const {prepareCandidate,REPOSITORY,SOURCE_FILES}=require('./autofix-candidate-policy.cjs');
+const TEST_PATH=/^tests\/autofix\/ticketswap-[a-z0-9-]{1,40}\.test\.mjs$/;
 const {createHash}=require('node:crypto');
 const SHA=/^[a-f0-9]{40}$/;
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
@@ -68,6 +69,7 @@ function makePublisher({fetcher=globalThis.fetch,installationCredential,attestat
     if(Buffer.byteLength(raw)>MAX_RESPONSE_BYTES)deny('github_response_too_large');
     data=JSON.parse(raw);
    }catch(_){deny('github_unreadable_response')}
+   if(res.status===404)return Object.freeze({__notFound:true});
    return data;
   }
   const ref=await call('GET','/git/ref/heads/main');
@@ -76,15 +78,15 @@ function makePublisher({fetcher=globalThis.fetch,installationCredential,attestat
   if(!SHA.test(commit?.tree?.sha||''))deny('base_tree_unavailable');
   const trustedSources={};
   for(const file of candidate.files){
-   if(typeof file?.path!=='string')deny('invalid_path');
+   if(typeof file?.path!=='string'||
+      !(SOURCE_FILES.includes(file.path)||TEST_PATH.test(file.path)))
+    deny('invalid_path');
    if(file.kind==='new-test'){
     // Ensure no current file is overwritten by a model-generated test.
     const url='/contents/'+file.path+'?ref='+baseCommitSha;
     const resp=await call('GET',url,undefined,[200,404]);
-    // GitHub's 404 response body is not authoritative on its own; call()
-    // must return actual HTTP status for the absence check, handled below.
-    if(resp?.type==='file')deny('regression_test_exists');
-    if(resp?.message!=='Not Found')deny('test_absence_unverified');
+    // Absence is confirmed from HTTP 404, never a user-controlled JSON string.
+    if(resp?.__notFound!==true)deny('regression_test_exists');
    }else if(file.kind==='modify'){
     const existing=await call('GET','/contents/'+file.path+'?ref='+baseCommitSha);
     if(existing?.type!=='file'||existing.encoding!=='base64'||
