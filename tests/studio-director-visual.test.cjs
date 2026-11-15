@@ -14,7 +14,7 @@ test('Existing studio-director uses hooded art, distance-driven poses and fallba
  assert.match(s,/studioDirectorVisual.src='\.\/assets\/studio-director-hooded-v2\.png'/);
  assert.match(s,/a.id==='studio-director' && drawStudioDirectorSprite\(a\)/);
  assert.match(s,/Math\.floor\(\(a\.walkDistance\|\|0\)\/14\)%4:1/);
- assert.match(s,/a\.moving=traveled>0\.25/);
+ assert.match(fs.readFileSync(path.join(root,'js/director-movement.js'),'utf8'),/actor\.moving=true/);
  assert.match(s,/depth\.sortLayers\(layers\)/);
 });
 
