@@ -1,4 +1,4 @@
-/* PAPERWORLD path survey v2: conservative, explicit walking network.
+/* PAPERWORLD red-pencil path survey v3: conservative, explicit walking network.
    The map is artwork, not walkable terrain; these are reviewed sidewalk waypoints.
    No automated movement may enter a building's ground footprint. */
 (function(root,factory){
@@ -15,15 +15,27 @@ const nodes=[
  [535,520],[475,580],[415,625],[390,710],[430,750],[520,797],
  [670,846],[835,854],[1000,846],[1155,797],[1270,738],[1340,710],
  [1190,680],[1170,625],[1125,515],
- [620,530],[690,530],[720,480],[720,385],[960,385],
- [385,665],[1240,690],[960,515],[1020,535]
+ // Town Hall to Listening Mirror: curved path around the cherry-tree planter.
+ [620,530],[670,540],[720,525],[720,480],[720,420],[750,390],
+ [795,365],[850,365],[900,380],[940,410],[950,455],
+ [950,500],[990,525],[1030,530],[1080,530],
+ // Exact actor home markers, plus shorter, paved approach curves.
+ [385,665],[1240,690],[535,565],[585,550],[630,540],
+ [1040,580],[1090,615]
 ];
  // Lower outer loop, project approaches, and an upper-plaza connection
 // around—not THROUGH—the central flower bed and studio roof.
 const connections=[
- [0,1],[1,2],[2,20],[20,3],[3,4],[4,5],[5,6],[6,7],
- [7,8],[8,9],[9,10],[10,11],[11,21],[21,12],[12,13],[13,14],
- [0,15],[15,16],[16,17],[17,18],[18,19],[19,22],[22,23],[23,14]
+ // Curved perimeter: Pokémon Hub, both bridges, Studio south, Wellbeing.
+ [0,1],[1,2],[2,30],[30,3],[3,4],[4,5],[5,6],[6,7],
+ [7,8],[8,9],[9,10],[10,11],[11,31],[31,12],[12,13],[13,14],
+ // Central plaza route is a contour, NOT a line across the studio roof.
+ [0,15],[15,16],[16,17],[17,18],[18,19],[19,20],[20,21],
+ [21,22],[22,23],[23,24],[24,25],[25,26],[26,27],
+ [27,28],[28,29],[29,14],
+ // Local paved approaches near Pokémon Hub, Town Hall and Wellbeing.
+ [1,32],[32,33],[33,34],[34,16],
+ [28,35],[35,36],[36,13]
 ];
  // Conservative ground-base ellipses: not the roofs, which overhang footpaths.
  const obstacles=[

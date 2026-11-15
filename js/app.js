@@ -386,13 +386,13 @@ layers.push({id:'player',depth:depth.actorWalkwayDepth(w,navigation,defs),paint:
  depth.sortLayers(layers).forEach(item=>item.paint());
  // Optional developer overlay: visualize only collision-checked walkable edges.
  if(showSurveyedPaths){
-  ctx.save();ctx.lineWidth=3;ctx.strokeStyle='rgba(32,228,213,.88)';
+  ctx.save();ctx.lineWidth=4;ctx.strokeStyle='rgba(229,48,53,.92)';
   ctx.setLineDash([8,5]);ctx.beginPath();
   for(const [i,j] of navigation.safeConnections){
    const a=navigation.nodes[i],b=navigation.nodes[j];
    ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);
   }
-  ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#0af0d6';
+  ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#ff6464';
   for(const [x,y] of navigation.nodes){
    ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();
   }
