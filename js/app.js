@@ -657,6 +657,7 @@ document.querySelector('#call-visual-meeting')?.addEventListener('click',()=>{
   if(!townHallBriefing)townHallBriefing=module.create(document.querySelector('#view'),{
    load:()=>window.PaperworldCloudUI.loadHumanWork(),
    chat:id=>window.PaperworldWorldDialogue?.show(id),
+   askAI:(id,prompt)=>window.PaperworldCloudUI.askDirector(id,prompt,{saveNote:false}),
    openWork:()=>{drawer.hidden=false;window.PaperworldCloudUI.openHumanWork()}
   });
   void townHallBriefing.show();
