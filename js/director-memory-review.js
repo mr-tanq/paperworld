@@ -1,5 +1,5 @@
-/* Private Director Memory review desk. READ ONLY until owner-review
- * protocol and RLS tests are independently approved. No model calls.
+/* Private Director Memory owner review desk. Requires confirmed individual
+ * decisions and Supabase Auth + per-row owner RLS. Never calls any AI model.
  * Exposes only five fixed projects, not a user-selected SQL query.
  */
 (function(root,factory){
