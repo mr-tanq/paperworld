@@ -113,7 +113,7 @@
   b.addEventListener('click',handler);return b;
  }
  function create(host,{load,approve,reject,openMatt,openProject,
-  onChanged,onError}={}){
+  onChanged,onError,compact=false}={}){
   if(!host||typeof host.replaceChildren!=='function'||
    typeof load!=='function')throw Error('human_first_host_required');
   let current=freeze({rows:freeze([]),counts:freeze({decision:0,active:0,prepared:0,all:0})});
@@ -192,17 +192,20 @@
   }
   function render(){
    rendered=true;host.replaceChildren();
+   host.hidden=false;
    const header=e('header','human-hub-header');
-   header.append(e('p','human-hub-eyebrow','PAPERWORLD · ΤΟ ΓΡΑΦΕΙΟ ΣΟΥ'),
-    e('h3','','Οι εργασίες μου'),
-    e('p','human-hub-intro','Ο Matt οργανώνει την ομάδα. Εδώ βλέπεις μόνο πραγματικές εργασίες και αποφάσεις.'));
+   header.append(e('p','human-hub-eyebrow',compact?'Ο MATT ΕΧΕΙ ΜΙΑ ΕΝΗΜΕΡΩΣΗ':
+    'PAPERWORLD · ΤΟ ΓΡΑΦΕΙΟ ΣΟΥ'),
+    e('h3','',compact?'Οι λύσεις της ομάδας':'Οι εργασίες μου'),
+    e('p','human-hub-intro',compact?'Αποφασίζεις εδώ, χωρίς να φύγεις από τη συνομιλία.':
+     'Ο Matt οργανώνει την ομάδα. Εδώ βλέπεις πραγματικές εργασίες και αποφάσεις.'));
    host.append(header);
    const summary=e('div','human-hub-counts');
    for(const [count,label] of [[current.counts.decision,'Αποφάσεις'],
     [current.counts.active,'Εκκρεμούν'],[current.counts.prepared,'Προετοιμάστηκαν']]){
     const box=e('div','human-hub-count');
     box.append(e('strong','',String(count)),e('span','',label));summary.append(box);
-   }host.append(summary);
+   }if(!compact)host.append(summary);
    const controls=e('div','human-hub-controls');
    for(const [id,label] of [['attention','Προτεραιότητες'],
     ['prepared','Προηγούμενα'],['all','Όλα']]){
@@ -210,10 +213,11 @@
     b.setAttribute('aria-pressed',String(filter===id));controls.append(b);
    }
    controls.append(button(loading?'Φόρτωση…':'Ανανέωση',()=>refresh(),'human-hub-refresh'));
-   host.append(controls);
+   if(!compact)host.append(controls);
    if(error)host.append(e('p','human-hub-error',error));
    if(loading&&!current.rows.length)host.append(e('p','human-hub-loading','Ανακτώ τις εργασίες σου…'));
-   const shown=current.rows.filter(visible);
+   const shown=current.rows.filter(item=>compact?item.stage==='decision':visible(item));
+   if(compact&&!shown.length&&!error){host.hidden=true;return}
    if(!loading&&!shown.length){
     host.append(e('div','human-hub-empty',
      current.counts.all?'Δεν υπάρχουν εργασίες σε αυτή την κατηγορία.':
@@ -222,6 +226,7 @@
    const list=e('div','human-hub-list');
    for(const item of shown.slice(0,MAX))list.append(rowCard(item));
    host.append(list);
+   if(compact)return;
    const foot=e('div','human-hub-footer');
    if(typeof openMatt==='function')foot.append(button('Μίλα στον Matt',openMatt,'human-hub-talk'));
    if(typeof openProject==='function')foot.append(button('Άνοιξε Listening Mirror',openProject,'human-hub-project-open'));
@@ -242,6 +247,11 @@
    finally{loading=false;render()}
    return current;
   }
+  function setData(raw){
+   if(!raw||!Array.isArray(raw.jobs)||!Array.isArray(raw.proposals)||
+     !Array.isArray(raw.tasks))throw Error('invalid_hub_data');
+   current=project(raw);error='';render();return current;
+  }
   function focus(jobId){
    if(!UUID.test(jobId||''))return;
    selected=jobId;
@@ -251,7 +261,7 @@
    cards[row]?.scrollIntoView?.({block:'nearest',behavior:'smooth'});
   }
   render();
-  return freeze({refresh,focus,render,get snapshot(){return current},
+  return freeze({refresh,focus,render,setData,get snapshot(){return current},
    get error(){return error},get ready(){return rendered}});
  }
  return freeze({project,stateLabel,create,job,proposal,manual});
