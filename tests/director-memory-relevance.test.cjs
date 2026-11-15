@@ -9,10 +9,10 @@ function item(id,title,body,status='approved',sensitivity='standard'){
  version:1,sensitivity};
 }
 test('relevant approved director note is preferred even when inserted last',()=>{
- const entries=[item(1,'Arrangement','Spare trumpet texture'),
+ const entries=[item(1,'Arrangement','Spare trumpet texture '.repeat(8)),
  item(2,'Voice rules','Avoid shouting on vulnerable acoustic songs')];
  const result=projectContext(entries,{actor:'studio-director',projectId:'studio',
-  maxChars:310,query:'shouting acoustic voice'});
+  maxChars:256,query:'shouting acoustic voice'});
  assert.equal(result.included,1);
  assert.match(result.text,/Voice rules/);
 });
