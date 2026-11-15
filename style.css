@@ -564,3 +564,28 @@ body>header span{font-size:10px;color:#a3afa6;letter-spacing:.04em}
 .human-hub-item-actions button:focus-visible,.human-hub-controls button:focus-visible,
 .human-hub-technical summary:focus-visible,.town-hall-person:focus-visible,
 .town-hall-footer button:focus-visible{outline:2px solid #ffd9a0;outline-offset:3px}
+
+
+/* Town Hall real, owner-approved discussion—never inferred from visual gathering. */
+.town-hall-ai-session{display:grid;gap:9px;padding:12px;border:1px solid #9fbd9d44;
+ border-radius:13px;background:#192923}
+.town-hall-ai-session h3{font-size:14px;margin:0;color:#f7e8d5}
+.town-hall-agenda-input{width:100%;min-height:80px;resize:vertical;border-radius:10px;
+ background:#101a1b;border:1px solid #ffffff5a;padding:10px;
+ font:inherit;font-size:13px;color:#f7f2ea}
+.town-hall-run-ai,.town-hall-copy{min-height:44px;border-radius:10px;border:1px solid #a9c8a4;
+ background:#4c7658;color:#fff;font-weight:700;padding:9px;font-size:12px;cursor:pointer}
+.town-hall-run-ai:disabled{opacity:.55;cursor:not-allowed}
+.town-hall-progress{font-size:11px;line-height:1.45;color:#dfc79c}
+.town-hall-ai-reply{border-radius:10px;padding:10px;border:1px solid #ffffff23;
+ background:#121d20;display:grid;gap:6px}
+.town-hall-ai-reply strong{font-size:12px;color:#e6c494}
+.town-hall-ai-reply p{margin:0;font-size:12px;line-height:1.55;white-space:pre-wrap;
+ overflow-wrap:anywhere;color:#d8e5e0}
+#world-drawer .human-hub-manual,#world-drawer .human-hub-account-settings{
+ border-radius:12px;border:1px solid #ffffff25;padding:9px 12px;margin:9px 0;
+ background:#151d23}
+#world-drawer .human-hub-manual>summary,#world-drawer .human-hub-account-settings>summary{
+ cursor:pointer;font-size:12px;min-height:30px;display:flex;align-items:center;
+ color:#cbd8d2}
+#world-drawer .human-hub-account-settings .room-ops{margin-top:9px}
