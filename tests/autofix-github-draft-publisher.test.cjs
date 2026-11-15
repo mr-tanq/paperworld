@@ -71,7 +71,7 @@ test('Publisher creates exactly one isolated commit, new branch and DRAFT PR',as
 });
 test('Missing independent sandbox attestation blocks all GitHub requests',async()=>{
  for(const mutate of [x=>x.verification.candidateDigest='bad',
-  x=>x.candidate.files.push({path:'package.json',content:'x'}),
+  x=>{x.candidate={...x.candidate,files:[...x.candidate.files,{path:'package.json',content:'x'}]}} ,
   x=>x.draft=false,x=>x.branchPrefix='refs/heads/main']){
   const {publisher,input,calls}=fake();
   mutate(input);
