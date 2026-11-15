@@ -78,8 +78,8 @@ test('Director questions default to 3-turn path, Worker investigation requires e
  assert.match(source,/const result=isWork\?/);
  assert.match(source,/await cloud\(\)\.delegateMatt\(text,\{/);
  assert.match(source,/await cloud\(\)\.delegateMattWorker\(text,\{onStart/);
- assert.match(source,/if\(isWork\)await poll\(\)/);
- assert.match(source,/if\(isWork\)showStage\('reported'\)/);
+ assert.match(source,/if\(isWork&&!pokemonWork\)await poll\(\)/);
+ assert.match(source,/if\(isWork&&!pokemonWork\)showStage\('reported'\)/);
  assert.doesNotMatch(source,/if\(\/festival\//);
 });
 
@@ -99,4 +99,20 @@ test('Owner selects a fixed project when asking Director and explicitly consents
  assert.match(browser,/targetDirector==='wellbeing-director'&&wellbeingConsent!==true/);
  assert.match(browser,/SHARE_APPROVED_WELLBEING_MEMORY_FOR_THIS_TURN/);
  assert.match(browser,/delegateMattWorker\(message/);
+});
+
+test('Explicit Pokémon Worker route requires human selection and names private-source consent',()=>{
+ assert.match(source,/workerSelect.value='listening-director'/);
+ assert.match(source,/workerProject=isWork\?workerSelect.value:null/);
+ assert.match(source,/pokemonWork=isWork&&workerProject==='pokemon-director'/);
+ assert.match(source,/delegatePokemonWorker\(text\)/);
+ assert.match(source,/ιδιωτικό/);
+ assert.match(source,/Δεν αποθηκεύεται ακόμη ιστορικό εργασίας/);
+ assert.match(source,/if\(isWork&&!pokemonWork\)await poll\(\)/);
+ assert.match(source,/if\(isWork&&!pokemonWork\)showStage\('reported'\)/);
+ assert.match(source,/workerTarget.hidden=!isMatt\|\|workflowMode!=='work'/);
+ const cloud=fs.readFileSync(path.join(__dirname,'../js/cloud.js'),'utf8');
+ assert.match(cloud,/MATT_POKEMON_WORKER_READONLY_UP_TO_FIVE_AI_TURNS/);
+ assert.match(cloud,/\/delegate\/matt\/pokemon\/worker/);
+ assert.match(cloud,/delegatePokemonWorker,mattJobHistory/);
 });
