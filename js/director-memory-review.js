@@ -43,7 +43,7 @@
   total:rows.length,pending:rows.filter(r=>r.status==='proposed').length,
   approved:rows.filter(r=>r.status==='approved').length
  })}
- function createView({document,load}={}){
+ function createView({document,load,requestReview=null,confirmDecision=null,enableReview=false}={}){
   if(!document||typeof document.createElement!=='function'||typeof load!=='function')
    reject();
   const e=(tag,value,cls)=>{
@@ -52,7 +52,22 @@
    if(cls)node.className=cls;
    return node;
   };
+  if(enableReview&&(
+    typeof requestReview!=='function'||typeof confirmDecision!=='function'))reject();
   let selected='workshop',rows=[],busy=false,error='';
+  async function decide(host,row,decision){
+   if(!enableReview||busy||row.status!=='proposed'||
+    !['approved','rejected'].includes(decision))return;
+   // The confirmation includes the full evidence the user is approving.
+   const accepted=await confirmDecision({projectId:selected,entry:row,decision});
+   if(accepted!==true)return;
+   busy=true;error='';draw(host);
+   try{
+    await requestReview({projectId:selected,entryId:row.id,decision});
+    rows=normalize(await load(selected),selected);
+   }catch(_){error='Η απόφαση δεν επιβεβαιώθηκε στη βάση. Κάνε ανανέωση.'}
+   finally{busy=false;draw(host)}
+  }
   async function refresh(host){
    if(busy)return;
    busy=true;error='';draw(host);
@@ -64,7 +79,9 @@
    host.replaceChildren();
    const heading=e('section',undefined,'director-memory-heading');
    heading.append(e('h3','Director Memory · Ιδιωτική γνώση'),
-    e('p','Αυτή η οθόνη διαβάζει μόνο τα δεδομένα σου. Οι αποφάσεις έγκρισης/απόρριψης δεν έχουν ακόμη ενεργοποιηθεί.','room-footnote'));
+    e('p',enableReview?
+     'Εξέτασε κάθε ανάμνηση και την πηγή της. Μόνο εσύ αποφασίζεις, μία καταχώριση κάθε φορά.':
+     'Ανάγνωση μόνο: οι αποφάσεις έγκρισης/απόρριψης δεν έχουν ακόμη ενεργοποιηθεί.','room-footnote'));
    const select=e('select');
    select.setAttribute('aria-label','Project memory');
    for(const p of PROJECTS){
@@ -97,8 +114,20 @@
      e('p','Ημερομηνία πηγής: '+row.observedAt+
       ' · v'+row.version+' · '+(row.sensitivity==='private'?'Ιδιωτικό':'Κανονικό'),'room-footnote'));
     article.append(details);
-    if(row.status==='proposed')article.append(
-     e('p','Έγκριση/απόρριψη: δεν έχει ενεργοποιηθεί ακόμη.','room-footnote'));
+    if(row.status==='proposed'){
+     if(enableReview){
+      const actions=e('div',undefined,'director-memory-review-actions');
+      for(const decision of ['approved','rejected']){
+       const button=e('button',decision==='approved'?'Έγκριση':'Απόρριψη');
+       button.type='button';button.disabled=busy;
+       button.setAttribute('aria-label',(decision==='approved'?'Έγκριση: ':'Απόρριψη: ')+row.title);
+       button.addEventListener('click',()=>decide(host,row,decision));
+       actions.append(button);
+      }
+      article.append(actions);
+     }else article.append(
+      e('p','Έγκριση/απόρριψη: δεν έχει ενεργοποιηθεί ακόμη.','room-footnote'));
+    }
     list.append(article);
    }
    host.append(list);
