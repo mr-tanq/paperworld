@@ -73,7 +73,9 @@ test('Migration is review-only, RLS owner-scoped and proposed-only writes',()=>{
  assert.match(sql,/enable row level security/);
  assert.match(sql,/auth.uid\(\)/);
  assert.match(sql,/with check \(\(select auth.uid\(\)\)=owner_id and status='proposed'\)/);
- assert.match(sql,/grant select,insert on public.paperworld_director_memory to authenticated/);\n assert.match(sql,/paperworld_review_director_memory/);\n assert.match(sql,/p_decision not in \('approved','rejected'\)/);
+ assert.match(sql,/grant select,insert on public.paperworld_director_memory to authenticated/);
+ assert.match(sql,/paperworld_review_director_memory/);
+ assert.match(sql,/p_decision not in \('approved','rejected'\)/);
  assert.doesNotMatch(sql,/grant (?:all|update|delete) on public.paperworld_director_memory to authenticated/);
 });
 
