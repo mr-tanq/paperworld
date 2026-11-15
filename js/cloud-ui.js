@@ -3,7 +3,7 @@ const host=document.querySelector('#project-room'),model=window.PaperworldProjec
 let room='town',tasks=[],allTasks=[],busy=false,message='',edit=null,active=false;
 let memoryOpen=false,memoryView=null;
 // Display-only proposals. No approval grant or server write capability.
-let listeningReviewPayload=null;
+let listeningReviewPayload=null,listeningStoredProposals=[],listeningProposalError='';
 
 const el=(tag,text,cls)=>{let e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
 const btn=(text,fn,cls)=>{let b=el('button',text,cls);b.type='button';b.disabled=busy;b.addEventListener('click',fn);return b};
@@ -12,6 +12,13 @@ async function work(fn){if(busy)return;busy=true;message='';render();try{await f
 async function reload(){
  allTasks=await client.list();
  tasks=allTasks.filter(t=>t.room===room);
+ try{
+  listeningStoredProposals=await client.listListeningProposals();
+  listeningProposalError='';
+ }catch(e){
+  listeningStoredProposals=[];
+  listeningProposalError='Δεν φορτώθηκαν οι προτάσεις: '+e.message;
+ }
 }
 function loginForm(){let f=el('form');let email=el('input'),password=el('input');email.type='email';email.required=true;email.placeholder='Email';email.autocomplete='email';password.type='password';password.required=true;password.minLength=6;password.placeholder='Password';password.autocomplete='current-password';f.append(email,password);
 let sign=el('button','Sign in','primary');sign.type='submit';f.append(sign,btn('Create account',()=>work(async()=>{let ready=await client.signup(email.value.trim(),password.value);if(ready)await reload();else message='Check your email for the confirmation message, then sign in.'})));
@@ -98,10 +105,46 @@ function renderWorkshop(){
  for(const task of tasks)tasksPanel.append(taskRow(task));
  host.append(tasksPanel);
  const reviewHost=el('div',undefined,'listening-review-host');
- const review=window.PaperworldListeningReview?.create(reviewHost);
- if(review&&listeningReviewPayload){
-  try{review.show(listeningReviewPayload.plan,listeningReviewPayload.evidence)}
-  catch(_){listeningReviewPayload=null;review.clear()}
+ const reviewModule=window.PaperworldListeningReview;
+ const publish=(summary,digest)=>{
+  const lines=summary.files.map(f=>f.path).join(', ');
+  if(!window.confirm('Δημιουργία Draft PR στο mr-tanq/concerts;\\n'+
+   'Αρχεία: '+lines+'\\nΗ ενέργεια θα δημιουργήσει GitHub branch και Draft PR '+
+   'αλλά ΟΧΙ merge ή deployment. Η άδεια ισχύει μόνο μία φορά. Εγκρίνεις;'))return;
+  work(async()=>{
+   const result=await client.publishListeningProposal(summary.jobId,digest);
+   await reload();
+   message='Το Draft PR δημιουργήθηκε: '+result.url+
+    ' · Δεν έγινε merge ή deployment.';
+  });
+ };
+ const reject=(summary,digest)=>{
+  if(!window.confirm('Να απορριφθεί οριστικά αυτή η πρόταση αλλαγής;'))return;
+  work(async()=>{
+   await client.rejectListeningProposal(summary.jobId,digest);
+   await reload();message='Η πρόταση απορρίφθηκε. Δεν έγινε καμία αλλαγή.';
+  });
+ };
+ reviewHost.append(el('h3','Προτάσεις Developer · έλεγχος πριν από κάθε PR'));
+ reviewHost.append(btn('Ανανέωση προτάσεων',()=>work(reload)));
+ if(listeningProposalError)reviewHost.append(el('p',listeningProposalError,'room-footnote'));
+ if(listeningStoredProposals.length){
+  for(const proposal of listeningStoredProposals.slice(0,8)){
+   const place=el('div',undefined,'listening-stored-review');
+   const review=reviewModule?.create(place,{publish,reject});
+   if(review){
+    try{review.show(proposal.plan,proposal.evidence,{
+     persisted:true,status:proposal.status,digest:proposal.digest
+    })}catch(_){place.append(el('p','Μη έγκυρη αποθηκευμένη πρόταση.','room-footnote'))}
+   }
+   reviewHost.append(place);
+  }
+ }else{
+  const review=reviewModule?.create(reviewHost);
+  if(review&&listeningReviewPayload){
+   try{review.show(listeningReviewPayload.plan,listeningReviewPayload.evidence)}
+   catch(_){listeningReviewPayload=null;review.clear()}
+  }
  }
  host.append(reviewHost);
 }
@@ -193,7 +236,10 @@ window.PaperworldCloudUI={
   if(!window.PaperworldListeningReview)throw Error('Listening review unavailable');
   const snapshot=window.PaperworldListeningReview.summarize(plan,evidence);
   listeningReviewPayload={plan,evidence};
-  if(client.signedIn()){room='workshop';active=true;edit=null;memoryOpen=false;render()}
+  if(client.signedIn()){
+   room='workshop';active=true;edit=null;memoryOpen=false;
+   render();work(reload);
+  }
   return snapshot;
  },
  clearListeningChangePreview:()=>{listeningReviewPayload=null;if(active&&room==='workshop')render()}
