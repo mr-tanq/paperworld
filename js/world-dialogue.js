@@ -7,7 +7,7 @@
  if(!view)return;
  let openId=null,revision=0,busy=false;
  const mattReplies=[];
- const directorReplies=new Map(); // Ephemeral; never claim AI replies were saved.
+ const directorReplies=new Map(); // Keep only replies not yet reconciled with saved history.
  let mattCachedEntries=null; // Keep visible replies while owner history refreshes.
  let mattJourneyCaption='';
  const historyCodec=()=>window.PaperworldMattHistory;
@@ -277,7 +277,14 @@
      if(!busy){activeMattDirector=recovered.activeDirector;
       mattConversation.splice(0,mattConversation.length,...recovered.turns)}
      appendEntries(recovered.display);
-    }else appendEntries(history.map(m=>({role:m.role==='human'?'human':'agent',text:m.content,time:m.created_at})));
+    }else{
+     const existing=directorReplies.get(selected)||[];
+     const savedIds=new Set(history.filter(m=>m.role==='agent').map(m=>m.id));
+     const waiting=existing.filter(m=>!m.id||!savedIds.has(m.id));
+     directorReplies.set(selected,waiting);
+     appendEntries(history.map(m=>({role:m.role==='human'?'human':'agent',
+      text:m.content,time:m.created_at})));
+    }
    }).catch(error=>{
     if(token!==revision||openId!==selected)return;
     messages.replaceChildren(system('Το ιστορικό δεν φορτώθηκε: '+error.message));
@@ -321,8 +328,8 @@
     if(!approved)return;
     const result=await cloud().askDirector(id,text);
     const existing=directorReplies.get(id)||[];
-    directorReplies.set(id,[...existing,{content:result.content,
-     time:new Date().toISOString()}].slice(-12));
+    directorReplies.set(id,[...existing,{id:result.persisted===true?result.requestId:null,
+     content:result.content,time:new Date().toISOString()}].slice(-12));
     field.value='';
    }else{
     await cloud().sendPrivateAgentMessage(id,text);
