@@ -54,8 +54,8 @@ test('Approval cannot be activated by the browser review UI',()=>{
 test('Empty review should not invent jobs or approvals',()=>{
  assert.throws(()=>review.summarize(null,null));
  const source=fs.readFileSync('js/listening-review.js','utf8');
- assert.match(source,/Δεν υπάρχει ακόμη εγκεκριμένη προς ανασκόπηση πρόταση/);
- assert.match(source,/καμία αλλαγή δεν έχει πραγματοποιηθεί/);
+ assert.match(source,/Δεν υπάρχει κάποια λύση που χρειάζεται την απόφασή σου/);
+ assert.match(source,/Η αλλαγή δεν έχει εφαρμοστεί/);
 });
 
 test('Empty Work Desk displays a readable sentence, not a CSS class name',()=>{
@@ -67,9 +67,54 @@ test('Empty Work Desk displays a readable sentence, not a CSS class name',()=>{
  try{
   const host={children:[],append(...nodes){this.children.push(...nodes)}};
   review.create(host);
-  const content=host.children[0].children[1];
+  const content=host.children[0].children[2];
   assert.equal(content.className,'listening-review-note');
-  assert.match(content.textContent,/Δεν υπάρχει ακόμη εγκεκριμένη/);
+  assert.match(content.textContent,/Δεν υπάρχει κάποια λύση/);
   assert.doesNotMatch(content.textContent,/^listening-review-note$/);
  }finally{global.document=prior}
+});
+
+test('Human-first review shows one preparation-only decision and collapses implementation details',()=>{
+ const prior=global.document;let publishCount=0,rejectCount=0;
+ const node=(tag)=>({
+  tag,children:[],className:'',textContent:'',attributes:{},disabled:false,
+  listeners:{},append(...nodes){this.children.push(...nodes)},
+  replaceChildren(...nodes){this.children=[...nodes]},
+  setAttribute(k,v){this.attributes[k]=v},
+  addEventListener(k,fn){this.listeners[k]=fn}
+ });
+ global.document={createElement:node};
+ const flat=n=>[n,...(n.children||[]).flatMap(flat)];
+ try{
+  const host=node('div');
+  const view=review.create(host,{publish:()=>publishCount++,reject:()=>rejectCount++});
+  view.show(plan,evidence,{persisted:true,status:'pending_review',digest:'b'.repeat(64)});
+  const elements=flat(host);
+  const technical=elements.find(n=>n.className==='listening-review-technical');
+  assert.equal(technical.tag,'details');
+  assert.ok(flat(technical).some(n=>n.textContent.includes('Repository:')));
+  assert.equal(elements.find(n=>n.className==='listening-review-summary').textContent,plan.summary);
+  const approve=elements.find(n=>n.className==='listening-review-approve');
+  assert.equal(approve.disabled,false);
+  assert.equal(approve.textContent,'Εγκρίνω την προετοιμασία');
+  assert.match(elements.find(n=>n.className==='listening-review-warning').textContent,/δεν έχει εφαρμοστεί/);
+  assert.ok(approve.listeners.click);
+  approve.listeners.click();
+  assert.equal(publishCount,1);
+  assert.equal(rejectCount,0);
+  view.show(plan,evidence,{persisted:false,status:'pending_review'});
+  const disabled=flat(host).find(n=>n.className==='listening-review-approve');
+  assert.equal(disabled.disabled,true);
+  assert.equal(disabled.listeners.click,undefined);
+ }finally{global.document=prior}
+});
+test('UX copy does not imply GitHub preparation deploys any change',()=>{
+ const ui=fs.readFileSync('js/cloud-ui.js','utf8');
+ assert.match(ui,/ΔΕΝ θα εφαρμοστεί στην εφαρμογή/);
+ assert.match(ui,/δεν θα γίνει merge ή δημοσίευση/);
+ assert.match(ui,/Περισσότερες επιλογές/);
+ assert.match(ui,/pendingReviews/);
+ assert.ok(ui.indexOf('host.append(reviewHost)')<ui.indexOf('host.append(tasksPanel)'));
+ const html=fs.readFileSync('index.html','utf8');
+ assert.match(html,/human-first-review-v3/);
 });

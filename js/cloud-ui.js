@@ -92,50 +92,49 @@ function renderWorkshop(){
  // Project diagnosis and worker routing must come from authorized AI, not keywords.
  const section=el('section',undefined,'developer-chat');
  section.append(el('h3','Listening Mirror'));
- section.append(el('p','Ο αρμόδιος Director και ο Developer θα χειρίζονται οποιοδήποτε αίτημα ανατεθεί από τον Matt. Το AI δεν έχει συνδεθεί ακόμη.','room-footnote'));
+ section.append(el('p','Πες στον Matt τι χρειάζεσαι. Θα συνεργαστεί με τη Luna και την ομάδα της, και θα σου δείξει τη λύση όταν χρειάζεται έγκριση.','room-footnote'));
  section.append(btn('Μίλα στον Matt',()=>{
   if(window.PaperworldWorldDialogue?.show)window.PaperworldWorldDialogue.show('matt');
   else note('Το Messenger δεν είναι διαθέσιμο.',true);
  },'primary'));
  host.append(section);
- const tasksPanel=el('section',undefined,'developer-tasks');
- tasksPanel.append(el('h3','Εργασίες του project'));
- tasksPanel.append(btn('+ Νέα εργασία',()=>{edit=true;render()},'primary'));
- if(edit)tasksPanel.append(form(edit===true?null:edit));
- for(const task of tasks)tasksPanel.append(taskRow(task));
- host.append(tasksPanel);
- const reviewHost=el('div',undefined,'listening-review-host');
+ const reviewHost=el('section',undefined,'listening-review-host human-first-decisions');
  const reviewModule=window.PaperworldListeningReview;
+ const pendingReviews=listeningStoredProposals.filter(p=>p.status==='pending_review');
+ const completedReviews=listeningStoredProposals.filter(p=>p.status!=='pending_review');
+ reviewHost.append(el('h3',undefined,pendingReviews.length?
+  'Χρειάζεται η απόφασή σου ('+pendingReviews.length+')':'Λύσεις και αποφάσεις'));
+ reviewHost.append(el('p','Οι λύσεις παρουσιάζονται απλά. Η τεχνική διαδικασία παραμένει κρυμμένη μέχρι να τη ζητήσεις.','room-footnote'));
  const publish=(summary,digest)=>{
   const lines=summary.files.map(f=>f.path).join(', ');
-  if(!window.confirm('Δημιουργία Draft PR στο mr-tanq/concerts;\\n'+
-   'Αρχεία: '+lines+'\\nΗ ενέργεια θα δημιουργήσει GitHub branch και Draft PR '+
-   'αλλά ΟΧΙ merge ή deployment. Η άδεια ισχύει μόνο μία φορά. Εγκρίνεις;'))return;
+  if(!window.confirm('Εγκρίνεις να προετοιμάσουμε τη λύση για τελικό έλεγχο;\\n\\n'+
+   'Η αλλαγή αφορά '+lines+'.\\n'+
+   'Θα δημιουργηθεί μόνο προσχέδιο στο GitHub. ΔΕΝ θα εφαρμοστεί στην εφαρμογή, '+ 
+   'δεν θα γίνει merge ή δημοσίευση. Θα ζητηθεί νέα έγκρισή σου για αυτά.'))return;
   work(async()=>{
    const result=await client.publishListeningProposal(summary.jobId,digest);
    await reload();
-   message='Το Draft PR δημιουργήθηκε: '+result.url+
-    ' · Δεν έγινε merge ή deployment.';
+   message='Η λύση προετοιμάστηκε για τελικό έλεγχο. Δεν εφαρμόστηκε καμία αλλαγή. '+result.url;
   });
  };
  const reject=(summary,digest)=>{
-  if(!window.confirm('Να απορριφθεί οριστικά αυτή η πρόταση αλλαγής;'))return;
+  if(!window.confirm('Να απορρίψουμε αυτή τη λύση; Δεν θα αλλάξει τίποτα στην εφαρμογή.'))return;
   work(async()=>{
    await client.rejectListeningProposal(summary.jobId,digest);
    await reload();message='Η πρόταση απορρίφθηκε. Δεν έγινε καμία αλλαγή.';
   });
  };
- reviewHost.append(el('h3','Προτάσεις Developer · έλεγχος πριν από κάθε PR'));
- reviewHost.append(btn('Ανανέωση προτάσεων',()=>work(reload)));
- reviewHost.append(btn('GitHub · εξουσιοδότηση για Draft PR',()=>work(async()=>{
+ const advanced=el('details',undefined,'human-first-advanced');
+ advanced.append(el('summary','Περισσότερες επιλογές'));
+ advanced.append(btn('Ανανέωση',()=>work(reload)));
+ advanced.append(btn('Σύνδεση GitHub για προετοιμασία αλλαγών',()=>work(async()=>{
   const link=await client.beginGithubLink();
   window.location.assign(link);
  })));
- reviewHost.append(el('p','Η σύνδεση GitHub θα ζητήσει ρητή άδεια public_repo. '+
-  'Το Paperworld περιορίζει τις εγγραφές μόνο σε Draft PR του Listening Mirror.','room-footnote'));
+ advanced.append(el('p','Η σύνδεση ζητά άδεια public_repo. Επιτρέπεται μόνο προετοιμασία Draft PR — ποτέ αυτόματο merge ή δημοσίευση.','room-footnote'));
  if(listeningProposalError)reviewHost.append(el('p',listeningProposalError,'room-footnote'));
  if(listeningStoredProposals.length){
-  for(const proposal of listeningStoredProposals.slice(0,8)){
+  for(const proposal of [...pendingReviews,...completedReviews].slice(0,8)){
    const place=el('div',undefined,'listening-stored-review');
    const review=reviewModule?.create(place,{publish,reject});
    if(review){
@@ -147,7 +146,7 @@ function renderWorkshop(){
     /^https:\/\/github\.com\/mr-tanq\/concerts\/pull\/[1-9][0-9]*$/.test(proposal.draftUrl||'')){
     const link=document.createElement('a');
     link.href=proposal.draftUrl;
-    link.textContent='Άνοιξε το Draft PR στο GitHub';
+    link.textContent='Δες την προετοιμασμένη αλλαγή (GitHub)';
     link.target='_blank';link.rel='noopener noreferrer';
     place.append(link);
    }
@@ -160,12 +159,21 @@ function renderWorkshop(){
    catch(_){listeningReviewPayload=null;review.clear()}
   }
  }
+ reviewHost.append(advanced);
  host.append(reviewHost);
+ const tasksPanel=el('section',undefined,'developer-tasks');
+ tasksPanel.append(el('h3','Οι εργασίες μου'));
+ tasksPanel.append(btn('+ Νέα εργασία',()=>{edit=true;render()},'primary'));
+ if(edit)tasksPanel.append(form(edit===true?null:edit));
+ for(const task of tasks)tasksPanel.append(taskRow(task));
+ 
+ // First show only decisions that require the owner's attention.
+ host.append(tasksPanel);
 }
 function renderMattConversation(){
  const sec=el('section',undefined,'developer-chat');
  sec.append(el('h3','Matt · Chief of Staff'));
- sec.append(el('p','Μίλα ελεύθερα στον Matt μέσω GitHub Copilot. Η AI συνομιλία ζητά ξεχωριστή έγκριση ανά μήνυμα. Ο Matt μπορεί να απαντήσει και να σχεδιάσει, αλλά δεν μπορεί ακόμη να αναθέσει πραγματική εργασία ή να αλλάξει αρχεία.','room-footnote'));
+ sec.append(el('p','Μίλα ελεύθερα στον Matt μέσω GitHub Copilot. Η AI συνομιλία ζητά ξεχωριστή έγκριση ανά μήνυμα. Ο Matt μπορεί να συνεργάζεται με τους Directors και να ζητά ξεχωριστή έγκριση πριν από διερευνήσεις που διαβάζουν αρχεία.','room-footnote'));
  sec.append(el('p','GitHub Copilot · οι AI κλήσεις γίνονται μόνο μετά τη δική σου έγκριση ανά μήνυμα και τον έλεγχο διαθέσιμου ορίου.','room-footnote'));
  sec.append(btn('Σύνδεσε το GitHub',()=>work(async()=>{
   const authorizationUrl=await client.beginGithubLink();
