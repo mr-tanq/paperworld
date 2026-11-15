@@ -155,6 +155,21 @@
      if(!pokemon){
       await poll();
       if(worker.persisted===true)world()?.setAgentWorkflowStage?.('reported');
+      // A real, owner-scoped Worker proposal is REVIEW ONLY.
+      // Do not request, issue, or pretend to have write authorization.
+      if(worker.reviewProposal){
+       try{
+        cloud()?.previewListeningChange?.(worker.reviewProposal.plan,
+         worker.reviewProposal.evidence);
+        mattReplies.push({content:'Ο Developer ετοίμασε προτεινόμενες αλλαγές. '+
+         'Θα τις βρεις στο Listening Mirror Work Desk για ανάγνωση. '+
+         'Δεν έχει πραγματοποιηθεί καμία εγγραφή ή δημιουργία PR.',
+         time:new Date().toISOString()});
+       }catch(_){
+        mattReplies.push({content:'Η πρόταση δεν πέρασε τον έλεγχο '+
+         'προεπισκόπησης. Δεν έγινε καμία αλλαγή.',time:new Date().toISOString()});
+       }
+      }
      }
      mattReplies.push({content:String(worker.content||''),time:new Date().toISOString()});
      if(openId==='matt')paint();
