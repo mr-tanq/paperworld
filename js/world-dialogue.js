@@ -52,9 +52,29 @@
  field.setAttribute('aria-label','Message to agent');
  send.type='submit';send.setAttribute('aria-label','Send message');
  form.append(field,send);
+ // Optional real decision inbox. Never invokes AI automatically or claims the
+ // village actors worked merely because an animation played.
+ const decisions=make('div','world-chat-decisions');
+ decisions.hidden=true;
+ let decisionView=null,decisionLoading=false;
+ async function refreshDecisions(){
+  if(!cloud()?.signedIn()||!decisionView||decisionLoading)return;
+  decisionLoading=true;
+  try{await decisionView.refresh()}
+  finally{decisionLoading=false}
+ }
+ function setupDecisions(){
+  if(decisionView||!window.PaperworldHumanFirstHub?.create)return;
+  decisionView=window.PaperworldHumanFirstHub.create(decisions,{
+   compact:true,load:()=>cloud().loadHumanWork(),
+   approve:item=>cloud().prepareHumanSolution(item),
+   reject:item=>cloud().discardHumanSolution(item),
+   onError:()=>{}
+  });
+ }
  const composer=make('footer','world-chat-composer');
  composer.append(connectGithub,form);
- panel.append(top,status,messages,composer);view.append(panel);
+ panel.append(top,status,messages,decisions,composer);view.append(panel);
  // Matt owns the conversation; internal agent and worker routing stays invisible.
  async function runMattWorkflow(text){
   if(openId!=='matt'||!cloud()?.signedIn()||busy||!text.trim())return;
@@ -182,6 +202,8 @@
      }
      mattReplies.push({content:String(worker.content||''),time:new Date().toISOString()});
      if(openId==='matt')paint();
+     // Refresh the one real, persisted decision in the same conversation.
+     if(!pokemon)await refreshDecisions();
     }else{
      mattReplies.push({content:'Δεν ξεκίνησα τον Worker. Μπορούμε να συνεχίσουμε τη συζήτηση.',
       time:new Date().toISOString()});
@@ -249,6 +271,8 @@
   status.textContent=!active?'Συνδέσου στο PAPERWORLD Cloud για να στείλεις μηνύματα.':
    isMatt?(mattJourneyCaption||'Συνομιλία με τον Matt · καμία εργασία χωρίς έγκριση'):
    'Απευθείας συνομιλία Director · κάθε AI απάντηση χρειάζεται έγκριση';
+  decisions.hidden=!isMatt||!active;
+  if(isMatt&&active){setupDecisions();void refreshDecisions()}
   if(active&&isMatt&&(mattCachedEntries!==null||mattReplies.length))
    appendEntries(mattCachedEntries||[]);
   else messages.replaceChildren(system(active?'Φόρτωση ιδιωτικού ιστορικού…':'Απαιτείται σύνδεση.'));
