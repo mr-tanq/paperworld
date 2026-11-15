@@ -85,3 +85,15 @@ test('Neither module contains network calls or runs Copilot models',()=>{
   assert.doesNotMatch(text,/fetch\(|sendAndWait|createSession|writeFile|createPullRequest|exec\(/);
  }
 });
+
+test('Worker flow uses an OPTIONAL verified review proposal without more AI turns',()=>{
+ const fs=require('node:fs');
+ const server=fs.readFileSync('server/matt-worker-delegation.cjs','utf8');
+ const ui=fs.readFileSync('js/world-dialogue.js','utf8');
+ assert.match(server,/parseWorkerProposal\(workerReport,\{job:approvedForProposal,evidence\}\)/);
+ assert.match(server,/reviewProposal=suggested\?previewPayload\(suggested,evidence\):null/);
+ assert.match(server,/\.\.\.\(reviewProposal\?\{reviewProposal\}:\{\}\)/);
+ assert.match(ui,/if\(worker\.reviewProposal\)/);
+ assert.match(ui,/previewListeningChange\?\.\(worker\.reviewProposal\.plan/);
+ assert.doesNotMatch(ui,/approval\.secret|grantWrite|createDraftPr\(/);
+});
