@@ -110,7 +110,7 @@
    }
    if(!completed&&!rejected)actions.append(approve);
    if(ready&&typeof reject==='function'){
-    const rejectButton=el('button','human-first-secondary','Όχι τώρα');
+    const rejectButton=el('button','human-first-secondary','Απόρριψη λύσης');
     rejectButton.type='button';
     rejectButton.addEventListener('click',()=>reject(current,review.digest));
     actions.append(rejectButton);
