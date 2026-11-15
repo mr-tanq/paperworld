@@ -56,7 +56,19 @@
    'τον κατάλληλο μη ευαίσθητο Director. Δεν θα εκτελεστεί εργασία ή ανάγνωση '+
    'αρχείων χωρίς νέα έγκριση. Συνέχεια;'))return;
   busy=true;field.disabled=true;send.disabled=true;
-  let failure=null;
+  let failure=null,requestId=null,watcher=null,polling=false;
+  const poll=async()=>{
+   if(!requestId||polling)return;
+   polling=true;
+   try{
+    const history=await cloud().mattJobHistory();
+    const job=history.jobs.find(item=>item.id===requestId);
+    const last=job?.events?.[job.events.length-1];
+    if(last&&typeof last.state==='string')
+     world()?.setAgentWorkflowStage?.(last.state);
+   }catch(_){/* Read-only status failure cannot imply completed work. */}
+   finally{polling=false}
+  };
   try{
    const result=await cloud().delegateMatt(text,{targetDirector:'auto'});
    mattReplies.push({content:String(result.content||
@@ -85,7 +97,14 @@
      // The original human note is already stored by delegateMatt.
      const worker=pokemon?
       await cloud().delegatePokemonWorker(text,{saveNote:false}):
-      await cloud().delegateMattWorker(text,{saveNote:false});
+      await cloud().delegateMattWorker(text,{saveNote:false,onStart:id=>{
+       requestId=id;
+       watcher=setInterval(poll,1300);
+      }});
+     if(!pokemon){
+      await poll();
+      if(worker.persisted===true)world()?.setAgentWorkflowStage?.('reported');
+     }
      mattReplies.push({content:String(worker.content||''),time:new Date().toISOString()});
      if(openId==='matt')paint();
     }else{
@@ -96,10 +115,12 @@
    }
   }catch(error){
    failure=error;
+   if(requestId)world()?.setAgentWorkflowFailure?.();
    if(openId==='matt')status.textContent='Δεν ολοκληρώθηκε: '+error.message;
-   showNotice('⚠ Ο Matt δεν ολοκλήρωσε την ενέργεια: '+error.message);
+   showNotice('⚠ Η εργασία απέτυχε ή η συνομιλία δεν ολοκληρώθηκε: '+error.message);
    if(error.noteSaved)field.value='';
   }finally{
+   if(watcher!==null)clearInterval(watcher);
    busy=false;field.disabled=false;send.disabled=false;
    if(openId==='matt'){
     paint();
