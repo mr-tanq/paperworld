@@ -25,6 +25,7 @@ const task={id:'task123',room:'pokemon',title:'Ολοκλήρωση Route 1',sta
  created:Date.parse('2026-11-15T22:00:00Z')};
 const prior=globalThis.PaperworldListeningReview;
 globalThis.PaperworldListeningReview=review;
+globalThis.PaperworldHumanFirstHub=hub;
 function fixture(){return {jobs:[job,otherJob],proposals:[proposal],tasks:[task]}}
 class FakeElement{
  constructor(tag){this.tag=tag;this.children=[];this.listeners={};this.hidden=false;
@@ -39,9 +40,14 @@ class FakeElement{
 }
 function withDOM(fn){
  const doc=global.document,win=global.window;
+ const restore=()=>{global.document=doc;global.window=win};
  global.document={createElement:tag=>new FakeElement(tag),addEventListener(){}};
  global.window={confirm:()=>true};
- try{return fn()}finally{global.document=doc;global.window=win}
+ try{
+  const result=fn();
+  if(result?.then)return result.finally(restore);
+  restore();return result;
+ }catch(e){restore();throw e}
 }
 test('Owner-scoped real jobs and verified review proposal collapse into ONE clear decision',()=>{
  const result=hub.project(fixture());
