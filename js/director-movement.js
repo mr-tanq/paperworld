@@ -15,6 +15,31 @@
   'wellbeing-director':[535,520],
   'studio-director':[415,625]
  });
+ // Dedicated safe sidewalk positions next to each Director, never their feet.
+ // Coordinates were chosen from the existing reviewed navigation graph.
+ const talkSpots=Object.freeze({
+  'listening-director':Object.freeze([1080,530]),
+  'pokemon-director':Object.freeze([415,625]),
+  'wellbeing-director':Object.freeze([1190,680]),
+  'studio-director':Object.freeze([895,851.091])
+ });
+ function facingToward(from,to,previous='down'){
+  const dx=to.x-from.x,dy=to.y-from.y;
+  if(Math.hypot(dx,dy)<0.001)return previous;
+  return Math.abs(dx)>=Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up');
+ }
+ function stagedEncounter(navigation,director){
+  if(!director)return null;
+  const spot=talkSpots[director.id];
+  if(!spot||!navigation)return null;
+  const end=navigation.snapToPath(spot,2);
+  if(!end||end.distance>2||!navigation.clearSegment(end.point,[director.x,director.y]))return null;
+  const dist=Math.hypot(end.point[0]-director.x,end.point[1]-director.y);
+  if(dist<42||dist>85)return null;
+  return Object.freeze({point:Object.freeze([...end.point]),distance:dist,
+   visitorFacing:facingToward({x:end.point[0],y:end.point[1]},director),
+   directorFacing:facingToward(director,{x:end.point[0],y:end.point[1]})});
+ }
  function create(navigation,actors){
   if(!navigation||!Array.isArray(actors))throw Error('Navigation and actors required');
   const members=actors.filter(a=>Object.prototype.hasOwnProperty.call(meetingPlaces,a.id));
@@ -80,5 +105,5 @@
   }
   return Object.freeze({call,tick,status:()=>phase});
  }
- return Object.freeze({create,meetingPlaces});
+ return Object.freeze({create,meetingPlaces,talkSpots,stagedEncounter,facingToward});
 });
