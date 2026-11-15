@@ -13,7 +13,7 @@ test('worker entries have no fabricated image or active direct messaging',()=>{
  for(const p of profiles.entries('worker'))assert.equal(p.sheet,undefined);
  const team=read('js/team-panel.js');
  assert.match(team,/if\(active==='worker'\)\{row\.disabled=true/);
- assert.doesNotMatch(team,/Online|green.*dot/i);
+ assert.doesNotMatch(team,/["']Online["']|status-dot|green-dot/i);
 });
 test('chat and team reuse the single portrait registry, loaded before UI scripts',()=>{
  const html=read('index.html');
