@@ -103,12 +103,12 @@ function drawPlayerSprite(p){
 // Wellbeing & Training Director: visual-only, existing AI identity preserved.
 const wellbeingDirectorVisual=new Image();
 wellbeingDirectorVisual.decoding='async';
-wellbeingDirectorVisual.src='./assets/wellbeing-director-walk-hq-v1.png';
+wellbeingDirectorVisual.src='./assets/wellbeing-director-walk-hq-v2.png';
 function drawWellbeingDirectorSprite(a){
- if(!wellbeingDirectorVisual.complete||wellbeingDirectorVisual.naturalWidth!==128||wellbeingDirectorVisual.naturalHeight!==176)return false;
+ if(!wellbeingDirectorVisual.complete||wellbeingDirectorVisual.naturalWidth!==256||wellbeingDirectorVisual.naturalHeight!==352)return false;
  const row={down:0,right:1,up:2,left:3}[a.direction]??0;
  const frame=a.moving?Math.floor((a.walkDistance||0)/14)%4:1;
- const sw=32,sh=44,dw=60,dh=88;
+ const sw=64,sh=88,dw=60,dh=88;
  ctx.save();
  ctx.fillStyle='rgba(31,24,18,.28)';
  ctx.beginPath();ctx.ellipse(a.x,a.y-2,14,5,0,0,Math.PI*2);ctx.fill();
@@ -122,12 +122,12 @@ function drawWellbeingDirectorSprite(a){
 }
 const pokemonDirectorVisual=new Image();
 pokemonDirectorVisual.decoding='async';
-pokemonDirectorVisual.src='./assets/pokemon-director-walk-hq-v1.png';
+pokemonDirectorVisual.src='./assets/pokemon-director-walk-hq-v2.png';
 function drawPokemonDirectorSprite(a){
- if(!pokemonDirectorVisual.complete||pokemonDirectorVisual.naturalWidth!==192||pokemonDirectorVisual.naturalHeight!==264)return false;
+ if(!pokemonDirectorVisual.complete||pokemonDirectorVisual.naturalWidth!==256||pokemonDirectorVisual.naturalHeight!==352)return false;
  const row={down:0,right:1,up:2,left:3}[a.direction]??0;
  const frame=a.moving?Math.floor((a.walkDistance||0)/14)%4:1;
- const sw=48,sh=66,dw=60,dh=88;
+ const sw=64,sh=88,dw=60,dh=88;
  ctx.save();
  ctx.fillStyle='rgba(31,24,18,.28)';
  ctx.beginPath();ctx.ellipse(a.x,a.y-2,14,5,0,0,Math.PI*2);ctx.fill();
