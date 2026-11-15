@@ -11,7 +11,7 @@
   {id:'listening-director',name:'Luna',role:'Director',project:'Listening Mirror'},
   {id:'pokemon-director',name:'Joey',role:'Director',project:'Pokémon Echoes'},
   {id:'studio-director',name:'Crow',role:'Director',project:'The Lost Wanderer'},
-  {id:'wellbeing-director',name:'Wellbeing Director',role:'Director',project:'Wellbeing'}
+  {id:'wellbeing-director',name:'Dave',role:'Director',project:'Wellbeing'}
  ]);
  function getAgenda(raw){
   const hub=globalThis.PaperworldHumanFirstHub;
@@ -31,7 +31,7 @@
  function button(label,cb,cls=''){
   const b=make('button',cls,label);b.type='button';b.addEventListener('click',cb);return b;
  }
- function create(view,{load,chat,openWork}={}){
+ function create(view,{load,chat,openWork,askAI}={}){
   if(!view||typeof load!=='function'||typeof chat!=='function')
    throw Error('town_hall_dependencies_required');
   const modal=make('section','town-hall-panel');modal.hidden=true;
@@ -41,7 +41,8 @@
   header.append(make('div','',''),button('×',hide,'town-hall-close'));
   const content=make('div','town-hall-body');modal.append(header,content);
   view.append(modal);
-  let revision=0,shown=false;
+  let revision=0,shown=false,meetingBusy=false,lastAgenda='',message='';
+  const transcript=[];
   function hide(){shown=false;revision++;modal.hidden=true}
   function paint(data,error=''){
    content.replaceChildren();
@@ -61,6 +62,72 @@
     row.title='Άνοιξε προσωπική συνομιλία με τον '+actor.name;
     roster.append(row);
    }workers.append(roster);content.append(workers);
+   // A real multi-agent discussion is always a separate explicit choice.
+   // Never infer consent from the illustrative gathering animation.
+   const aiSection=make('section','town-hall-ai-session');
+   aiSection.append(make('h3','','Πραγματική συζήτηση AI'));
+   aiSection.append(make('p','town-hall-description',
+    'Η Luna, ο Joey και ο Crow μπορούν να συζητήσουν ένα κοινό θέμα. '+
+    'Μόνο εφόσον το εγκρίνεις: έως 3 AI απαντήσεις, μία ανά Director. '+
+    'Το Wellbeing δεν συμμετέχει για λόγους ιδιωτικότητας.'));
+   const agendaInput=make('textarea','town-hall-agenda-input');
+   agendaInput.rows=3;agendaInput.maxLength=280;
+   agendaInput.placeholder='Ποιο θέμα θέλεις να συζητήσουμε;';
+   agendaInput.setAttribute('aria-label','Θέμα συνάντησης');
+   agendaInput.value=lastAgenda;
+   aiSection.append(agendaInput);
+   const run=button(meetingBusy?'Η συνάντηση εκτελείται…':
+    'Έναρξη AI συνάντησης · έως 3 απαντήσεις',async()=>{
+     if(meetingBusy||!shown||typeof askAI!=='function')return;
+     const text=String(agendaInput.value||'').trim();
+     if(!text||text.length>280){message='Γράψε ένα συγκεκριμένο θέμα για τη συνάντηση.';paint(data);return}
+     if(!window.confirm('Εγκρίνεις έως 3 GitHub Copilot AI κλήσεις; '+
+      'Το θέμα και μικρά αποσπάσματα από τις απαντήσεις θα κοινοποιηθούν '+
+      'στη Luna, στον Joey και στον Crow, αλλά ΟΧΙ στον Dave. '+
+      'Οι Directors θα δώσουν συμβουλές, χωρίς εργαλεία, αποστολές, '+
+      'αλλαγές αρχείων ή δημοσίευση. '+
+      'Ισχύει το επαληθευμένο όριο μηδενικής επιπλέον χρέωσης.'))return;
+     lastAgenda=text;meetingBusy=true;message='Οι Directors συζητούν το θέμα σου…';
+     transcript.length=0;paint(data);
+     try{
+      const speaker=[ACTORS[1],ACTORS[2],ACTORS[3]];
+      for(const actor of speaker){
+       const prior=transcript.map(x=>x.name+': '+x.reply.slice(0,130)).join('\\n');
+       const request=('Συνάντηση Town Hall. Θέμα από τον χρήστη: '+lastAgenda+
+        '. Πες με συντομία (μέχρι 4 προτάσεις) τι προτείνεις για το δικό σου '+
+        'project. Μην ισχυριστείς ότι εκτελέστηκε εργασία. '+
+        (prior?'Προηγούμενες προτάσεις για συζήτηση: '+prior:'')).slice(0,1100);
+       // Every server request enforces owner, thread, its own budget and
+       // reject-all tool permissions; the UI cannot authorize writes.
+       const result=await askAI(actor.id,request);
+       if(result?.executed!==true||result?.aiTurns!==1||
+        typeof result.content!=='string'||!result.content.trim())
+        throw Error('Η απάντηση του Director δεν επαληθεύτηκε.');
+       transcript.push({name:actor.name,reply:result.content.trim().slice(0,1500)});
+       message=actor.name+' απάντησε · '+transcript.length+'/3';
+       paint(data);
+      }
+      message='Η AI συζήτηση ολοκληρώθηκε. Καμία εργασία δεν εφαρμόστηκε.';
+     }catch(err){
+      message='Η συνάντηση διακόπηκε: '+String(err.message||'').slice(0,120)+
+       '. Δεν έγιναν άλλες AI κλήσεις.';
+     }finally{meetingBusy=false;paint(data)}
+   },'town-hall-run-ai');
+   run.disabled=meetingBusy;
+   aiSection.append(run);
+   if(message)aiSection.append(make('p','town-hall-progress',message));
+   for(const reply of transcript){
+    const card=make('article','town-hall-ai-reply');
+    card.append(make('strong','',reply.name),make('p','',reply.reply));
+    aiSection.append(card);
+   }
+   if(transcript.length)aiSection.append(button('Αντιγραφή πρακτικών',async()=>{
+    const text='Town Hall: '+lastAgenda+'\\n\\n'+transcript.map(x=>x.name+
+     ': '+x.reply).join('\\n\\n');
+    try{await navigator.clipboard.writeText(text)}
+    catch(_){message='Δεν ήταν δυνατή η αντιγραφή. Τα πρακτικά παραμένουν εδώ.';paint(data)}
+   },'town-hall-copy'));
+   content.append(aiSection);
    const agenda=make('section','town-hall-agenda');
    agenda.append(make('h3','','Τι έχουμε σε εκκρεμότητα;'));
    if(data?.items?.length){
