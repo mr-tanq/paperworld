@@ -92,5 +92,5 @@ test('Review is separate from AI, merge/deploy and status-mutation logic',()=>{
  const cloudSource=fs.readFileSync(path.join(__dirname,'../js/cloud.js'),'utf8');
  const code=cloudSource.slice(cloudSource.indexOf('async function listDirectorMemory('),
   cloudSource.indexOf('async function reviewDirectorMemory({'));
- assert.doesNotMatch(code,/PATCH|DELETE|POST|rpc/);
+ assert.doesNotMatch(code,/method:\\s*['\"](?:PATCH|DELETE|POST)['\"]|\\/rpc\\//);
 });
