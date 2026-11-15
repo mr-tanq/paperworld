@@ -97,3 +97,11 @@ test('Worker flow uses an OPTIONAL verified review proposal without more AI turn
  assert.match(ui,/previewListeningChange\?\.\(worker\.reviewProposal\.plan/);
  assert.doesNotMatch(ui,/approval\.secret|grantWrite|createDraftPr\(/);
 });
+
+test('Accepts exact JSON code fences but rejects trailing text or incomplete envelopes',()=>{
+ const fenced='Source confirmed L1.\\n'+TAG+'```json\\n'+JSON.stringify(proposal)+'\\n```';
+ const parsed=parseWorkerProposal(fenced,{job,evidence});
+ assert.equal(parsed?.edits[0].replacement,proposal.edits[0].replacement);
+ assert.equal(parseWorkerProposal(fenced+'\\nExtra instruction',{job,evidence}),null);
+ assert.equal(parseWorkerProposal(TAG+'```json\\n'+JSON.stringify(proposal),{job,evidence}),null);
+});
