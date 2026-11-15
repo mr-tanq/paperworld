@@ -9,7 +9,8 @@ const thread='22222222-2222-4222-8222-222222222222';
 const request='33333333-3333-4333-8333-333333333333';
 const headers={origin:'https://mr-tanq.github.io',authorization:'Bearer aaaaa.bbbbb.ccccc'};
 const data={threadId:thread,requestId:request,message:'Investigate the concert image issue in Listening Mirror',consent:CONSENT};
-function make({route='listening-director',owns=true,linked=true,budget=true,failTurn=0}={}){
+function make({route='listening-director',owns=true,linked=true,budget=true,failTurn=0,
+ memoryIncluded=1,memoryFails=false}={}){
  const seen={created:[],prompts:[],sent:0,stopped:0,diagnostics:[]};
  const clientFactory=async options=>{
   seen.options=options;
@@ -36,6 +37,13 @@ function make({route='listening-director',owns=true,linked=true,budget=true,fail
   guard:{authenticate:async()=>({ownerId:owner}),
    ownsThread:async()=>owns},
   budgetVerified:async()=>budget,
+  memoryLoader:{load:async params=>{
+   seen.memoryParams=params;
+   if(memoryFails)throw Error('PRIVATE_DB_FAILURE_NEVER_EXPOSE');
+   return {projectId:'workshop',actor:'listening-director',untrustedContent:true,
+    included:memoryIncluded,text:memoryIncluded?'FESTIVAL_APPROVED_RULE_ONLY':'',
+    capabilitiesGranted:[]};
+  }},
   clientFactory,diagnostics:stage=>seen.diagnostics.push(stage)
  });
  return {gateway,seen};
@@ -63,6 +71,12 @@ test('Listening Mirror director is real routed AI turn and reports via Matt, wit
  assert.equal(seen.options.useLoggedInUser,false);
  assert.equal(seen.stopped,1);
  assert.ok(seen.prompts[1].includes('CANNOT inspect their source code'));
+ assert.match(seen.prompts[1],/FESTIVAL_APPROVED_RULE_ONLY/);
+ assert.doesNotMatch(seen.prompts[0],/FESTIVAL_APPROVED_RULE_ONLY/);
+ assert.doesNotMatch(seen.prompts[2],/FESTIVAL_APPROVED_RULE_ONLY/);
+ assert.equal(out.body.memory.included,1);
+ assert.equal(seen.memoryParams.actor,'listening-director');
+ assert.equal(seen.memoryParams.ownerId,owner);
 });
 test('Matt AI routing cannot delegate to nonexistent or unauthorized directors',async()=>{
  for(const route of ['pokemon-director','not_ready','listening-developer','unknown-route']){
@@ -120,4 +134,21 @@ test('Only Listening Mirror Director has enabled AI delegation in this PR',()=>{
  const ui=fs.readFileSync(path.join(__dirname,'../js/world-dialogue.js'),'utf8');
  assert.match(ui,/runMattWorkflow\(text\)/);
  assert.match(ui,/έως 5|Έως 5/);
+});
+
+test('Database memory lookup failure refuses further charged Director turns',async()=>{
+ const {gateway,seen}=make({memoryFails:true});
+ const result=await gateway.handle({headers,body:requestBody(data)});
+ assert.equal(result.status,503);
+ assert.equal(result.body.stage,'approved_memory_read');
+ assert.equal(result.body.attemptedAiTurns,1);
+ assert.equal(seen.sent,1);
+ assert.doesNotMatch(JSON.stringify(result)+JSON.stringify(seen.diagnostics),/PRIVATE_DB_FAILURE/);
+});
+test('Zero approved memories are represented as absence, not fabricated history',async()=>{
+ const {gateway,seen}=make({memoryIncluded:0});
+ const out=await gateway.handle({headers,body:requestBody(data)});
+ assert.equal(out.status,200);
+ assert.equal(out.body.memory.included,0);
+ assert.match(seen.prompts[1],/No approved memories for this project/);
 });

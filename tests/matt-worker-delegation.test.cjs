@@ -12,12 +12,18 @@ const headers={origin:'https://mr-tanq.github.io',authorization:'Bearer aaaaa.bb
 const payload={threadId,requestId,message:'Investigate missing concert pictures in Listening Mirror',consent:CONSENT};
 function fake({route='listening-director',category='artwork',
  owns=true,linked=true,budget=true,badEvidence=false,tamperPath=false,failTurn=0,
- failHistoryCreate=false,failHistoryEvent=false}={}){
+ failHistoryCreate=false,failHistoryEvent=false,memoryFails=false}={}){
  const seen={calls:0,models:0,configs:[],prompts:[],stages:[],read:[],jobs:[],events:[]};
  const gateway=makeWorkerDelegation({
   oauth:{getLinkedToken:()=>linked?'gho_VALID_FAKE_ONLY':null},
   guard:{authenticate:async()=>({ownerId:owner}),ownsThread:async()=>owns},
   budgetVerified:async()=>budget,
+  memoryLoader:{load:async params=>{
+   seen.memoryParams=params;
+   if(memoryFails)throw Error('PRIVATE_MEMORY_FAILURE');
+   return {projectId:'workshop',actor:'listening-director',untrustedContent:true,
+    included:1,text:'FESTIVAL_APPROVED_RULE_ONLY',capabilitiesGranted:[]};
+  }},
   jobMemory:{
    create:async args=>{seen.jobs.push(args);if(failHistoryCreate)throw Error('storage_down')},
    append:async args=>{seen.events.push(args);if(failHistoryEvent)throw Error('event_down')}
@@ -81,6 +87,13 @@ test('Matt → Director → source evidence → Worker → Director → Matt is 
   assert.equal('hooks' in config,false);
  }
  assert.equal(seen.prompts[2].includes('UNTRUSTED REPOSITORY CONTENT'),true);
+ assert.match(seen.prompts[1],/FESTIVAL_APPROVED_RULE_ONLY/);
+ assert.match(seen.prompts[3],/FESTIVAL_APPROVED_RULE_ONLY/);
+ assert.doesNotMatch(seen.prompts[2],/FESTIVAL_APPROVED_RULE_ONLY/);
+ assert.doesNotMatch(seen.prompts[0],/FESTIVAL_APPROVED_RULE_ONLY/);
+ assert.doesNotMatch(JSON.stringify(seen.events),/FESTIVAL_APPROVED_RULE_ONLY/);
+ assert.equal(result.body.memory.included,1);
+ assert.equal(seen.memoryParams.ownerId,owner);
 });
 test('No director for unrelated project: only one route call and no repo access',async()=>{
  const {gateway,seen}=fake({route:'not_ready'});
@@ -181,6 +194,8 @@ test('Reader failure exposes only a bounded safe GitHub reason',async()=>{
   oauth:{getLinkedToken:()=> 'gho_PRIVATE_TOKEN_NEVER_EXPOSED'},
   guard:{authenticate:async()=>({ownerId:owner}),ownsThread:async()=>true},
   budgetVerified:()=>true,
+  memoryLoader:{load:async()=>({projectId:'workshop',actor:'listening-director',
+   included:0,text:'',untrustedContent:true,capabilitiesGranted:[]})},
   jobMemory:{create:async()=>{},append:async event=>{seen.events.push(event)}},
   reader:{read:async()=>{const e=new Error('SECRET_API_RESPONSE');e.code='github_rate_limited';throw e}},
   clientFactory:async()=>({
@@ -201,4 +216,16 @@ test('Reader failure exposes only a bounded safe GitHub reason',async()=>{
  assert.match(seen.events.at(-1).note,/github_rate_limited/);
  assert.equal(seen.diagnostics.at(-1),'repository_read:github_rate_limited');
  assert.doesNotMatch(JSON.stringify(response)+JSON.stringify(seen.diagnostics),/SECRET_API_RESPONSE|PRIVATE_TOKEN/);
+});
+
+test('Memory lookup error prevents project history creation and worker inference',async()=>{
+ const {gateway,seen}=fake({memoryFails:true});
+ const response=await gateway.handle({headers,body:body(payload)});
+ assert.equal(response.status,503);
+ assert.equal(response.body.stage,'approved_memory_read');
+ assert.equal(response.body.attemptedAiTurns,1);
+ assert.equal(seen.calls,1);
+ assert.deepEqual(seen.jobs,[]);
+ assert.deepEqual(seen.events,[]);
+ assert.doesNotMatch(JSON.stringify(response),/PRIVATE_MEMORY_FAILURE/);
 });
