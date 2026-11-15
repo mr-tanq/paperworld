@@ -6,6 +6,8 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {createSafeSessionConfig}=require('./matt-session-config.cjs');
 const {createApprovedDirectorMemory,formatDirectorMemory}=require('./approved-director-memory.cjs');
+const {createDirectorThreadRecall}=require('./director-thread-recall.cjs');
+const {createDirectorReplyPersistence}=require('./director-reply-persistence.cjs');
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const ORIGIN='https://mr-tanq.github.io',CONSENT='ONE_DIRECTOR_COPILOT_TURN_INCLUDED_ALLOWANCE';
 const DIRECTORS=Object.freeze({
@@ -14,7 +16,7 @@ const DIRECTORS=Object.freeze({
  'studio-director':{name:'Crow',project:'The Lost Wanderer'},
  'wellbeing-director':{name:'Wellbeing Director',project:'Wellbeing'}
 });
-function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,fetcher=globalThis.fetch,
+function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,replyPersistence,fetcher=globalThis.fetch,
  clock=Date.now,budgetVerified=()=>process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED==='yes',
  diagnostic=()=>{}}={}){
  if(typeof oauth?.getLinkedToken!=='function'||typeof clientFactory!=='function')
@@ -22,7 +24,9 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,fetcher=globa
  const identity=guard||createSupabaseGuard({baseUrl:'https://jrevhzvrgenucuozjowm.supabase.co',
   publicKey:'sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL',fetcher});
  const memory=memoryLoader||createApprovedDirectorMemory({fetcher,identity});
- const used=new Map(),busy=new Set(),history=new Map();
+ const recall=threadRecall||createDirectorThreadRecall({fetcher,identity});
+ const persistence=replyPersistence||createDirectorReplyPersistence({fetcher,identity});
+ const used=new Map(),busy=new Set();
  const deny=(status,error)=>({status,body:{error}});
  async function handle({headers={},body}={}){
   if(headers.origin!==ORIGIN)return deny(403,'origin_denied');
@@ -61,6 +65,11 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,fetcher=globa
       agentId==='studio-director'?'studio':'wellbeing'))
     throw Error('cross_project_memory_denied');
    const context=formatDirectorMemory(approved);
+   const storedHistory=await recall.load({token,ownerId,agentId,threadId:data.threadId});
+   if(!storedHistory||typeof storedHistory.text!=='string'||
+    storedHistory.text.length>6000||!Number.isSafeInteger(storedHistory.messageCount)||
+    storedHistory.messageCount<0||storedHistory.messageCount>40)
+    throw Error('director_recall_invalid_response');
    directory=await fs.mkdtemp(path.join(os.tmpdir(),'paperworld-director-'));
    stage='client_factory';
    client=await clientFactory({gitHubToken:githubToken,useLoggedInUser:false,
@@ -80,9 +89,7 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,fetcher=globa
      a.billing.tokenPrices.batchSize-
      (b.billing.tokenPrices.inputPrice+b.billing.tokenPrices.outputPrice)/
      b.billing.tokenPrices.batchSize);
-   const identityKey=ownerId+':'+agentId+':'+data.threadId;
-   const previous=(history.get(identityKey)||[]).slice(-6).map(x=>x.role+
-    ': '+x.text).join('\n');
+   const previous=storedHistory.text;
    const profile=DIRECTORS[agentId];
    const intro='You are '+profile.name+', the '+profile.project+
     ' Director in PAPERWORLD. Speak naturally in the user language. '+
@@ -102,12 +109,17 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,fetcher=globa
    const reply=await session.sendAndWait({prompt});
    const content=reply?.data?.content;
    if(typeof content!=='string'||!content.trim())return deny(502,'empty_director_reply');
-   history.set(identityKey,[...(history.get(identityKey)||[]),
-    {role:'User',text:data.message.trim().slice(0,1200)},
-    {role:profile.name,text:content.trim().slice(0,1500)}].slice(-6));
+   // Persistence never authorizes actions, merges, tools or additional model turns.
+   // Failure must never be reported as a successfully saved historical reply.
+   let persisted=false;
+   try{
+    persisted=await persistence.save({token,ownerId,agentId,
+     threadId:data.threadId,requestId:data.requestId,content:content.trim()})===true;
+   }catch(_){persisted=false}
    return {status:200,body:{agentId,content:content.trim().slice(0,6000),
     executed:true,model:priced[0].id,requestId:data.requestId,
-    persisted:false,execution:'chat_only',aiTurns:1}};
+    persisted,persistedExcerpt:persisted&&content.trim().length>2000,
+    execution:'chat_only',aiTurns:1}};
   }catch(_){diagnostic(stage);return deny(503,'director_chat_unavailable')}
   finally{
    try{await session?.disconnect?.()}catch(_){}
