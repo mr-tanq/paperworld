@@ -45,7 +45,7 @@ test('Failure indication does not masquerade as successful Director meeting',()=
  assert.match(app,/⚠ Εργασία απέτυχε/);
  assert.match(ui,/setAgentWorkflowFailure\?\.\(\)/);
  assert.match(ui,/⚠ Η εργασία απέτυχε/);
- assert.ok(read('index.html').includes('js/app.js?v=109-live-journey'));
+ assert.ok(read('index.html').includes('js/app.js?v=117-natural-village'));
 });
 
 test('Matt walks to the real server-confirmed director and returns on surveyed paths',()=>{
