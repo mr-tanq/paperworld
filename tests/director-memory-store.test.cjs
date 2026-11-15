@@ -73,6 +73,53 @@ test('Migration is review-only, RLS owner-scoped and proposed-only writes',()=>{
  assert.match(sql,/enable row level security/);
  assert.match(sql,/auth.uid\(\)/);
  assert.match(sql,/with check \(\(select auth.uid\(\)\)=owner_id and status='proposed'\)/);
- assert.match(sql,/grant select,insert on public.paperworld_director_memory to authenticated/);
+ assert.match(sql,/grant select,insert on public.paperworld_director_memory to authenticated/);\n assert.match(sql,/paperworld_review_director_memory/);\n assert.match(sql,/p_decision not in \('approved','rejected'\)/);
  assert.doesNotMatch(sql,/grant (?:all|update|delete) on public.paperworld_director_memory to authenticated/);
+});
+
+test('Owner review RPC is disabled until trusted one-time human confirmation exists',async()=>{
+ const base=setup();
+ await assert.rejects(base.store.review({token:JWT,ownerId:OWNER,
+  entryId:ID,decision:'approved',
+  approvalId:'33333333-3333-4333-8333-333333333333'}),
+  /owner_review_not_configured/);
+ assert.equal(base.requests.length,0);
+});
+test('Approved owner review uses scoped RPC, never direct UPDATE or DELETE',async()=>{
+ const calls=[];
+ const store=createDirectorMemoryStore({
+  baseUrl:'https://example.supabase.co',publicKey:'test-public-key',
+  authenticate:async()=>({ownerId:OWNER}),
+  verifyOwnerReview:async args=>{
+   assert.equal(args.ownerId,OWNER);
+   assert.equal(args.decision,'approved');return true
+  },
+  fetcher:async(url,opts)=>{
+   calls.push({url,opts});
+   return {ok:true,json:async()=>true};
+  }
+ });
+ const approvalId='33333333-3333-4333-8333-333333333333';
+ const result=await store.review({token:JWT,ownerId:OWNER,entryId:ID,
+  decision:'approved',approvalId});
+ assert.equal(result.status,'approved');
+ assert.equal(calls.length,1);
+ assert.match(calls[0].url,/\/rpc\/paperworld_review_director_memory$/);
+ assert.equal(calls[0].opts.method,'POST');
+ assert.deepEqual(JSON.parse(calls[0].opts.body),{
+  p_id:ID,p_decision:'approved'
+ });
+});
+test('Human review callback denial cannot touch persistence',async()=>{
+ let invoked=false;
+ const store=createDirectorMemoryStore({
+  baseUrl:'https://example.supabase.co',publicKey:'test-public-key',
+  authenticate:async()=>({ownerId:OWNER}),
+  verifyOwnerReview:async()=>false,
+  fetcher:async()=>{invoked=true;return {ok:true,json:async()=>true}}
+ });
+ await assert.rejects(store.review({token:JWT,ownerId:OWNER,
+  entryId:ID,decision:'approved',approvalId:'33333333-3333-4333-8333-333333333333'}),
+  /explicit_owner_approval_required/);
+ assert.equal(invoked,false);
 });
