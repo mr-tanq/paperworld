@@ -18,6 +18,7 @@ function setup({owns=true,budget=true,link=true,wrongMemory=false,modelKnown=tru
     text:'Only the approved Listening Mirror project decisions',included:1,
     capabilitiesGranted:[],untrustedContent:true}
   }},
+  threadRecall:{load:async()=>({text:'User: Earlier private app discussion',messageCount:1})},
   budgetVerified:()=>budget,
   clientFactory:async opts=>{seen.owner=opts;return {
    start:async()=>{},stop:async()=>{},
@@ -50,6 +51,7 @@ test('Direct Director chat is exactly one explicitly authorized, owner-scoped no
  assert.deepEqual(await seen.configs[0].onPermissionRequest(),{kind:'reject'});
  assert.match(seen.prompts[0],/ONLY responsibility is Listening Mirror/);
  assert.match(seen.prompts[0],/approved Listening Mirror/);
+ assert.match(seen.prompts[0],/Earlier private app discussion/);
  assert.doesNotMatch(JSON.stringify(r),/gho_TEST|aaa.bbb/);
 });
 test('Missing consent, cross-owner thread and unauthorized origins never consume AI',async()=>{
