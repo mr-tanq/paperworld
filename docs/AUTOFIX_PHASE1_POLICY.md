@@ -80,3 +80,18 @@ Plan constraints:
 6. **Budget and owner controls:** Trusted quota, direct owner approval, $0 extra AI spend, immutable audit and cancellation controls still required.
 
 Do not deploy, merge for activation, or connect generated tests to production until these items are demonstrated with independent integration tests.
+
+## Phase 1D: bounded Docker execution adapter (proposed; OFF)
+
+`server/autofix-sandbox-runner.cjs` introduces an **actual execution adapter** for an externally isolated Docker host. Unlike Phase 1C's declarative plan, it can invoke a trusted Docker binary when someone explicitly calls `createSandboxRunner(...).run(...)`. **No caller, endpoint, scheduled job, credential, or Docker host is wired into PAPERWORLD.** The code is inert in Render and the browser.
+
+Prerequisites for any execution:
+- Explicit trusted `hostReady`, `imageApproved` and `stageWorkspace` providers, plus a dedicated, independently audited Docker host running without user credentials or GitHub publisher credentials. No default adapters are available.
+- Trusted staging receipt including pinned base commit, exact candidate digest, no credentials, and no symlinks, followed by local file-byte validation with directory / regular-file / symlink / hardlink checks.
+- Container commands are fixed `docker run` with no shell, the Phase 1C network/CPU/memory/user/capability restrictions and a pinned image; each check is followed by mandatory `docker rm -f`, with a failed cleanup preventing success.
+- A 15-second wall-clock bound and 16 KB output cap per check. Testing stops after first failure.
+- Output is **local observation only** (`checksPassed`), with `attestation: not_issued` and `approvedForPublish: false`. The draft publisher's independent attestation verifier must NOT accept this unsigned result alone.
+
+**Limitations and mandatory review before enabling:**
+- Existing project-wide baseline tests, race-free staging, a no-network VM/firewall and isolated Docker daemon, immutable image supply-chain verification, independently signed attestation, kill/cleanup liveness proofs, worktree cleanup, quotas, backend authorization, installed GitHub App and billing enforcement are still missing. Do not execute model-generated code on the production Render host or shared CI runners with secrets.
+- Offline CI uses simulated process streams and filesystem; it does **not** invoke a Docker daemon or untrusted generated test code, and does not prove isolation against malicious code. This PR deliberately makes no deployment changes.
