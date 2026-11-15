@@ -35,13 +35,21 @@ function classifyHttp(response){
 }
 function createRepoReader({fetcher=globalThis.fetch}={}){
  if(typeof fetcher!=='function')throw Error('HTTP fetcher required');
- async function read(category,{token}={}){
+ async function read(category,{token,selectedPaths}={}){
   if(!Object.prototype.hasOwnProperty.call(FILES,category))
    throw Error('Unknown allowlisted category');
   if(token!==undefined&&(typeof token!=='string'||!GH_TOKEN.test(token)))
    throw new RepositoryReadError('github_auth_invalid');
+  // A server-chosen subset of fixed paths is permitted. Browser/model input
+  // must never become a GitHub URL, branch or arbitrary filesystem path.
+  const categoryPaths=FILES[category];
+  if(selectedPaths!==undefined&&(!Array.isArray(selectedPaths)||
+   selectedPaths.length===0||selectedPaths.length>categoryPaths.length||
+   new Set(selectedPaths).size!==selectedPaths.length||
+   !selectedPaths.every(x=>categoryPaths.includes(x))))
+   throw Error('repository_selection_not_allowed');
   const entries=[];let bytes=0;
-  for(const name of FILES[category]){
+  for(const name of selectedPaths||categoryPaths){
    // Fixed GitHub host and allowlisted paths. OAuth token never reaches the model.
    const url='https://api.github.com/repos/'+OWNER+'/'+REPO+
     '/contents/'+name.split('/').map(encodeURIComponent).join('/')+'?ref='+REF;
