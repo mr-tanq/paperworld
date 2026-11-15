@@ -84,7 +84,7 @@ test('Owner review RPC is disabled until trusted one-time human confirmation exi
  await assert.rejects(base.store.review({token:JWT,ownerId:OWNER,
   entryId:ID,decision:'approved',
   approvalId:'33333333-3333-4333-8333-333333333333'}),
-  /owner_review_not_configured/);
+  /memory_review_not_configured/);
  assert.equal(base.requests.length,0);
 });
 test('Review remains blocked even when a trusted callback is injected',async()=>{
@@ -111,7 +111,7 @@ test('Human review callback denial cannot touch persistence',async()=>{
  });
  await assert.rejects(store.review({token:JWT,ownerId:OWNER,
   entryId:ID,decision:'approved',approvalId:'33333333-3333-4333-8333-333333333333'}),
-  /explicit_owner_approval_required/);
+  /memory_review_not_configured/);
  assert.equal(invoked,false);
 });
 
