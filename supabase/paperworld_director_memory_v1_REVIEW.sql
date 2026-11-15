@@ -40,7 +40,7 @@ create or replace function public.paperworld_review_director_memory(
  language plpgsql security definer
  set search_path = ''
 as $
-declare did_update boolean;
+declare updated_rows integer;
 begin
  if (select auth.uid()) is null or
     p_decision not in ('approved','rejected') then
@@ -49,8 +49,8 @@ begin
  update public.paperworld_director_memory
   set status=p_decision,reviewed_at=now()
   where id=p_id and owner_id=(select auth.uid()) and status='proposed';
- get diagnostics did_update = row_count;
- return did_update;
+ get diagnostics updated_rows = row_count;
+ return updated_rows = 1;
 end;
 $;
 revoke all on function public.paperworld_review_director_memory(uuid,text)
