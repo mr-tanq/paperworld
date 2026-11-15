@@ -1,6 +1,7 @@
 (()=>{'use strict';
 const host=document.querySelector('#project-room'),model=window.PaperworldProjects,client=window.PaperworldCloud.createClient();
 let room='town',tasks=[],allTasks=[],busy=false,message='',edit=null,active=false;
+let memoryOpen=false,memoryView=null;
 
 const el=(tag,text,cls)=>{let e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
 const btn=(text,fn,cls)=>{let b=el('button',text,cls);b.type='button';b.disabled=busy;b.addEventListener('click',fn);return b};
@@ -22,6 +23,26 @@ sec.append(el('h4','Copy tasks from this tablet'));
 if(!store||store.warning){sec.append(el('p','Local tasks cannot be read safely.'));return sec}
 let originals=store.snapshot().tasks;sec.append(el('p',originals.length+' local tasks found. Originals will remain on this device.'));
 sec.append(btn('Preview and copy',()=>work(async()=>{const plan=client.prepareImport(originals,await client.list());if(!plan.incoming.length){message='No new local tasks to import.';return}if(!confirm('Copy '+plan.incoming.length+' local tasks into your private cloud? Existing local tasks will be preserved.')){message='Import cancelled.';return}const result=await client.importTasks(originals);await reload();message='Imported '+result.imported+', skipped '+result.skipped+'.'})));return sec}
+function openDirectorMemory(){
+ if(busy)return;
+ const module=window.PaperworldDirectorMemoryReview;
+ if(!module?.createView){note('Το Director Memory Review δεν φορτώθηκε.',true);return}
+ if(!memoryView)memoryView=module.createView({
+  document,load:projectId=>client.listDirectorMemory(projectId)
+ });
+ memoryOpen=true;render();
+ const target=host.querySelector('#director-memory-panel');
+ if(target)memoryView.refresh(target);
+}
+function renderDirectorMemory(){
+ const section=el('section',undefined,'director-memory-desk');
+ section.id='director-memory-panel';
+ host.append(btn('← Επιστροφή στις εργασίες',()=>{
+  memoryOpen=false;render()
+ }));
+ host.append(section);
+ if(memoryView)memoryView.draw(section);
+}
 function render(){
  if(!active)return;
  host.hidden=false;host.replaceChildren();
@@ -37,8 +58,10 @@ function render(){
  const userBar=el('div',undefined,'room-ops');
  userBar.append(el('small',client.identity()),
   btn('Refresh',()=>work(reload)),
+  btn('Μνήμη Directors',openDirectorMemory),
   btn('Sign out',()=>work(async()=>{await client.signout();tasks=[];allTasks=[];edit=null})));
  host.append(userBar);
+ if(memoryOpen){renderDirectorMemory();return}
  if(room==='workshop'){
   renderWorkshop();return;
  }
@@ -124,7 +147,7 @@ function renderChiefOrRoom(){
  }else host.append(migration())
 }
 
-function open(id='town'){if(model.ROOMS.some(r=>r.id===id))room=id;active=true;edit=null;message='';render();if(client.signedIn())work(reload)}
+function open(id='town'){if(model.ROOMS.some(r=>r.id===id))room=id;active=true;edit=null;memoryOpen=false;message='';render();if(client.signedIn())work(reload)}
 function focusChief(){
  const item=host.querySelector('.chief-desk');
  if(item){item.scrollIntoView({behavior:'smooth',block:'start'});item.classList.add('chief-focused')}
