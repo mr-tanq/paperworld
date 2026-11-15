@@ -213,9 +213,11 @@
   panel.hidden=false;veil.hidden=false;
   const isMatt=openId==='matt';
   const agent=world()?.agents()?.find(a=>a.id===openId);
-  heading.textContent=isMatt?'Matt':(agent?.name||'Director');
-  avatar.textContent=isMatt?'M':(heading.textContent.trim().charAt(0)||'D').toUpperCase();
-  activity.textContent=isMatt?'Chief of Staff · GitHub Copilot':'Project Director · AI not connected';
+  const profile=window.PaperworldProfiles?.get(openId);
+  heading.textContent=profile?.name||(isMatt?'Matt':agent?.name||'Director');
+  if(window.PaperworldProfiles)window.PaperworldProfiles.paintAvatar(avatar,openId);
+  else avatar.textContent=heading.textContent.charAt(0).toUpperCase();
+  activity.textContent=isMatt?'Chief of Staff · GitHub Copilot':(profile?.project||'Project')+' · '+(profile?.role||'Director')+' · AI not connected';
   const active=cloud()?.signedIn()===true;
   const available=active&&typeof cloud()?.privateAgentMessages==='function'&&!busy;
   status.textContent=!active?'Συνδέσου στο PAPERWORLD Cloud για να στείλεις μηνύματα.':
