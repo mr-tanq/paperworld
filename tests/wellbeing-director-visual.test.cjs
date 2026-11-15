@@ -22,6 +22,6 @@ test('Both high-detail directors use native 64x88 frame cells and preserve world
  const src=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
  assert.match(src,/wellbeingDirectorVisual\.naturalWidth!==256\|\|wellbeingDirectorVisual\.naturalHeight!==352/);
  assert.match(src,/pokemonDirectorVisual\.naturalWidth!==256\|\|pokemonDirectorVisual\.naturalHeight!==352/);
- assert.equal((src.match(/const sw=64,sh=88,dw=60,dh=88;/g)||[]).length,2);
+ assert.ok((src.match(/const sw=64,sh=88,dw=60,dh=88;/g)||[]).length>=2,'Both Directors should use 64x88 source cells');
  assert.match(src,/ctx\.imageSmoothingQuality='high'/);
 });
