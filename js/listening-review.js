@@ -56,15 +56,39 @@
   root.setAttribute('aria-label','Έλεγχος προτεινόμενων αλλαγών');
   function paint(){
    root.replaceChildren();
-   root.append(el('h3','Έλεγχος αλλαγών · Listening Mirror'));
+   root.append(el('p','human-first-eyebrow','LISTENING MIRROR · ΑΠΟΦΑΣΗ'));
    if(!current){
-    root.append(el('p','listening-review-note','Δεν υπάρχει ακόμη εγκεκριμένη προς ανασκόπηση πρόταση. Ο Developer μπορεί να έχει ολοκληρώσει μόνο διάγνωση.'));
+    root.append(el('h3',null,'Όλα τακτοποιημένα προς το παρόν'));
+    root.append(el('p','listening-review-note','Δεν υπάρχει ακόμη εγκεκριμένη προς ανασκόπηση πρόταση. Ο Matt θα σου δείξει εδώ μια λύση όταν είναι έτοιμη.'));
     return;
    }
-   root.append(el('p','listening-review-summary',current.summary));
-   root.append(el('p','listening-review-meta','Repository: '+current.repository+' · Βάση: '+current.branch+
-    ' · Εργασία: '+current.jobId));
-   root.append(el('p','listening-review-warning','Μόνο προεπισκόπηση · καμία αλλαγή δεν έχει πραγματοποιηθεί.'));
+   const ready=review?.persisted===true&&review.status==='pending_review'&&
+    /^[a-f0-9]{64}$/.test(review.digest||'');
+   const completed=review?.status==='draft_created';
+   const rejected=review?.status==='rejected';
+   root.append(el('h3',null,ready?'Ο Matt βρήκε μια λύση':
+    completed?'Η λύση προετοιμάστηκε':rejected?'Η πρόταση απορρίφθηκε':
+    'Η ομάδα ετοιμάζει μια λύση'));
+   const state=el('p','human-first-state',ready?'Χρειάζεται η απόφασή σου':
+    completed?'Ετοιμάστηκε αλλαγή στο GitHub · δεν έχει εφαρμοστεί':
+    rejected?'Δεν θα προχωρήσει αυτή η πρόταση':
+    'Προεπισκόπηση · δεν είναι ακόμη διαθέσιμη για έγκριση');
+   root.append(state);
+   const solution=el('div','human-first-solution');
+   solution.append(el('strong',null,'Τι προτείνει η ομάδα;'));
+   solution.append(el('p','listening-review-summary',current.summary));
+   root.append(solution);
+   const impact=el('div','human-first-impact');
+   impact.append(el('strong',null,'Τι θα συμβεί αν εγκρίνεις;'));
+   impact.append(el('p',null,'Θα ετοιμαστεί μια αλλαγή για τελικό έλεγχο. '+
+    'Δεν θα εφαρμοστεί αυτόματα στην εφαρμογή και δεν θα γίνει δημοσίευση.'));
+   root.append(impact);
+   // Keep source evidence available, never make technical details the default.
+   const technical=el('details','human-first-technical');
+   technical.append(el('summary',null,'Τεχνικές λεπτομέρειες (προαιρετικά)'));
+   technical.append(el('p','listening-review-meta','Repository: '+current.repository+
+    ' · Βάση: '+current.branch+' · Εργασία: '+current.jobId));
+   technical.append(el('p','listening-review-warning','Μόνο προεπισκόπηση · καμία αλλαγή δεν έχει πραγματοποιηθεί.'));
    for(const file of current.files){
     const section=el('details','listening-review-file');
     const summary=el('summary',null,file.path+' · '+file.sha.slice(0,10));
@@ -72,22 +96,21 @@
     section.append(el('pre','listening-review-before',file.before));
     section.append(el('h4',null,'Προτεινόμενο πλήρες περιεχόμενο αρχείου'));
     section.append(el('pre','listening-review-after',file.after));
-    root.append(section);
+    technical.append(section);
    }
-   const actions=el('div','listening-review-actions');
-   const ready=review?.persisted===true&&review.status==='pending_review'&&
-    /^[a-f0-9]{64}$/.test(review.digest||'');
-   const approve=el('button',null,ready?'Δημιουργία Draft PR με έγκριση':
-    'Έγκριση εγγραφής · μη ενεργή');
+   root.append(technical);
+   const actions=el('div','listening-review-actions human-first-actions');
+   const approve=el('button','human-first-primary',ready?'Εγκρίνω την προετοιμασία της λύσης':
+    completed?'Η λύση προετοιμάστηκε':'Αναμονή ολοκλήρωσης');
    approve.type='button';approve.disabled=true;
    approve.setAttribute('aria-describedby','listening-review-disabled-reason');
    if(ready&&typeof publish==='function'){
     approve.disabled=false;
     approve.addEventListener('click',()=>publish(current,review.digest));
    }
-   actions.append(approve);
+   if(!completed&&!rejected)actions.append(approve);
    if(ready&&typeof reject==='function'){
-    const rejectButton=el('button',null,'Απόρριψη πρότασης');
+    const rejectButton=el('button','human-first-secondary','Απόρριψη λύσης');
     rejectButton.type='button';
     rejectButton.addEventListener('click',()=>reject(current,review.digest));
     actions.append(rejectButton);

@@ -396,3 +396,24 @@ body>header span{font-size:10px;color:#a3afa6;letter-spacing:.04em}
 .listening-review-actions{margin-top:14px}
 .listening-review-actions button{padding:10px;border:1px solid #727e87;border-radius:8px;color:#9fa9af;background:#283037}
 .listening-review-actions button:disabled{cursor:not-allowed;opacity:.7}
+
+
+/* Human First V3: concise decision cards, progressive disclosure, tablet-friendly. */
+#world-drawer .listening-review{padding:18px;border:1px solid #a5917055;border-radius:18px;background:linear-gradient(165deg,#28332e,#1c252d 78%);display:grid;gap:12px;box-shadow:0 8px 24px #0002}
+#world-drawer .listening-review h3{font-size:19px;line-height:1.3;letter-spacing:-.015em;margin:0;color:#fff5e7}
+#world-drawer .human-first-eyebrow{margin:0;font-size:10px;font-weight:800;letter-spacing:.14em;color:#ccb88d}
+#world-drawer .human-first-state{margin:0;font-size:12px;color:#edc890;font-weight:700}
+#world-drawer .human-first-solution,#world-drawer .human-first-impact{padding:13px 14px;border-radius:13px;background:#151d23;border:1px solid #ffffff18}
+#world-drawer .human-first-solution strong,#world-drawer .human-first-impact strong{display:block;font-size:13px;color:#f1e8d8;margin:0 0 7px}
+#world-drawer .human-first-solution p,#world-drawer .human-first-impact p{margin:0;font-size:14px;line-height:1.55;overflow-wrap:anywhere;color:#e3e9e4}
+#world-drawer .human-first-technical,#world-drawer .human-first-settings{border-radius:11px;border:1px solid #ffffff17;padding:10px 12px;color:#c2c9cd}
+#world-drawer .human-first-technical>summary,#world-drawer .human-first-settings>summary{cursor:pointer;font-size:12px;font-weight:600;padding:3px 0}
+#world-drawer .human-first-technical[open],#world-drawer .human-first-settings[open]{background:#151c22}
+#world-drawer .human-first-actions{display:flex;flex-direction:column;gap:8px;margin-top:3px}
+#world-drawer .human-first-actions button{width:100%;min-height:48px;padding:12px 14px;font-size:14px;font-weight:700;border-radius:12px}
+#world-drawer .human-first-actions .human-first-primary:not(:disabled){background:#6f8c6d;color:#fff;border:1px solid #9bbc94}
+#world-drawer .human-first-actions .human-first-secondary{background:transparent;color:#d5d5d3;border:1px solid #ffffff3a}
+#world-drawer .human-first-actions button:focus-visible,#world-drawer .human-first-technical summary:focus-visible,#world-drawer .human-first-settings summary:focus-visible{outline:2px solid #ffe5a9;outline-offset:3px}
+#world-drawer .human-first-utility{font-size:12px;padding:7px 12px;min-height:38px}
+#world-drawer .listening-review-file{max-width:100%;overflow-wrap:anywhere}
+@media(max-width:640px){#world-drawer .listening-review{padding:14px;gap:10px}#world-drawer .human-first-solution p,#world-drawer .human-first-impact p{font-size:13px}}

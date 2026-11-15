@@ -67,9 +67,26 @@ test('Empty Work Desk displays a readable sentence, not a CSS class name',()=>{
  try{
   const host={children:[],append(...nodes){this.children.push(...nodes)}};
   review.create(host);
-  const content=host.children[0].children[1];
+  const content=host.children[0].children.find(child=>child.className==='listening-review-note');
   assert.equal(content.className,'listening-review-note');
   assert.match(content.textContent,/Δεν υπάρχει ακόμη εγκεκριμένη/);
   assert.doesNotMatch(content.textContent,/^listening-review-note$/);
  }finally{global.document=prior}
+});
+
+test('Human First offers a readable decision while hiding source code and preserving exact owner gate',()=>{
+ const source=fs.readFileSync('js/listening-review.js','utf8');
+ const work=fs.readFileSync('js/cloud-ui.js','utf8');
+ const css=fs.readFileSync('style.css','utf8');
+ assert.match(source,/Ο Matt βρήκε μια λύση/);
+ assert.match(source,/Τι προτείνει η ομάδα/);
+ assert.match(source,/Τι θα συμβεί αν εγκρίνεις/);
+ assert.match(source,/Εγκρίνω την προετοιμασία της λύσης/);
+ assert.match(source,/Τεχνικές λεπτομέρειες \(προαιρετικά\)/);
+ assert.match(source,/const technical=el\('details'/);
+ assert.match(source,/review\?\.persisted===true&&review\.status==='pending_review'/);
+ assert.match(work,/Ρυθμίσεις σύνδεσης \(προαιρετικά\)/);
+ assert.match(work,/Η εφαρμογή ΔΕΝ αλλάζει τώρα/);
+ assert.doesNotMatch(work,/Δημιουργία Draft PR με έγκριση/);
+ assert.match(css,/human-first-primary/);
 });
