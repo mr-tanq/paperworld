@@ -293,3 +293,17 @@ body>header span{font-size:10px;color:#a3afa6;letter-spacing:.04em}
   max-height:calc(100dvh - 62px);padding:12px}
 }
 @media (max-height:550px){.hint{display:none}.layout>aside#world-drawer{bottom:6px}}
+
+/* Director Memory review: private, secondary Work Desk, responsive cards. */
+#world-drawer .director-memory-desk{display:grid;gap:12px}
+#world-drawer .director-memory-heading{padding:12px;border-radius:12px}
+#world-drawer .director-memory-heading h3{margin:0 0 8px;font-size:16px}
+#world-drawer .director-memory-heading .room-ops{display:flex;gap:8px;flex-wrap:wrap}
+#world-drawer .director-memory-heading select{min-width:0;flex:1;font-size:13px;padding:8px}
+#world-drawer .director-memory-list{display:grid;gap:10px}
+#world-drawer .director-memory-entry{padding:12px;border-radius:12px;overflow-wrap:anywhere}
+#world-drawer .director-memory-entry .room-task-top{gap:10px;align-items:start}
+#world-drawer .director-memory-body{white-space:pre-wrap;color:#e4e7e5!important;line-height:1.5;font-size:13px}
+#world-drawer .director-memory-status{background:#3e473c;color:#f3e7c9;border-radius:8px;font-size:10px;padding:4px 7px;flex-shrink:0}
+#world-drawer .director-memory-entry summary{cursor:pointer;color:#b5cad1;font-size:12px;padding:5px 0}
+#world-drawer .director-memory-entry details p{margin:7px 0;overflow-wrap:anywhere}
