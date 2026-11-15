@@ -235,7 +235,18 @@
   // Some Copilot responses contain literal escaped newlines. Render them
   // as plain text with line breaks, never as HTML or executable markup.
   const normalized=role==='human'?text:String(text||'').replace(/\\n/g,'\n');
-  const body=make('p','',normalized);item.append(body);
+  // AI analyses can be long. Lead with the useful opening and keep the full
+  // unaltered source text behind a disclosure instead of filling the screen.
+  if(role!=='human'&&normalized.length>850){
+   const intro=normalized.slice(0,650);
+   const cut=Math.max(intro.lastIndexOf('\n'),intro.lastIndexOf('. '));
+   const brief=intro.slice(0,cut>350?cut:intro.length);
+   item.append(make('p','world-chat-brief',brief));
+   const details=make('details','world-chat-full-report');
+   details.append(make('summary','','Ολόκληρη αναφορά · προαιρετικά'),
+    make('p','world-chat-unabridged',normalized));
+   item.append(details);
+  }else item.append(make('p','',normalized));
   if(when&&Number.isFinite(Date.parse(when))){
    const time=make('time','world-chat-time',new Date(when).toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'}));
    time.dateTime=when;item.append(time);
