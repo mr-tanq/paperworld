@@ -85,6 +85,8 @@ jobs:
       - name: Test agent registry, conversation, cloud storage and UI
         run: |
           node --test \
+            tests/agent-profiles-ui.test.cjs \
+            tests/portrait-art-v2.test.cjs \
             tests/agents.test.cjs \
             tests/agent-job-memory.test.cjs \
             tests/director-memory-policy.test.cjs \
