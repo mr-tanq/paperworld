@@ -123,12 +123,12 @@ function drawWellbeingDirectorSprite(a){
 // Existing The Lost Wanderer Studio Director, visual identity only.
 const studioDirectorVisual=new Image();
 studioDirectorVisual.decoding='async';
-studioDirectorVisual.src='./assets/studio-director-hooded-v1.png';
+studioDirectorVisual.src='./assets/studio-director-hooded-v2.png';
 function drawStudioDirectorSprite(a){
- if(!studioDirectorVisual.complete || studioDirectorVisual.naturalWidth!==256 || studioDirectorVisual.naturalHeight!==352)return false;
- const row={down:0,left:1,up:2,right:3}[a.direction]??0;
+ if(!studioDirectorVisual.complete || studioDirectorVisual.naturalWidth!==384 || studioDirectorVisual.naturalHeight!==528)return false;
+ const row={down:0,right:1,up:2,left:3}[a.direction]??0;
  const frame=a.moving?Math.floor((a.walkDistance||0)/14)%4:1;
- const sw=64,sh=88,dw=60,dh=88;
+ const sw=96,sh=132,dw=60,dh=88;
  ctx.save();
  ctx.fillStyle='rgba(31,24,18,.28)';
  ctx.beginPath();ctx.ellipse(a.x,a.y-2,14,5,0,0,Math.PI*2);ctx.fill();
