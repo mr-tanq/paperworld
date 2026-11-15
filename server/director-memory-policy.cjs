@@ -63,8 +63,28 @@ function prepareProposal(input,{actor}={}){
  if(entry.status!=='proposed')fail('proposal_required');
  return entry;
 }
+function memoryTerms(value){
+ if(typeof value!=='string')return [];
+ return [...new Set((value.toLocaleLowerCase().match(/[\\p{L}\\p{N}]{3,}/gu)||[])
+  .filter(x=>x.length<=48))].slice(0,40);
+}
+function rankMemories(records,query){
+ const terms=memoryTerms(query);
+ if(!terms.length)return records;
+ return records.map((entry,index)=>{
+  const title=entry.title.toLocaleLowerCase();
+  const body=entry.body.toLocaleLowerCase();
+  let score=0;
+  for(const term of terms){
+   if(title.includes(term))score+=8;
+   if(body.includes(term))score+=2;
+  }
+  if(entry.kind==='project_bible')score+=1;
+  return {entry,index,score};
+ }).sort((a,b)=>b.score-a.score||a.index-b.index).map(x=>x.entry);
+}
 function projectContext(entries,{actor,projectId,explicitHandoff=false,
- workerTaskApproved=false,maxChars=8000}={}){
+ workerTaskApproved=false,maxChars=8000,query=''}={}){
  if(!authorizedProject(actor,projectId,{explicitHandoff})||
   !Number.isInteger(maxChars)||maxChars<256||maxChars>12000||
   !Array.isArray(entries)||entries.length>200)
@@ -73,13 +93,13 @@ function projectContext(entries,{actor,projectId,explicitHandoff=false,
  const role=actor==='human'?'human':actor==='matt'?'chief':AGENTS[actor]?.role;
  if(role==='worker'&&workerTaskApproved!==true)fail('worker_memory_grant_required');
  if(!['human','chief','director','worker'].includes(role))fail('memory_access_denied');
- const usable=entries.map(validateEntry).filter(e=>e.status==='approved'&&
-  (e.sensitivity==='standard'||role==='human'||role==='director'));
+ const usable=rankMemories(entries.map(validateEntry).filter(e=>e.status==='approved'&&
+  (e.sensitivity==='standard'||role==='human'||role==='director')),query);
  const chunks=[];let used=0;
  for(const item of usable){
   const value='['+item.kind+' | '+item.title+' | '+item.sourceType+': '+
    item.sourceRef+' | v'+item.version+']\n'+item.body;
-  if(used+value.length>maxChars)break;
+  if(used+value.length>maxChars)continue;
   chunks.push(value);used+=value.length+2;
  }
  return Object.freeze({projectId,actor,untrustedContent:true,

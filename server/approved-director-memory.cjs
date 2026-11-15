@@ -16,7 +16,7 @@ function createApprovedDirectorMemory({fetcher,identity}={}){
   fetcher,baseUrl:ORIGIN,publicKey:KEY,authenticate
  });
  const bridge=createDirectorMemoryContext({store,authenticate});
- async function load({token,ownerId,actor}={}){
+ async function load({token,ownerId,actor,query=''}={}){
   // Actor is supplied only by the trusted, allowlisted server routing code.
   // Do not let client-supplied strings select an actor or a project.
   if(!Object.prototype.hasOwnProperty.call(DIRECTORS,actor))
@@ -24,7 +24,7 @@ function createApprovedDirectorMemory({fetcher,identity}={}){
   const projectId=projectForActor(actor);
   if(!projectId||projectId==='town')
    throw Error('approved_memory_director_required');
-  const context=await bridge.load({token,ownerId,actor,projectId});
+  const context=await bridge.load({token,ownerId,actor,projectId,query});
   if(context.projectId!==projectId||context.actor!==actor||
    context.untrustedContent!==true||context.capabilitiesGranted.length!==0||
    typeof context.text!=='string'||context.text.length>6000)
