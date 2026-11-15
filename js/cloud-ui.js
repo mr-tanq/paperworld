@@ -28,7 +28,17 @@ function openDirectorMemory(){
  const module=window.PaperworldDirectorMemoryReview;
  if(!module?.createView){note('Το Director Memory Review δεν φορτώθηκε.',true);return}
  if(!memoryView)memoryView=module.createView({
-  document,load:projectId=>client.listDirectorMemory(projectId)
+  document,load:projectId=>client.listDirectorMemory(projectId),
+  // Deliberate fail-closed gate: no owner review UI until migration,
+  // real cross-account RLS tests and separately approved deployment.
+  enableReview:false,
+  requestReview:args=>client.reviewDirectorMemory(args),
+  confirmDecision:({entry,decision})=>window.confirm(
+   (decision==='approved'?'Να εγκριθεί αυτή η ανάμνηση;':'Να απορριφθεί αυτή η ανάμνηση;')+
+   '\n\n'+entry.title+'\n'+entry.body+
+   '\n\nΠηγή: '+entry.sourceType+' / '+entry.sourceRef+
+   '\n\nΗ απόφαση αφορά μόνο αυτή την καταχώριση.'
+  )
  });
  memoryOpen=true;render();
  const target=host.querySelector('#director-memory-panel');
