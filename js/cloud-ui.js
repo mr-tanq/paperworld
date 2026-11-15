@@ -306,10 +306,9 @@ window.PaperworldCloudUI={
   if(!window.PaperworldListeningReview)throw Error('Listening review unavailable');
   const snapshot=window.PaperworldListeningReview.summarize(plan,evidence);
   listeningReviewPayload={plan,evidence};
-  if(client.signedIn()){
-   room='workshop';active=true;edit=null;memoryOpen=false;
-   render();work(reload);
-  }
+  // Do not steal focus from the Matt Messenger. The user can approve
+  // a verified persisted solution inline; the Work Desk remains optional.
+  if(active&&room==='workshop')render();
   return snapshot;
  },
  clearListeningChangePreview:()=>{listeningReviewPayload=null;if(active&&room==='workshop')render()}
