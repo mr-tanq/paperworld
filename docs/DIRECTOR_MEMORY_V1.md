@@ -1,6 +1,6 @@
 # PAPERWORLD — Director Memory System v1
 
-**Status: draft, inactive.** This change does not apply the SQL migration, install backend routes, import personal history, make AI calls, merge, deploy or modify any other project. It is the shared foundation for all registered Directors.
+**Updated 2026-11-15: private Supabase storage has been created and 19 initial historical knowledge proposals were inserted under the one verified Paperworld thread owner.** All 19 remain `proposed`, not approved for AI use. This does not install backend routes, run AI, publish private information to GitHub or deploy anything. The versioned adapter correction is in a separate draft PR.
 
 ## Registered project namespaces
 
@@ -34,9 +34,9 @@ Each entry has project, type, title/body, source type/reference, observation dat
 
 ## Persistence and review
 
-The proposed migration `supabase/paperworld_director_memory_v1_REVIEW.sql` defines a private owner-scoped table with RLS and owner-scoped SELECT / proposed-only INSERT, plus an owner-restricted review RPC for approving or rejecting proposals. It has **not** been run. No browser or agent gets `service_role`.
+The reviewed migration from PR #82 was **not** applied as written because its review RPC was unsafe and its SQL delimiter malformed. The actual safe schema was created in Supabase via migration `director_memory_v1_proposals_private_rls`, mirrored in `supabase/paperworld_director_memory_v1_APPLIED_AUDIT.sql`. It enables owner-scoped RLS, SELECT and proposed-only INSERT. The review RPC was deliberately **omitted**; approvals remain blocked until a separately reviewed protocol is installed. No browser or agent gets `service_role`.
 
-`server/director-memory-policy.cjs` validates and filters entries, and `server/director-memory-store.cjs` defines authenticated Supabase reads/proposals. The optional review operation fails closed until separately implemented trusted **one-time owner confirmation** is injected. Neither module is currently mounted on the Render server, exposed to the UI or integrated with Copilot. This means there is **not yet persistent live Director memory**, only reviewed storage design and tested adapters.
+`server/director-memory-policy.cjs` validates and filters entries, and `server/director-memory-store.cjs` defines authenticated Supabase reads/proposals. The optional review operation fails closed until separately implemented trusted **one-time owner confirmation** is injected. Neither module is currently mounted on the Render server, exposed to the UI or integrated with Copilot. This means **persistent private proposal storage now exists**, but live Directors do not yet load approved memory automatically. It is not mounted to the server or model prompts.
 
 ## Preparing existing project histories
 
@@ -48,7 +48,7 @@ The proposed migration `supabase/paperworld_director_memory_v1_REVIEW.sql` defin
 
 ## Still required before activation
 
-- Review/apply private database migration with owner consent; test RLS with two distinct accounts and intentional cross-project access attempts.
+- Private database migration was applied and verified (RLS enabled, anonymous SELECT denied, direct authenticated UPDATE denied, authenticated role with no user JWT sees zero rows). Two-account end-to-end RLS tests and agent-level project isolation tests are still required.
 - Backend authenticated API for owner review, project-scoped read, proposals, version conflict handling, pagination and provenance verification.
 - Durable atomic one-time owner-approval claims, tamper-resistant actor/project authorization and audit history.
 - Opt-in, reviewed ingestion of private historical sources and conflict/supersession semantics.
@@ -57,3 +57,9 @@ The proposed migration `supabase/paperworld_director_memory_v1_REVIEW.sql` defin
 - A separate approval for merge and deployment.
 
 **Privacy note:** even a server-side role label does not substitute for real authorization checks. PostgreSQL RLS currently isolates owners; Director-project scoping is enforced by the backend policy and must be validated at every request. Public repository artifacts contain schema, code and synthetic tests only.
+
+## Initial seed (private database only)
+
+The owner gave permission for importing historical project context. Nineteen **review-needed proposals**, not final verified facts, were written to the owner's private database: 4 town/Matt, 5 Listening Mirror, 5 The Lost Wanderer, 3 Pokémon Echoes and 2 Wellbeing privacy-policy notes. There are **no individual medical records** in this initial seed. Sources are annotated by date and conversation/project-file identifiers; some are summaries rather than exact source excerpts, so the user must verify them before approval. This document does not reproduce those private records. No new secrets or accounts were created.
+
+The database currently cannot promote a proposal to approved. That is intentional: a genuine owner-only review UI, one-time confirmation, audit logging, privacy controls and RLS cross-account tests must precede promotion. The previous REVIEW-only RPC must not be installed.
