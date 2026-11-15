@@ -50,10 +50,37 @@ const actors=defs.map(d=>({id:({town:'matt',workshop:'listening-director',pokemo
 // teleporting through houses. This is visual companionship, not AI execution.
 // Matt's visual animation is independent of AI execution and task delegation.
 // Chief Human Officer: contemporary clothes distinguish the human visitor from AI residents.
+// Shared high-detail atlas: groups of four rows (Human, Matt, Listening Director).
+// Source row order is front, left, right, back; four stepping poses per row.
+// Preserves character size and original sprites as a safe fallback.
+const charactersHD=new Image();
+charactersHD.decoding='async';
+charactersHD.src='./assets/characters-hq-v1.png';
+function drawHDCharacter(a,group,label){
+ if(!charactersHD.complete||!charactersHD.naturalWidth)return false;
+ if(charactersHD.naturalWidth!==256||charactersHD.naturalHeight!==1056)return false;
+ const facing={down:0,left:1,right:2,up:3}[a.direction]??0;
+ const frame=a.moving?Math.floor((a.walkDistance||0)/14)%4:1;
+ const sw=64,sh=88,dw=60,dh=88;
+ ctx.save();
+ ctx.fillStyle='rgba(31,24,18,.28)';
+ ctx.beginPath();ctx.ellipse(a.x,a.y-2,14,5,0,0,Math.PI*2);ctx.fill();
+ ctx.imageSmoothingEnabled=true;
+ ctx.imageSmoothingQuality='high';
+ ctx.drawImage(charactersHD,frame*sw,(group*4+facing)*sh,sw,sh,
+   a.x-dw/2,a.y-dh,dw,dh);
+ ctx.font='bold 13px system-ui';
+ ctx.textAlign='center';ctx.textBaseline='middle';
+ ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;
+ ctx.fillStyle='#fff4db';ctx.fillText(label,a.x,a.y+14);
+ ctx.restore();
+ return true;
+}
 const playerVisual=new Image();
 playerVisual.decoding='async';
 playerVisual.src='./assets/player-walk-v2.png';
 function drawPlayerSprite(p){
+ if(drawHDCharacter(p,0,'You'))return true;
  if(!playerVisual.complete||!playerVisual.naturalWidth)return false;
  const rows={down:0,right:1,up:2,left:3};
  const row=rows[p.direction]??0;
@@ -76,6 +103,7 @@ const listeningDirectorVisual=new Image();
 listeningDirectorVisual.decoding='async';
 listeningDirectorVisual.src='./assets/listening-director-walk-v1.png';
 function drawListeningDirectorSprite(a){
+ if(drawHDCharacter(a,2,'Director'))return true;
  if(!listeningDirectorVisual.complete || !listeningDirectorVisual.naturalWidth)return false;
  const row={down:0,right:1,up:2,left:3}[a.direction]??0;
  const frame=a.moving?Math.floor((a.walkDistance||0)/14)%4:1;
@@ -101,6 +129,7 @@ function mattDirection(dx,dy,previous='down'){
  return Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up');
 }
 function drawMattSprite(a,now){
+ if(drawHDCharacter(a,1,'Matt'))return true;
  if(!mattVisual.complete || !mattVisual.naturalWidth)return false;
  const directions={down:0,right:1,up:2,left:3};
  const row=directions[a.direction]??0;
