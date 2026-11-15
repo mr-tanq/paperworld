@@ -77,9 +77,24 @@
    }catch(_){/* Read-only status failure cannot imply completed work. */}
    finally{polling=false}
   };
+  let journeyStarted=false,journeyDirector=null;
+  const directorNames={'studio-director':'Crow','pokemon-director':'Joey',
+   'listening-director':'Luna'};
   try{
    const result=await cloud().delegateMatt(text,{targetDirector:'auto',
-     conversation:{activeDirector:activeMattDirector,turns:mattConversation.slice(-8)}});
+     conversation:{activeDirector:activeMattDirector,turns:mattConversation.slice(-8)},
+     onProgress:event=>{
+      // Stage comes from authenticated, owner-scoped AI routing response.
+      if(event.stage==='routed'&&!journeyStarted){
+       journeyStarted=world()?.startMattDirectorJourney?.(event.directorId)===true;
+       if(journeyStarted){
+        journeyDirector=event.directorId;
+        status.textContent='Ο Matt πηγαίνει στον '+(directorNames[journeyDirector]||'Director')+'…';
+       }
+      }else if(event.stage==='director_reported'&&journeyStarted){
+       status.textContent='Ο Director απάντησε · ο Matt ετοιμάζει την αναφορά…';
+      }
+     }});
    if(result.delegated&&['listening-director','studio-director','pokemon-director'].includes(result.directorId)){
     if(activeMattDirector!==result.directorId)mattConversation.length=0;
     activeMattDirector=result.directorId;
@@ -90,21 +105,26 @@
     activeMattDirector=null;
     mattConversation.length=0;
    }
-   // Always render the verified reply immediately, including successful saves.
-   // The authenticated history will replace it once the same message ID arrives.
+   // The Director AI has completed, but DO NOT show the answer yet.
+   // Wait until Matt has physically returned on the mapped village route.
+   if(result.delegated===true&&!journeyStarted){
+    journeyStarted=world()?.startMattDirectorJourney?.(result.directorId)===true;
+    if(journeyStarted)journeyDirector=result.directorId;
+   }
+   if(journeyStarted){
+    veil.classList.add('world-chat-journey');
+    const who=directorNames[journeyDirector]||'Director';
+    status.textContent='Ο Matt επιστρέφει από τον '+who+'…';
+    world()?.completeMattDirectorJourney?.();
+    // If browser animation is paused, do not leave the reply blocked forever.
+    await Promise.race([world()?.waitMattDirectorReturn?.()||Promise.resolve(),
+     new Promise(resolve=>setTimeout(resolve,35000))]);
+    mattJourneyCaption='Ο Matt επέστρεψε από τον '+who;
+   }
    mattReplies.push({id:result.persisted===true?result.requestId:null,
     content:String(result.content||
      'Δεν μπόρεσα να προσδιορίσω με ασφάλεια τον αρμόδιο Director.'),
     time:new Date().toISOString()});
-   const journeyStarted=result.delegated===true&&
-    world()?.startMattDirectorJourney?.(result.directorId)===true;
-   if(journeyStarted){
-    veil.classList.add('world-chat-journey');
-    const names={'studio-director':'Crow','pokemon-director':'Joey',
-     'listening-director':'Luna'};
-    mattJourneyCaption='Matt → '+(names[result.directorId]||'Director')+
-     ' → Εσύ · αναπαράσταση επιβεβαιωμένης ανάθεσης';
-   }
    field.value='';
    if(openId==='matt')paint();
    const plan=result.delegated?result.workProposal:null;
