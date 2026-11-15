@@ -56,6 +56,22 @@ function validateClaim(c,expected,now){
   seen.add(check.id);
  }
  if(![...seen].some(id=>id.startsWith('syntax:')))denied('attestation_syntax_missing');
+ const candidate=expected.candidate;
+ if(!candidate||candidate.taskId!==expected.taskId||
+    candidate.baseCommitSha!==expected.baseCommitSha||
+    candidate.repository!==REPO||!Array.isArray(candidate.files))
+  denied('attestation_candidate_missing');
+ const expectedIds=['regression'];
+ for(const f of candidate.files){
+  if(f?.kind==='modify'&&
+     ['js/ticketswap-check.js','js/concert-ticketswap.js'].includes(f.path))
+   expectedIds.push('syntax:'+f.path);
+  else if(f?.kind!=='new-test'||
+    !/^tests\/autofix\/ticketswap-[a-z0-9-]{1,40}\.test\.mjs$/.test(f.path||''))
+   denied('attestation_candidate_invalid');
+ }
+ if(expectedIds.length!==seen.size||expectedIds.some(id=>!seen.has(id)))
+  denied('attestation_check_set_mismatch');
  return true;
 }
 function createAttestationVerifier({publicKeyPem,keyId,consumeNonce,clock=Date.now}={}){
@@ -67,13 +83,13 @@ function createAttestationVerifier({publicKeyPem,keyId,consumeNonce,clock=Date.n
  try{key=createPublicKey(publicKeyPem)}catch(_){denied('invalid_verification_key')}
  if(key.asymmetricKeyType!=='ed25519')denied('unsupported_signature_algorithm');
  async function verifyAttestation({taskId,repository,baseCommitSha,
-   candidateDigest,verification}={}){
+   candidateDigest,candidate,verification}={}){
   const e=verification?.signedAttestation;
   if(!e||typeof e!=='object'||e.keyId!==keyId||
    typeof e.signature!=='string'||!B64.test(e.signature)||
    !e.claim||typeof e.claim!=='object'||Array.isArray(e.claim))
    return false;
-  const expected={taskId,repository,baseCommitSha,candidateDigest};
+  const expected={taskId,repository,baseCommitSha,candidateDigest,candidate};
   try{
    validateClaim(e.claim,expected,clock());
    const sig=Buffer.from(e.signature,'base64url');
