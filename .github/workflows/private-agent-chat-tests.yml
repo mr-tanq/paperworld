@@ -20,6 +20,8 @@ on:
       - 'server/autofix-sandbox-plan.cjs'
       - 'server/autofix-sandbox-runner.cjs'
       - 'server/autofix-attestation-verifier.cjs'
+      - 'server/autofix-pinned-source.cjs'
+      - 'server/autofix-readiness.cjs'
       - 'server/github-oauth.cjs'
       - 'server/copilot-client-loader.cjs'
       - 'server/render-matt.cjs'
@@ -99,6 +101,8 @@ jobs:
             tests/autofix-sandbox-plan.test.cjs \
             tests/autofix-sandbox-runner.test.cjs \
             tests/autofix-attestation-verifier.test.cjs \
+            tests/autofix-pinned-source.test.cjs \
+            tests/autofix-readiness.test.cjs \
             tests/matt-worker-delegation.test.cjs \
             tests/matt-session-config.test.cjs \
             tests/matt-approval-claimer.test.cjs
