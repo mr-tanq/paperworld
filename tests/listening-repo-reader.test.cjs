@@ -117,3 +117,20 @@ test('Network and invalid GitHub credential errors fail closed',async()=>{
   assert.equal(error.code,'github_auth_invalid');return true;
  });
 });
+
+test('Server-selected festival artwork subset reads one exact file with no write access',async()=>{
+ const {reader,urls,requests}=mockRead();
+ const result=await reader.read('artwork',{selectedPaths:['js/festival-artwork.js']});
+ assert.deepEqual(result.files.map(f=>f.path),['js/festival-artwork.js']);
+ assert.equal(urls.length,1);
+ assert.equal(requests[0].method,'GET');
+ assert.equal(requests[0].headers.Authorization,undefined);
+});
+test('Selected subset rejects arbitrary, duplicate, out-of-category and empty paths before any fetch',async()=>{
+ const {reader,urls}=mockRead();
+ for(const selectedPaths of [[],['../secrets'],['js/festival-artwork.js','js/festival-artwork.js'],
+  ['js/ticketswap-check.js'],['https://example.org'],['js/festival-artwork.js','other.js']]){
+  await assert.rejects(reader.read('artwork',{selectedPaths}),/repository_selection_not_allowed/);
+ }
+ assert.equal(urls.length,0);
+});
