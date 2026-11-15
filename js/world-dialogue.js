@@ -46,6 +46,8 @@
  send.type='submit';send.setAttribute('aria-label','Send message');
  form.append(field,send);
  const composer=make('footer','world-chat-composer');
+ composer.append(connectGithub,form);
+ panel.append(top,status,messages,composer);view.append(panel);
  // Matt owns the conversation; internal agent and worker routing stays invisible.
  async function runMattWorkflow(text){
   if(openId!=='matt'||!cloud()?.signedIn()||busy||!text.trim())return;
