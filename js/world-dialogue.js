@@ -161,14 +161,22 @@
        try{
         cloud()?.previewListeningChange?.(worker.reviewProposal.plan,
          worker.reviewProposal.evidence);
-        mattReplies.push({content:'Ο Developer ετοίμασε προτεινόμενες αλλαγές. '+
-         'Θα τις βρεις στο Listening Mirror Work Desk για ανάγνωση. '+
-         'Δεν έχει πραγματοποιηθεί καμία εγγραφή ή δημιουργία PR.',
+        mattReplies.push({content:worker.proposalPersisted===true?
+         'Ο Developer ετοίμασε και αποθήκευσε πρόταση αλλαγών. '+
+         'Θα τη βρεις στο Listening Mirror Work Desk για έλεγχο και έγκριση. '+
+         'Δεν έγινε αλλαγή αρχείων ή δημιουργία PR.':
+         'Ο Developer ετοίμασε προεπισκόπηση αλλαγών, αλλά δεν επιβεβαιώθηκε '+
+         'η αποθήκευσή της. Δεν υπάρχει ακόμη έτοιμο Draft PR για έγκριση.',
          time:new Date().toISOString()});
        }catch(_){
         mattReplies.push({content:'Η πρόταση δεν πέρασε τον έλεγχο '+
          'προεπισκόπησης. Δεν έγινε καμία αλλαγή.',time:new Date().toISOString()});
        }
+      }else{
+       mattReplies.push({content:'Ο Developer ολοκλήρωσε την ανάλυση, αλλά '+
+        'δεν μπόρεσε να παραδώσει ασφαλή πλήρη διόρθωση προς έγκριση. '+
+        'Δεν δημιουργήθηκε πρόταση στο Work Desk και δεν άλλαξε κανένα αρχείο.',
+        time:new Date().toISOString()});
       }
      }
      mattReplies.push({content:String(worker.content||''),time:new Date().toISOString()});
