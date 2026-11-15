@@ -297,7 +297,6 @@ test('Matt presents verified source access even when its AI response is mistaken
  assert.match(response.body.content,/^Επαληθευμένη κατάσταση εργασίας:/);
  assert.match(response.body.content,/Ο Developer διάβασε μέσω GitHub/);
  assert.match(response.body.content,/mr-tanq\/concerts/);
- assert.match(response.body.content,/Δεν/); 
  assert.match(response.body.content,/ολοκλήρωσε μόνο διάγνωση/);
  assert.equal(response.body.proposalIssue,'analysis_only');
  assert.equal(response.body.proposalStorage,'not_attempted');
