@@ -33,7 +33,7 @@ test('Worker proposal requires a separate human approval with private Pokémon d
  assert.match(source,/if\(window\.confirm\(consent\)\)/);
  assert.match(source,/delegatePokemonWorker\(text,\{saveNote:false,requestId:result\.requestId\}\)/);
  assert.match(source,/delegateMattWorker\(text,\{saveNote:false,requestId:result\.requestId,onStart:id=>\{/);
- assert.match(source,/ΜΟΝΟ το ιδιωτικό project\.godot/);
+ assert.match(source,/ιδιωτικό project\.godot και έως τρία προκαθορισμένα/);
  assert.match(source,/έως 5 AI κλήσεις/);
  assert.match(source,/επιπλέον χρέωση \$0/);
  assert.match(source,/Δεν ξεκίνησα τον Worker/);
