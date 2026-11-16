@@ -4,7 +4,7 @@ let room='town',tasks=[],allTasks=[],busy=false,message='',edit=null,active=fals
 let memoryOpen=false,memoryView=null,historyImportView=null;
 // Display-only proposals. No approval grant or server write capability.
 let listeningReviewPayload=null,listeningStoredProposals=[],listeningProposalError='';
-let workJobs=[],jobHistoryError='',humanHub=null;
+let workJobs=[],teamJobs=[],jobHistoryError='',teamHistoryError='',humanHub=null;
 
 
 const el=(tag,text,cls)=>{let e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
@@ -18,6 +18,8 @@ async function reload(){
   const history=await client.mattJobHistory();
   workJobs=history.jobs;jobHistoryError='';
  }catch(e){workJobs=[];jobHistoryError='Δεν φορτώθηκε το ιστορικό εργασιών: '+e.message}
+ try{teamJobs=(await client.teamHandoffHistory()).jobs;teamHistoryError=''}
+ catch(e){teamJobs=[];teamHistoryError='Οι αναθέσεις V5 δεν είναι διαθέσιμες.'}
  try{
   listeningStoredProposals=await client.listListeningProposals();
   listeningProposalError='';
@@ -168,9 +170,9 @@ function renderHumanWork(target){
   openProject:()=>{room='workshop';render()},
   onError:e=>{jobHistoryError=e}
  });
- humanHub.setData({jobs:workJobs,proposals:listeningStoredProposals,tasks:allTasks});
- if(jobHistoryError||listeningProposalError){
-  target.append(el('p',jobHistoryError||listeningProposalError,'room-footnote'));
+ humanHub.setData({jobs:workJobs,proposals:listeningStoredProposals,tasks:allTasks,teamJobs});
+ if(jobHistoryError||listeningProposalError||teamHistoryError){
+  target.append(el('p',[jobHistoryError,listeningProposalError,teamHistoryError].filter(Boolean).join(' · '),'room-footnote'));
  }
 }
 function renderWorkshop(){
