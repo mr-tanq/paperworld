@@ -141,7 +141,7 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
    Number.isSafeInteger(verdict.toolCount)&&verdict.toolCount>=0&&verdict.toolCount<=100&&
    Array.isArray(verdict.tools)&&verdict.tools.length===verdict.toolCount&&
    verdict.tools.every(name=>typeof name==='string'&&
-    /^[a-zA-Z0-9_.\\/-]{1,100}$/.test(name));
+    /^[a-zA-Z0-9_.-]{1,100}$/.test(name));
   return answer(200,{service:'suno_mcp',oauthAuthorized:true,
    toolsListed:allowed,canGenerate:false,
    toolCount:allowed?verdict.toolCount:0,
