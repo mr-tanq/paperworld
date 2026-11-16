@@ -211,7 +211,8 @@ function createRenderMattServer({oauth=createGithubOAuth({
    }catch(_){return response(res,503,{error:'pokemon_proposal_api_unavailable'})}
   }
   const missionAction={'/autonomous/missions/create':'create',
-   '/autonomous/missions/list':'list'}[req.url];
+   '/autonomous/missions/list':'list',
+   '/autonomous/missions/status':'status'}[req.url];
   if(missionAction){
    if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
     res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
