@@ -139,8 +139,10 @@ function render(){
 // No model call, write grant or fabricated task status is created by this view.
 async function loadHumanWork(){
  const results=await Promise.all([client.mattJobHistory(),
-  client.listListeningProposals(),client.list()]);
- return {jobs:results[0].jobs,proposals:results[1],tasks:results[2]};
+  client.listListeningProposals(),client.list(),
+  client.teamHandoffHistory().catch(()=>({jobs:[],unavailable:true}))]);
+ return {jobs:results[0].jobs,proposals:results[1],tasks:results[2],
+  teamJobs:results[3].jobs,teamUnavailable:results[3].unavailable===true};
 }
 async function prepareSolution(item){
  const result=await client.publishListeningProposal(item.jobId,item.digest);
@@ -343,6 +345,7 @@ window.PaperworldCloudUI={
  delegateMattWorker:(text,opts)=>client.delegateMattWorker(text,opts),
  delegatePokemonWorker:(text,opts)=>client.delegatePokemonWorker(text,opts),
  mattJobHistory:()=>client.mattJobHistory(),
+ teamHandoffHistory:()=>client.teamHandoffHistory(),
  loadHumanWork,
  prepareHumanSolution:prepareSolution,
  discardHumanSolution:discardSolution,
