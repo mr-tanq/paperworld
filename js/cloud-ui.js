@@ -163,6 +163,17 @@ async function discardSolution(item){
  message='Η λύση απορρίφθηκε. Δεν έγινε καμία αλλαγή.';
  await reload();render();
 }
+async function runApprovedSourceFact(item){
+ if(!item||item.kind!=='handoff'||item.status!=='awaiting_consent'||
+  !['pokemon-developer','listening-developer'].includes(item.workerId)||
+  !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(item.requestId||'')||
+  typeof item.summary!=='string'||!item.summary.trim())
+  throw Error('Invalid source fact handoff');
+ const project=item.workerId==='pokemon-developer'?'pokemon':'listening';
+ const result=await client.sourceFactWorker(item.summary,{project,requestId:item.requestId});
+ message=result.content;
+ return result;
+}
 async function runApprovedHandoff(item){
  if(!item||item.kind!=='handoff'||item.status!=='awaiting_consent'||
   !['pokemon-developer','listening-developer'].includes(item.workerId)||
@@ -185,7 +196,7 @@ function renderHumanWork(target){
  const mount=el('div',undefined,'human-hub-mount');
  target.append(mount);
  humanHub=module.create(mount,{load:loadHumanWork,
-  approve:prepareSolution,reject:discardSolution,runWorker:runApprovedHandoff,
+  approve:prepareSolution,reject:discardSolution,runWorker:runApprovedHandoff,runSourceFact:runApprovedSourceFact,
   openMatt:()=>window.PaperworldWorldDialogue?.show('matt'),
   openProject:()=>{room='workshop';render()},
   onError:e=>{jobHistoryError=e}
@@ -368,7 +379,7 @@ window.PaperworldCloudUI={
  delegatePokemonWorker:(text,opts)=>client.delegatePokemonWorker(text,opts),
  mattJobHistory:()=>client.mattJobHistory(),
  teamHandoffHistory:()=>client.teamHandoffHistory(),
- loadHumanWork,runApprovedHandoff,
+ loadHumanWork,runApprovedHandoff,runApprovedSourceFact,
  prepareHumanSolution:prepareSolution,
  discardHumanSolution:discardSolution,
  refreshHumanWork:async()=>{await reload();if(active)render();return {
