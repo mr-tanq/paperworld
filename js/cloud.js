@@ -379,7 +379,7 @@
    return result;
   }
   async function autonomousMissionAction(action,details={}){
-   if(!['create','list','status'].includes(action))throw Error('Invalid mission action');
+   if(!['create','list','status','simulate'].includes(action))throw Error('Invalid mission action');
    await ensureAuth();
    const thread=await getAgentThread('matt',action==='create');
    if(!thread){
@@ -414,6 +414,16 @@
     result.controller.modelCallsEnabled!==false)
     throw Error('Unverified autonomous supervisor');
    return result.controller;
+  }
+  async function simulateAutonomousMission(missionId){
+   if(!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(missionId||''))
+    throw Error('Invalid mission id');
+   const result=await autonomousMissionAction('simulate',{missionId});
+   if(result?.queued!==true||result.missionId!==missionId||
+    result.execution!=='simulation_only'||result.aiCalls!==0||
+    result.realWork!==false)
+    throw Error('Simulation was not verified');
+   return result;
   }
   async function listAutonomousMissions(){
    const data=await autonomousMissionAction('list');
@@ -789,7 +799,7 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   createAutonomousMission,listAutonomousMissions,autonomousControllerStatus,
+   createAutonomousMission,listAutonomousMissions,autonomousControllerStatus,simulateAutonomousMission,
    listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,previewImportedDirectorMemory,approveImportedDirectorMemory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,sourceFactWorker,mattJobHistory,teamHandoffHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
    listPokemonProposals,rejectPokemonProposal,publishPokemonProposal,
