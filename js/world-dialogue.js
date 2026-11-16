@@ -566,6 +566,15 @@
     if(token!==revision||openId!==selected)return;
     if(selected==='matt'&&historyCodec()){
      const recovered=historyCodec().recover(history);
+     // Recover owner-scoped Crow drafts after reload or a duplicate HTTP 409.
+     const savedStudio=window.PaperworldCrowStudioDraft?.fromSavedHistory(
+      history,historyCodec().decode);
+     if(savedStudio&&!latestStudioHandoff){
+      latestStudioHandoff={delegated:true,directorId:'studio-director',
+       requestId:savedStudio.requestId,request:savedStudio.originalRequest,
+       directorReport:savedStudio.style};
+      openStudio.hidden=false;
+     }
      // Persisted ID = original request UUID. Discard only the matching
      // temporary bubble to prevent duplicates, not all unsaved replies.
      const freshReplies=historyCodec().reconcileReplies(mattReplies,history);
