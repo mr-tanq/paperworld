@@ -83,7 +83,7 @@ function createPokemonRepoReader({fetcher=globalThis.fetch}={}){
     error('invalid_source_metadata');
    let raw;
    try{
-    const encoded=item.content.replace(/\\s/g,'');
+    const encoded=item.content.replace(/\s/g,'');
     raw=Buffer.from(encoded,'base64');
     if(raw.toString('base64')!==encoded)error('invalid_source_content');
    }catch(_){error('invalid_source_content')}
@@ -95,7 +95,7 @@ function createPokemonRepoReader({fetcher=globalThis.fetch}={}){
     (name.endsWith('.gd')&&!/^extends (?:Node|Node2D|CharacterBody2D|StaticBody2D|CanvasLayer|Area2D|Control|RefCounted|Resource|Sprite2D|TileMap|TileMapLayer|AnimatableBody2D|Path2D|CollisionObject2D|Panel|Object)/m.test(content)))
     error('invalid_godot_configuration');
    files.push(Object.freeze({path:name,sha:item.sha,
-    lines:content.split('\\n').map((line,i)=>'L'+(i+1)+' '+line).join('\\n'),
+    lines:content.split('\n').map((line,i)=>'L'+(i+1)+' '+line).join('\n'),
     size:raw.length}));
   }
   return Object.freeze({repository:OWNER+'/'+REPO,ref:REF,
