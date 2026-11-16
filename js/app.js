@@ -582,8 +582,7 @@ function tap(p){
  descEl.textContent=destination.distance>24?'Walking to the nearest paved path.':'Walking along the paved paths.';
 }
 function draw(now){spriteNow=now;ctx.clearRect(0,0,state.width,state.height);ctx.fillStyle='#151b22';ctx.fillRect(0,0,state.width,state.height);ctx.save();ctx.translate(state.x,state.y);ctx.scale(state.scale,state.scale);
-if(scene.ready)ctx.drawImage(scene.image,0,0,W,H);
- if(editingPaths)pathDraft.draw(ctx);else{ctx.fillStyle='#a6b398';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='40px system-ui';ctx.fillText('Upload assets/environment-010.png to preview the village',105,440)}
+if(scene.ready)ctx.drawImage(scene.image,0,0,W,H);else{ctx.fillStyle='#a6b398';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='40px system-ui';ctx.fillText('Upload assets/environment-010.png to preview the village',105,440)}
 const w=state.walker;
  const drawFigure=(p,testing=false)=>{
   ctx.save();
@@ -615,6 +614,8 @@ layers.push({id:'player',depth:depth.actorWalkwayDepth(w,navigation,defs),paint:
  if(d)layers.push({id:'depth-demo',depth:d.y,paint:()=>drawFigure(d,true)});
  layers.push(...depth.foregroundLayers(ctx,scene.ready,scene.image,W,H));
  depth.sortLayers(layers).forEach(item=>item.paint());
+ // Authoring overlay stays visible even over building art; it is never used for live routes.
+ if(editingPaths)pathDraft.draw(ctx);
  // Optional developer overlay: visualize only collision-checked walkable edges.
  if(showSurveyedPaths){
   ctx.save();ctx.lineWidth=4;ctx.strokeStyle='rgba(229,48,53,.92)';
