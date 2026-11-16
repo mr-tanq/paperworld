@@ -384,8 +384,8 @@
      if(openId==='matt')status.textContent='Ο Matt ξεκίνησε την εγκεκριμένη διερεύνηση…';
      // The original human note is already stored by delegateMatt.
      const worker=pokemon?
-      await cloud().delegatePokemonWorker(text,{saveNote:false}):
-      await cloud().delegateMattWorker(text,{saveNote:false,onStart:id=>{
+      await cloud().delegatePokemonWorker(text,{saveNote:false,requestId:result.requestId}):
+      await cloud().delegateMattWorker(text,{saveNote:false,requestId:result.requestId,onStart:id=>{
        requestId=id;
        watcher=setInterval(poll,1300);
       }});
