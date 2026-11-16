@@ -38,7 +38,7 @@ test('tools/list is the only MCP operation and token never reaches browser',asyn
  assert.doesNotMatch(JSON.stringify(result),/private text|valid-access-token/);
  assert.equal(summarize({jsonrpc:'2.0',id:1,result:{tools:[{name:'x'},{name:'x'}]}}),null);
 });
-test('Refuses redirects, SSE-only servers, malformed JSON or unauthorized access',async()=>{
+test('Refuses redirects, empty SSE streams, malformed JSON or unauthorized access',async()=>{
  for(const status of [302,401,500]){
   const probe=makeSunoMcpToolProbe({fetcher:async()=>({status,headers:{get:()=>null}})});
   assert.equal((await probe.inspect({accessToken:'valid-access-token-1234'})).available,false);
@@ -48,7 +48,7 @@ test('Refuses redirects, SSE-only servers, malformed JSON or unauthorized access
   text:async()=>': heartbeat\n\n'})});
  assert.equal((await emptySse.inspect({accessToken:'valid-access-token-1234'})).reason,
   'unverified_mcp_response');
- assert.equal((await sse.inspect({accessToken:''})).reason,'not_authorized');
+ assert.equal((await emptySse.inspect({accessToken:''})).reason,'not_authorized');
 });
 test('OAuth owner must be linked before MCP tool discovery; never enables generation',async()=>{
  let inspections=0;
