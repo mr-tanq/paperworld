@@ -1,0 +1,33 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.join(__dirname,'..');
+const sql=fs.readFileSync(path.join(root,'supabase/paperworld_director_batch_review_REVIEW_ONLY.sql'),'utf8');
+const cloud=fs.readFileSync(path.join(root,'js/cloud.js'),'utf8');
+const dialogue=fs.readFileSync(path.join(root,'js/world-dialogue.js'),'utf8');
+test('Owner batch approval schema proposal remains explicitly review-only and atomic',()=>{
+ assert.match(sql,/REVIEW ONLY — NOT APPLIED/);
+ assert.match(sql,/security definer set search_path=''/);
+ assert.match(sql,/v_owner := \(select auth.uid\(\)\)/);
+ assert.match(sql,/count\(distinct id\)/);
+ assert.match(sql,/m.owner_id=v_owner/);
+ assert.match(sql,/m.status='proposed'/);
+ assert.match(sql,/source_ref='chat-summary:2026-11-16'/);
+ assert.match(sql,/v_count <> array_length\(p_ids,1\)/);
+ assert.match(sql,/v_updated <> v_count/);
+ assert.match(sql,/grant execute on function public.paperworld_approve_imported_director_memories\(uuid\[\]\)\s+to authenticated/);
+ assert.doesNotMatch(sql,/to anon\s*;/);
+});
+test('Browser review is owner initiated, does not grant AI tool privileges and refreshes exact selection',()=>{
+ assert.match(cloud,/async function previewImportedDirectorMemory\(/);
+ assert.match(cloud,/async function approveImportedDirectorMemory\(preview\)/);
+ assert.match(cloud,/await verifiedMemoryReviewer\(\)/);
+ assert.match(cloud,/current.ids.some\(id=>!preview.ids.includes\(id\)\)/);
+ assert.match(cloud,/p_ids:preview.ids/);
+ assert.match(dialogue,/memoryReview.addEventListener\('click'/);
+ assert.match(dialogue,/window.confirm\('Έλεγχος '/);
+ assert.match(dialogue,/memoryReview.hidden=!isMatt\|\|!active/);
+ assert.doesNotMatch(dialogue,/runMattWorkflow\([^)]*memoryReview/);
+});

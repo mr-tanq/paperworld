@@ -183,6 +183,47 @@
    return Object.freeze({id:entryId,projectId,status:decision});
   }
 
+  // Exactly the owner-reviewed, private 2026-11-16 import; no unrelated proposals.
+  // Preview and approval are separate deliberate UI actions.
+  const IMPORT_SOURCE='chat-summary:2026-11-16';
+  const IMPORT_PROJECTS=['workshop','pokemon','studio','wellbeing'];
+  async function previewImportedDirectorMemory(){
+   await verifiedMemoryReviewer();
+   const groups=[];const ids=new Set();
+   for(const projectId of IMPORT_PROJECTS){
+    const rows=await listDirectorMemory(projectId);
+    const selected=rows.filter(row=>row.status==='proposed'&&
+     row.source_type==='conversation'&&row.source_ref===IMPORT_SOURCE);
+    for(const item of selected){
+     if(typeof item.id!=='string'||ids.has(item.id)||
+      !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(item.id)||
+      typeof item.title!=='string'||!item.title.trim())
+      throw Error('Invalid memory import preview');
+     ids.add(item.id);
+    }
+    groups.push({projectId,items:selected.map(item=>({id:item.id,title:item.title,
+     sensitivity:item.sensitivity}))});
+   }
+   if(ids.size>40)throw Error('Import batch exceeds allowed size');
+   return {groups,total:ids.size,ids:[...ids]};
+  }
+  async function approveImportedDirectorMemory(preview){
+   if(!preview||!Array.isArray(preview.ids)||preview.total!==preview.ids.length||
+      preview.total<1||preview.total>40||new Set(preview.ids).size!==preview.ids.length)
+    throw Error('Invalid owner batch selection');
+   await verifiedMemoryReviewer();
+   // Reload the exact owner-visible preview before committing. Any change aborts.
+   const current=await previewImportedDirectorMemory();
+   if(current.total!==preview.total||
+    current.ids.some(id=>!preview.ids.includes(id)))
+    throw Error('Memory preview changed. Inspect the new selection.');
+   const result=await withAuth('/rest/v1/rpc/paperworld_approve_imported_director_memories',{
+    method:'POST',data:{p_ids:preview.ids}});
+   if(result!==preview.total)
+    throw Error('Approval count not verified; refresh owner memory');
+   return {approved:result};
+  }
+
   const missionFields='id,source_task_id,project_room,repository,title,brief,mode,status,created_at,updated_at';
   async function listMissions(){
    return withAuth('/rest/v1/paperworld_missions?select='+missionFields+'&order=created_at.desc&limit=500');
@@ -621,7 +662,7 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,mattJobHistory,diagnoseMattSession,
+   listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,previewImportedDirectorMemory,approveImportedDirectorMemory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,mattJobHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
    crowSunoPreview,cancelCrowSunoPreview,crowSunoConnectionStatus,
    beginSunoLink,sunoLinkStatus,inspectSunoTools,diagnoseSunoConnection};
