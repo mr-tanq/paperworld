@@ -11,6 +11,7 @@ create table public.paperworld_pokemon_proposals_v5 (
  plan jsonb not null check(jsonb_typeof(plan)='object'),
  evidence jsonb not null check(jsonb_typeof(evidence)='object'),
  draft_pr_url text,
+ unique(job_id,owner_id),
  created_at timestamptz not null default now(),
  updated_at timestamptz not null default now(),
  foreign key(thread_id,owner_id) references public.paperworld_agent_threads(id,owner_id),
@@ -28,7 +29,8 @@ create table public.paperworld_pokemon_approvals_v5 (
  expires_at timestamptz not null,
  consumed_at timestamptz,
  created_at timestamptz not null default now(),
- foreign key(job_id) references public.paperworld_pokemon_proposals_v5(job_id),
+ unique(job_id),
+ foreign key(job_id,owner_id) references public.paperworld_pokemon_proposals_v5(job_id,owner_id),
  check(expires_at>created_at)
 );
 alter table public.paperworld_pokemon_proposals_v5 enable row level security;
