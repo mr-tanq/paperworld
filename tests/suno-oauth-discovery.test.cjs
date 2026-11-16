@@ -63,3 +63,10 @@ test('Crow browser status cannot spend credits or enable an execution route',()=
  assert.doesNotMatch(router,/\/suno\/crow\/execute/);
  assert.doesNotMatch(messenger,/GENERATE_WITH_SUNO_CREDITS/);
 });
+
+test('Preserves path-qualified Suno OAuth issuer without dropping its path',()=>{
+ const issuer='https://studio-api-prod.suno.com/api/v2/external/oauth';
+ const parsed=safeMetadata({resource:'https://api.suno.com/mcp',
+  authorization_servers:[issuer]});
+ assert.deepEqual(parsed.authorizationServers,[issuer]);
+});
