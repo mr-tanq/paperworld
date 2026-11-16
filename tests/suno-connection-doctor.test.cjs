@@ -35,7 +35,8 @@ test('diagnosis shows provider metadata and registration without pretending user
  const x=setup(),result=await x.client.diagnose({headers,body});
  assert.deepEqual(result.body,{service:'suno_mcp',resourceAvailable:true,
   clientRegistrationSupported:true,oauthAuthorized:false,
-  toolsListed:false,toolCount:0,canGenerate:false,nextStep:'owner_oauth_required'});
+  toolsListed:false,toolCount:0,toolReason:'not_authorized',
+  canGenerate:false,nextStep:'owner_oauth_required'});
  assert.equal(x.toolCalls(),0);
  assert.ok(x.reads()>0);
  assert.doesNotMatch(JSON.stringify(result),/secret/);
@@ -49,8 +50,8 @@ test('after simulated OAuth diagnosis verifies tool list but never enables gener
  const response=await x.client.diagnose({headers,body});
  assert.deepEqual(response.body,{service:'suno_mcp',resourceAvailable:true,
   clientRegistrationSupported:true,oauthAuthorized:true,
-  toolsListed:true,toolCount:2,canGenerate:false,
-  nextStep:'generation_not_enabled'});
+  toolsListed:true,toolCount:2,toolReason:'read_only_tools_verified',
+  canGenerate:false,nextStep:'generation_not_enabled'});
  assert.equal(x.toolCalls(),1);
  assert.doesNotMatch(JSON.stringify(response),/super-secret/);
 });
@@ -69,4 +70,27 @@ test('diagnostic UI never exposes any generation or tool-call route',()=>{
  assert.match(ui,/diagnoseSunoConnection/);
  assert.doesNotMatch(router,/\/suno\/crow\/execute/);
  assert.doesNotMatch(ui,/GENERATE_WITH_SUNO_CREDITS/);
+});
+
+test('diagnose preserves only allowlisted failure categories after OAuth',async()=>{
+ const x=setup({toolResponse:{available:false,reason:'authorization_rejected',
+  providerPayload:'secret-provider-payload'}});
+ const start=await x.client.start({headers,body});
+ const state=new URL(start.body.authorizationUrl).searchParams.get('state');
+ await x.client.callback({url:'/auth/suno/callback?state='+state+'&code=abcdefghi12345'});
+ const result=await x.client.diagnose({headers,body});
+ assert.equal(result.body.toolReason,'authorization_rejected');
+ assert.equal(result.body.toolsListed,false);
+ assert.equal(result.body.canGenerate,false);
+ assert.doesNotMatch(JSON.stringify(result.body),/secret-provider-payload|access.token/i);
+});
+test('unknown error reasons are never echoed into the browser',async()=>{
+ const x=setup({toolResponse:{available:false,
+  reason:'SECRET provider token=1234567890'}});
+ const start=await x.client.start({headers,body});
+ const state=new URL(start.body.authorizationUrl).searchParams.get('state');
+ await x.client.callback({url:'/auth/suno/callback?state='+state+'&code=abcdefghi12345'});
+ const result=await x.client.inspectTools({headers,body});
+ assert.equal(result.body.reason,'mcp_capability_unverified');
+ assert.doesNotMatch(JSON.stringify(result.body),/SECRET|1234567890/);
 });

@@ -1,5 +1,11 @@
 # PAPERWORLD — PROJECT NOTES (living source of truth)
 
+## 2026-11-16 — Crow Suno MCP diagnostic cause codes (draft)
+
+The owner supplied a live Crow screenshot showing authorized Suno OAuth but failed MCP tools/list verification. The previous frontend displayed the same generic message for every tool-list failure, and the backend erased the detailed allowlisted reason. This change preserves only a fixed set of safe failure categories (authorization rejection, timeout, HTTP provider error/rate limit, response type, JSON-RPC format, and legacy handshake/session issues). The owner-scoped /auth/suno/diagnose and /auth/suno/inspect-tools responses include reason codes but never provider response bodies, bearer tokens, session IDs, credentials, or raw errors. Crow displays plain-language Greek explanations. No speculative claims are made about the actual live error until the user reruns the read-only probe after a separately approved backend deployment.
+
+No Suno tools/call, generation endpoint, credit consumption, service plan change or automatic deployment is introduced.
+
 ## 2026-11-16 — Crow Suno OAuth issuer path discovery fix
 
 Owner-provided live screenshot of the Suno Connection Doctor confirmed the client-registration stage is not verified. Review found a concrete bug: `safeMetadata` reduced every OAuth `authorization_servers` URI to its origin, discarding the issuer path. Suno's MCP endpoint has been observed by third-party probes to advertise a path-qualified issuer like `https://studio-api-prod.suno.com/api/v2/external/oauth` (not independently confirmed by our backend). RFC 8414 discovery requires the issuer path after the well-known OAuth metadata prefix; OIDC discovery requires the issuer path before the OIDC well-known suffix. The owner-scoped client now preserves the full issuer URI, resolves both metadata variants and compares endpoint origins to the issuer's hostname. It still validates issuer equality and HTTPS Suno-owned hosts. Tests cover nested issuers, cross-host rejection and no redirects.

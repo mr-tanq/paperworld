@@ -64,6 +64,9 @@ function makeLegacySunoMcpProbe({fetcher=globalThis.fetch}={}){
      clientInfo:{name:'Paperworld Crow',version:'1.0.0'}}})});
    if(initialized.status===401||initialized.status===403)
     return {available:false,reason:'authorization_rejected'};
+   if(initialized.status===429)return {available:false,reason:'provider_rate_limited'};
+   if(initialized.status>=500&&initialized.status<=599)
+    return {available:false,reason:'provider_server_error'};
    const response=await readResponse(initialized,0);
    if(!response?.result||typeof response.result!=='object'||
       !['2025-11-25','2025-06-18','2025-03-26'].includes(response.result.protocolVersion))
@@ -77,6 +80,8 @@ function makeLegacySunoMcpProbe({fetcher=globalThis.fetch}={}){
    const notification=await fetcher(ENDPOINT,{method:'POST',redirect:'manual',
     signal:AbortSignal.timeout(7000),headers:stateHeaders,
     body:JSON.stringify({jsonrpc:'2.0',method:'notifications/initialized'})});
+   if(notification.status===401||notification.status===403)
+    return {available:false,reason:'authorization_rejected'};
    if(![200,202,204].includes(notification.status))
     return {available:false,reason:'legacy_handshake_unverified'};
    const list=await fetcher(ENDPOINT,{method:'POST',redirect:'manual',
@@ -89,7 +94,10 @@ function makeLegacySunoMcpProbe({fetcher=globalThis.fetch}={}){
    if(!summary)return {available:false,reason:'legacy_tools_unverified'};
    return {available:true,reason:'read_only_legacy_tools_verified',
     toolCount:summary.toolCount,tools:summary.tools};
-  }catch(_){return {available:false,reason:'legacy_probe_unavailable'}}
+  }catch(error){
+   return {available:false,reason:error?.name==='TimeoutError'||
+    error?.name==='AbortError'?'provider_timeout':'legacy_probe_unavailable'};
+  }
  }
  return Object.freeze({inspect});
 }

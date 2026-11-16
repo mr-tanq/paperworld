@@ -148,9 +148,27 @@
   musicResult.textContent='Έλεγχος διαθέσιμων εργαλείων χωρίς δημιουργία μουσικής…';
   try{
    const r=await cloud().inspectSunoTools();
+   const toolFailures={
+    not_authorized:'Δεν υπάρχει ενεργή εξουσιοδότηση Suno.',
+    authorization_rejected:'Το Suno απέρριψε το token πρόσβασης (401/403).',
+    unsupported_mcp_transport:'Το Suno απάντησε με μη υποστηριζόμενη HTTP κατάσταση.',
+    unsupported_response_type:'Το Suno επέστρεψε μη υποστηριζόμενο τύπο απάντησης.',
+    unverified_mcp_response:'Η απάντηση MCP δεν πέρασε τον έλεγχο μορφής.',
+    provider_rpc_rejected:'Το Suno επέστρεψε σφάλμα MCP JSON-RPC.',
+    provider_rate_limited:'Το Suno περιόρισε προσωρινά τα αιτήματα (429).',
+    provider_server_error:'Το Suno αντιμετωπίζει σφάλμα server (5xx).',
+    provider_endpoint_missing:'Δεν βρέθηκε το MCP endpoint.',
+    provider_timeout:'Έληξε ο χρόνος αναμονής του Suno.',
+    mcp_probe_unavailable:'Η επικοινωνία με το Suno απέτυχε.',
+    legacy_probe_unavailable:'Απέτυχε η σύνδεση με το παλαιότερο MCP.',
+    legacy_handshake_unverified:'Δεν ολοκληρώθηκε το MCP initialize handshake.',
+    legacy_session_invalid:'Το Suno επέστρεψε μη έγκυρο MCP session.',
+    legacy_tools_unverified:'Η παλαιότερη σύνδεση δεν επέστρεψε έγκυρη λίστα εργαλείων.'
+   };
    musicResult.textContent=r.toolsListed?
     'Επαληθεύτηκαν '+r.toolCount+' εργαλεία MCP. Η παραγωγή παραμένει απενεργοποιημένη.':
-    'Δεν επαληθεύτηκαν τα εργαλεία MCP. Η παραγωγή παραμένει απενεργοποιημένη.';
+    (toolFailures[r.reason]||'Δεν επαληθεύτηκαν τα εργαλεία MCP.')+
+    ' Η παραγωγή παραμένει απενεργοποιημένη.';
   }catch(_){musicResult.textContent='Απαιτείται ενεργή σύνδεση Suno ή συμβατή έκδοση MCP.'}
   finally{sunoTools.disabled=false}
  });
@@ -170,8 +188,26 @@
     mcp_tools_unverified:'Ο λογαριασμός συνδέθηκε, αλλά δεν επαληθεύτηκαν τα εργαλεία MCP.',
     generation_not_enabled:'Ο λογαριασμός και τα '+r.toolCount+' εργαλεία επαληθεύτηκαν. Η παραγωγή δεν έχει ενεργοποιηθεί.'
    };
+   const reasonHint={
+    authorization_rejected:'Ο πάροχος απέρριψε την εξουσιοδότηση.',
+    unsupported_mcp_transport:'Μη υποστηριζόμενη απάντηση HTTP/MCP.',
+    unsupported_response_type:'Μη υποστηριζόμενος τύπος απάντησης MCP.',
+    unverified_mcp_response:'Μη έγκυρη απάντηση JSON-RPC.',
+    provider_rpc_rejected:'Σφάλμα MCP JSON-RPC από τον πάροχο.',
+    provider_rate_limited:'Προσωρινός περιορισμός αιτημάτων (429).',
+    provider_server_error:'Σφάλμα server Suno (5xx).',
+    provider_timeout:'Λήξη χρόνου αναμονής Suno.',
+    mcp_probe_unavailable:'Αποτυχία επικοινωνίας.',
+    legacy_probe_unavailable:'Αποτυχία παλαιότερου MCP.',
+    legacy_handshake_unverified:'Αποτυχία initialize handshake.',
+    legacy_session_invalid:'Μη έγκυρο MCP session.',
+    legacy_tools_unverified:'Μη έγκυρη λίστα εργαλείων.'
+   };
+   const hint=r.nextStep==='mcp_tools_unverified'?
+    (reasonHint[r.toolReason]||'Η ακριβής τεχνική αιτία δεν έχει επαληθευτεί.'):'';
    musicResult.textContent=(descriptions[r.nextStep]||
     'Δεν ολοκληρώθηκε η διάγνωση σύνδεσης.')+
+    (hint?' Αιτία: '+hint:'')+
     ' Καμία παραγωγή και κανένα Suno credit δεν χρησιμοποιήθηκε.';
   }catch(_){
    musicResult.textContent='Ο έλεγχος δεν ολοκληρώθηκε. Η παραγωγή παραμένει απενεργοποιημένη.';

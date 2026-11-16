@@ -15,6 +15,20 @@ const RESOURCE='https://api.suno.com/mcp';
 const OWNER=/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const CODE=/^[A-Za-z0-9_.~%-]{8,1024}$/;
 const AUTH_TTL=600000,MAX_TTL=3300000;
+const SAFE_TOOL_REASONS=Object.freeze(new Set([
+ 'not_authorized','authorization_rejected','unsupported_mcp_transport',
+ 'unsupported_response_type','unverified_mcp_response','provider_rpc_rejected',
+ 'provider_rate_limited','provider_server_error','provider_endpoint_missing',
+ 'provider_timeout','mcp_probe_unavailable','legacy_probe_unavailable',
+ 'legacy_handshake_unverified','legacy_session_invalid','legacy_tools_unverified'
+]));
+function safeToolReason(verdict){
+ if(verdict?.available===true)return 'mcp_capability_unverified';
+ const reason=verdict?.reason;
+ return typeof reason==='string'&&SAFE_TOOL_REASONS.has(reason)?
+  reason:'mcp_capability_unverified';
+}
+
 const headers=Object.freeze({'Content-Type':'application/json; charset=utf-8',
  'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
  'Access-Control-Allow-Origin':APP,'Vary':'Origin'});
@@ -152,7 +166,7 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
   return answer(200,{service:'suno_mcp',oauthAuthorized:true,
    toolsListed:allowed,canGenerate:false,
    toolCount:allowed?verdict.toolCount:0,
-   reason:allowed?'read_only_tools_verified':'mcp_capability_unverified'});
+   reason:allowed?'read_only_tools_verified':safeToolReason(verdict)});
  }
  // Owner-initiated connection doctor. Only existing read-only discovery
  // and tools/list probes; no OAuth start, tools/call or generation.
@@ -169,10 +183,11 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
     clientRegistrationSupported=!!endpoints;
    }
   }catch(_){/* Provider availability is not permission to guess. */}
-  let toolsListed=false,toolCount=0;
+  let toolsListed=false,toolCount=0,toolReason='not_authorized';
   if(session){
    try{
     const verdict=await tools.inspect({accessToken:session.accessToken});
+    toolReason=safeToolReason(verdict);
     if(verdict?.available===true&&
        Number.isSafeInteger(verdict.toolCount)&&verdict.toolCount>=0&&
        verdict.toolCount<=100&&Array.isArray(verdict.tools)&&
@@ -181,11 +196,12 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
         /^[a-zA-Z0-9_.-]{1,100}$/.test(x))){
       toolsListed=true;toolCount=verdict.toolCount;
     }
-   }catch(_){/* A disconnected or incompatible provider stays unverified. */}
+   }catch(_){toolReason='mcp_probe_unavailable'}
   }
   return answer(200,{service:'suno_mcp',resourceAvailable,
    clientRegistrationSupported,oauthAuthorized:!!session,
-   toolsListed,toolCount,canGenerate:false,
+   toolsListed,toolCount,toolReason:toolsListed?'read_only_tools_verified':toolReason,
+   canGenerate:false,
    nextStep:!resourceAvailable?'provider_resource_unavailable':
     !clientRegistrationSupported?'client_registration_unverified':
     !session?'owner_oauth_required':
