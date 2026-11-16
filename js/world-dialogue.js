@@ -72,6 +72,15 @@
    compact:true,load:()=>cloud().loadHumanWork(),
    approve:item=>cloud().prepareHumanSolution(item),
    reject:item=>cloud().discardHumanSolution(item),
+   runSourceFact:async item=>{
+    const result=await cloud().runApprovedSourceFact(item);
+    const files=result.evidence?.files||[];
+    mattReplies.push({content:String(result.content||'')+
+     (files.length?'\\n'+files.map(f=>f.path+' · '+f.sha.slice(0,10)).join('\\n'):''),
+     time:new Date().toISOString()});
+    if(openId==='matt')paint();
+    return result;
+   },
    runWorker:async item=>{
     const result=await cloud().runApprovedHandoff(item);
     mattReplies.push({content:String(result.content||''),
