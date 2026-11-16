@@ -59,7 +59,7 @@
   const lines=[];
   for(const message of messages){
    const role=message.role==='user'?'User':'Assistant (historical, unverified)';
-   const value=message.text.replace(/\u0000/g,'');
+   const value=message.text.replace(/[\u0000-\u001f\u007f]/g,' ');
    for(let start=0;start<value.length;start+=2500){
     lines.push(role+': '+value.slice(start,start+2500));
    }
@@ -68,11 +68,13 @@
   for(const line of lines){
    if(chunk&&chunk.length+line.length+2>3500){chunks.push(chunk);chunk=''}
    if(line.length>3500)throw Error('Import chunk too long');
-   chunk+=(chunk?'\n\n':'')+line;
+   chunk+=(chunk?'\u2028\u2028':'')+line;
   }
   if(chunk)chunks.push(chunk);
   if(offset>=chunks.length)return {records:[],total:chunks.length,nextOffset:null};
-  const now=new Date().toISOString(),records=[];
+  const stamp=Number(conversation.create_time);
+  const observedAt=Number.isFinite(stamp)&&stamp>0?new Date(stamp*1000).toISOString():new Date().toISOString();
+  const records=[];
   for(let i=offset;i<Math.min(chunks.length,offset+limit);i++){
    records.push(Object.freeze({
     project_id:projectId,kind:'work_history',status:'proposed',
@@ -80,7 +82,7 @@
     body:chunks[i],
     source_type:'conversation',
     source_ref:'chatgpt-export:'+id+':'+i,
-    observed_at:now,version:1,sensitivity:'private'
+    observed_at:observedAt,version:1,sensitivity:'private'
    }));
   }
   return {records,total:chunks.length,
