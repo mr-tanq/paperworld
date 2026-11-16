@@ -5,15 +5,16 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){'use strict';
  const PREFIX='@paperworld-matt:v1:';
  const DIRECTORS=new Set(['studio-director','listening-director','pokemon-director']);
+ const MAX_REPLY=5500; // matches the bounded verified Matt model response
  function encode(director,text){
   if(!DIRECTORS.has(director)||typeof text!=='string'||!text.trim())throw Error('invalid_matt_reply');
-  return PREFIX+JSON.stringify({director,text:text.slice(0,1700)});
+  return PREFIX+JSON.stringify({director,text:text.slice(0,MAX_REPLY)});
  }
  function decode(value){
   if(typeof value!=='string'||!value.startsWith(PREFIX))return null;
   try{const item=JSON.parse(value.slice(PREFIX.length));
    if(!item||!DIRECTORS.has(item.director)||typeof item.text!=='string'||
-    !item.text.trim()||item.text.length>1700)return null;
+    !item.text.trim()||item.text.length>MAX_REPLY)return null;
    return {director:item.director,text:item.text}
   }catch(_){return null}
  }
