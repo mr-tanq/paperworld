@@ -37,7 +37,8 @@ create table if not exists public.paperworld_autonomous_effects_v5 (
   on delete cascade,
  unique(step_id,kind),
  check ((adapter='dry_run' and kind='dry_run' and sessions=0)
-   or (adapter='copilot_agent' and kind<>'dry_run' and sessions=1))
+   or (adapter='copilot_agent' and kind='start_agent' and sessions=1)
+   or (adapter='copilot_agent' and kind='dispatch_verify' and sessions=0))
 );
 create index if not exists pw_effects_mission_v5
  on public.paperworld_autonomous_effects_v5(mission_id,created_at);
@@ -117,7 +118,7 @@ begin
   and not exists (select 1 from public.paperworld_autonomous_effects_v5 e
     where e.step_id=s.id)
  order by s.run_after,s.created_at,s.id
- for update of s skip locked limit 1;
+ for update of s,m skip locked limit 1;
  if not found then return; end if;
  update public.paperworld_autonomous_steps_v5 s set state='leased',
   lease_owner=p_worker,
@@ -153,7 +154,7 @@ begin
  where id=s.mission_id for update;
  if m.status not in ('queued','running') then return false; end if;
  if exists (select 1 from public.paperworld_autonomous_effects_v5 e
-   where e.step_id=s.id and e.state in ('intent','uncertain')) then return false; end if;
+   where e.step_id=s.id and e.state<>'done') then return false; end if;
  update public.paperworld_autonomous_steps_v5
  set state='succeeded',output=p_result,lease_owner=null,
  lease_expires_at=null,finished_at=now() where id=s.id;
@@ -272,7 +273,7 @@ as $$
 declare s public.paperworld_autonomous_steps_v5%rowtype;
 declare m public.paperworld_autonomous_missions_v5%rowtype;
 declare conf public.paperworld_autonomous_controller_v5%rowtype;
-declare sessions int:=case when p_adapter='copilot_agent' then 1 else 0 end;
+declare sessions int:=case when p_adapter='copilot_agent' and p_kind='start_agent' then 1 else 0 end;
 declare daily int;declare monthly int;declare per_mission int;
 begin
  if p_step is null or p_worker is null or
@@ -290,8 +291,8 @@ begin
   where id=s.mission_id for update;
  select * into conf from public.paperworld_autonomous_controller_v5
   where singleton=true for update;
- if not found or m.status not in ('queued','running')
-  or conf.dispatch_enabled is not true then return 'denied'; end if;
+ if not found or m.status not in ('queued','running') then return 'denied'; end if;
+ if p_adapter='copilot_agent' and conf.dispatch_enabled is not true then return 'denied'; end if;
  if exists(select 1 from public.paperworld_autonomous_effects_v5
     where step_id=s.id or effect_key=p_key) then return 'uncertain'; end if;
  if p_adapter='copilot_agent' then
