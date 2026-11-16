@@ -42,8 +42,19 @@ function githubApi(token,fetcher=globalThis.fetch){
  if(!/^[A-Za-z0-9_.-]{12,4096}$/.test(token||''))
   throw Error('github_actions_token_required');
  return async function api(path,{method='GET',body}={}){
-  if(!/^\/(?:repos\/mr-tanq\/(?:paperworld|concerts)\/)?[a-zA-Z0-9_./?=&%-]+$/.test(path)||
-   path.includes('..'))throw Error('github_api_path_rejected');
+  const allowed=[
+   /^\/repos\/mr-tanq\/(?:paperworld|concerts)\/commits\/main$/,
+   /^\/repos\/mr-tanq\/paperworld\/issues\?state=open&per_page=100$/,
+   /^\/repos\/mr-tanq\/paperworld\/issues$/,
+   /^\/repos\/mr-tanq\/paperworld\/issues\/[1-9][0-9]*\/comments$/,
+   /^\/repos\/mr-tanq\/paperworld\/issues\/[1-9][0-9]*\/comments\?per_page=100&page=[1-9][0-9]*$/
+  ];
+  const post=path==='/repos/mr-tanq/paperworld/issues'||
+   /^\/repos\/mr-tanq\/paperworld\/issues\/[1-9][0-9]*\/comments$/.test(path);
+  if(!allowed.some(re=>re.test(path))||
+   !['GET','POST'].includes(method)||
+   (method==='POST'&&!post)||(method==='GET'&&post))
+   throw Error('github_api_path_rejected');
   const response=await fetcher('https://api.github.com'+path,{
    method,redirect:'error',signal:AbortSignal.timeout(12000),
    headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json',
