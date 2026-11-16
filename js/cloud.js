@@ -379,7 +379,7 @@
    return result;
   }
   async function autonomousMissionAction(action,details={}){
-   if(!['create','list'].includes(action))throw Error('Invalid mission action');
+   if(!['create','list','status'].includes(action))throw Error('Invalid mission action');
    await ensureAuth();
    const thread=await getAgentThread('matt',action==='create');
    if(!thread){
@@ -405,6 +405,15 @@
     data?.mission?.spendingAllowed!==false||data?.mission?.execution!=='not_started')
     throw Error('Unverified mission draft');
    return data.mission;
+  }
+  async function autonomousControllerStatus(){
+   const result=await autonomousMissionAction('status');
+   if(!result?.controller||
+    !['active','not_verified'].includes(result.controller.supervisor)||
+    result.controller.autonomousExecution!==false||
+    result.controller.modelCallsEnabled!==false)
+    throw Error('Unverified autonomous supervisor');
+   return result.controller;
   }
   async function listAutonomousMissions(){
    const data=await autonomousMissionAction('list');
@@ -780,7 +789,7 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   createAutonomousMission,listAutonomousMissions,
+   createAutonomousMission,listAutonomousMissions,autonomousControllerStatus,
    listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,previewImportedDirectorMemory,approveImportedDirectorMemory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,sourceFactWorker,mattJobHistory,teamHandoffHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
    listPokemonProposals,rejectPokemonProposal,publishPokemonProposal,
