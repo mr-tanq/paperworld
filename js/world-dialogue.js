@@ -268,10 +268,16 @@
    musicResult.textContent='Δεν υπάρχει πρόσφατη απάντηση του Crow. Μίλησέ του πρώτα.';
    return;
   }
-  // Suggestions remain editable; never send AI text to Suno automatically.
+  // Never paste an entire reply, unfinished note or lyric into Suno Style.
+  const style=window.PaperworldCrowStudioDraft?.extractStyle(last);
+  if(!style){
+   musicResult.textContent='Η τελευταία απάντηση του Crow δεν έχει ξεχωριστό ύφος Suno. '+
+    'Ζήτησέ του μόνο μουσική κατεύθυνση ή συμπλήρωσε το πεδίο χειροκίνητα.';
+   return;
+  }
   if(!musicTitle.value.trim())musicTitle.value='New Lost Wanderer Song';
-  musicStyle.value=last.trim().slice(0,1000);
-  musicResult.textContent='Προστέθηκε η τελευταία πρόταση του Crow. Έλεγξε και διόρθωσε τη μουσική κατεύθυνση.';
+  musicStyle.value=style;
+  musicResult.textContent='Μεταφέρθηκε μόνο το μουσικό ύφος. Έλεγξέ το πριν το χρησιμοποιήσεις.';
  });
  musicCopy.addEventListener('click',async()=>{
   if(openId!=='studio-director'||musicBusy||!musicTitle.value.trim()||
