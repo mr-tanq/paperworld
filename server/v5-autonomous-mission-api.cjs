@@ -89,16 +89,16 @@ function makeAutonomousMissionApi({fetcher=globalThis.fetch,
     return {status:200,body:{queued:true,missionId:input.missionId,
      execution:'simulation_only',aiCalls:0,realWork:false}};
    }
-   // Cap owner draft accumulation; no browser can raise caps or grant AI.
-   const capQuery=new URLSearchParams({select:'id',owner_id:'eq.'+ownerId,
-    status:'eq.draft',limit:'21'});
-   const existing=await query('GET','paperworld_autonomous_missions_v5?'+capQuery);
-   if(existing.length>=20)return deny(409,'too_many_unstarted_missions');
    if(!['threadId','projectId','goal'].every(k=>Object.hasOwn(input,k))||
     Object.keys(input).length!==3)return deny(400,'invalid_mission');
    let spec;try{spec=missionSpec({
     ownerId,threadId:input.threadId,projectId:input.projectId,goal:input.goal
    })}catch(_){return deny(400,'invalid_mission')}
+   // Cap owner draft accumulation; no browser can raise caps or grant AI.
+   const capQuery=new URLSearchParams({select:'id',owner_id:'eq.'+ownerId,
+    status:'eq.draft',limit:'21'});
+   const existing=await query('GET','paperworld_autonomous_missions_v5?'+capQuery);
+   if(existing.length>=20)return deny(409,'too_many_unstarted_missions');
    const payload={id:spec.id,owner_id:ownerId,thread_id:input.threadId,
     project_id:spec.projectId,goal:spec.goal,status:'draft',policy:spec.policy};
    const rows=await query('POST','paperworld_autonomous_missions_v5',payload);
