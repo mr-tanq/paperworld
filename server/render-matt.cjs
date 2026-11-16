@@ -12,6 +12,8 @@ const {createSunoOAuthClient}=require('./suno-oauth-client.cjs');
 const {makeDelegation}=require('./matt-delegation.cjs');
 const {makeWorkerDelegation}=require('./matt-worker-delegation.cjs');
 const {makePokemonWorkerDelegation}=require('./pokemon-worker-delegation.cjs');
+const {makePokemonProposalStore}=require('./v5-pokemon-proposal-store.cjs');
+const {makePokemonProposalApi}=require('./v5-pokemon-proposal-api.cjs');
 const {makeSourceFactWorker}=require('./v5-source-fact-worker.cjs');
 const {makeJobHistoryApi}=require('./agent-job-history-api.cjs');
 const {makeTeamHandoffLedger}=require('./team-handoff-ledger-v5.cjs');
@@ -35,7 +37,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
  directorChatFactory=({oauth})=>makeDirectorChat({oauth,clientFactory:createCopilotClient}),
  delegationFactory=({oauth})=>makeDelegation({oauth,clientFactory:createCopilotClient}),
  workerFactory=({oauth,proposalMemory})=>makeWorkerDelegation({oauth,proposalMemory,clientFactory:createCopilotClient}),
- pokemonWorkerFactory=({oauth})=>makePokemonWorkerDelegation({oauth,clientFactory:createCopilotClient}),
+ pokemonWorkerFactory=({oauth,pokemonProposalStore})=>makePokemonWorkerDelegation({oauth,pokemonProposalStore,clientFactory:createCopilotClient}),
  historyFactory=()=>makeJobHistoryApi(),
  crowSunoPreviewFactory=()=>createCrowSunoPreviewApi(),
  sunoStatusFactory=()=>createSunoConnectionStatus(),
@@ -45,6 +47,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
  let teamLedger;
  let sourceFactWorker;
  let proposalMemory,approvalStore;
+ let pokemonProposalStore,pokemonProposalApi;
  function getProposalMemory(){
   if(proposalMemory!==undefined)return proposalMemory;
   try{proposalMemory=createProposalMemory()}catch(_){proposalMemory=null}
@@ -55,6 +58,17 @@ function createRenderMattServer({oauth=createGithubOAuth({
   try{approvalStore=createDurableApprovalStore()}catch(_){approvalStore=null}
   return approvalStore;
  }
+ function getPokemonProposalStore(){
+  if(pokemonProposalStore!==undefined)return pokemonProposalStore;
+  try{pokemonProposalStore=makePokemonProposalStore()}
+  catch(_){pokemonProposalStore=null}
+  return pokemonProposalStore;
+ }
+ function getPokemonProposalApi(){
+  if(!pokemonProposalApi)pokemonProposalApi=makePokemonProposalApi({
+   oauth,store:getPokemonProposalStore()});
+  return pokemonProposalApi;
+ }
  function getProposalApi(){
   if(!proposalApi)proposalApi=proposalApiFactory({oauth,
    memory:getProposalMemory(),store:getApprovalStore()});
@@ -64,7 +78,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
  function getDirectorChat(){if(!directorChat)directorChat=directorChatFactory({oauth});return directorChat}
  function getDelegation(){if(!delegation)delegation=delegationFactory({oauth});return delegation}
  function getWorker(){if(!worker)worker=workerFactory({oauth,proposalMemory:getProposalMemory()});return worker}
- function getPokemonWorker(){if(!pokemonWorker)pokemonWorker=pokemonWorkerFactory({oauth});return pokemonWorker}
+ function getPokemonWorker(){if(!pokemonWorker)pokemonWorker=pokemonWorkerFactory({oauth,pokemonProposalStore:getPokemonProposalStore()});return pokemonWorker}
  function getHistory(){if(!history)history=historyFactory();return history}
  function getTeamLedger(){if(!teamLedger)teamLedger=makeTeamHandoffLedger();return teamLedger}
  function getSourceFactWorker(){if(!sourceFactWorker)sourceFactWorker=makeSourceFactWorker({oauth});return sourceFactWorker}
@@ -159,6 +173,36 @@ function createRenderMattServer({oauth=createGithubOAuth({
      'X-Content-Type-Options':'nosniff','Vary':'Origin'});
     res.end(JSON.stringify(result.body));return;
    }catch(_){return response(res,503,{error:'proposal_api_unavailable'})}
+  }
+  const pokemonAction={
+   '/pokemon/proposals/list':'list',
+   '/pokemon/proposals/reject':'reject',
+   '/pokemon/proposals/publish':'publish'
+  }[req.url];
+  if(pokemonAction){
+   if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
+    res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
+     'Access-Control-Allow-Methods':'POST, OPTIONS',
+     'Access-Control-Allow-Headers':'authorization,content-type',
+     'Vary':'Origin','Access-Control-Max-Age':'600'});res.end();return;
+   }
+   if(req.method!=='POST')return response(res,405,{error:'method_not_allowed'});
+   if(req.headers.origin!==APP_ORIGIN)return response(res,403,{error:'origin_denied'});
+   try{
+    const parts=[];let size=0;
+    for await(const chunk of req){
+     size+=chunk.length;
+     if(size>2200)return response(res,413,{error:'request_too_large'});
+     parts.push(chunk);
+    }
+    const result=await getPokemonProposalApi().handle({
+     headers:req.headers,body:Buffer.concat(parts).toString('utf8'),
+     action:pokemonAction});
+    res.writeHead(result.status,{'Content-Type':'application/json; charset=utf-8',
+     'Access-Control-Allow-Origin':APP_ORIGIN,'Cache-Control':'no-store',
+     'X-Content-Type-Options':'nosniff','Vary':'Origin'});
+    res.end(JSON.stringify(result.body));return;
+   }catch(_){return response(res,503,{error:'pokemon_proposal_api_unavailable'})}
   }
   // Privately preview/cancel a Crow production brief. No Suno OAuth or
   // provider execution routes exist here; the backend spends zero credits.
