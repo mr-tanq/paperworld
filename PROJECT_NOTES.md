@@ -12,6 +12,12 @@ After Phase 6, Paperworld now has a **server-side draft implementation** of OAut
 
 **Explicit boundaries:** This flow has not been live-tested against Suno. It supports CIMD only and requires the provider to advertise support; it does not attempt unsafe automated registrations, scrape cookies, store tokens in GitHub or perform music generation. An OAuth token is not evidence that MCP music tools work. All music-generation endpoints remain absent and credits are untouched. The next phase must verify actual Suno authorization and MCP capabilities with owner consent, then design durable, single-use, per-song credit approvals before any execution.
 
+## 2026-11-16 — Crow read-only MCP tool inspection (draft)
+
+With OAuth code merged, the next milestone is an authenticated **read-only** `tools/list` request, initiated by the owner from Crow's Messenger. A narrow Node adapter posts only the MCP JSON-RPC method `tools/list` to the exact Suno MCP endpoint. The bearer token stays server-side; the browser sees only tool count and an explicit `canGenerate:false`. Unsupported transports, unauthenticated sessions, redirects, invalid responses, or OAuth loss fail closed. No `tools/call`, generation, credits, deployment, or spending are enabled.
+
+The probe implements only the stateless MCP 2026-07-28 JSON response path; it does not yet implement legacy 2025-era initialize/session handshakes or request-scoped SSE. A failure therefore means **not verified**, not proof Suno has no tools. No live Suno OAuth / tools response has been observed. Future phases: a standards-compliant transport with negotiated version, provider tool-schema verification and a durable, per-song owner credit approval before any actual creation.
+
 ## Locked product vision — 14 November 2026
 
 The user is Chief Human Officer. The Chief of Staff is currently named **Matt** (rename later).
