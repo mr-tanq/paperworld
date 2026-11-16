@@ -4,7 +4,7 @@ let room='town',tasks=[],allTasks=[],busy=false,message='',edit=null,active=fals
 let memoryOpen=false,memoryView=null,historyImportView=null;
 // Display-only proposals. No approval grant or server write capability.
 let listeningReviewPayload=null,listeningStoredProposals=[],listeningProposalError='';
-let workJobs=[],teamJobs=[],workerRuns=[],jobHistoryError='',teamHistoryError='',humanHub=null;
+let workJobs=[],teamJobs=[],workerRuns=[],pokemonProposals=[],pokemonUnavailable=false,jobHistoryError='',teamHistoryError='',humanHub=null;
 
 
 const el=(tag,text,cls)=>{let e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
@@ -22,6 +22,8 @@ async function reload(){
   teamJobs=team.jobs;workerRuns=Array.isArray(team.workerRuns)?team.workerRuns:[];
   teamHistoryError=team.workerHistoryUnavailable?'Το ιστορικό Workers δεν φορτώθηκε.':'';
  }catch(e){teamJobs=[];workerRuns=[];teamHistoryError='Οι αναθέσεις V5 δεν είναι διαθέσιμες.'}
+ try{pokemonProposals=await client.listPokemonProposals();pokemonUnavailable=false}
+ catch(_){pokemonProposals=[];pokemonUnavailable=true}
  try{
   listeningStoredProposals=await client.listListeningProposals();
   listeningProposalError='';
@@ -144,11 +146,24 @@ function render(){
 async function loadHumanWork(){
  const results=await Promise.all([client.mattJobHistory(),
   client.listListeningProposals(),client.list(),
-  client.teamHandoffHistory().catch(()=>({jobs:[],unavailable:true}))]);
+  client.teamHandoffHistory().catch(()=>({jobs:[],unavailable:true})),
+  client.listPokemonProposals().then(proposals=>({proposals})).catch(()=>({proposals:[],unavailable:true}))]);
  return {jobs:results[0].jobs,proposals:results[1],tasks:results[2],
   teamJobs:results[3].jobs,workerRuns:results[3].workerRuns||[],
   teamUnavailable:results[3].unavailable===true,
-  workerHistoryUnavailable:results[3].workerHistoryUnavailable===true};
+  workerHistoryUnavailable:results[3].workerHistoryUnavailable===true,
+  pokemonProposals:results[4].proposals,pokemonUnavailable:results[4].unavailable===true};
+}
+async function preparePokemonSolution(item){
+ const r=await client.publishPokemonProposal(item.jobId,item.digest);
+ if(r.created!==true||r.draft!==true||r.merged!==false)throw Error('Pokémon Draft PR not verified');
+ message='Το Draft PR δημιουργήθηκε για έλεγχο. Δεν έγινε merge.';
+ await reload();render();return r;
+}
+async function discardPokemonSolution(item){
+ await client.rejectPokemonProposal(item.jobId,item.digest);
+ message='Η πρόταση του Joey απορρίφθηκε. Δεν έγινε αλλαγή.';
+ await reload();render();return true;
 }
 async function prepareSolution(item){
  const result=await client.publishListeningProposal(item.jobId,item.digest);
@@ -196,12 +211,14 @@ function renderHumanWork(target){
  const mount=el('div',undefined,'human-hub-mount');
  target.append(mount);
  humanHub=module.create(mount,{load:loadHumanWork,
-  approve:prepareSolution,reject:discardSolution,runWorker:runApprovedHandoff,runSourceFact:runApprovedSourceFact,
+  approve:prepareSolution,reject:discardSolution,
+  publishPokemon:preparePokemonSolution,rejectPokemon:discardPokemonSolution,
+  runWorker:runApprovedHandoff,runSourceFact:runApprovedSourceFact,
   openMatt:()=>window.PaperworldWorldDialogue?.show('matt'),
   openProject:()=>{room='workshop';render()},
   onError:e=>{jobHistoryError=e}
  });
- humanHub.setData({jobs:workJobs,proposals:listeningStoredProposals,tasks:allTasks,teamJobs,workerRuns});
+ humanHub.setData({jobs:workJobs,proposals:listeningStoredProposals,pokemonProposals,tasks:allTasks,teamJobs,workerRuns});
  if(jobHistoryError||listeningProposalError||teamHistoryError){
   target.append(el('p',[jobHistoryError,listeningProposalError,teamHistoryError].filter(Boolean).join(' · '),'room-footnote'));
  }
@@ -380,6 +397,7 @@ window.PaperworldCloudUI={
  mattJobHistory:()=>client.mattJobHistory(),
  teamHandoffHistory:()=>client.teamHandoffHistory(),
  loadHumanWork,runApprovedHandoff,runApprovedSourceFact,
+ preparePokemonSolution,discardPokemonSolution,
  prepareHumanSolution:prepareSolution,
  discardHumanSolution:discardSolution,
  refreshHumanWork:async()=>{await reload();if(active)render();return {
