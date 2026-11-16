@@ -67,7 +67,7 @@
   const [best,other]=result;
   // Favor precision over coverage: no generic single-keyword guesses.
   const confident=best.score>=9&&(best.matched>=2||best.score>=14)&&
-   best.score>=other.score+7;
+   best.score>=other.score+7&&other.score<8;
   return Object.freeze({projectId:confident?best.projectId:null,
    confidence:confident?'suggested':'needs_review',
    reason:confident?'Βρέθηκαν ξεκάθαρες αναφορές στο συγκεκριμένο project.':
