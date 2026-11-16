@@ -212,7 +212,8 @@ function createRenderMattServer({oauth=createGithubOAuth({
   }
   const missionAction={'/autonomous/missions/create':'create',
    '/autonomous/missions/list':'list',
-   '/autonomous/missions/status':'status'}[req.url];
+   '/autonomous/missions/status':'status',
+   '/autonomous/missions/simulate':'simulate'}[req.url];
   if(missionAction){
    if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
     res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
@@ -226,7 +227,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
     const chunks=[];let total=0;
     for await(const chunk of req){
      total+=chunk.length;
-     if(total>2100)return response(res,413,{error:'request_too_large'});
+     if(total>5500)return response(res,413,{error:'request_too_large'});
      chunks.push(chunk);
     }
     const result=await getAutonomousMissionApi().handle({
