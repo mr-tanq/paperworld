@@ -139,6 +139,21 @@
   }catch(_){musicResult.textContent='Δεν επαληθεύτηκε η σύνδεση Suno.'}
   finally{sunoLinkStatus.disabled=false}
  });
+ const sunoTools=make('button','crow-music-check','Έλεγχος εργαλείων Suno');
+ sunoTools.type='button';
+ sunoTools.addEventListener('click',async()=>{
+  if(openId!=='studio-director'||musicBusy||!cloud()?.signedIn()||
+     typeof cloud()?.inspectSunoTools!=='function')return;
+  sunoTools.disabled=true;
+  musicResult.textContent='Έλεγχος διαθέσιμων εργαλείων χωρίς δημιουργία μουσικής…';
+  try{
+   const r=await cloud().inspectSunoTools();
+   musicResult.textContent=r.toolsListed?
+    'Επαληθεύτηκαν '+r.toolCount+' εργαλεία MCP. Η παραγωγή παραμένει απενεργοποιημένη.':
+    'Δεν επαληθεύτηκαν τα εργαλεία MCP. Η παραγωγή παραμένει απενεργοποιημένη.';
+  }catch(_){musicResult.textContent='Απαιτείται ενεργή σύνδεση Suno ή συμβατή έκδοση MCP.'}
+  finally{sunoTools.disabled=false}
+ });
  const sunoCheck=make('button','crow-music-check','Έλεγχος σύνδεσης Suno');
  sunoCheck.type='button';
  sunoCheck.addEventListener('click',async()=>{
@@ -158,7 +173,7 @@
  sunoInstructions.href='https://suno.com/mcp';
  sunoInstructions.target='_blank';sunoInstructions.rel='noopener noreferrer';
  musicPanel.append(musicHelp,musicFromCrow,musicForm,musicResult,musicCopy,
-  sunoConnect,sunoLinkStatus,sunoCheck,sunoInstructions,musicCancel);
+  sunoConnect,sunoLinkStatus,sunoTools,sunoCheck,sunoInstructions,musicCancel);
  let previewId=null,musicBusy=false;
  function resetMusic(){
   musicPanel.hidden=true;musicToggle.setAttribute('aria-expanded','false');
