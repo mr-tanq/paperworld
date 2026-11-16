@@ -116,7 +116,7 @@
   }
   if(Array.isArray(teamJobs))for(const entry of teamJobs.slice(0,MAX)){
    const item=teamHandoff(entry);
-   if(item)rows.push(item);
+   if(item&&!trackedWorkerJobs.has(item.requestId))rows.push(item);
   }
   if(Array.isArray(tasks))for(const t of tasks.slice(0,200)){
    const m=manual(t);if(m)rows.push(freeze({...m,
@@ -265,7 +265,12 @@
     await runWorker(item);
     if(typeof onChanged==='function')onChanged('worker',item);
    }catch(err){markError(err?.message||'Η διερεύνηση δεν ολοκληρώθηκε.')}
-   finally{opBusy=false;await refresh();render()}
+   finally{
+    const failure=error;
+    opBusy=false;
+    await refresh();
+    if(failure){markError(failure);render()}
+   }
   }
   async function perform(action,item){
    if(opBusy||loading||item.stage!=='decision'||!DIGEST.test(item.digest))return;
@@ -310,7 +315,9 @@
    if(!compact)host.append(controls);
    if(error)host.append(e('p','human-hub-error',error));
    if(loading&&!current.rows.length)host.append(e('p','human-hub-loading','Ανακτώ τις εργασίες σου…'));
-   const shown=current.rows.filter(item=>compact?item.stage==='decision':visible(item));
+   const shown=current.rows.filter(item=>compact?
+    item.stage==='decision'||(item.kind==='handoff'&&item.status==='awaiting_consent'):
+    visible(item));
    if(compact&&!shown.length&&!error){host.hidden=true;return}
    if(!loading&&!shown.length){
     host.append(e('div','human-hub-empty',
