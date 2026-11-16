@@ -7,6 +7,7 @@ const {createGithubOAuth,APP_ORIGIN}=require('./github-oauth.cjs');
 const {makeMattChat}=require('./matt-live-chat.cjs');
 const {makeDirectorChat}=require('./director-direct-chat.cjs');
 const {createCrowSunoPreviewApi}=require('./crow-suno-preview-api.cjs');
+const {createSunoConnectionStatus}=require('./suno-connection-status.cjs');
 const {makeDelegation}=require('./matt-delegation.cjs');
 const {makeWorkerDelegation}=require('./matt-worker-delegation.cjs');
 const {makePokemonWorkerDelegation}=require('./pokemon-worker-delegation.cjs');
@@ -34,8 +35,9 @@ function createRenderMattServer({oauth=createGithubOAuth({
  pokemonWorkerFactory=({oauth})=>makePokemonWorkerDelegation({oauth,clientFactory:createCopilotClient}),
  historyFactory=()=>makeJobHistoryApi(),
  crowSunoPreviewFactory=()=>createCrowSunoPreviewApi(),
+ sunoStatusFactory=()=>createSunoConnectionStatus(),
  proposalApiFactory=({oauth,memory,store})=>createListeningProposalApi({oauth,memory,store})}={}){
- let live,directorChat,delegation,worker,pokemonWorker,history,proposalApi,crowSunoPreview;
+ let live,directorChat,delegation,worker,pokemonWorker,history,proposalApi,crowSunoPreview,sunoStatus;
  let proposalMemory,approvalStore;
  function getProposalMemory(){
   if(proposalMemory!==undefined)return proposalMemory;
@@ -59,6 +61,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
  function getPokemonWorker(){if(!pokemonWorker)pokemonWorker=pokemonWorkerFactory({oauth});return pokemonWorker}
  function getHistory(){if(!history)history=historyFactory();return history}
  function getCrowSunoPreview(){if(!crowSunoPreview)crowSunoPreview=crowSunoPreviewFactory();return crowSunoPreview}
+ function getSunoStatus(){if(!sunoStatus)sunoStatus=sunoStatusFactory();return sunoStatus}
  const server=http.createServer(async(req,res)=>{
   // Never enable CORS or accept browser credentials until a full OAuth review.
   if(req.method==='GET'&&req.url==='/health')
@@ -116,7 +119,8 @@ function createRenderMattServer({oauth=createGithubOAuth({
   // provider execution routes exist here; the backend spends zero credits.
   const crowAction={
    '/suno/crow/propose':'propose',
-   '/suno/crow/cancel':'cancel'
+   '/suno/crow/cancel':'cancel',
+   '/suno/crow/connection-status':'connection-status'
   }[req.url];
   if(crowAction){
    if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
@@ -134,8 +138,10 @@ function createRenderMattServer({oauth=createGithubOAuth({
      if(size>11000)return response(res,413,{error:'request_too_large'});
      parts.push(chunk);
     }
-    const result=await getCrowSunoPreview().handle({headers:req.headers,
-     body:Buffer.concat(parts).toString('utf8'),action:crowAction});
+    const payload=Buffer.concat(parts).toString('utf8');
+    const result=crowAction==='connection-status'?
+      await getSunoStatus().handle({headers:req.headers,body:payload}):
+      await getCrowSunoPreview().handle({headers:req.headers,body:payload,action:crowAction});
     res.writeHead(result.status,{'Content-Type':'application/json; charset=utf-8',
      'Access-Control-Allow-Origin':APP_ORIGIN,'Cache-Control':'no-store',
      'X-Content-Type-Options':'nosniff','Vary':'Origin'});

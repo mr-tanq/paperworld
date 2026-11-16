@@ -108,11 +108,26 @@
  const musicCancel=make('button','crow-music-cancel','Ακύρωση πρότασης');
  musicCancel.type='button';musicCancel.hidden=true;
  musicForm.append(musicTitle,musicStyle,musicLyrics,musicSave);
+ const sunoCheck=make('button','crow-music-check','Έλεγχος σύνδεσης Suno');
+ sunoCheck.type='button';
+ sunoCheck.addEventListener('click',async()=>{
+  if(openId!=='studio-director'||musicBusy||!cloud()?.signedIn()||
+     typeof cloud()?.crowSunoConnectionStatus!=='function')return;
+  sunoCheck.disabled=true;
+  musicResult.textContent='Έλεγχος δημόσιων στοιχείων σύνδεσης Suno…';
+  try{
+   const result=await cloud().crowSunoConnectionStatus();
+   musicResult.textContent=result.metadataAvailable?
+    'Το Suno δημοσιεύει στοιχεία OAuth/MCP, αλλά ο Crow ΔΕΝ έχει συνδεθεί ακόμη. Καμία παραγωγή δεν είναι ενεργή.':
+    'Η σύνδεση Suno δεν έχει επαληθευτεί. Ο Crow παραμένει αποσυνδεδεμένος.';
+  }catch(_){musicResult.textContent='Δεν ήταν δυνατός ο έλεγχος. Το Suno παραμένει αποσυνδεδεμένο.'}
+  finally{sunoCheck.disabled=false}
+ });
  const sunoInstructions=make('a','crow-music-instructions','Οδηγίες σύνδεσης Suno MCP');
  sunoInstructions.href='https://suno.com/mcp';
  sunoInstructions.target='_blank';sunoInstructions.rel='noopener noreferrer';
  musicPanel.append(musicHelp,musicFromCrow,musicForm,musicResult,musicCopy,
-  sunoInstructions,musicCancel);
+  sunoCheck,sunoInstructions,musicCancel);
  let previewId=null,musicBusy=false;
  function resetMusic(){
   musicPanel.hidden=true;musicToggle.setAttribute('aria-expanded','false');

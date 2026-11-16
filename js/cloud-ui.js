@@ -308,6 +308,7 @@ window.PaperworldCloudUI={
  sendPrivateAgentMessage:(id,text)=>client.sendAgentNote(id,text),
  askDirector:(id,text,options)=>client.askDirector(id,text,options),
  crowSunoPreview:(brief)=>client.crowSunoPreview(brief),
+ crowSunoConnectionStatus:()=>client.crowSunoConnectionStatus(),
  cancelCrowSunoPreview:(id)=>client.cancelCrowSunoPreview(id),
  askMatt:(text)=>client.askMatt(text),
  delegateMatt:(text,opts)=>client.delegateMatt(text,opts),

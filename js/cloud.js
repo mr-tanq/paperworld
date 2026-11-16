@@ -339,6 +339,23 @@
     result.expectedCredits!==null)throw Error('Unverified Crow preview');
    return result;
   }
+  // OAuth discovery reads provider metadata only. Never connects or generates.
+  async function crowSunoConnectionStatus(){
+   await ensureAuth();
+   const thread=await getAgentThread('studio-director',true);
+   const response=await fetcher(MATT_ORIGIN+'/suno/crow/connection-status',{
+    method:'POST',redirect:'error',
+    headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},
+    body:JSON.stringify({agentId:'studio-director',threadId:thread.id})
+   });
+   let result={};try{result=await response.json()}catch(_){}
+   if(!response.ok)throw Error((result.error||'Suno status unavailable')+
+    ' (HTTP '+response.status+')');
+   if(result.service!=='suno_mcp'||typeof result.metadataAvailable!=='boolean'||
+      result.oauthConnected!==false||result.canGenerate!==false)
+    throw Error('Unverified Suno status');
+   return result;
+  }
   async function cancelCrowSunoPreview(proposalId){
    if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(proposalId||''))
     throw Error('Invalid Crow preview ID');
@@ -497,7 +514,7 @@
    listMissions,createMission,setMissionStatus,deleteMission,
    listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,mattJobHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
-   crowSunoPreview,cancelCrowSunoPreview};
+   crowSunoPreview,cancelCrowSunoPreview,crowSunoConnectionStatus};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });
