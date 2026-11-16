@@ -145,12 +145,16 @@
      typeof item.body!=='string'||!item.body.trim()||item.body.length>4000||
      typeof item.observed_at!=='string'||!Number.isFinite(Date.parse(item.observed_at)))
      throw Error('Malformed private history excerpt');
-    const exists=await withAuth('/rest/v1/paperworld_director_memory?select=id'+
-     '&project_id=eq.'+encodeURIComponent(projectId)+
-     '&source_ref=eq.'+encodeURIComponent(item.source_ref)+'&limit=1');
-    if(!Array.isArray(exists)||exists.length>1)
+    const exists=await withAuth('/rest/v1/paperworld_director_memory?select=id,project_id'+
+     '&source_ref=eq.'+encodeURIComponent(item.source_ref)+'&limit=2');
+    if(!Array.isArray(exists)||exists.length>1||
+     exists.some(x=>!['workshop','pokemon','studio','wellbeing'].includes(x?.project_id)))
      throw Error('History duplication check failed');
-    if(exists.length){skipped++;continue}
+    if(exists.length){
+     if(exists[0].project_id!==projectId)
+      throw Error('This conversation excerpt already belongs to another Director');
+     skipped++;continue;
+    }
     // Explicitly whitelist columns; never accept owner_id/status=approved.
     const data={project_id:projectId,kind:'work_history',status:'proposed',
      title:item.title,body:item.body,source_type:'conversation',
