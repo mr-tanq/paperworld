@@ -13,6 +13,7 @@ test('recognize English heading but not freeform prose or lyrics',()=>{
 });
 test('the Crow Messenger never copies a whole reply to the style field',()=>{
  const source=fs.readFileSync('js/world-dialogue.js','utf8');
- assert.match(source,/PaperworldCrowStudioDraft\?\.extractStyle\(last\)/);
+ assert.match(source,/parser\?\.extractStyle\(last\)/);
+ assert.match(source,/parser\?\.parseSong\(last\)/);
  assert.doesNotMatch(source,/musicStyle\.value=last\.trim\(\)\.slice\(0,1000\)/);
 });

@@ -15,7 +15,7 @@ test('Crow Suno diagnostic is first visible action in mobile composer',()=>{
 });
 test('GitHub Pages invalidates stale cached Messenger and Suno cloud API',()=>{
  const html=read('index.html');
- assert.match(html,/world-dialogue\.js\?v=matt-crow-studio-v4-style-import/);
+ assert.match(html,/world-dialogue\.js\?v=matt-crow-studio-v5-song-package/);
  assert.match(html,/cloud\.js\?v=suno-diagnosis-v2/);
  assert.match(html,/cloud-ui\.js\?v=suno-diagnosis-v2/);
  assert.match(html,/style\.css\?v=matt-alert-contrast-v1/);

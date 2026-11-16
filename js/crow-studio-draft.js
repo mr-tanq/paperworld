@@ -32,6 +32,36 @@
   }
   return null;
  }
+ function parseSong(reply){
+  if(typeof reply!=='string'||!reply.trim())return null;
+  const lines=reply.replace(/\r\n?/g,'\n').split('\n');
+  const sections={title:[],style:[],lyrics:[]};
+  const headings={
+   title:/^title\s*[:：]\s*(.*)$/i,
+   style:/^(?:suno\s*style\s*prompt|style\s*prompt)\s*[:：]\s*(.*)$/i,
+   lyrics:/^lyrics\s*[:：]\s*(.*)$/i
+  };
+  let part=null;
+  for(const raw of lines){
+   const line=raw.trim().replace(/^#{1,4}\s*/,'').replace(/\*\*/g,'');
+   let found=false;
+   for(const [key,re] of Object.entries(headings)){
+    const m=line.match(re);
+    if(!m)continue;
+    part=key;found=true;
+    if(m[1]?.trim())sections[key].push(m[1].trim());
+    break;
+   }
+   if(!found&&part)sections[part].push(raw);
+  }
+  const title=sections.title.join(' ').trim();
+  const style=sections.style.join(' ').replace(/\s+/g,' ').trim();
+  const lyrics=sections.lyrics.join('\n').trim();
+  if(!title||title.length>120||!style||style.length>1000||
+    !lyrics||lyrics.length>8000||!/^\[(?:Intro|Verse|Chorus|Pre-Chorus|Bridge|Outro|Instrumental|Break|End|Final)/im.test(lyrics))
+   return null;
+  return Object.freeze({title,style,lyrics});
+ }
  function fromMatt({directorId,delegated,requestId,request,directorReport}={}){
   if(delegated!==true||directorId!=='studio-director'||
    typeof requestId!=='string'||!/^[a-f0-9-]{36}$/i.test(requestId)||
@@ -39,14 +69,15 @@
    typeof directorReport!=='string'||!directorReport.trim()||
    directorReport.length>5500)return null;
   const clean=s=>s.replace(/\r\n?/g,'\n').trim();
-  const direction=clean(directorReport).slice(0,1000);
+  const song=parseSong(directorReport);
+  const direction=song?.style||clean(directorReport).slice(0,1000);
   if(!direction)return null;
   return Object.freeze({
    source:'matt_to_crow',
    requestId,
-   title:'New Lost Wanderer Song',
+   title:song?.title||'New Lost Wanderer Song',
    style:direction,
-   lyrics:'',
+   lyrics:song?.lyrics||'',
    originalRequest:clean(request).slice(0,1200)
   });
  }
@@ -70,5 +101,5 @@
   }
   return null;
  }
- return Object.freeze({fromMatt,fromSavedHistory,extractStyle});
+ return Object.freeze({fromMatt,fromSavedHistory,extractStyle,parseSong});
 });
