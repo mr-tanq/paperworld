@@ -119,7 +119,7 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
      if(text.length>12000)continue;
      const endpoints=validServerMeta(JSON.parse(text),issuer);
      if(endpoints){
-      const allowed=new Set(['profile:read','library:read','credits:spend']);
+      const allowed=new Set(['api:v0','profile:read','library:read','credits:spend']);
       const declared=Array.isArray(resource.requestedScopes)?
        resource.requestedScopes.filter(v=>allowed.has(v)):[];
       return {...endpoints,requestedScopes:[...new Set(declared)]};
