@@ -18,6 +18,7 @@ function fixture({owns=true}={}){
    }
    return {ok:true,json:async()=>records.map(row=>({
     id:row.id,project_id:row.project_id,goal:row.goal,status:row.status,
+    owner_id:row.owner_id,thread_id:row.thread_id,policy:row.policy,
     created_at:'2026-11-16T00:00:00Z',updated_at:'2026-11-16T00:00:00Z'
    }))};
   }
