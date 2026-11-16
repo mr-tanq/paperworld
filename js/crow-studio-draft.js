@@ -8,6 +8,29 @@
  else root.PaperworldCrowStudioDraft=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
  'use strict';
+ // A chat reply is not automatically a Suno style prompt. Only import a
+ // distinctly labeled direction, never lyrics, notes or unrelated conversation.
+ function extractStyle(reply){
+  if(typeof reply!=='string'||!reply.trim())return null;
+  const lines=reply.replace(/\r\n?/g,'\n').split('\n');
+  const heading=/^\s*(?:#{1,4}\s*)?(?:\*{0,2})(?:suno\s*style\s*prompt|style\s*prompt|musical\s*direction|μουσικ(?:ό|η)\s*ύφος|μουσικ(?:ή|ης)\s*κατεύθυνση|ύφος)(?:\*{0,2})\s*[:：]?\s*(.*)$/i;
+  const section=/^\s*(?:#{1,4}\s*)?(?:\*{0,2})(?:σημειώσεις|notes|lyrics|στίχοι|title|τίτλος|verse|chorus|bridge|outro|prompt|description)(?:\*{0,2})\s*[:：]?/i;
+  for(let i=0;i<lines.length;i++){
+   const match=lines[i].match(heading);
+   if(!match)continue;
+   const selected=[];
+   if(match[1]?.trim())selected.push(match[1].trim());
+   for(let j=i+1;j<lines.length&&selected.join(' ').length<1000;j++){
+    const line=lines[j].trim();
+    if(section.test(line)||heading.test(line)||/^\s*\[\s*(?:verse|chorus|bridge|outro)/i.test(line))break;
+    if(!line){if(selected.length)break;continue}
+    selected.push(line);
+   }
+   const result=selected.join(' ').replace(/\*\*/g,'').trim().slice(0,1000);
+   return result||null;
+  }
+  return null;
+ }
  function fromMatt({directorId,delegated,requestId,request,directorReport}={}){
   if(delegated!==true||directorId!=='studio-director'||
    typeof requestId!=='string'||!/^[a-f0-9-]{36}$/i.test(requestId)||
@@ -46,5 +69,5 @@
   }
   return null;
  }
- return Object.freeze({fromMatt,fromSavedHistory});
+ return Object.freeze({fromMatt,fromSavedHistory,extractStyle});
 });
