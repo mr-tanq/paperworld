@@ -184,7 +184,7 @@ test('Integrated UI preserves exact server approval endpoint and avoids technica
  assert.ok(html.indexOf('js/town-hall-briefing.js')<html.indexOf('js/app.js'));
 });
 
-test('Real Town Hall meeting calls exactly three tool-free, owner-gated Directors after ONE consent',async()=>{
+test('Real Town Hall meeting starts directly and calls exactly three tool-free, owner-gated Directors',async()=>{
  await withDOM(async()=>{
   const view=new FakeElement('div'),calls=[];
   const meeting=town.create(view,{load:async()=>fixture(),
@@ -227,7 +227,7 @@ test('Failed Town Hall Director answer aborts remaining AI calls',async()=>{
    x.textContent.includes('διακόπηκε')));
  });
 });
-test('Refused Town Hall consent and early exit cannot make more AI requests',async()=>{
+test('Town Hall starts without a browser confirmation and early exit prevents further AI requests',async()=>{
  await withDOM(async()=>{
   const view=new FakeElement('div'),calls=[];
   const meeting=town.create(view,{load:async()=>fixture(),chat:()=>{},
@@ -235,12 +235,9 @@ test('Refused Town Hall consent and early exit cannot make more AI requests',asy
     return {executed:true,aiTurns:1,content:'Η πρώτη απάντηση'}}});
   await meeting.show();
   view.findAll(x=>x.tag==='textarea')[0].value='Επόμενα βήματα για τη Luna';
-  global.window.confirm=()=>false;
-  let btn=view.findAll(x=>x.tag==='button'&&
+  global.window.confirm=()=>{throw Error('Unexpected confirmation dialog')};
+  const btn=view.findAll(x=>x.tag==='button'&&
    x.textContent.startsWith('Έναρξη AI συνάντησης'))[0];
-  await btn.listeners.click();
-  assert.equal(calls.length,0);
-  global.window.confirm=()=>true;
   await btn.listeners.click();
   assert.deepEqual(calls,['listening-director']);
  });
