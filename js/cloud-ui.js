@@ -1,7 +1,7 @@
 (()=>{'use strict';
 const host=document.querySelector('#project-room'),model=window.PaperworldProjects,client=window.PaperworldCloud.createClient();
 let room='town',tasks=[],allTasks=[],busy=false,message='',edit=null,active=false;
-let memoryOpen=false,memoryView=null;
+let memoryOpen=false,memoryView=null,historyImportView=null;
 // Display-only proposals. No approval grant or server write capability.
 let listeningReviewPayload=null,listeningStoredProposals=[],listeningProposalError='';
 let workJobs=[],jobHistoryError='',humanHub=null;
@@ -71,6 +71,26 @@ function openDirectorMemory(){
    '\n\nΗ απόφαση αφορά μόνο αυτή την καταχώριση.'
   )
  });
+ if(!historyImportView&&window.PaperworldHistoryImportUI?.createView&&
+  window.PaperworldHistoryImport?.prepare){
+  historyImportView=window.PaperworldHistoryImportUI.createView({
+   document,parser:window.PaperworldHistoryImport,
+   upload:args=>client.proposeDirectorHistory(args),
+   confirm:({projectId,title,count,total})=>{
+    const labels={workshop:'Luna',pokemon:'Joey',studio:'Crow',wellbeing:'Dave'};
+    if(!Object.prototype.hasOwnProperty.call(labels,projectId))return false;
+    return window.confirm('Αποθήκευση '+count+' από '+total+' τμήματα της συνομιλίας "'+
+     title+'" στη μνήμη '+labels[projectId]+';'+
+     '\n\nΘα μεταφερθούν στο ιδιωτικό σου Supabase ως ΜΗ εγκεκριμένα.'+
+     '\nΤο αρχικό αρχείο δεν ανεβαίνει. Ενδέχεται να περιέχουν ευαίσθητα '+
+     'στοιχεία ή ανέκδοτο υλικό.\n\nΣυνέχεια;');
+   },
+   afterImport:async()=>{
+    const target=host.querySelector('#director-memory-panel');
+    if(target&&memoryView)await memoryView.refresh(target);
+   }
+  });
+ }
  memoryOpen=true;render();
  const target=host.querySelector('#director-memory-panel');
  if(target)memoryView.refresh(target);
@@ -83,6 +103,10 @@ function renderDirectorMemory(){
  }));
  host.append(section);
  if(memoryView)memoryView.draw(section);
+ if(historyImportView){
+  const importer=el('section',undefined,'director-history-import-panel');
+  host.append(importer);historyImportView.draw(importer);
+ }
 }
 function render(){
  if(!active)return;
