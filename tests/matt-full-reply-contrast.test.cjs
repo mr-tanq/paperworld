@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {encode,decode,recover}=require('../js/matt-history.js');
 const sample='A dark intimate song. '+('Fingerpicked nylon strings, muted trumpet, warm bass. '.repeat(65));
-test('Matt's verified reply is stored beyond 1700 characters without mid-word cut',()=>{
+test('Matt verified reply is stored beyond 1700 characters without mid-word cut',()=>{
  assert.ok(sample.length>1700&&sample.length<5500);
  const packed=encode('studio-director',sample);
  assert.equal(decode(packed).text,sample);
