@@ -1,5 +1,9 @@
 # PAPERWORLD — PROJECT NOTES (living source of truth)
 
+## 2026-11-16 — Crow Suno Connection Doctor (draft)
+
+Owner-triggered Suno Connection Doctor consolidates existing **read-only** resource metadata, OAuth client-registration support, owner-scoped OAuth status and MCP tool listing into a single understandable diagnosis in Crow's Messenger. Server only returns booleans, count and a bounded next-step code. It does not return tokens, client credentials, schemas, lyrics or other private content; and always reports `canGenerate:false`. The doctor does not request OAuth authorization or invoke any music tool. Provider metadata accessibility and registration support do not prove the user's Suno account has been linked. Live Suno compatibility remains unverified until the owner explicitly signs in and tests on the deployed application. Offline tests are not evidence of actual authorization.
+
 ## 2026-11-16 — Crow MCP legacy Streamable HTTP fallback (draft)
 
 After PR #144, Suno tooling discovery now attempts the stateless 2026-07-28 `tools/list` call with protocol version, client identity and client capability metadata. On an explicit HTTP 400/404/406 compatibility rejection only (not authentication errors, redirects, or malformed success), it makes a fresh, bounded 2025-era Streamable HTTP `initialize` handshake, posts `notifications/initialized`, then calls `tools/list`. A short-lived `Mcp-Session-Id` is validated and kept server-side for this one operation. Both JSON and finite SSE responses may be parsed. Unsupported responses fail closed. There is still no tools/call, music generation, credits use or deployment. This implementation does not cover the oldest 2024 HTTP+SSE two-endpoint transport and has not been verified with an actual Suno owner login or provider response.
