@@ -7,6 +7,7 @@
 const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {makeWorkerRunJournal}=require('./worker-run-journal-v5.cjs');
+const {makeTeamHandoffLedger}=require('./team-handoff-ledger-v5.cjs');
 const {createSafeSessionConfig}=require('./matt-session-config.cjs');
 const {createRepoReader,FILES}=require('./listening-repo-reader.cjs');
 const {makeEvidencePacket,formatDirectorEvidence}=require('./agent-workspace.cjs');
@@ -17,7 +18,7 @@ const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const CONSENT='MATT_DIRECTOR_WORKER_UP_TO_FIVE_AI_TURNS';
 const ORIGIN='https://mr-tanq.github.io';
 function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader(),jobMemory,memoryLoader=null,
- proposalMemory=null,workerJournal=null,
+ proposalMemory=null,workerJournal=null,handoffLedger=null,
  fetcher=globalThis.fetch,clock=Date.now,
  budgetVerified=()=>process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED==='yes',
  diagnostic=stage=>console.warn('[PAPERWORLD worker delegation]',stage)}={}){
@@ -35,6 +36,7 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
  if(proposalMemory!==null&&typeof proposalMemory.save!=='function')
   throw Error('proposal_memory_adapter_invalid');
  const journal=workerJournal||makeWorkerRunJournal({fetcher});
+ const trustedHandoffs=handoffLedger||makeTeamHandoffLedger({fetcher});
  const spent=new Map(),busy=new Set();
  const deny=(status,error)=>({status,body:{error}});
  const clear=()=>{for(const [key,until] of spent)if(until<clock())spent.delete(key)};
@@ -59,6 +61,16 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
    return deny(403,'verify_github_zero_overage_budget');
   const token=oauth.getLinkedToken({ownerId});
   if(!token)return deny(409,'github_reconnect_required');
+  // Match a saved Matt handoff to its exact scope BEFORE any Worker AI
+  // request. A direct owner-consented request with a fresh ID is still valid.
+  if(trustedHandoffs.configured){
+   try{
+    await trustedHandoffs.verifyWorkerRequest({ownerId,
+     threadId:input.threadId,requestId:input.requestId,
+     project:'listening',workerId:'listening-developer',
+     message:input.message});
+   }catch(_){return deny(409,'worker_handoff_unverified')}
+  }
   clear();
   const key=ownerId+':worker:'+input.requestId;
   if(spent.has(key))return deny(409,'already_submitted');
