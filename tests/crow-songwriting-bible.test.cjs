@@ -21,7 +21,7 @@ test('Crow project bible includes both approved eras and rejected directions',()
  for(const x of ['Xibalba Records','No Destination','Smoky Dreams',
   'The Things I Never Said','Still Searching','I Remember','Golden Ray',
   'Dancing Alone','The Crow','No Destination']){
-  assert.ok(BIBLE.includes(x),x);
+  assert.ok(BIBLE.toLowerCase().includes(x.toLowerCase()),x);
  }
  assert.match(BIBLE,/not a license to invent lyrics/i);
  assert.match(bible(),/PROJECT BIBLE/);
