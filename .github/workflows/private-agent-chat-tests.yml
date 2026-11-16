@@ -51,6 +51,8 @@ on:
       - 'js/town-hall-briefing.js'
       - 'js/team-panel.js'
       - 'js/agents.js'
+      - 'sql/paperworld_v5_dispatch_v1.sql'
+      - 'sql/paperworld_v5_dispatch_v1_live_alignment.sql'
       - 'tests/**'
       - '.github/workflows/private-agent-chat-tests.yml'
   workflow_dispatch:
@@ -185,6 +187,13 @@ jobs:
           psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
             -h 127.0.0.1 -p 5432 -U postgres -d memory_test \
             -f tests/sql/director-memory-review-rls.sql
+      - name: Execute V5 Dispatch lifecycle, budget and crash integration on PostgreSQL 17
+        env:
+          PGPASSWORD: synthetic-only
+        run: |
+          psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
+            -h 127.0.0.1 -p 5432 -U postgres -d memory_test \
+            -f tests/sql/paperworld-v5-dispatch-integration.sql
 
 # This PostgreSQL test uses a throwaway CI service, not connected PAPERWORLD
 # Supabase, with synthetic identities only, no private data or AI credits.
