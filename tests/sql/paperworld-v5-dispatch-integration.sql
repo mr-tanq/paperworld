@@ -168,7 +168,7 @@ begin
 end $$;
 
 -- Simulated offline scheduler dispatch goes to completion without a model.
-do $
+do $$
 declare
  a uuid:='11111111-1111-4111-8111-111111111111';
  m uuid:='77777777-7777-4777-8777-777777777777';
@@ -195,6 +195,6 @@ begin
  then raise exception 'simulation spent a session'; end if;
  if public.paperworld_v5_controller_tick()->'simulation'->>'status'<>'idle'
  then raise exception 'simulation reran terminal mission'; end if;
-end $;
+end $$;
 rollback;
 select 'PASS: real PostgreSQL 17 lifecycle, uncertain effects, offline simulation, budget and RLS' as result;
