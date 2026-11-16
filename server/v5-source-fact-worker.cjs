@@ -55,9 +55,10 @@ function makeSourceFactWorker({oauth,guard=null,fetcher=globalThis.fetch,
   const githubToken=oauth.getLinkedToken({ownerId});
   if(!githubToken)return deny(409,'github_reconnect_required');
   try{
-   await handoffs.verifyWorkerRequest({ownerId,threadId:input.threadId,
+   const existing=await handoffs.verifyWorkerRequest({ownerId,threadId:input.threadId,
     requestId:input.requestId,project:input.project,workerId:route.worker,
     message:input.message});
+   if(existing?.matched!==true)throw Error('saved_handoff_required');
   }catch(_){return deny(409,'source_handoff_unverified')}
   // The unique DB receipt prevents an owner's repeated press, cross-instance
   // duplicate and rerun after a Render crash from consuming another GitHub read.
