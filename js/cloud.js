@@ -378,6 +378,39 @@
     throw Error('Unverified team handoff history');
    return result;
   }
+  async function autonomousMissionAction(action,details={}){
+   if(!['create','list'].includes(action))throw Error('Invalid mission action');
+   await ensureAuth();
+   const thread=await getAgentThread('matt',action==='create');
+   if(!thread){
+    if(action==='list')return {missions:[]};
+    throw Error('Matt conversation unavailable');
+   }
+   const result=await fetcher(MATT_ORIGIN+'/autonomous/missions/'+action,{
+    method:'POST',redirect:'error',
+    headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},
+    body:JSON.stringify({threadId:thread.id,...details})
+   });
+   let data={};try{data=await result.json()}catch(_){}
+   if(!result.ok)throw Error((data.error||'Mission action unavailable')+
+    ' (HTTP '+result.status+')');
+   return data;
+  }
+  async function createAutonomousMission(projectId,goal){
+   if(!['listening','pokemon','studio','wellbeing'].includes(projectId)||
+    typeof goal!=='string'||!goal.trim()||goal.length>1200)
+    throw Error('Invalid mission');
+   const data=await autonomousMissionAction('create',{projectId,goal:goal.trim()});
+   if(data?.mission?.status!=='draft'||data?.mission?.projectId!==projectId||
+    data?.mission?.spendingAllowed!==false||data?.mission?.execution!=='not_started')
+    throw Error('Unverified mission draft');
+   return data.mission;
+  }
+  async function listAutonomousMissions(){
+   const data=await autonomousMissionAction('list');
+   if(!Array.isArray(data.missions))throw Error('Invalid mission history');
+   return data.missions;
+  }
   async function listeningProposalAction(action,details={}){
    if(!['list','reject','publish'].includes(action))throw Error('Invalid proposal action');
    await ensureAuth();
@@ -747,6 +780,7 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
+   createAutonomousMission,listAutonomousMissions,
    listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,previewImportedDirectorMemory,approveImportedDirectorMemory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,sourceFactWorker,mattJobHistory,teamHandoffHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
    listPokemonProposals,rejectPokemonProposal,publishPokemonProposal,
