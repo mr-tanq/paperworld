@@ -89,7 +89,7 @@ function makeSourceFactWorker({oauth,guard=null,fetcher=globalThis.fetch,
      await pokemon.readProjectFiles({token:githubToken,category}):
      await pokemon.readProjectConfig({token:githubToken});
     if(packet.repository!=='mr-tanq/pokemon-echoes'||packet.ref!=='main'||
-     packet.readOnly!==true||packet.sourceUntrusted!==true)
+     packet.readOnly!==true||(expanded&&packet.sourceUntrusted!==true))
      throw Error('unverified_pokemon_source');
     const files=expanded?packet.files:[{path:packet.path,sha:packet.sha}];
     if(!Array.isArray(files)||files.length<1||files.length>4||
