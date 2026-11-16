@@ -1,5 +1,10 @@
 name: PAPERWORLD V5 autonomous watch (zero AI)
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/paperworld-v5-unattended.yml'
+      - 'scripts/autonomous-nightwatch-v5.cjs'
   schedule:
     # Durable GitHub-hosted wakeup, independent of Render Free sleep.
     - cron: '17 */6 * * *'
