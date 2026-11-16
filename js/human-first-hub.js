@@ -62,6 +62,7 @@
    studio:'The Lost Wanderer',wellbeing:'Wellbeing'};
   const directors={listening:'listening-director',pokemon:'pokemon-director',
    studio:'studio-director',wellbeing:'wellbeing-director'};
+  const workers={listening:'listening-developer',pokemon:'pokemon-developer'};
   if(!item||!UUID.test(item.id||'')||!UUID.test(item.requestId||'')||
    !Object.hasOwn(projectNames,item.project)||
    item.directorId!==directors[item.project]||
@@ -70,6 +71,8 @@
   return freeze({kind:'handoff',id:item.id,requestId:item.requestId,
    project:projectNames[item.project],summary:human(item.summary,1200),
    createdAt:human(item.createdAt,50),status:item.status,
+   directorId:item.directorId,
+   workerId:workers[item.project]===item.workerId?item.workerId:null,
    stage:item.status==='awaiting_consent'?'planned':'diagnosed'});
  }
  function workerRun(item){
@@ -116,7 +119,7 @@
   }
   if(Array.isArray(teamJobs))for(const entry of teamJobs.slice(0,MAX)){
    const item=teamHandoff(entry);
-   if(item)rows.push(item);
+   if(item&&!trackedWorkerJobs.has(item.requestId))rows.push(item);
   }
   if(Array.isArray(tasks))for(const t of tasks.slice(0,200)){
    const m=manual(t);if(m)rows.push(freeze({...m,
@@ -153,7 +156,7 @@
   const b=e('button',cls,label);b.type='button';
   b.addEventListener('click',handler);return b;
  }
- function create(host,{load,approve,reject,openMatt,openProject,
+ function create(host,{load,approve,reject,runWorker,openMatt,openProject,
   onChanged,onError,compact=false}={}){
   if(!host||typeof host.replaceChildren!=='function'||
    typeof load!=='function')throw Error('human_first_host_required');
@@ -225,10 +228,52 @@
      'ζητείται στη συνομιλία με τον Matt.':
      'Ο Director απάντησε στον Matt. Αυτή είναι καταγραφή συμβουλής, '+
      'όχι εκτελεσμένη αλλαγή ή ολοκληρωμένη εργασία.'));
+    if(item.status==='awaiting_consent'&&
+     ['listening-developer','pokemon-developer'].includes(item.workerId)&&
+     typeof runWorker==='function'){
+     const actions=e('div','human-hub-item-actions');
+     const start=button('Έγκριση ελέγχου από Worker',()=>executeWorker(item),'human-hub-yes');
+     start.disabled=opBusy||loading;
+     actions.append(start);card.append(actions);
+    }
    }else card.append(e('p','human-hub-summary',
      item.stage==='completed'?'Την ολοκλήρωση την σημείωσες εσύ.':
       'Προσωπική εργασία · δεν σημαίνει ότι εκτελέστηκε από AI agent.'));
    return card;
+  }
+  async function executeWorker(item){
+   if(opBusy||loading||!item||item.kind!=='handoff'||
+    item.status!=='awaiting_consent'||typeof runWorker!=='function')return;
+   opBusy=true;error='';render();
+   try{
+    const raw=await load();
+    const fresh=Array.isArray(raw?.teamJobs)?raw.teamJobs.find(x=>
+     x.id===item.id&&x.requestId===item.requestId&&
+     x.status==='awaiting_consent'&&x.workerId===item.workerId&&
+     x.directorId===(item.workerId==='pokemon-developer'?
+      'pokemon-director':'listening-director')):null;
+    const used=Array.isArray(raw?.workerRuns)&&raw.workerRuns.some(x=>
+     x.requestId===item.requestId);
+    if(!fresh||used||raw?.workerHistoryUnavailable===true||
+     raw?.teamUnavailable===true)
+     throw Error('Η ανάθεση δεν επιβεβαιώθηκε ή έχει ήδη εκτελεστεί.');
+    const scope=item.workerId==='pokemon-developer'?
+     'Θα διαβαστεί μόνο το ιδιωτικό project.godot του Pokémon Echoes.':
+     'Θα διαβαστούν μόνο τα επιτρεπόμενα αρχεία του Listening Mirror.';
+    if(!window.confirm('Εγκρίνεις ΜΙΑ εκτέλεση του Worker για την εργασία;\\n\\n'+
+     item.summary+'\\n\\n'+scope+
+     '\\n\\nΈως 5 AI κλήσεις με επαληθευμένο όριο επιπλέον χρέωσης $0. '+
+     'Μόνο ανάγνωση, χωρίς αλλαγές αρχείων, PR ή deployment. '+
+     'Αν διακοπεί, δεν γίνεται αυτόματη επανάληψη.'))return;
+    await runWorker(item);
+    if(typeof onChanged==='function')onChanged('worker',item);
+   }catch(err){markError(err?.message||'Η διερεύνηση δεν ολοκληρώθηκε.')}
+   finally{
+    const failure=error;
+    opBusy=false;
+    await refresh();
+    if(failure){markError(failure);render()}
+   }
   }
   async function perform(action,item){
    if(opBusy||loading||item.stage!=='decision'||!DIGEST.test(item.digest))return;
@@ -273,7 +318,9 @@
    if(!compact)host.append(controls);
    if(error)host.append(e('p','human-hub-error',error));
    if(loading&&!current.rows.length)host.append(e('p','human-hub-loading','Ανακτώ τις εργασίες σου…'));
-   const shown=current.rows.filter(item=>compact?item.stage==='decision':visible(item));
+   const shown=current.rows.filter(item=>compact?
+    item.stage==='decision'||(item.kind==='handoff'&&item.status==='awaiting_consent'):
+    visible(item));
    if(compact&&!shown.length&&!error){host.hidden=true;return}
    if(!loading&&!shown.length){
     host.append(e('div','human-hub-empty',
