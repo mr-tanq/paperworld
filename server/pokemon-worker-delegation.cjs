@@ -7,6 +7,7 @@
 const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {makeWorkerRunJournal}=require('./worker-run-journal-v5.cjs');
+const {makeTeamHandoffLedger}=require('./team-handoff-ledger-v5.cjs');
 const {createSafeSessionConfig}=require('./matt-session-config.cjs');
 const {createPokemonRepoReader}=require('./pokemon-repo-reader.cjs');
 const {createApprovedDirectorMemory,formatDirectorMemory}=require('./approved-director-memory.cjs');
@@ -15,7 +16,7 @@ const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const CONSENT='MATT_POKEMON_WORKER_READONLY_UP_TO_FIVE_AI_TURNS';
 const ORIGIN='https://mr-tanq.github.io';
 function makePokemonWorkerDelegation({oauth,clientFactory,guard,reader=createPokemonRepoReader(),
- memoryLoader=null,workerJournal=null,fetcher=globalThis.fetch,clock=Date.now,
+ memoryLoader=null,workerJournal=null,handoffLedger=null,fetcher=globalThis.fetch,clock=Date.now,
  budgetVerified=()=>process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED==='yes',
  diagnostic=stage=>console.warn('[PAPERWORLD pokemon worker]',stage)}={}){
  if(typeof clientFactory!=='function'||typeof oauth?.getLinkedToken!=='function'||
@@ -27,6 +28,7 @@ function makePokemonWorkerDelegation({oauth,clientFactory,guard,reader=createPok
  const approvedMemory=memoryLoader||createApprovedDirectorMemory({fetcher,identity});
  if(typeof approvedMemory.load!=='function')throw Error('memory_loader_required');
  const journal=workerJournal||makeWorkerRunJournal({fetcher});
+ const trustedHandoffs=handoffLedger||makeTeamHandoffLedger({fetcher});
  const spent=new Map(),busy=new Set();
  const deny=(status,error)=>({status,body:{error}});
  const clean=()=>{for(const [key,expires] of spent)if(expires<clock())spent.delete(key)};
@@ -52,6 +54,16 @@ function makePokemonWorkerDelegation({oauth,clientFactory,guard,reader=createPok
    return deny(403,'verify_github_zero_overage_budget');
   const githubToken=oauth.getLinkedToken({ownerId});
   if(!githubToken)return deny(409,'github_reconnect_required');
+  // Match a saved Matt handoff to its exact scope BEFORE any Worker AI
+  // request. A direct owner-consented request with a fresh ID is still valid.
+  if(trustedHandoffs.configured){
+   try{
+    await trustedHandoffs.verifyWorkerRequest({ownerId,
+     threadId:data.threadId,requestId:data.requestId,
+     project:'pokemon',workerId:'pokemon-developer',
+     message:data.message});
+   }catch(_){return deny(409,'worker_handoff_unverified')}
+  }
   clean();
   const idempotency=ownerId+':pokemon-worker:'+data.requestId;
   if(spent.has(idempotency))return deny(409,'already_submitted');
