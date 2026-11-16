@@ -12,6 +12,7 @@ const {createSafeSessionConfig}=require('./matt-session-config.cjs');
 const {createApprovedDirectorMemory,formatDirectorMemory}=require('./approved-director-memory.cjs');
 const {parseIntent,routePrompt}=require('./matt-semantic-router.cjs');
 const {createMattPersistence}=require('./matt-conversation-persistence.cjs');
+const {makeTeamHandoffLedger}=require('./team-handoff-ledger-v5.cjs');
 const ORIGIN='https://mr-tanq.github.io';
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const CONSENT='MATT_DIRECTOR_UP_TO_THREE_AI_TURNS';
@@ -64,6 +65,7 @@ const CAPABILITIES=Object.freeze({
  })
 });
 function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence=null,fetcher=globalThis.fetch,
+ handoffLedger=null,
  budgetVerified=()=>process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED==='yes',
  diagnostics=stage=>console.warn('[PAPERWORLD director handoff]',stage),
  now=Date.now}={}){
@@ -75,6 +77,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
  });
  const approvedMemory=memoryLoader||createApprovedDirectorMemory({fetcher,identity});
  const history=persistence||createMattPersistence({fetcher});
+ const teamLedger=handoffLedger||makeTeamHandoffLedger({fetcher});
  if(typeof history.save!=='function')throw Error('invalid_persistence');
  if(typeof approvedMemory.load!=='function')throw Error('memory_loader_required');
  const busy=new Set(),spent=new Map();
@@ -229,11 +232,17 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
    stage='persist_verified_matt_reply';
    const persisted=await history.save({threadId:data.threadId,ownerId,
     requestId:data.requestId,director:route,text:final});
+   // A verified Matt → Director handoff is recorded separately from Worker execution.
+   // Ledger failure never fabricates success or blocks an already completed chat.
+   let handoffStored=false;
+   try{handoffStored=await teamLedger.record({ownerId,threadId:data.threadId,
+    requestId:data.requestId,message:data.message,directorId:route,
+    workProposal,report:final})===true}catch(_){/* optional handoff availability */}
    return {status:200,body:{executed:true,delegated:true,
     directorId:route,directorName:director.name,directorReport:report,
     content:final,aiTurns,requestId:data.requestId,
     routeMethod,routeStatus:'selected',workProposal,
-    execution:'analysis_only',persisted,
+    execution:'analysis_only',persisted,handoffStored,
     memory:{projectId:memory.projectId,included:memory.included}}};
   }catch(_){
    // No raw exception, token, user message or model output in HTTP/logs.

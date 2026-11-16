@@ -13,6 +13,7 @@ const {makeDelegation}=require('./matt-delegation.cjs');
 const {makeWorkerDelegation}=require('./matt-worker-delegation.cjs');
 const {makePokemonWorkerDelegation}=require('./pokemon-worker-delegation.cjs');
 const {makeJobHistoryApi}=require('./agent-job-history-api.cjs');
+const {makeTeamHandoffLedger}=require('./team-handoff-ledger-v5.cjs');
 const {createProposalMemory}=require('./listening-proposal-memory.cjs');
 const {createDurableApprovalStore}=require('./listening-approval-store.cjs');
 const {createListeningProposalApi}=require('./listening-proposal-api.cjs');
@@ -40,6 +41,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
  sunoOAuthFactory=()=>createSunoOAuthClient(),
  proposalApiFactory=({oauth,memory,store})=>createListeningProposalApi({oauth,memory,store})}={}){
  let live,directorChat,delegation,worker,pokemonWorker,history,proposalApi,crowSunoPreview,sunoStatus,sunoOAuth;
+ let teamLedger;
  let proposalMemory,approvalStore;
  function getProposalMemory(){
   if(proposalMemory!==undefined)return proposalMemory;
@@ -62,6 +64,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
  function getWorker(){if(!worker)worker=workerFactory({oauth,proposalMemory:getProposalMemory()});return worker}
  function getPokemonWorker(){if(!pokemonWorker)pokemonWorker=pokemonWorkerFactory({oauth});return pokemonWorker}
  function getHistory(){if(!history)history=historyFactory();return history}
+ function getTeamLedger(){if(!teamLedger)teamLedger=makeTeamHandoffLedger();return teamLedger}
  function getCrowSunoPreview(){if(!crowSunoPreview)crowSunoPreview=crowSunoPreviewFactory();return crowSunoPreview}
  function getSunoStatus(){if(!sunoStatus)sunoStatus=sunoStatusFactory();return sunoStatus}
  function getSunoOAuth(){if(!sunoOAuth)sunoOAuth=sunoOAuthFactory();return sunoOAuth}
@@ -190,7 +193,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
   const isMattRequest=req.url==='/chat/director'||req.url==='/chat/matt'||req.url==='/diagnostic/matt-session'||
    req.url==='/delegate/matt'||req.url==='/delegate/matt/worker'||
    req.url==='/delegate/matt/pokemon/worker'||
-   req.url==='/history/matt/jobs';
+   req.url==='/history/matt/jobs'||req.url==='/history/matt/team';
   if(isMattRequest){
    if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
     res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
@@ -210,6 +213,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
     }
     const gateway=req.url==='/chat/director'?getDirectorChat():
       req.url==='/history/matt/jobs'?getHistory():
+      req.url==='/history/matt/team'?getTeamLedger():
       req.url==='/delegate/matt/worker'?getWorker():
       req.url==='/delegate/matt/pokemon/worker'?getPokemonWorker():
       req.url==='/delegate/matt'?getDelegation():getLive();

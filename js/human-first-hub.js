@@ -57,7 +57,22 @@
    createdAt:Number.isFinite(item.created)?new Date(item.created).toISOString():
     human(item.created_at,50)});
  }
- function project({jobs=[],proposals=[],tasks=[]}={}){
+ function teamHandoff(item){
+  const projectNames={listening:'Listening Mirror',pokemon:'Pokémon Echoes',
+   studio:'The Lost Wanderer',wellbeing:'Wellbeing'};
+  const directors={listening:'listening-director',pokemon:'pokemon-director',
+   studio:'studio-director',wellbeing:'wellbeing-director'};
+  if(!item||!UUID.test(item.id||'')||!UUID.test(item.requestId||'')||
+   !Object.hasOwn(projectNames,item.project)||
+   item.directorId!==directors[item.project]||
+   !['reported','awaiting_consent'].includes(item.status)||
+   !human(item.summary,1200))return null;
+  return freeze({kind:'handoff',id:item.id,requestId:item.requestId,
+   project:projectNames[item.project],summary:human(item.summary,1200),
+   createdAt:human(item.createdAt,50),status:item.status,
+   stage:item.status==='awaiting_consent'?'planned':'diagnosed'});
+ }
+ function project({jobs=[],proposals=[],tasks=[],teamJobs=[]}={}){
   const validJobs=Array.isArray(jobs)?jobs.map(job).filter(Boolean).slice(0,MAX):[];
   const validProposals=Array.isArray(proposals)?
    proposals.map(proposal).filter(Boolean).slice(0,MAX):[];
@@ -76,6 +91,10 @@
    if(proposalIds.has(j.id))continue;
    rows.push(freeze({...j,stage:j.last==='failed'?'needs_attention':
     j.last==='reported'?'diagnosed':'in_progress'}));
+  }
+  if(Array.isArray(teamJobs))for(const entry of teamJobs.slice(0,MAX)){
+   const item=teamHandoff(entry);
+   if(item)rows.push(item);
   }
   if(Array.isArray(tasks))for(const t of tasks.slice(0,200)){
    const m=manual(t);if(m)rows.push(freeze({...m,
@@ -168,6 +187,13 @@
     for(const event of item.events)details.append(e('p','',human(event.state,35)+
      ' · '+human(event.actor,35)));
     card.append(details);
+   }else if(item.kind==='handoff'){
+    card.append(e('p','human-hub-summary',item.status==='awaiting_consent'?
+     'Ο Matt συμβουλεύτηκε τον Director και πρότεινε διερεύνηση από Worker. '+
+     'Η ανάθεση καταγράφηκε, αλλά δεν άρχισε εκτέλεση. Η πρόσθετη έγκριση '+
+     'ζητείται στη συνομιλία με τον Matt.':
+     'Ο Director απάντησε στον Matt. Αυτή είναι καταγραφή συμβουλής, '+
+     'όχι εκτελεσμένη αλλαγή ή ολοκληρωμένη εργασία.'));
    }else card.append(e('p','human-hub-summary',
      item.stage==='completed'?'Την ολοκλήρωση την σημείωσες εσύ.':
       'Προσωπική εργασία · δεν σημαίνει ότι εκτελέστηκε από AI agent.'));
@@ -271,5 +297,5 @@
   return freeze({refresh,focus,render,setData,get snapshot(){return current},
    get error(){return error},get ready(){return rendered}});
  }
- return freeze({project,stateLabel,create,job,proposal,manual});
+ return freeze({project,stateLabel,create,job,proposal,manual,teamHandoff});
 });

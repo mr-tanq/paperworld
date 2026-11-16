@@ -360,6 +360,24 @@
     throw Error('Unverified history reply');
    return result;
   }
+  // Owner-authenticated V5 Matt/Director handoffs; no model call or execution.
+  async function teamHandoffHistory(){
+   await ensureAuth();
+   const thread=await getAgentThread('matt',false);
+   if(!thread)return {jobs:[],authority:'recorded_handoffs_not_worker_execution'};
+   const response=await fetcher(MATT_ORIGIN+'/history/matt/team',{
+    method:'POST',redirect:'error',headers:{Authorization:'Bearer '+session.access_token,
+     'Content-Type':'application/json'},
+    body:JSON.stringify({threadId:thread.id})
+   });
+   let result={};try{result=await response.json()}catch(_){}
+   if(!response.ok)throw Error((result.error||'Team history unavailable')+
+    ' (HTTP '+response.status+')');
+   if(!Array.isArray(result.jobs)||
+    result.authority!=='recorded_handoffs_not_worker_execution')
+    throw Error('Unverified team handoff history');
+   return result;
+  }
   async function listeningProposalAction(action,details={}){
    if(!['list','reject','publish'].includes(action))throw Error('Invalid proposal action');
    await ensureAuth();
@@ -662,7 +680,7 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,previewImportedDirectorMemory,approveImportedDirectorMemory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,mattJobHistory,diagnoseMattSession,
+   listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,previewImportedDirectorMemory,approveImportedDirectorMemory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,mattJobHistory,teamHandoffHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
    crowSunoPreview,cancelCrowSunoPreview,crowSunoConnectionStatus,
    beginSunoLink,sunoLinkStatus,inspectSunoTools,diagnoseSunoConnection};
