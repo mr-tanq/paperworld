@@ -77,7 +77,7 @@ test('OAuth owner must be linked before MCP tool discovery; never enables genera
  assert.equal((await client.inspectTools({headers:{...headers,origin:'https://evil.example'},
   body})).status,403);
  assert.equal(inspections,1);
- assert.doesNotMatch(JSON.stringify(result),'valid-access-token');
+ assert.doesNotMatch(JSON.stringify(result),/valid-access-token/);
 });
 test('No execution route or tool calling method is introduced',()=>{
  const server=fs.readFileSync('server/render-matt.cjs','utf8');
