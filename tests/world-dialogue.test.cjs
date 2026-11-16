@@ -31,8 +31,8 @@ test('Every Matt message starts with owner-approved, model-driven, non-sensitive
 });
 test('Worker proposal requires a separate human approval with private Pokémon disclosure',()=>{
  assert.match(source,/if\(window\.confirm\(consent\)\)/);
- assert.match(source,/delegatePokemonWorker\(text,\{saveNote:false\}\)/);
- assert.match(source,/delegateMattWorker\(text,\{saveNote:false,onStart:id=>\{/);
+ assert.match(source,/delegatePokemonWorker\(text,\{saveNote:false,requestId:result\.requestId\}\)/);
+ assert.match(source,/delegateMattWorker\(text,\{saveNote:false,requestId:result\.requestId,onStart:id=>\{/);
  assert.match(source,/ΜΟΝΟ το ιδιωτικό project\.godot/);
  assert.match(source,/έως 5 AI κλήσεις/);
  assert.match(source,/επιπλέον χρέωση \$0/);
