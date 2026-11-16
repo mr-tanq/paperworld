@@ -1,5 +1,9 @@
 # PAPERWORLD — PROJECT NOTES (living source of truth)
 
+## 2026-11-16 — Crow MCP legacy Streamable HTTP fallback (draft)
+
+After PR #144, Suno tooling discovery now attempts the stateless 2026-07-28 `tools/list` call with protocol version, client identity and client capability metadata. On an explicit HTTP 400/404/406 compatibility rejection only (not authentication errors, redirects, or malformed success), it makes a fresh, bounded 2025-era Streamable HTTP `initialize` handshake, posts `notifications/initialized`, then calls `tools/list`. A short-lived `Mcp-Session-Id` is validated and kept server-side for this one operation. Both JSON and finite SSE responses may be parsed. Unsupported responses fail closed. There is still no tools/call, music generation, credits use or deployment. This implementation does not cover the oldest 2024 HTTP+SSE two-endpoint transport and has not been verified with an actual Suno owner login or provider response.
+
 ## 2026-11-16 — Crow MCP request-scoped SSE (draft)
 
 The read-only Suno `tools/list` probe now accepts **bounded request-scoped SSE** responses as well as JSON for the modern MCP 2026-07-28 HTTP request style. It handles progress notifications without mistaking them for a final result and rejects repeated responses, mismatched IDs, oversized payloads and incomplete paginated tool lists. Only tool names are retained server-side and only counts/booleans go to the browser; generation remains disabled. Earlier MCP `initialize`, session ID negotiation, older SSE, and the actual Suno OAuth/live tool response remain unverified. No credits, deployment, or real Suno request were made by this PR.
