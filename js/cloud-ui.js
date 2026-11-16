@@ -5,6 +5,7 @@ let memoryOpen=false,memoryView=null,historyImportView=null;
 // Display-only proposals. No approval grant or server write capability.
 let listeningReviewPayload=null,listeningStoredProposals=[],listeningProposalError='';
 let workJobs=[],teamJobs=[],workerRuns=[],pokemonProposals=[],autonomyReports=[],pokemonUnavailable=false,jobHistoryError='',teamHistoryError='',humanHub=null;
+let autonomousMissions=[],autonomousHistoryError='';
 
 
 const el=(tag,text,cls)=>{let e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
@@ -36,6 +37,8 @@ async function reload(){
   listeningStoredProposals=[];
   listeningProposalError='Δεν φορτώθηκαν οι προτάσεις: '+e.message;
  }
+ try{autonomousMissions=await client.listAutonomousMissions();autonomousHistoryError=''}
+ catch(_){autonomousMissions=[];autonomousHistoryError='Δεν φορτώθηκαν οι αυτόνομες αποστολές.'}
  autonomyReports=await publicAutonomyReports();
 }
 function loginForm(){let f=el('form');let email=el('input'),password=el('input');email.type='email';email.required=true;email.placeholder='Email';email.autocomplete='email';password.type='password';password.required=true;password.minLength=6;password.placeholder='Password';password.autocomplete='current-password';f.append(email,password);
@@ -213,9 +216,46 @@ async function runApprovedHandoff(item){
  message='Ο Worker επέστρεψε αναφορά. '+result.content.slice(0,1000);
  return result;
 }
+function renderAutonomousMissions(target){
+ const card=el('section',undefined,'developer-tasks');
+ card.append(el('h3','Αποστολές ολόκληρης της ομάδας'));
+ card.append(el('p','Αποθήκευσε έναν στόχο για Luna, Joey, Crow ή Dave. '+
+  'Η αποστολή καταγράφεται ως σχέδιο: δεν ξεκινά αυτόματα AI ή εξωτερικές ενέργειες.','room-footnote'));
+ const form=el('form',undefined,'room-task-form');
+ const select=el('select');select.setAttribute('aria-label','Director');
+ for(const [value,label] of [['listening','Luna · Listening Mirror'],
+  ['pokemon','Joey · Pokémon Echoes'],['studio','Crow · Music Studio'],
+  ['wellbeing','Dave · Wellbeing']]){
+  const opt=el('option',label);opt.value=value;select.append(opt);
+ }
+ const goal=el('textarea');goal.rows=2;goal.required=true;goal.maxLength=1200;
+ goal.placeholder='Τι θέλεις να αναλάβει η ομάδα;';
+ const add=el('button','Αποθήκευση αποστολής','primary');add.type='submit';
+ form.append(select,goal,add);
+ form.addEventListener('submit',event=>{
+  event.preventDefault();work(async()=>{
+   const saved=await client.createAutonomousMission(select.value,goal.value.trim());
+   if(saved.status!=='draft')throw Error('Η αποστολή δεν επιβεβαιώθηκε');
+   await reload();message='Η αποστολή αποθηκεύτηκε ως σχέδιο. '+
+    'Δεν έχει ξεκινήσει αυτόνομη εργασία.';
+  });
+ });
+ card.append(form);
+ for(const mission of autonomousMissions.slice(0,12)){
+  const line=el('article',undefined,'room-task');
+  line.append(el('strong',({listening:'Luna',pokemon:'Joey',studio:'Crow',
+   wellbeing:'Dave'})[mission.projectId]||'Director'));
+  line.append(el('p',mission.goal,'room-task-notes'));
+  const status=mission.status==='draft'?'Σχέδιο · δεν εκτελείται':mission.status;
+  line.append(el('p',status,'room-footnote'));card.append(line);
+ }
+ if(autonomousHistoryError)card.append(el('p',autonomousHistoryError,'room-footnote'));
+ target.append(card);
+}
 function renderHumanWork(target){
  const module=window.PaperworldHumanFirstHub;
  if(!module?.create){target.append(el('p','Το κέντρο εργασιών δεν φορτώθηκε.','room-footnote'));return}
+ renderAutonomousMissions(target);
  const mount=el('div',undefined,'human-hub-mount');
  target.append(mount);
  humanHub=module.create(mount,{load:loadHumanWork,
@@ -405,6 +445,8 @@ window.PaperworldCloudUI={
  mattJobHistory:()=>client.mattJobHistory(),
  teamHandoffHistory:()=>client.teamHandoffHistory(),
  loadHumanWork,runApprovedHandoff,runApprovedSourceFact,
+ createAutonomousMission:(projectId,goal)=>client.createAutonomousMission(projectId,goal),
+ listAutonomousMissions:()=>client.listAutonomousMissions(),
  preparePokemonSolution,discardPokemonSolution,
  prepareHumanSolution:prepareSolution,
  discardHumanSolution:discardSolution,
