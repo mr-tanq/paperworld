@@ -39,12 +39,8 @@ test('wrong origin, unrelated thread, forged credit estimate and invalid action 
  assert.equal((await api.handle({headers,action:'execute',body:'{}'})).status,404);
 });
 test('other signed-in user cannot cancel another owner preview',async()=>{
- const api=create(), payload={agentId:'studio-director',threadId:uuid,brief,expectedCredits:null};
- const proposal=(await api.handle({headers,action:'propose',body:JSON.stringify(payload)})).body;
- const other=createCrowSunoPreviewApi({identity:{
-  authenticate:async()=>({ownerId:'owner-b'}),ownsThread:async()=>true
- },gate:undefined});
- // Same gate is not shared across API instances; verify via a shared injected gate.
+ const payload={agentId:'studio-director',threadId:uuid,brief,expectedCredits:null};
+ // Share one trusted gate between two owners to test owner isolation.
  const {makeCrowSunoGate}=require('../server/crow-suno-gate.cjs');
  const gate=makeCrowSunoGate({authorize:async()=>false,enabled:false});
  const a=createCrowSunoPreviewApi({identity:mockIdentity,gate});
@@ -56,6 +52,4 @@ test('other signed-in user cannot cancel another owner preview',async()=>{
   body:JSON.stringify({proposalId:p.proposalId})})).status,404);
  assert.equal((await a.handle({headers,action:'cancel',
   body:JSON.stringify({proposalId:p.proposalId})})).status,200);
- assert.ok(proposal.proposalId);
- assert.ok(other);
 });
