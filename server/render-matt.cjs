@@ -85,7 +85,8 @@ function createRenderMattServer({oauth=createGithubOAuth({
   }
   const sunoAuthAction={'/auth/suno/start':'start',
    '/auth/suno/status':'status',
-   '/auth/suno/inspect-tools':'inspectTools'}[req.url];
+   '/auth/suno/inspect-tools':'inspectTools',
+   '/auth/suno/diagnose':'diagnose'}[req.url];
   if(sunoAuthAction){
    if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
     res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
