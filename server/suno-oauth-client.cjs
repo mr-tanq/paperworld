@@ -46,7 +46,7 @@ function validServerMeta(m,origin){
   if(typeof url!=='string'||url.length>1000)return null;
   let p;
   try{p=new URL(url)}catch(_){return null}
-  if(p.origin!==origin||p.protocol!=='https:'||p.username||p.password||
+  if(p.origin!==new URL(origin).origin||p.protocol!=='https:'||p.username||p.password||
       p.search||p.hash)return null;
   result[key]=p.href;
  }
