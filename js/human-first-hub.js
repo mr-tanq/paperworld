@@ -243,7 +243,14 @@
     if(!raw||!Array.isArray(raw.jobs)||!Array.isArray(raw.proposals)||
       !Array.isArray(raw.tasks))throw Error('Η κατάσταση εργασιών δεν επιβεβαιώθηκε.');
     current=project(raw);
-   }catch(err){markError(err.message||'Το ιστορικό δεν είναι διαθέσιμο.')}
+   }catch(err){
+    // Fail closed: never keep showing a previously actionable proposal when
+    // the authenticated reload could not verify its current server state.
+    current=project();
+    markError('Δεν ήταν δυνατή η επιβεβαίωση των τωρινών εργασιών. '+
+     'Οι προηγούμενες αποφάσεις κρύφτηκαν για ασφάλεια. '+
+     (err?.message||'Δοκίμασε ξανά.'));
+   }
    finally{loading=false;render()}
    return current;
   }
