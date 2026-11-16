@@ -35,6 +35,7 @@ alter table public.paperworld_autonomous_controller_v5 enable row level security
 revoke all on public.paperworld_autonomous_controller_v5 from anon,authenticated;
 insert into public.paperworld_autonomous_controller_v5(singleton) values(true);
 \i sql/paperworld_v5_dispatch_v1.sql
+\i sql/paperworld_v5_dispatch_v1_simulation.sql
 
 do $$
 declare
@@ -165,5 +166,35 @@ begin
    where mission_id=m)<>0
  then raise exception 'budget denied after external intent'; end if;
 end $$;
+
+-- Simulated offline scheduler dispatch goes to completion without a model.
+do $
+declare
+ a uuid:='11111111-1111-4111-8111-111111111111';
+ m uuid:='77777777-7777-4777-8777-777777777777';
+ result jsonb;
+begin
+ insert into public.paperworld_autonomous_missions_v5
+ (id,owner_id,thread_id,project_id,goal,status,policy)
+ values(m,a,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','studio',
+  'Synthetic scheduled work','draft',
+  '{"maxAiCalls":0,"additionalSpendUsd":0}'::jsonb);
+ if not public.paperworld_v5_queue_mission(m,'simulation')
+ then raise exception 'simulation queue refused'; end if;
+ result:=public.paperworld_v5_controller_tick();
+ if result->'simulation'->>'status'<>'simulation_completed'
+ then raise exception 'cron did not execute simulation: %',result; end if;
+ if (select status from public.paperworld_autonomous_missions_v5
+    where id=m)<>'completed'
+ then raise exception 'scheduled simulation never completed'; end if;
+ if (select policy->>'executionMode' from public.paperworld_autonomous_missions_v5
+    where id=m)<>'simulation'
+ then raise exception 'simulated outcome not labeled'; end if;
+ if (select count(*) from public.paperworld_autonomous_effects_v5
+    where mission_id=m and sessions=1)<>0
+ then raise exception 'simulation spent a session'; end if;
+ if public.paperworld_v5_controller_tick()->'simulation'->>'status'<>'idle'
+ then raise exception 'simulation reran terminal mission'; end if;
+end $;
 rollback;
-select 'PASS: real Postgres 17 V5 ordering, completion, uncertain crash, budget, RLS' as result;
+select 'PASS: real PostgreSQL 17 lifecycle, uncertain effects, offline simulation, budget and RLS' as result;
