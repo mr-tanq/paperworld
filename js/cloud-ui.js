@@ -6,6 +6,7 @@ let memoryOpen=false,memoryView=null,historyImportView=null;
 let listeningReviewPayload=null,listeningStoredProposals=[],listeningProposalError='';
 let workJobs=[],teamJobs=[],workerRuns=[],pokemonProposals=[],autonomyReports=[],pokemonUnavailable=false,jobHistoryError='',teamHistoryError='',humanHub=null;
 let autonomousMissions=[],autonomousHistoryError='';
+let controllerStatus=null;
 
 
 const el=(tag,text,cls)=>{let e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
@@ -39,6 +40,7 @@ async function reload(){
  }
  try{autonomousMissions=await client.listAutonomousMissions();autonomousHistoryError=''}
  catch(_){autonomousMissions=[];autonomousHistoryError='Δεν φορτώθηκαν οι αυτόνομες αποστολές.'}
+ try{controllerStatus=await client.autonomousControllerStatus()}catch(_){controllerStatus=null}
  autonomyReports=await publicAutonomyReports();
 }
 function loginForm(){let f=el('form');let email=el('input'),password=el('input');email.type='email';email.required=true;email.placeholder='Email';email.autocomplete='email';password.type='password';password.required=true;password.minLength=6;password.placeholder='Password';password.autocomplete='current-password';f.append(email,password);
@@ -219,6 +221,10 @@ async function runApprovedHandoff(item){
 function renderAutonomousMissions(target){
  const card=el('section',undefined,'developer-tasks');
  card.append(el('h3','Αποστολές ολόκληρης της ομάδας'));
+ card.append(el('p',controllerStatus?.supervisor==='active'?
+  'Η αυτόματη παρακολούθηση της ουράς λειτουργεί. Η αυτόνομη AI εκτέλεση δεν έχει ενεργοποιηθεί.':
+  'Η αυτόματη παρακολούθηση δεν έχει επιβεβαιωθεί. Οι AI Workers παραμένουν ανενεργοί.',
+  'room-footnote'));
  card.append(el('p','Αποθήκευσε έναν στόχο για Luna, Joey, Crow ή Dave. '+
   'Η αποστολή καταγράφεται ως σχέδιο: δεν ξεκινά αυτόματα AI ή εξωτερικές ενέργειες.','room-footnote'));
  const form=el('form',undefined,'room-task-form');
