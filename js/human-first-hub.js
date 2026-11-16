@@ -72,7 +72,23 @@
    createdAt:human(item.createdAt,50),status:item.status,
    stage:item.status==='awaiting_consent'?'planned':'diagnosed'});
  }
- function project({jobs=[],proposals=[],tasks=[],teamJobs=[]}={}){
+ function workerRun(item){
+  const projects={listening:'Listening Mirror',pokemon:'Pokémon Echoes'};
+  const directors={listening:'listening-director',pokemon:'pokemon-director'};
+  const workers={listening:'listening-developer',pokemon:'pokemon-developer'};
+  if(!item||!UUID.test(item.id||'')||!UUID.test(item.requestId||'')||
+   !Object.hasOwn(projects,item.project)||
+   item.directorId!==directors[item.project]||
+   item.workerId!==workers[item.project]||
+   !['running','reported','failed'].includes(item.status)||
+   !human(item.summary,1200))return null;
+  return freeze({kind:'worker-run',id:item.id,requestId:item.requestId,
+   project:projects[item.project],summary:human(item.summary,1200),
+   createdAt:human(item.createdAt,50),status:item.status,
+   stage:item.status==='failed'?'needs_attention':
+    item.status==='reported'?'diagnosed':'in_progress'});
+ }
+ function project({jobs=[],proposals=[],tasks=[],teamJobs=[],workerRuns=[]}={}){
   const validJobs=Array.isArray(jobs)?jobs.map(job).filter(Boolean).slice(0,MAX):[];
   const validProposals=Array.isArray(proposals)?
    proposals.map(proposal).filter(Boolean).slice(0,MAX):[];
@@ -87,10 +103,16 @@
      p.status==='rejected'?'rejected':'review_required'}));
   }
   const proposalIds=new Set(validProposals.map(p=>p.id));
+  const validWorkerRuns=Array.isArray(workerRuns)?workerRuns.map(workerRun).filter(Boolean).slice(0,MAX):[];
+  const trackedWorkerJobs=new Set(validWorkerRuns.map(x=>x.requestId));
   for(const j of validJobs){
-   if(proposalIds.has(j.id))continue;
+   if(proposalIds.has(j.id)||trackedWorkerJobs.has(j.id))continue;
    rows.push(freeze({...j,stage:j.last==='failed'?'needs_attention':
     j.last==='reported'?'diagnosed':'in_progress'}));
+  }
+  for(const run of validWorkerRuns){
+   if(proposalIds.has(run.requestId))continue;
+   rows.push(run);
   }
   if(Array.isArray(teamJobs))for(const entry of teamJobs.slice(0,MAX)){
    const item=teamHandoff(entry);
@@ -187,6 +209,15 @@
     for(const event of item.events)details.append(e('p','',human(event.state,35)+
      ' · '+human(event.actor,35)));
     card.append(details);
+   }else if(item.kind==='worker-run'){
+    card.append(e('p','human-hub-summary',item.status==='reported'?
+     'Ο Worker ολοκλήρωσε επαληθευμένη διερεύνηση μόνο για ανάγνωση. '+
+     'Δεν έγιναν αλλαγές αρχείων ή deployment.':
+     item.status==='failed'?
+     'Η διερεύνηση απέτυχε ή διακόπηκε. Για νέα εκτέλεση απαιτείται νέο αίτημα '+
+     'και νέα έγκριση· δεν επανεκτελείται αυτόματα.':
+     'Η διερεύνηση καταγράφηκε ως εκκρεμής. Αν η σύνδεση διακόπηκε, '+
+     'δεν ξεκινά ξανά μόνη της και χρειάζεται νέο εγκεκριμένο αίτημα.'));
    }else if(item.kind==='handoff'){
     card.append(e('p','human-hub-summary',item.status==='awaiting_consent'?
      'Ο Matt συμβουλεύτηκε τον Director και πρότεινε διερεύνηση από Worker. '+
@@ -297,5 +328,5 @@
   return freeze({refresh,focus,render,setData,get snapshot(){return current},
    get error(){return error},get ready(){return rendered}});
  }
- return freeze({project,stateLabel,create,job,proposal,manual,teamHandoff});
+ return freeze({project,stateLabel,create,job,proposal,manual,teamHandoff,workerRun});
 });
