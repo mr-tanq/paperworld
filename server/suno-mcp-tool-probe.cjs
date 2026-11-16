@@ -83,13 +83,17 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
     const {makeLegacySunoMcpProbe}=require('./suno-mcp-legacy-probe.cjs');
     return makeLegacySunoMcpProbe({fetcher}).inspect({accessToken});
    }
+   if(response.status===429)return {available:false,reason:'provider_rate_limited'};
+   if(response.status===404)return {available:false,reason:'provider_endpoint_missing'};
+   if(response.status>=500&&response.status<=599)
+    return {available:false,reason:'provider_server_error'};
    if(response.status!==200)
     return {available:false,reason:'unsupported_mcp_transport'};
    const contentType=response.headers?.get?.('content-type')||'';
    const isJson=/^application\/json\b/i.test(contentType);
    const isSse=/^text\/event-stream\b/i.test(contentType);
    if(!isJson&&!isSse)
-    return {available:false,reason:'unsupported_mcp_transport'};
+    return {available:false,reason:'unsupported_response_type'};
    const length=response.headers?.get?.('content-length');
    if(length!==null&&length!==undefined&&
       (Number(length)>MAX_BODY||!Number.isFinite(Number(length))))
@@ -97,12 +101,16 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
    const payload=await response.text();
    if(payload.length>MAX_BODY)return {available:false,reason:'unverified_mcp_response'};
    const message=isSse?parseRequestSse(payload):JSON.parse(payload);
+   if(message?.error)return {available:false,reason:'provider_rpc_rejected'};
    const result=summarize(message);
    if(!result)return {available:false,reason:'unverified_mcp_response'};
    // A tool list alone is NOT authorization to invoke any tool.
    return {available:true,reason:'read_only_tools_verified',
     toolCount:result.toolCount,tools:result.tools};
-  }catch(_){return {available:false,reason:'mcp_probe_unavailable'}}
+  }catch(error){
+   return {available:false,reason:error?.name==='TimeoutError'||
+    error?.name==='AbortError'?'provider_timeout':'mcp_probe_unavailable'};
+  }
  }
  return Object.freeze({inspect});
 }
