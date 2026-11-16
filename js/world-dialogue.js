@@ -99,14 +99,25 @@
  musicSave.type='submit';
  const musicResult=make('p','crow-music-result','');
  musicResult.setAttribute('role','status');
+ const musicFromCrow=make('button','crow-music-from-reply','Χρήση τελευταίας πρότασης Crow');
+ musicFromCrow.type='button';
+ const musicCopy=make('button','crow-music-copy','Αντιγραφή για Suno');
+ musicCopy.type='button';
+ musicCopy.hidden=true;
+ musicCopy.setAttribute('aria-label','Αντιγραφή του ελεγμένου αιτήματος για Suno MCP');
  const musicCancel=make('button','crow-music-cancel','Ακύρωση πρότασης');
  musicCancel.type='button';musicCancel.hidden=true;
  musicForm.append(musicTitle,musicStyle,musicLyrics,musicSave);
- musicPanel.append(musicHelp,musicForm,musicResult,musicCancel);
+ const sunoInstructions=make('a','crow-music-instructions','Οδηγίες σύνδεσης Suno MCP');
+ sunoInstructions.href='https://suno.com/mcp';
+ sunoInstructions.target='_blank';sunoInstructions.rel='noopener noreferrer';
+ musicPanel.append(musicHelp,musicFromCrow,musicForm,musicResult,musicCopy,
+  sunoInstructions,musicCancel);
  let previewId=null,musicBusy=false;
  function resetMusic(){
   musicPanel.hidden=true;musicToggle.setAttribute('aria-expanded','false');
   musicForm.reset();musicResult.textContent='';musicCancel.hidden=true;
+  musicCopy.hidden=true;
   previewId=null;
  }
  musicToggle.addEventListener('click',()=>{
@@ -114,6 +125,31 @@
   musicPanel.hidden=!musicPanel.hidden;
   musicToggle.setAttribute('aria-expanded',String(!musicPanel.hidden));
   if(!musicPanel.hidden)musicTitle.focus();
+ });
+ musicFromCrow.addEventListener('click',()=>{
+  if(openId!=='studio-director'||musicBusy)return;
+  const replies=directorReplies.get('studio-director')||[];
+  const last=replies[replies.length-1]?.content;
+  if(typeof last!=='string'||!last.trim()){
+   musicResult.textContent='Δεν υπάρχει πρόσφατη απάντηση του Crow. Μίλησέ του πρώτα.';
+   return;
+  }
+  // Suggestions remain editable; never send AI text to Suno automatically.
+  if(!musicTitle.value.trim())musicTitle.value='New Lost Wanderer Song';
+  musicStyle.value=last.trim().slice(0,1000);
+  musicResult.textContent='Προστέθηκε η τελευταία πρόταση του Crow. Έλεγξε και διόρθωσε τη μουσική κατεύθυνση.';
+ });
+ musicCopy.addEventListener('click',async()=>{
+  if(openId!=='studio-director'||!previewId||musicBusy)return;
+  try{
+   const formatter=window.PaperworldCrowSunoPrompt;
+   if(!formatter?.format)throw Error('unavailable');
+   const text=formatter.format({title:musicTitle.value,style:musicStyle.value,
+    lyrics:musicLyrics.value});
+   // Clipboard writes are only initiated by the user's explicit button press.
+   await navigator.clipboard.writeText(text);
+   musicResult.textContent='Αντιγράφηκε. Επικόλλησέ το σε AI assistant με συνδεδεμένο Suno MCP. Δεν έγινε παραγωγή.';
+  }catch(_){musicResult.textContent='Η αντιγραφή απέτυχε. Έλεγξε τα πεδία και τα δικαιώματα του browser.'}
  });
  musicForm.addEventListener('submit',async e=>{
   e.preventDefault();
@@ -126,9 +162,10 @@
   try{
    // Cancel old owner-scoped draft before replacing, avoiding unused previews.
    if(previewId)await cloud().cancelCrowSunoPreview(previewId);
-   previewId=null;
+   previewId=null;musicCopy.hidden=true;
    const response=await cloud().crowSunoPreview({operation:'create',title,style,lyrics});
    previewId=response.proposalId;
+   musicCopy.hidden=false;
    musicResult.textContent='Προεπισκόπηση έτοιμη: '+response.title+
     '. Το Suno δεν συνδέθηκε και δεν έγινε παραγωγή. Credits: άγνωστα.';
    musicCancel.hidden=false;
@@ -141,7 +178,7 @@
   musicBusy=true;musicCancel.disabled=true;
   try{
    await cloud().cancelCrowSunoPreview(previewId);
-   previewId=null;musicCancel.hidden=true;
+   previewId=null;musicCancel.hidden=true;musicCopy.hidden=true;
    musicResult.textContent='Η πρόταση ακυρώθηκε. Κανένα Suno credit δεν χρησιμοποιήθηκε.';
   }catch(_){musicResult.textContent='Δεν επιβεβαιώθηκε η ακύρωση. Μπορείς να δοκιμάσεις ξανά.'}
   finally{musicBusy=false;musicCancel.disabled=false}
