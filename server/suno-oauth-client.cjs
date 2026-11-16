@@ -23,7 +23,7 @@ const SAFE_TOOL_REASONS=Object.freeze(new Set([
  'legacy_handshake_unverified','legacy_session_invalid','legacy_tools_unverified'
 ]));
 function safeToolReason(verdict){
- if(verdict?.available===true)return 'read_only_tools_verified';
+ if(verdict?.available===true)return 'mcp_capability_unverified';
  const reason=verdict?.reason;
  return typeof reason==='string'&&SAFE_TOOL_REASONS.has(reason)?
   reason:'mcp_capability_unverified';
