@@ -29,8 +29,8 @@ function makeAutonomousMissionApi({fetcher=globalThis.fetch,
  async function handle({headers={},body,action}={}){
   const deny=(status,error)=>({status,body:{error}});
   if(headers.origin!==ORIGIN)return deny(403,'origin_denied');
-  if(!['create','list','status'].includes(action)||typeof body!=='string'||
-   Buffer.byteLength(body,'utf8')>2100)return deny(400,'invalid_request');
+  if(!['create','list','status','simulate'].includes(action)||typeof body!=='string'||
+   Buffer.byteLength(body,'utf8')>5500)return deny(400,'invalid_request');
   const bearer=headers.authorization||'';
   if(!/^Bearer [A-Za-z0-9_.-]{12,4096}$/.test(bearer))return deny(401,'unauthorized');
   let input;try{input=JSON.parse(body)}catch(_){return deny(400,'invalid_json')}
@@ -66,6 +66,33 @@ function makeAutonomousMissionApi({fetcher=globalThis.fetch,
      id:r.id,projectId:r.project_id,goal:r.goal,status:r.status,
      createdAt:r.created_at,updatedAt:r.updated_at}))}};
    }
+   if(action==='simulate'){
+    if(Object.keys(input).sort().join(',')!=='missionId,threadId'||
+     !UUID.test(input.missionId||''))return deny(400,'invalid_mission');
+    const qs=new URLSearchParams({select:'id,owner_id,thread_id,status,project_id,policy',
+     id:'eq.'+input.missionId,owner_id:'eq.'+ownerId,
+     thread_id:'eq.'+input.threadId,limit:'1'});
+    const found=await query('GET','paperworld_autonomous_missions_v5?'+qs);
+    if(found.length!==1||found[0].status!=='draft'||
+     found[0].policy?.maxAiCalls!==0||found[0].policy?.additionalSpendUsd!==0)
+     return deny(409,'simulation_mission_not_ready');
+    const response=await fetcher(BASE+'/rest/v1/rpc/paperworld_v5_queue_mission',{
+     method:'POST',redirect:'error',signal:AbortSignal.timeout(8000),
+     headers:{apikey:secret,...(secret.startsWith('eyJ')?
+      {Authorization:'Bearer '+secret}:{}),
+      Accept:'application/json','Content-Type':'application/json'},
+     body:JSON.stringify({p_mission:input.missionId,p_mode:'simulation'})});
+    if(!response?.ok)throw Error('simulation_queue_rpc_unavailable');
+    const started=await response.json();
+    if(started!==true)return deny(409,'simulation_already_queued');
+    return {status:200,body:{queued:true,missionId:input.missionId,
+     execution:'simulation_only',aiCalls:0,realWork:false}};
+   }
+   // Cap owner draft accumulation; no browser can raise caps or grant AI.
+   const capQuery=new URLSearchParams({select:'id',owner_id:'eq.'+ownerId,
+    status:'eq.draft',limit:'21'});
+   const existing=await query('GET','paperworld_autonomous_missions_v5?'+capQuery);
+   if(existing.length>=20)return deny(409,'too_many_unstarted_missions');
    if(!['threadId','projectId','goal'].every(k=>Object.hasOwn(input,k))||
     Object.keys(input).length!==3)return deny(400,'invalid_mission');
    let spec;try{spec=missionSpec({
