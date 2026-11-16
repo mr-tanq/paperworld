@@ -1,5 +1,9 @@
 # PAPERWORLD — PROJECT NOTES (living source of truth)
 
+## 2026-11-16 — Suno MCP api:v0 scope compatibility fix (draft)
+
+Owner's live diagnostics still show MCP HTTP 401/403 after OAuth reconnect using read and credits scopes. Suno's protected resource metadata reportedly includes `api:v0`, a general MCP API access permission that the Paperworld OAuth allowlist previously omitted. Based on the MCP authorization specification's recommendation to use scope hints and advertised protected-resource scopes, the OAuth request now includes `api:v0` if—and only if—the Suno resource metadata advertises it. Existing owner-approved `credits:spend` and read permissions remain. This is a testable hypothesis, not a verified 401/403 root cause. Existing in-memory tokens must be reauthorized after separately approved backend deployment. No MCP tool execution, songs or credits are consumed by this change.
+
 ## 2026-11-16 — Suno OAuth owner-approved credits scope (draft)
 
 Owner explicitly approved use of existing Suno credits and requested a less repetitive UI. OAuth scope selection now includes provider-advertised `credits:spend` along with `profile:read` and `library:read`. The Paperworld link confirmation mentions this once, with final consent still handled by Suno. Routine diagnostic status messages no longer repeat credit warnings. Unrelated scopes (such as write and offline access) are not requested.

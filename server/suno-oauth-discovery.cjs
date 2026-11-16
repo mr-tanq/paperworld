@@ -18,7 +18,7 @@ function safeMetadata(json){
  // Preserve issuer paths: Suno can advertise an OAuth issuer beneath /api/.
  // Reducing this value to URL.origin breaks RFC 8414 metadata discovery.
  // Owner opted in to Suno credit use. Request only provider-advertised scopes.
- const allowed=new Set(['profile:read','library:read','credits:spend']);
+ const allowed=new Set(['api:v0','profile:read','library:read','credits:spend']);
  const scopes=Array.isArray(json.scopes_supported)?
   json.scopes_supported.filter(v=>typeof v==='string'&&allowed.has(v)):[];
  return {authorizationServers:servers.map(s=>new URL(s).href.replace(/\/$/,'')),

@@ -131,7 +131,7 @@ test('Path-based Suno OAuth issuer uses RFC 8414 discovery and PKCE without unsa
 test('Suno owner consent requests advertised scopes including credits spend',async()=>{
  const client=createSunoOAuthClient({identity,discovery:{
   inspect:async()=>({metadataAvailable:true,authorizationServers:[issuer],
-   requestedScopes:['profile:read','library:read','credits:spend','library:write']})
+   requestedScopes:['api:v0','profile:read','library:read','credits:spend','library:write']})
  },fetcher:async()=>({
   status:200,headers:{get:()=> 'application/json'},
   text:async()=>JSON.stringify(metadata)
@@ -139,7 +139,7 @@ test('Suno owner consent requests advertised scopes including credits spend',asy
  const response=await client.start({headers,body});
  assert.equal(response.status,200);
  const url=new URL(response.body.authorizationUrl);
- assert.equal(url.searchParams.get('scope'),'profile:read library:read credits:spend');
+ assert.equal(url.searchParams.get('scope'),'api:v0 profile:read library:read credits:spend');
  assert.equal(url.searchParams.get('resource'),'https://api.suno.com/mcp');
  assert.doesNotMatch(response.body.authorizationUrl,/create%3Agenerate|library%3Awrite/);
 });
