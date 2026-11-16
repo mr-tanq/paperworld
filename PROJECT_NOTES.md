@@ -1,5 +1,11 @@
 # PAPERWORLD — PROJECT NOTES (living source of truth)
 
+## 2026-11-16 — Crow Suno OAuth issuer path discovery fix
+
+Owner-provided live screenshot of the Suno Connection Doctor confirmed the client-registration stage is not verified. Review found a concrete bug: `safeMetadata` reduced every OAuth `authorization_servers` URI to its origin, discarding the issuer path. Suno's MCP endpoint has been observed by third-party probes to advertise a path-qualified issuer like `https://studio-api-prod.suno.com/api/v2/external/oauth` (not independently confirmed by our backend). RFC 8414 discovery requires the issuer path after the well-known OAuth metadata prefix; OIDC discovery requires the issuer path before the OIDC well-known suffix. The owner-scoped client now preserves the full issuer URI, resolves both metadata variants and compares endpoint origins to the issuer's hostname. It still validates issuer equality and HTTPS Suno-owned hosts. Tests cover nested issuers, cross-host rejection and no redirects.
+
+This addresses an actual implementation bug but **does not prove Suno advertises `client_id_metadata_document_supported`**. OAuth remains fail-closed when registration support is not advertised. This PR does not connect the account or enable music generation; it requires a new approved backend deployment after merge and a real owner-initiated diagnosis. No credits or billable services were invoked.
+
 ## 2026-11-16 — Crow Suno Connection Doctor (draft)
 
 Owner-triggered Suno Connection Doctor consolidates existing **read-only** resource metadata, OAuth client-registration support, owner-scoped OAuth status and MCP tool listing into a single understandable diagnosis in Crow's Messenger. Server only returns booleans, count and a bounded next-step code. It does not return tokens, client credentials, schemas, lyrics or other private content; and always reports `canGenerate:false`. The doctor does not request OAuth authorization or invoke any music tool. Provider metadata accessibility and registration support do not prove the user's Suno account has been linked. Live Suno compatibility remains unverified until the owner explicitly signs in and tests on the deployed application. Offline tests are not evidence of actual authorization.
