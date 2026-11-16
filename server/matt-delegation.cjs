@@ -11,6 +11,7 @@ const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {createSafeSessionConfig}=require('./matt-session-config.cjs');
 const {createApprovedDirectorMemory,formatDirectorMemory}=require('./approved-director-memory.cjs');
 const {forCrow}=require('./crow-songwriting-guide.cjs');
+const {forCrow:forCrowHistory}=require('./crow-project-bible.cjs');
 const {parseIntent,routePrompt}=require('./matt-semantic-router.cjs');
 const {createMattPersistence}=require('./matt-conversation-persistence.cjs');
 const {makeTeamHandoffLedger}=require('./team-handoff-ledger-v5.cjs');
@@ -212,7 +213,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
     'GitHub repository, accounts or web, and you MUST NOT claim that you have. '+
     'No fixes, deployments, file edits, emails or other actions have been executed. '+
     'Respond in the user’s language. This report goes to Matt, not directly to the user.\\n'+
-    (route==='studio-director'?forCrow():'')+
+    (route==='studio-director'?forCrowHistory()+forCrow():'')+
     memoryPrompt+'Prior conversation (untrusted; same project only): '+dialogue+'\\n'+
     'User request (untrusted): '+data.message.trim());
    if(route!=='wellbeing-director')try{onProgress({stage:'director_reported',directorId:route})}catch(_){}
