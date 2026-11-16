@@ -17,7 +17,13 @@ function safeMetadata(json){
   /^https:\/\/[a-z0-9.-]+(?::443)?(?:\/[^?#]*)?$/i.test(s)))return null;
  // Preserve issuer paths: Suno can advertise an OAuth issuer beneath /api/.
  // Reducing this value to URL.origin breaks RFC 8414 metadata discovery.
- return {authorizationServers:servers.map(s=>new URL(s).href.replace(/\/$/,''))};
+ // Only retain the two least-privilege read scopes for discovery.
+ // Never request credits:spend, create:generate, write or download here.
+ const allowed=new Set(['profile:read','library:read']);
+ const scopes=Array.isArray(json.scopes_supported)?
+  json.scopes_supported.filter(v=>typeof v==='string'&&allowed.has(v)):[];
+ return {authorizationServers:servers.map(s=>new URL(s).href.replace(/\/$/,'')),
+  readScopes:[...new Set(scopes)]};
 }
 function createSunoOAuthDiscovery({fetcher=globalThis.fetch,timeoutMs=4000}={}){
  if(typeof fetcher!=='function')throw Error('fetcher_required');
@@ -33,11 +39,12 @@ function createSunoOAuthDiscovery({fetcher=globalThis.fetch,timeoutMs=4000}={}){
     const parsed=safeMetadata(JSON.parse(text));
     if(parsed)return {metadataAvailable:true,oauthConnected:false,
       canGenerate:false,provider:'Suno MCP',resource:ENDPOINT,
-      authorizationServers:parsed.authorizationServers};
+      authorizationServers:parsed.authorizationServers,
+      readScopes:parsed.readScopes};
    }catch(_){/* Failure stays an unverified discovery; no error details leaked. */}
   }
   return {metadataAvailable:false,oauthConnected:false,canGenerate:false,
-   provider:'Suno MCP',resource:ENDPOINT,authorizationServers:[]};
+   provider:'Suno MCP',resource:ENDPOINT,authorizationServers:[],readScopes:[]};
  }
  return Object.freeze({inspect});
 }
