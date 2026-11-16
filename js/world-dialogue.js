@@ -83,14 +83,14 @@
   });
  }
  // Crow's optional Suno preview is a separate, owner-triggered action.
- // Never infer consent to spend credits from a conversational AI reply.
+ // Owner permits Suno credit use; a capability grant does not itself run tools.
  const musicToggle=make('button','crow-music-toggle','♫ Προετοιμασία τραγουδιού');
  musicToggle.type='button';musicToggle.hidden=true;
  musicToggle.setAttribute('aria-expanded','false');
  const musicPanel=make('section','crow-music-panel');musicPanel.hidden=true;
  musicPanel.setAttribute('aria-label','Προεπισκόπηση τραγουδιού');
  const musicHelp=make('p','crow-music-help',
-  'Ετοίμασε την περιγραφή για τον Crow. Δεν γίνεται ακόμη παραγωγή στο Suno και δεν ξοδεύονται credits.');
+  'Ετοίμασε την περιγραφή και τους στίχους για τον Crow.');
  const musicForm=make('form','crow-music-form');
  const musicTitle=make('input','crow-music-title');
  musicTitle.type='text';musicTitle.maxLength=120;musicTitle.required=true;
@@ -214,8 +214,7 @@
     (reasonHint[r.toolReason]||'Η ακριβής τεχνική αιτία δεν έχει επαληθευτεί.'):'';
    musicResult.textContent=(descriptions[r.nextStep]||
     'Δεν ολοκληρώθηκε η διάγνωση σύνδεσης.')+
-    (hint?' Αιτία: '+hint:'')+
-    ' Καμία παραγωγή και κανένα Suno credit δεν χρησιμοποιήθηκε.';
+    (hint?' Αιτία: '+hint:'');
   }catch(_){
    musicResult.textContent='Ο έλεγχος δεν ολοκληρώθηκε. Η παραγωγή παραμένει απενεργοποιημένη.';
   }finally{sunoCheck.disabled=false}
@@ -260,7 +259,7 @@
     lyrics:musicLyrics.value});
    // Clipboard writes are only initiated by the user's explicit button press.
    await navigator.clipboard.writeText(text);
-   musicResult.textContent='Αντιγράφηκε. Επικόλλησέ το σε AI assistant με συνδεδεμένο Suno MCP. Δεν έγινε παραγωγή.';
+   musicResult.textContent='Αντιγράφηκε. Μπορείς να το χρησιμοποιήσεις σε assistant με συνδεδεμένο Suno MCP.';
   }catch(_){musicResult.textContent='Η αντιγραφή απέτυχε. Έλεγξε τα πεδία και τα δικαιώματα του browser.'}
  });
  musicForm.addEventListener('submit',async e=>{
@@ -279,7 +278,7 @@
    previewId=response.proposalId;
    musicCopy.hidden=false;
    musicResult.textContent='Προεπισκόπηση έτοιμη: '+response.title+
-    '. Το Suno δεν συνδέθηκε και δεν έγινε παραγωγή. Credits: άγνωστα.';
+    '.';
    musicCancel.hidden=false;
   }catch(_){
    musicResult.textContent='Η προεπισκόπηση δεν αποθηκεύτηκε. Δοκίμασε ξανά αφού συνδεθείς.';
@@ -291,7 +290,7 @@
   try{
    await cloud().cancelCrowSunoPreview(previewId);
    previewId=null;musicCancel.hidden=true;musicCopy.hidden=true;
-   musicResult.textContent='Η πρόταση ακυρώθηκε. Κανένα Suno credit δεν χρησιμοποιήθηκε.';
+   musicResult.textContent='Η πρόταση ακυρώθηκε.';
   }catch(_){musicResult.textContent='Δεν επιβεβαιώθηκε η ακύρωση. Μπορείς να δοκιμάσεις ξανά.'}
   finally{musicBusy=false;musicCancel.disabled=false}
  });
