@@ -163,13 +163,29 @@ async function discardSolution(item){
  message='Η λύση απορρίφθηκε. Δεν έγινε καμία αλλαγή.';
  await reload();render();
 }
+async function runApprovedHandoff(item){
+ if(!item||item.kind!=='handoff'||item.status!=='awaiting_consent'||
+  !['pokemon-developer','listening-developer'].includes(item.workerId)||
+  typeof item.summary!=='string'||!item.summary.trim()||
+  !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(item.requestId||''))
+  throw Error('Invalid approved Worker handoff');
+ const options={saveNote:false,requestId:item.requestId};
+ const result=item.workerId==='pokemon-developer'?
+  await client.delegatePokemonWorker(item.summary,options):
+  await client.delegateMattWorker(item.summary,options);
+ if(result?.executed!==true||result?.delegated!==true||
+  result?.requestId!==item.requestId||
+  typeof result.content!=='string')throw Error('Worker result was not verified');
+ message='Ο Worker επέστρεψε αναφορά. '+result.content.slice(0,1000);
+ return result;
+}
 function renderHumanWork(target){
  const module=window.PaperworldHumanFirstHub;
  if(!module?.create){target.append(el('p','Το κέντρο εργασιών δεν φορτώθηκε.','room-footnote'));return}
  const mount=el('div',undefined,'human-hub-mount');
  target.append(mount);
  humanHub=module.create(mount,{load:loadHumanWork,
-  approve:prepareSolution,reject:discardSolution,
+  approve:prepareSolution,reject:discardSolution,runWorker:runApprovedHandoff,
   openMatt:()=>window.PaperworldWorldDialogue?.show('matt'),
   openProject:()=>{room='workshop';render()},
   onError:e=>{jobHistoryError=e}
@@ -352,7 +368,7 @@ window.PaperworldCloudUI={
  delegatePokemonWorker:(text,opts)=>client.delegatePokemonWorker(text,opts),
  mattJobHistory:()=>client.mattJobHistory(),
  teamHandoffHistory:()=>client.teamHandoffHistory(),
- loadHumanWork,
+ loadHumanWork,runApprovedHandoff,
  prepareHumanSolution:prepareSolution,
  discardHumanSolution:discardSolution,
  refreshHumanWork:async()=>{await reload();if(active)render();return {
