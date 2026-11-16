@@ -1,0 +1,34 @@
+name: PAPERWORLD V5 autonomous watch (zero AI)
+on:
+  schedule:
+    # Durable GitHub-hosted wakeup, independent of Render Free sleep.
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: paperworld-v5-unattended-watch
+  cancel-in-progress: false
+
+jobs:
+  public-source-watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked existing dependencies (no paid providers)
+        run: npm ci --omit=dev --no-audit --no-fund
+      - name: Run bounded public-source monitoring
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PAPERWORLD_AUTONOMY_DISABLE_AI: '1'
+        run: node scripts/autonomous-nightwatch-v5.cjs
