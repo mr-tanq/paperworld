@@ -147,6 +147,43 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
    toolCount:allowed?verdict.toolCount:0,
    reason:allowed?'read_only_tools_verified':'mcp_capability_unverified'});
  }
+ // Owner-initiated connection doctor. Only existing read-only discovery
+ // and tools/list probes; no OAuth start, tools/call or generation.
+ async function diagnose(req={}){
+  const who=await identify(req);if(who.error)return who.error;
+  cleanup();
+  const session=linked.get(who.ownerId);
+  let resourceAvailable=false,clientRegistrationSupported=false;
+  try{
+   const resource=await provider.inspect();
+   resourceAvailable=resource?.metadataAvailable===true;
+   if(resourceAvailable){
+    const endpoints=await capability();
+    clientRegistrationSupported=!!endpoints;
+   }
+  }catch(_){/* Provider availability is not permission to guess. */}
+  let toolsListed=false,toolCount=0;
+  if(session){
+   try{
+    const verdict=await tools.inspect({accessToken:session.accessToken});
+    if(verdict?.available===true&&
+       Number.isSafeInteger(verdict.toolCount)&&verdict.toolCount>=0&&
+       verdict.toolCount<=100&&Array.isArray(verdict.tools)&&
+       verdict.tools.length===verdict.toolCount&&
+       verdict.tools.every(x=>typeof x==='string'&&
+        /^[a-zA-Z0-9_.-]{1,100}$/.test(x))){
+      toolsListed=true;toolCount=verdict.toolCount;
+    }
+   }catch(_){/* A disconnected or incompatible provider stays unverified. */}
+  }
+  return answer(200,{service:'suno_mcp',resourceAvailable,
+   clientRegistrationSupported,oauthAuthorized:!!session,
+   toolsListed,toolCount,canGenerate:false,
+   nextStep:!resourceAvailable?'provider_resource_unavailable':
+    !clientRegistrationSupported?'client_registration_unverified':
+    !session?'owner_oauth_required':
+    !toolsListed?'mcp_tools_unverified':'generation_not_enabled'});
+ }
  async function callback({url}={}){
   const redirect=(ok)=>({status:302,body:null,headers:{'Location':APP+
     '/paperworld/?suno_link='+(ok?'connected':'failed'),
@@ -189,7 +226,7 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
    grant_types:['authorization_code'],response_types:['code'],
    token_endpoint_auth_method:'none'};
  }
- return Object.freeze({start,status,inspectTools,callback,clientMetadata});
+ return Object.freeze({start,status,inspectTools,diagnose,callback,clientMetadata});
 }
 module.exports=Object.freeze({createSunoOAuthClient,validServerMeta,isSunoOrigin,
  CLIENT_ID,CALLBACK});
