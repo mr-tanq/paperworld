@@ -6,6 +6,7 @@
 'use strict';
 const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
+const {makeWorkerRunJournal}=require('./worker-run-journal-v5.cjs');
 const {createSafeSessionConfig}=require('./matt-session-config.cjs');
 const {createRepoReader,FILES}=require('./listening-repo-reader.cjs');
 const {makeEvidencePacket,formatDirectorEvidence}=require('./agent-workspace.cjs');
@@ -16,7 +17,7 @@ const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const CONSENT='MATT_DIRECTOR_WORKER_UP_TO_FIVE_AI_TURNS';
 const ORIGIN='https://mr-tanq.github.io';
 function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader(),jobMemory,memoryLoader=null,
- proposalMemory=null,
+ proposalMemory=null,workerJournal=null,
  fetcher=globalThis.fetch,clock=Date.now,
  budgetVerified=()=>process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED==='yes',
  diagnostic=stage=>console.warn('[PAPERWORLD worker delegation]',stage)}={}){
@@ -33,6 +34,7 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
  if(typeof approvedMemory.load!=='function')throw Error('memory_loader_required');
  if(proposalMemory!==null&&typeof proposalMemory.save!=='function')
   throw Error('proposal_memory_adapter_invalid');
+ const journal=workerJournal||makeWorkerRunJournal({fetcher});
  const spent=new Map(),busy=new Set();
  const deny=(status,error)=>({status,body:{error}});
  const clear=()=>{for(const [key,until] of spent)if(until<clock())spent.delete(key)};
@@ -64,6 +66,7 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
   spent.set(key,clock()+600000);busy.add(ownerId);
   let directory,client,session,stage='client_factory',attempted=0;
   let jobCreated=false,historyComplete=true;
+  let runClaimed=false,runFinished=false;
   const ownerToken=bearer.slice(7);
   async function record(state,actor,note){
    if(!jobCreated)return;
@@ -71,6 +74,12 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
    catch(_){historyComplete=false;diagnostic('job_event_persist_unavailable')}
   }
   try{
+   if(journal.configured){
+    stage='worker_journal_claim';
+    await journal.claim({ownerId,threadId:input.threadId,
+     requestId:input.requestId,project:'listening',summary:input.message});
+    runClaimed=true;
+   }
    directory=await fs.mkdtemp(path.join(os.tmpdir(),'paperworld-worker-'));
    client=await clientFactory({gitHubToken:token,useLoggedInUser:false,
     mode:'empty',baseDirectory:directory});
@@ -264,6 +273,12 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
     'No code edits, PR or deployments occurred.\n'+verifiedResult+
     '\nDirector assessment (UNTRUSTED): '+directorReport);
    await record('reported','matt','Final read-only findings returned to owner');
+   if(runClaimed){
+    stage='worker_journal_finish';
+    await journal.finish({ownerId,requestId:input.requestId,status:'reported',
+     summary:'Verified read-only investigation returned; no source edits'});
+    runFinished=true;
+   }
    return {status:200,body:{executed:true,delegated:true,workerId:'listening-developer',
     directorId:'listening-director',project:'Listening Mirror',
     // Immutable server-authored evidence precedes any model interpretation.
@@ -290,6 +305,10 @@ function makeWorkerDelegation({oauth,clientFactory,guard,reader=createRepoReader
    return {status:503,body:{error:'worker_runtime_unavailable',
     stage,attemptedAiTurns:attempted,...(reason?{reason}:{})}};
   }finally{
+   if(runClaimed&&!runFinished)try{
+    await journal.finish({ownerId,requestId:input.requestId,status:'failed',
+     summary:'Worker run interrupted; human must start a new approved request'});
+   }catch(_){diagnostic('worker_journal_finish_unavailable')}
    try{await session?.disconnect?.()}catch(_){}
    try{await client?.stop?.()}catch(_){}
    if(directory)try{await fs.rm(directory,{recursive:true,force:true})}catch(_){}
