@@ -4,13 +4,18 @@ let room='town',tasks=[],allTasks=[],busy=false,message='',edit=null,active=fals
 let memoryOpen=false,memoryView=null,historyImportView=null;
 // Display-only proposals. No approval grant or server write capability.
 let listeningReviewPayload=null,listeningStoredProposals=[],listeningProposalError='';
-let workJobs=[],teamJobs=[],workerRuns=[],pokemonProposals=[],pokemonUnavailable=false,jobHistoryError='',teamHistoryError='',humanHub=null;
+let workJobs=[],teamJobs=[],workerRuns=[],pokemonProposals=[],autonomyReports=[],pokemonUnavailable=false,jobHistoryError='',teamHistoryError='',humanHub=null;
 
 
 const el=(tag,text,cls)=>{let e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
 const btn=(text,fn,cls)=>{let b=el('button',text,cls);b.type='button';b.disabled=busy;b.addEventListener('click',fn);return b};
 const note=(s,isError=false)=>{message=(isError?'Error: ':'')+s;render()};
 async function work(fn){if(busy)return;busy=true;message='';render();try{await fn()}catch(e){message='Error: '+e.message}finally{busy=false;render()}}
+async function publicAutonomyReports(){
+ const feed=window.PaperworldAutonomyFeed;
+ if(!feed?.load)return [];
+ try{return await feed.load()}catch(_){return []}
+}
 async function reload(){
  allTasks=await client.list();
  tasks=allTasks.filter(t=>t.room===room);
@@ -31,6 +36,7 @@ async function reload(){
   listeningStoredProposals=[];
   listeningProposalError='Δεν φορτώθηκαν οι προτάσεις: '+e.message;
  }
+ autonomyReports=await publicAutonomyReports();
 }
 function loginForm(){let f=el('form');let email=el('input'),password=el('input');email.type='email';email.required=true;email.placeholder='Email';email.autocomplete='email';password.type='password';password.required=true;password.minLength=6;password.placeholder='Password';password.autocomplete='current-password';f.append(email,password);
 let sign=el('button','Sign in','primary');sign.type='submit';f.append(sign,btn('Create account',()=>work(async()=>{let ready=await client.signup(email.value.trim(),password.value);if(ready)await reload();else message='Check your email for the confirmation message, then sign in.'})));
@@ -147,12 +153,14 @@ async function loadHumanWork(){
  const results=await Promise.all([client.mattJobHistory(),
   client.listListeningProposals(),client.list(),
   client.teamHandoffHistory().catch(()=>({jobs:[],unavailable:true})),
-  client.listPokemonProposals().then(proposals=>({proposals})).catch(()=>({proposals:[],unavailable:true}))]);
+  client.listPokemonProposals().then(proposals=>({proposals})).catch(()=>({proposals:[],unavailable:true})),
+  publicAutonomyReports()]);
  return {jobs:results[0].jobs,proposals:results[1],tasks:results[2],
   teamJobs:results[3].jobs,workerRuns:results[3].workerRuns||[],
   teamUnavailable:results[3].unavailable===true,
   workerHistoryUnavailable:results[3].workerHistoryUnavailable===true,
-  pokemonProposals:results[4].proposals,pokemonUnavailable:results[4].unavailable===true};
+  pokemonProposals:results[4].proposals,pokemonUnavailable:results[4].unavailable===true,
+  autonomyReports:results[5]};
 }
 async function preparePokemonSolution(item){
  const r=await client.publishPokemonProposal(item.jobId,item.digest);
@@ -218,7 +226,7 @@ function renderHumanWork(target){
   openProject:()=>{room='workshop';render()},
   onError:e=>{jobHistoryError=e}
  });
- humanHub.setData({jobs:workJobs,proposals:listeningStoredProposals,pokemonProposals,tasks:allTasks,teamJobs,workerRuns});
+ humanHub.setData({jobs:workJobs,proposals:listeningStoredProposals,pokemonProposals,autonomyReports,tasks:allTasks,teamJobs,workerRuns});
  if(jobHistoryError||listeningProposalError||teamHistoryError){
   target.append(el('p',[jobHistoryError,listeningProposalError,teamHistoryError].filter(Boolean).join(' · '),'room-footnote'));
  }
