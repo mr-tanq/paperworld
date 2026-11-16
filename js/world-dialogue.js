@@ -72,6 +72,13 @@
    compact:true,load:()=>cloud().loadHumanWork(),
    approve:item=>cloud().prepareHumanSolution(item),
    reject:item=>cloud().discardHumanSolution(item),
+   runWorker:async item=>{
+    const result=await cloud().runApprovedHandoff(item);
+    mattReplies.push({content:String(result.content||''),
+     time:new Date().toISOString()});
+    if(openId==='matt')paint();
+    return result;
+   },
    onError:()=>{}
   });
  }
@@ -402,7 +409,7 @@
     const pokemon=plan.workerId==='pokemon-developer';
     const scope=pokemon?
      'Θα διαβαστεί ΜΟΝΟ το ιδιωτικό project.godot του Pokémon Echoes και θα '+
-     'σταλεί ως πηγή στο GitHub Copilot. Δεν υπάρχει ακόμη μόνιμο ιστορικό της εργασίας.':
+     'σταλεί ως πηγή στο GitHub Copilot. Η εγκεκριμένη διερεύνηση καταγράφεται στο ιδιωτικό ιστορικό όταν είναι διαθέσιμο.':
      'Θα διαβαστούν μόνο προκαθορισμένα αρχεία του Listening Mirror. '+
      'Η εξέλιξη καταγράφεται στο προστατευμένο ιστορικό.';
     const consent='Ο Matt προτείνει έλεγχο πηγαίου κώδικα από τον '+
@@ -413,8 +420,8 @@
      if(openId==='matt')status.textContent='Ο Matt ξεκίνησε την εγκεκριμένη διερεύνηση…';
      // The original human note is already stored by delegateMatt.
      const worker=pokemon?
-      await cloud().delegatePokemonWorker(text,{saveNote:false}):
-      await cloud().delegateMattWorker(text,{saveNote:false,onStart:id=>{
+      await cloud().delegatePokemonWorker(text,{saveNote:false,requestId:result.requestId}):
+      await cloud().delegateMattWorker(text,{saveNote:false,requestId:result.requestId,onStart:id=>{
        requestId=id;
        watcher=setInterval(poll,1300);
       }});
