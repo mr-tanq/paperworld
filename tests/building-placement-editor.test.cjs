@@ -18,7 +18,7 @@ test('layout editor is opt-in with visible touch-friendly controls',()=>{
  assert.match(app,/building:placingBuildings\?d:null/);
 });
 test('placement drafts remain local and include all five building coordinates',()=>{
- assert.match(app,/paperworld-building-layout-draft-v1/);
+ assert.match(app,/paperworld-building-layout-draft-v2/);
  assert.match(app,/localStorage\.setItem\(buildingLayoutKey/);
  assert.match(app,/Object\.fromEntries\(defs\.map/);
  assert.match(app,/format:'paperworld-building-layout-v1'/);
