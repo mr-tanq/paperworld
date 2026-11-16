@@ -63,22 +63,46 @@ function prepareProposal(input,{actor}={}){
  if(entry.status!=='proposed')fail('proposal_required');
  return entry;
 }
+function normalizeSearch(value){
+ // Unicode folding keeps Greek queries usable without matching accent marks
+ // and treats final sigma as equivalent to medial sigma.
+ return String(value||'').normalize('NFD')
+  .replace(/\p{M}/gu,'').toLocaleLowerCase().replace(/ς/g,'σ');
+}
+const SEARCH_STOP_WORDS=new Set([
+ 'και','στη','στον','στο','την','των','τον','της','του','απο','για',
+ 'που','πως','ποιο','ποια','ειναι','θελω','μου','σου','μας','μια',
+ 'ένα','ενα','στοιχεια','θελουμε','δωσε','μπορει',
+ 'the','and','for','with','what','when','where','this','that',
+ 'from','about','our','your','please','can','could','would'
+]);
 function memoryTerms(value){
  if(typeof value!=='string')return [];
- return [...new Set((value.toLocaleLowerCase().match(/[\p{L}\p{N}]{3,}/gu)||[])
-  .filter(x=>x.length<=48))].slice(0,40);
+ return [...new Set((normalizeSearch(value).match(/[\p{L}\p{N}]{3,}/gu)||[])
+  .filter(x=>x.length<=48&&!SEARCH_STOP_WORDS.has(x)))].slice(0,40);
 }
 function rankMemories(records,query){
  const terms=memoryTerms(query);
  if(!terms.length)return records;
  return records.map((entry,index)=>{
-  const title=entry.title.toLocaleLowerCase();
-  const body=entry.body.toLocaleLowerCase();
+  const title=normalizeSearch(entry.title);
+  const body=normalizeSearch(entry.body);
+  const titleWords=title.match(/[\p{L}\p{N}]{3,}/gu)||[];
+  const bodyWords=body.match(/[\p{L}\p{N}]{3,}/gu)||[];
   let score=0;
   for(const term of terms){
-   if(title.includes(term))score+=8;
-   if(body.includes(term))score+=2;
+   if(titleWords.includes(term))score+=12;
+   else if(title.includes(term))score+=8;
+   else if(term.length>=5&&titleWords.some(word=>word.startsWith(term.slice(0,5))))
+    score+=4;
+   if(bodyWords.includes(term))score+=4;
+   else if(body.includes(term))score+=2;
+   else if(term.length>=5&&bodyWords.some(word=>word.startsWith(term.slice(0,5))))
+    score+=1;
   }
+  // A full phrase in an entry's title is stronger than scattered keyword hits.
+  const phrase=terms.join(' ');
+  if(terms.length>1&&title.includes(phrase))score+=10;
   if(entry.kind==='project_bible')score+=1;
   return {entry,index,score};
  }).sort((a,b)=>b.score-a.score||a.index-b.index).map(x=>x.entry);
