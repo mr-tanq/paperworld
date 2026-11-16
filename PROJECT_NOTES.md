@@ -1,5 +1,11 @@
 # PAPERWORLD — PROJECT NOTES (living source of truth)
 
+## 2026-11-16 — Crow Suno OAuth discovery (draft, not connected)
+
+After PR #138 was merged, verified Suno's own MCP setup docs: a custom MCP client requires its **own** Suno sign-in and authorization; an existing connection in ChatGPT, Claude or elsewhere cannot be reused as PAPERWORLD OAuth. The official server is `https://api.suno.com/mcp`. A server discovery check is NOT a user authorization.
+
+Draft implementation adds an on-demand, owner-authenticated, read-only discovery path for Crow: fixed `api.suno.com` OAuth protected-resource metadata URLs, no redirects, bounded JSON parsing, safe resource validation and fail-closed browser status. Explicit UI in Crow Messenger reports whether metadata is discoverable, while always reporting `oauthConnected:false` and `canGenerate:false`. It never exposes a Suno generation endpoint and cannot spend Suno credits. Next milestone after reviewing this PR: a compatible OAuth 2.1 MCP client with PKCE, resource/scope binding, owner-specific token management, confirmed provider tool schemas and durable idempotent approvals before enabling any production. No automatic merge/deployment or account connection.
+
 ## Locked product vision — 14 November 2026
 
 The user is Chief Human Officer. The Chief of Staff is currently named **Matt** (rename later).
