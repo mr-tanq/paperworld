@@ -26,8 +26,9 @@ function createDirectorMemoryContext({store,authenticate}={}){
    taskGrant?.approved===true;
   if(!isMatt&&own!==projectId)deny('memory_agent_scope_denied');
   if(worker&&!hasWorkerGrant)deny('memory_worker_task_grant_denied');
-  const rows=await store.list({token,ownerId,projectId});
-  if(!Array.isArray(rows)||rows.length>100||
+  const rows=await (typeof store.listRelevant==='function'?store.listRelevant({token,ownerId,projectId}):
+   store.list({token,ownerId,projectId}));
+  if(!Array.isArray(rows)||rows.length>400||
    rows.some(r=>r.projectId!==projectId))deny('memory_cross_project_response_denied');
   return projectContext(rows,{actor,projectId,
    explicitHandoff:isMatt&&taskGrant?.approved===true&&
