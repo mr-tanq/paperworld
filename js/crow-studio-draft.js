@@ -13,10 +13,10 @@
  function extractStyle(reply){
   if(typeof reply!=='string'||!reply.trim())return null;
   const lines=reply.replace(/\r\n?/g,'\n').split('\n');
-  const heading=/^\s*(?:#{1,4}\s*)?(?:\*{0,2})(?:suno\s*style\s*prompt|style\s*prompt|musical\s*direction|μουσικ(?:ό|η)\s*ύφος|μουσικ(?:ή|ης)\s*κατεύθυνση|ύφος)(?:\*{0,2})\s*[:：]?\s*(.*)$/i;
+  const heading=/^(?:suno\s*style\s*prompt|style\s*prompt|musical\s*direction|μουσικ(?:ό|η)\s*ύφος|μουσικ(?:ή|ης)\s*κατεύθυνση|ύφος(?:\s*\([^)]{1,100}\))?)\s*[:：]\s*(.*)$/i;
   const section=/^\s*(?:#{1,4}\s*)?(?:\*{0,2})(?:σημειώσεις|notes|lyrics|στίχοι|title|τίτλος|verse|chorus|bridge|outro|prompt|description)(?:\*{0,2})\s*[:：]?/i;
   for(let i=0;i<lines.length;i++){
-   const match=lines[i].match(heading);
+   const match=lines[i].trim().replace(/^#{1,4}\s*/,'').replace(/\*\*/g,'').match(heading);
    if(!match)continue;
    const selected=[];
    if(match[1]?.trim())selected.push(match[1].trim());
