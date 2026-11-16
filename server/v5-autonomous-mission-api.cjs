@@ -29,7 +29,7 @@ function makeAutonomousMissionApi({fetcher=globalThis.fetch,
  async function handle({headers={},body,action}={}){
   const deny=(status,error)=>({status,body:{error}});
   if(headers.origin!==ORIGIN)return deny(403,'origin_denied');
-  if(!['create','list'].includes(action)||typeof body!=='string'||
+  if(!['create','list','status'].includes(action)||typeof body!=='string'||
    Buffer.byteLength(body,'utf8')>2100)return deny(400,'invalid_request');
   const bearer=headers.authorization||'';
   if(!/^Bearer [A-Za-z0-9_.-]{12,4096}$/.test(bearer))return deny(401,'unauthorized');
@@ -43,6 +43,20 @@ function makeAutonomousMissionApi({fetcher=globalThis.fetch,
   }catch(_){return deny(401,'unauthorized')}
   if(!configured)return deny(503,'autonomous_store_not_configured');
   try{
+   if(action==='status'){
+    const rows=await query('GET',
+     'paperworld_autonomous_controller_v5?select=last_tick_at,tick_count&singleton=eq.true&limit=1');
+    const last=rows.length===1?rows[0].last_tick_at:null;
+    const millis=typeof last==='string'?Date.parse(last):NaN;
+    const healthy=Number.isFinite(millis)&&
+     millis<=Date.now()+60000&&Date.now()-millis<15*60*1000;
+    return {status:200,body:{controller:{
+     supervisor:healthy?'active':'not_verified',
+     lastTickAt:Number.isFinite(millis)?last:null,
+     autonomousExecution:false,modelCallsEnabled:false,
+     nextPhase:'verified_worker_dispatch'
+    }}};
+   }
    if(action==='list'){
     const qs=new URLSearchParams({select:'id,project_id,goal,status,created_at,updated_at',
      owner_id:'eq.'+ownerId,thread_id:'eq.'+input.threadId,
