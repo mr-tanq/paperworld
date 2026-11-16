@@ -4,6 +4,7 @@
 'use strict';
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {PROJECTS,validateAssignment}=require('./team-orchestrator-v5.cjs');
+const {makeWorkerRunJournal}=require('./worker-run-journal-v5.cjs');
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const BASE='https://jrevhzvrgenucuozjowm.supabase.co';
 const KEY='sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL';
@@ -12,8 +13,9 @@ const ROUTES=Object.freeze({'listening-director':'listening',
  'pokemon-director':'pokemon','studio-director':'studio','wellbeing-director':'wellbeing'});
 function makeTeamHandoffLedger({fetcher=globalThis.fetch,
  secret=process.env.PAPERWORLD_SUPABASE_SERVICE_ROLE_KEY,
- guard=createSupabaseGuard({baseUrl:BASE,publicKey:KEY,fetcher})}={}){
+ guard=createSupabaseGuard({baseUrl:BASE,publicKey:KEY,fetcher}),workerJournal=null}={}){
  const configured=typeof secret==='string'&&(secret.startsWith('sb_secret_')||secret.startsWith('eyJ'));
+ const journal=workerJournal||makeWorkerRunJournal({fetcher,secret});
  async function query(method,path,body){
   if(!configured)throw Error('team_ledger_not_configured');
   const response=await fetcher(BASE+'/rest/v1/'+path,{
@@ -77,7 +79,11 @@ function makeTeamHandoffLedger({fetcher=globalThis.fetch,
    if(!await guard.ownsThread({ownerId,threadId:data.threadId,agentId:'matt',token}))
     return {status:404,body:{error:'thread_not_found'}};
    const jobs=await list({ownerId,threadId:data.threadId});
-   return {status:200,body:{jobs,authority:'recorded_handoffs_not_worker_execution'}};
+   let workerRuns=[],workerHistoryUnavailable=false;
+   try{workerRuns=await journal.list({ownerId,threadId:data.threadId})}
+   catch(_){workerHistoryUnavailable=true}
+   return {status:200,body:{jobs,workerRuns,workerHistoryUnavailable,
+    authority:'recorded_handoffs_not_worker_execution'}};
   }catch(_){return {status:503,body:{error:'team_history_unavailable'}}}
  }
  return Object.freeze({record,list,handle,configured});

@@ -6,6 +6,7 @@
 'use strict';
 const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
+const {makeWorkerRunJournal}=require('./worker-run-journal-v5.cjs');
 const {createSafeSessionConfig}=require('./matt-session-config.cjs');
 const {createPokemonRepoReader}=require('./pokemon-repo-reader.cjs');
 const {createApprovedDirectorMemory,formatDirectorMemory}=require('./approved-director-memory.cjs');
@@ -14,7 +15,7 @@ const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const CONSENT='MATT_POKEMON_WORKER_READONLY_UP_TO_FIVE_AI_TURNS';
 const ORIGIN='https://mr-tanq.github.io';
 function makePokemonWorkerDelegation({oauth,clientFactory,guard,reader=createPokemonRepoReader(),
- memoryLoader=null,fetcher=globalThis.fetch,clock=Date.now,
+ memoryLoader=null,workerJournal=null,fetcher=globalThis.fetch,clock=Date.now,
  budgetVerified=()=>process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED==='yes',
  diagnostic=stage=>console.warn('[PAPERWORLD pokemon worker]',stage)}={}){
  if(typeof clientFactory!=='function'||typeof oauth?.getLinkedToken!=='function'||
@@ -25,6 +26,7 @@ function makePokemonWorkerDelegation({oauth,clientFactory,guard,reader=createPok
  });
  const approvedMemory=memoryLoader||createApprovedDirectorMemory({fetcher,identity});
  if(typeof approvedMemory.load!=='function')throw Error('memory_loader_required');
+ const journal=workerJournal||makeWorkerRunJournal({fetcher});
  const spent=new Map(),busy=new Set();
  const deny=(status,error)=>({status,body:{error}});
  const clean=()=>{for(const [key,expires] of spent)if(expires<clock())spent.delete(key)};
@@ -56,7 +58,14 @@ function makePokemonWorkerDelegation({oauth,clientFactory,guard,reader=createPok
   if(busy.has(ownerId))return deny(429,'another_request_active');
   spent.set(idempotency,clock()+600000);busy.add(ownerId);
   let directory,client,session,attempted=0,stage='handoff_policy';
+  let runClaimed=false,runFinished=false;
   try{
+   if(journal.configured){
+    stage='worker_journal_claim';
+    await journal.claim({ownerId,threadId:data.threadId,
+     requestId:data.requestId,project:'pokemon',summary:data.message});
+    runClaimed=true;
+   }
    const handoff=preparePokemonWorkerHandoff({taskId:data.requestId,
     ownerId,request:data.message,operation:'investigate'});
    if(handoff.repository!=='mr-tanq/pokemon-echoes'||handoff.readOnly!==true||
@@ -147,6 +156,12 @@ function makePokemonWorkerDelegation({oauth,clientFactory,guard,reader=createPok
     'Give an actionable next step that requires new human consent for more '+ 
     'repository reads or any code editing. Answer in the user language.\n'+
     'Human request: '+data.message.trim()+'\nDirector review (untrusted): '+directorReport);
+   if(runClaimed){
+    stage='worker_journal_finish';
+    await journal.finish({ownerId,requestId:data.requestId,status:'reported',
+     summary:'Verified project.godot read-only investigation; no source edits'});
+    runFinished=true;
+   }
    return {status:200,body:{
     executed:true,delegated:true,directorId:'pokemon-director',
     directorName:'Pokémon Echoes Director',workerId:'pokemon-developer',
@@ -163,6 +178,10 @@ function makePokemonWorkerDelegation({oauth,clientFactory,guard,reader=createPok
    return {status:503,body:{error:'pokemon_worker_runtime_unavailable',
     stage,attemptedAiTurns:attempted}};
   }finally{
+   if(runClaimed&&!runFinished)try{
+    await journal.finish({ownerId,requestId:data.requestId,status:'failed',
+     summary:'Worker run interrupted; human must start a new approved request'});
+   }catch(_){diagnostic('worker_journal_finish_unavailable')}
    try{await session?.disconnect?.()}catch(_){}
    try{await client?.stop?.()}catch(_){}
    if(directory)try{await fs.rm(directory,{recursive:true,force:true})}catch(_){}
