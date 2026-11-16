@@ -244,6 +244,11 @@ aside{min-width:0;min-height:0;overscroll-behavior:contain}
  color:#f2e0bf;font:inherit;font-weight:650;cursor:pointer}
 .crow-music-copy{background:#34463d;color:#e7f5e8}
 .crow-music-copy[hidden]{display:none!important}
+.crow-music-check{width:100%;padding:8px 10px;
+ border:1px solid #59616c;border-radius:8px;background:#28313b;
+ color:#e3e8ee;font:inherit;font-weight:650;cursor:pointer}
+.crow-music-check:disabled{opacity:.55;cursor:wait}
+
 
 .crow-music-form :disabled,.crow-music-toggle:disabled,.crow-music-cancel:disabled{opacity:.55;cursor:wait}
 
