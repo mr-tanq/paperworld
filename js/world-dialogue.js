@@ -8,7 +8,7 @@
  let openId=null,revision=0,busy=false;
  const mattReplies=[];
  const directorReplies=new Map(); // Keep only replies not yet reconciled with saved history.
- let latestStudioHandoff=null;
+ let latestStudioHandoff=null,latestSavedStudioDraft=null;
  let mattCachedEntries=null; // Keep visible replies while owner history refreshes.
  let mattJourneyCaption='';
  const historyCodec=()=>window.PaperworldMattHistory;
@@ -240,7 +240,7 @@
  openStudio.type='button';openStudio.hidden=true;
  openStudio.addEventListener('click',()=>{
   if(openId!=='matt'||busy||!cloud()?.signedIn()||!latestStudioHandoff)return;
-  const draft=window.PaperworldCrowStudioDraft?.fromMatt(latestStudioHandoff);
+  const draft=latestSavedStudioDraft||window.PaperworldCrowStudioDraft?.fromMatt(latestStudioHandoff);
   if(!draft){status.textContent='Δεν υπάρχει έγκυρη αναφορά Crow για μεταφορά.';return}
   show('studio-director');
   musicPanel.hidden=false;musicToggle.setAttribute('aria-expanded','true');
@@ -268,16 +268,24 @@
    musicResult.textContent='Δεν υπάρχει πρόσφατη απάντηση του Crow. Μίλησέ του πρώτα.';
    return;
   }
-  // Never paste an entire reply, unfinished note or lyric into Suno Style.
-  const style=window.PaperworldCrowStudioDraft?.extractStyle(last);
+  // Structured songs fill all fields; old replies can still supply style only.
+  const parser=window.PaperworldCrowStudioDraft;
+  const song=parser?.parseSong(last);
+  const style=song?.style||parser?.extractStyle(last);
   if(!style){
-   musicResult.textContent='Η τελευταία απάντηση του Crow δεν έχει ξεχωριστό ύφος Suno. '+
-    'Ζήτησέ του μόνο μουσική κατεύθυνση ή συμπλήρωσε το πεδίο χειροκίνητα.';
+   musicResult.textContent='Δεν βρέθηκε ξεχωριστό Suno Style Prompt. '+
+    'Ζήτησε από τον Crow ολοκληρωμένο τραγούδι ή γράψε χειροκίνητα το ύφος.';
    return;
   }
-  if(!musicTitle.value.trim())musicTitle.value='New Lost Wanderer Song';
   musicStyle.value=style;
-  musicResult.textContent='Μεταφέρθηκε μόνο το μουσικό ύφος. Έλεγξέ το πριν το χρησιμοποιήσεις.';
+  if(song){
+   musicTitle.value=song.title;
+   musicLyrics.value=song.lyrics;
+   musicResult.textContent='Μεταφέρθηκαν τίτλος, Suno Style Prompt και Lyrics.';
+  }else{
+   if(!musicTitle.value.trim())musicTitle.value='New Lost Wanderer Song';
+   musicResult.textContent='Μεταφέρθηκε μόνο το μουσικό ύφος. Συμπλήρωσε τους στίχους.';
+  }
  });
  musicCopy.addEventListener('click',async()=>{
   if(openId!=='studio-director'||musicBusy||!musicTitle.value.trim()||
@@ -403,6 +411,7 @@
     content:String(result.content||
      'Δεν μπόρεσα να προσδιορίσω με ασφάλεια τον αρμόδιο Director.'),
     time:new Date().toISOString()});
+   latestSavedStudioDraft=null;
    latestStudioHandoff=result.delegated===true&&result.directorId==='studio-director'?
     {delegated:true,directorId:result.directorId,requestId:result.requestId,
      request:text,directorReport:result.directorReport}:null;
@@ -576,6 +585,7 @@
      const savedStudio=window.PaperworldCrowStudioDraft?.fromSavedHistory(
       history,historyCodec().decode);
      if(savedStudio&&!latestStudioHandoff){
+      latestSavedStudioDraft=savedStudio;
       latestStudioHandoff={delegated:true,directorId:'studio-director',
        requestId:savedStudio.requestId,request:savedStudio.originalRequest,
        directorReport:savedStudio.style};
