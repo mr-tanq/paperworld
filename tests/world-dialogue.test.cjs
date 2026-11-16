@@ -23,7 +23,7 @@ test('Every Matt message starts with owner-approved, model-driven, non-sensitive
  assert.match(source,/delegateMatt\(text,\{targetDirector:'auto',/);
  assert.match(source,/activeMattDirector/);
  assert.match(source,/mattConversation\.slice\(-8\)/);
- assert.match(source,/έως 3 GitHub Copilot|Έως 3 GitHub Copilot/);
+ assert.doesNotMatch(source,/Να ρωτήσω τον Matt\?|Εγκρίνεις 1 AI κλήση/);
  assert.doesNotMatch(source,/targetDirector:'wellbeing-director'/);
  assert.match(source,/result\.workProposal/);
  assert.match(source,/requiresSeparateConsent===true/);
