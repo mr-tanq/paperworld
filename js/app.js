@@ -14,6 +14,92 @@ const defs=[
 // Preview-only marker offsets are local to the user's browser; no GitHub writes.
 const markerKey='paperworld-preview-010-marker-calibration-v1';
 try{const saved=JSON.parse(localStorage.getItem(markerKey)||'{}');for(const d of defs){const p=saved[d.id];if(Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&p[0]>=0&&p[0]<=W&&p[1]>=0&&p[1]<=H)d.entrance=[...p]}}catch(_){}
+// Building layout drafts are local to this browser until the owner exports them.
+const buildingLayoutKey='paperworld-building-layout-draft-v1';
+const originalBuildings=Object.fromEntries(defs.map(d=>[d.id,{x:d.x,bottom:d.bottom,entrance:[...d.entrance]}]));
+let placingBuildings=false,placementSelected=null;
+try{
+ const saved=JSON.parse(localStorage.getItem(buildingLayoutKey)||'{}');
+ for(const d of defs){
+  const p=saved[d.id];
+  if(!p||!Number.isFinite(p.x)||!Number.isFinite(p.bottom)||
+     p.x<0||p.x>W||p.bottom<0||p.bottom>H)continue;
+  d.x=p.x;d.bottom=p.bottom;
+  if(Array.isArray(p.entrance)&&p.entrance.length===2&&
+     p.entrance.every(Number.isFinite))d.entrance=[...p.entrance];
+ }
+}catch(_){}
+function saveBuildingLayout(){
+ try{
+  localStorage.setItem(buildingLayoutKey,JSON.stringify(Object.fromEntries(
+   defs.map(d=>[d.id,{x:Math.round(d.x),bottom:Math.round(d.bottom),
+    entrance:d.entrance.map(Math.round)}])
+  )));
+ }catch(_){placementStatus.textContent='Η αποθήκευση δεν είναι διαθέσιμη. Αντέγραψε τις θέσεις πριν κλείσεις τη σελίδα.'}
+}
+function movePlacement(d,dx,dy){
+ if(!d)return;
+ const oldX=d.x,oldY=d.bottom;
+ d.x=Math.round(Math.max(d.width/2,Math.min(W-d.width/2,d.x+dx)));
+ d.bottom=Math.round(Math.max(200,Math.min(H-20,d.bottom+dy)));
+ const mx=d.x-oldX,my=d.bottom-oldY;
+ d.entrance=[Math.round(Math.max(0,Math.min(W,d.entrance[0]+mx))),
+  Math.round(Math.max(0,Math.min(H,d.entrance[1]+my)))];
+ updatePlacementStatus();
+}
+const placementToggle=document.querySelector('#building-placement-toggle');
+const placementPanel=document.querySelector('#building-placement-panel');
+const placementStatus=document.querySelector('#building-placement-status');
+const placementExport=document.querySelector('#building-placement-export');
+function updatePlacementStatus(){
+ placementStatus.textContent=placementSelected?
+  placementSelected.name+' · X '+Math.round(placementSelected.x)+' · Y '+Math.round(placementSelected.bottom)+
+  ' · Σύρε το κτίριο ή χρησιμοποίησε τα βελάκια':
+  'Άγγιξε ένα κτίριο και σύρε το στη σωστή θέση. Σύρε στο κενό για μετακίνηση του χάρτη.';
+}
+function setPlacementMode(on){
+ placingBuildings=on;placementPanel.hidden=!on;
+ placementToggle.setAttribute('aria-pressed',String(on));
+ placementToggle.textContent=on?'Τέλος τοποθέτησης':'Τοποθέτηση κτιρίων';
+ state.pointer=null;calibrating=false;
+ if(on){state.chosen=null;state.route=[];state.destination=null;updatePlacementStatus()}
+}
+placementToggle.addEventListener('click',()=>setPlacementMode(!placingBuildings));
+document.querySelector('#building-placement-finish').addEventListener('click',()=>setPlacementMode(false));
+for(const [id,dx,dy] of [['left',-4,0],['right',4,0],['up',0,-4],['down',0,4]]){
+ document.querySelector('#building-nudge-'+id).addEventListener('click',()=>{
+  if(!placementSelected)return;
+  movePlacement(placementSelected,dx,dy);saveBuildingLayout();
+ });
+}
+document.querySelector('#building-placement-reset').addEventListener('click',()=>{
+ if(!placementSelected)return;
+ const original=originalBuildings[placementSelected.id];
+ placementSelected.x=original.x;placementSelected.bottom=original.bottom;
+ placementSelected.entrance=[...original.entrance];
+ saveBuildingLayout();updatePlacementStatus();
+});
+document.querySelector('#building-placement-reset-all').addEventListener('click',()=>{
+ // In edit mode Reset all is an explicit command; undo remains possible by moving again.
+ for(const d of defs){
+  const p=originalBuildings[d.id];d.x=p.x;d.bottom=p.bottom;d.entrance=[...p.entrance];
+ }
+ saveBuildingLayout();updatePlacementStatus();
+});
+document.querySelector('#building-placement-copy').addEventListener('click',async()=>{
+ const json=JSON.stringify({
+  format:'paperworld-building-layout-v1',scene:{width:W,height:H},
+  buildings:Object.fromEntries(defs.map(d=>[d.id,{
+   name:d.name,x:Math.round(d.x),bottom:Math.round(d.bottom),
+   width:d.width,entrance:d.entrance.map(Math.round),approach:[...d.approach]
+  }]))
+ },null,2);
+ placementExport.hidden=false;placementExport.value=json;
+ placementExport.focus();placementExport.select();
+ try{await navigator.clipboard.writeText(json);
+  placementStatus.textContent='Οι θέσεις αντιγράφηκαν. Στείλε μου το JSON εδώ για το τελικό PR.';
+ }catch(_){placementStatus.textContent='Αντέγραψε το JSON από το πλαίσιο και στείλ’ το εδώ.'}
+});
 let calibrating=false;
 const calibrateButton=document.querySelector('#calibrate-marker');
 const resetMarkerButton=document.querySelector('#reset-marker');
@@ -618,10 +704,34 @@ function tick(now){
  }
  draw(now);requestAnimationFrame(tick)
 }
-canvas.addEventListener('pointerdown',e=>{const p=localPoint(e);state.pointer={...p,originalX:p.x,originalY:p.y,dragged:false};canvas.setPointerCapture(e.pointerId)});
-canvas.addEventListener('pointermove',e=>{const p=localPoint(e),v=state.pointer;if(!v)return;if(Math.hypot(p.x-v.originalX,p.y-v.originalY)>7)v.dragged=true;if(v.dragged){state.x+=p.x-v.x;state.y+=p.y-v.y}v.x=p.x;v.y=p.y});
-canvas.addEventListener('pointerup',e=>{const p=localPoint(e),v=state.pointer;if(v&&!v.dragged)tap(worldPoint(p));state.pointer=null});
-canvas.addEventListener('pointercancel',()=>{state.pointer=null});
+canvas.addEventListener('pointerdown',e=>{
+ const p=localPoint(e),d=placingBuildings?hitBuilding(worldPoint(p)):null;
+ if(placingBuildings&&d){placementSelected=d;updatePlacementStatus()}
+ state.pointer={...p,originalX:p.x,originalY:p.y,dragged:false,
+  building:placingBuildings?d:null};
+ canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove',e=>{
+ const p=localPoint(e),v=state.pointer;if(!v)return;
+ if(Math.hypot(p.x-v.originalX,p.y-v.originalY)>7)v.dragged=true;
+ if(v.dragged){
+  if(placingBuildings&&v.building)movePlacement(v.building,(p.x-v.x)/state.scale,(p.y-v.y)/state.scale);
+  else{state.x+=p.x-v.x;state.y+=p.y-v.y}
+ }
+ v.x=p.x;v.y=p.y;
+});
+canvas.addEventListener('pointerup',e=>{
+ const p=localPoint(e),v=state.pointer;
+ if(placingBuildings){
+  if(v?.building&&v.dragged)saveBuildingLayout();
+  // Selection in layout mode never opens a Director conversation.
+ }else if(v&&!v.dragged)tap(worldPoint(p));
+ state.pointer=null;
+});
+canvas.addEventListener('pointercancel',()=>{
+ if(placingBuildings&&state.pointer?.building&&state.pointer.dragged)saveBuildingLayout();
+ state.pointer=null;
+});
 function zoom(delta){const cx=state.width/2,cy=state.height/2,worldX=(cx-state.x)/state.scale,worldY=(cy-state.y)/state.scale;state.scale=Math.max(state.fit*.7,Math.min(state.fit*3,state.scale*delta));state.x=cx-worldX*state.scale;state.y=cy-worldY*state.scale}
 document.querySelector('#plus').onclick=()=>zoom(1.2);document.querySelector('#minus').onclick=()=>zoom(1/1.2);document.querySelector('#home').onclick=resetCamera;
 const drawer=document.querySelector('#world-drawer');
