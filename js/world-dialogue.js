@@ -244,8 +244,37 @@
   }catch(_){musicResult.textContent='Δεν επιβεβαιώθηκε η ακύρωση. Μπορείς να δοκιμάσεις ξανά.'}
   finally{musicBusy=false;musicCancel.disabled=false}
  });
+ // One deliberate, owner-only batch approval for the staged private import.
+ // Never trigger this from Matt's model reply or automatically on page load.
+ const memoryReview=make('button','world-dialogue-handoff','Έλεγχος μνήμης Directors');
+ memoryReview.type='button';memoryReview.hidden=true;
+ memoryReview.addEventListener('click',async()=>{
+  if(openId!=='matt'||!cloud()?.signedIn()||busy)return;
+  memoryReview.disabled=true;
+  const selection=openId;
+  try{
+   const preview=await cloud().previewImportedDirectorMemory();
+   if(selection!==openId)return;
+   if(!preview.total){status.textContent='Δεν υπάρχουν νέες εισαγόμενες μνήμες για έγκριση.';return}
+   const labels={workshop:'Luna',pokemon:'Joey',studio:'Crow',wellbeing:'Dave'};
+   const summary=preview.groups.filter(group=>group.items.length).map(group=>
+    labels[group.projectId]+' ('+group.items.length+'):\n'+
+    group.items.map(item=>'• '+item.title+(item.sensitivity==='private'?' [ιδιωτικό]':'')).join('\n')
+   ).join('\n\n');
+   if(!window.confirm('Έλεγχος '+preview.total+' εισαγόμενων μνημών.\n\n'+
+    summary+'\n\nΘέλεις να ενεργοποιηθούν ΟΛΕΣ οι παραπάνω μνήμες; '+
+    'Θα γίνουν διαθέσιμες μόνο στους αντίστοιχους Directors. '+
+    'Οι ευαίσθητες πληροφορίες παραμένουν στην ιδιωτική βάση. '+
+    'Η αλλαγή καταγράφεται και δεν ενεργοποιεί AI εργασίες.'))return;
+   // No further user interaction is needed: the approved set is atomic.
+   const result=await cloud().approveImportedDirectorMemory(preview);
+   if(selection===openId)status.textContent='Ενεργοποιήθηκαν '+result.approved+' εγγραφές μνήμης.';
+  }catch(error){
+   if(selection===openId)status.textContent='Η μαζική έγκριση δεν ολοκληρώθηκε: '+error.message;
+  }finally{memoryReview.disabled=false}
+ });
  const composer=make('footer','world-chat-composer');
- composer.append(connectGithub,musicToggle,musicPanel,form);
+ composer.append(connectGithub,memoryReview,musicToggle,musicPanel,form);
  panel.append(top,status,messages,decisions,composer);view.append(panel);
  // Matt owns the conversation; internal agent and worker routing stays invisible.
  async function runMattWorkflow(text){
@@ -455,6 +484,7 @@
    isMatt?(mattJourneyCaption||'Συνομιλία με τον Matt · καμία εργασία χωρίς έγκριση'):
    'Απευθείας συνομιλία Director · κάθε AI απάντηση χρειάζεται έγκριση';
   decisions.hidden=!isMatt||!active;
+  memoryReview.hidden=!isMatt||!active;
   musicToggle.hidden=openId!=='studio-director'||!active;
   if(musicToggle.hidden)resetMusic();
   if(isMatt&&active){setupDecisions();void refreshDecisions()}
