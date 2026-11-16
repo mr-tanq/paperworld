@@ -1,7 +1,8 @@
 /* Strict read-only MCP capability probe for Suno.
  * Only the tools/list JSON-RPC method can be sent. No tools/call,
  * no music generation, no browser token exposure. Modern 2026-07-28
- * stateless HTTP servers only; older MCP servers fail closed for now.
+ * modern stateless HTTP first; a bounded 2025 Streamable HTTP legacy
+ * handshake is attempted only for explicit compatibility responses.
  * Supports bounded JSON and request-scoped SSE responses, not SSE sessions.
  */
 'use strict';
@@ -60,7 +61,9 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
   if(typeof accessToken!=='string'||accessToken.length<12||accessToken.length>8192)
    return {available:false,reason:'not_authorized'};
   const request={jsonrpc:'2.0',id:1,method:'tools/list',params:{
-   _meta:{'io.modelcontextprotocol/protocolVersion':VERSION}
+   _meta:{'io.modelcontextprotocol/protocolVersion':VERSION,
+    'io.modelcontextprotocol/clientInfo':{name:'Paperworld Crow',version:'1.0.0'},
+    'io.modelcontextprotocol/clientCapabilities':{}}
   }};
   try{
    const response=await fetcher(ENDPOINT,{
@@ -74,6 +77,12 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
     },body:JSON.stringify(request)});
    if(response.status===401||response.status===403)
     return {available:false,reason:'authorization_rejected'};
+   // Retry only on a genuine modern transport/version rejection.
+   // Authorization failures, redirects and malformed successes MUST NOT fall back.
+   if([400,404,406].includes(response.status)){
+    const {makeLegacySunoMcpProbe}=require('./suno-mcp-legacy-probe.cjs');
+    return makeLegacySunoMcpProbe({fetcher}).inspect({accessToken});
+   }
    if(response.status!==200)
     return {available:false,reason:'unsupported_mcp_transport'};
    const contentType=response.headers?.get?.('content-type')||'';
