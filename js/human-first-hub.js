@@ -62,6 +62,7 @@
    studio:'The Lost Wanderer',wellbeing:'Wellbeing'};
   const directors={listening:'listening-director',pokemon:'pokemon-director',
    studio:'studio-director',wellbeing:'wellbeing-director'};
+  const workers={listening:'listening-developer',pokemon:'pokemon-developer'};
   if(!item||!UUID.test(item.id||'')||!UUID.test(item.requestId||'')||
    !Object.hasOwn(projectNames,item.project)||
    item.directorId!==directors[item.project]||
@@ -70,6 +71,8 @@
   return freeze({kind:'handoff',id:item.id,requestId:item.requestId,
    project:projectNames[item.project],summary:human(item.summary,1200),
    createdAt:human(item.createdAt,50),status:item.status,
+   directorId:item.directorId,
+   workerId:workers[item.project]===item.workerId?item.workerId:null,
    stage:item.status==='awaiting_consent'?'planned':'diagnosed'});
  }
  function workerRun(item){
