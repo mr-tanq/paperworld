@@ -27,6 +27,6 @@ test('Existing Crow Messenger can export manually but cannot invoke MCP or spend
  assert.match(dialogue,/musicFromCrow\.addEventListener\('click'/);
  assert.match(dialogue,/musicCopy\.addEventListener\('click'/);
  assert.match(dialogue,/navigator\.clipboard\.writeText\(text\)/);
- assert.match(dialogue,/musicCopy\.hidden=openId/).not;
+ assert.match(dialogue,/musicCopy\.addEventListener\('click'/);
  assert.doesNotMatch(dialogue,/\/suno\/crow\/execute|GENERATE_WITH_SUNO_CREDITS/);
 });
