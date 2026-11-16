@@ -108,7 +108,11 @@
  const musicCancel=make('button','crow-music-cancel','Ακύρωση πρότασης');
  musicCancel.type='button';musicCancel.hidden=true;
  musicForm.append(musicTitle,musicStyle,musicLyrics,musicSave);
- musicPanel.append(musicHelp,musicFromCrow,musicForm,musicResult,musicCopy,musicCancel);
+ const sunoInstructions=make('a','crow-music-instructions','Οδηγίες σύνδεσης Suno MCP');
+ sunoInstructions.href='https://suno.com/mcp';
+ sunoInstructions.target='_blank';sunoInstructions.rel='noopener noreferrer';
+ musicPanel.append(musicHelp,musicFromCrow,musicForm,musicResult,musicCopy,
+  sunoInstructions,musicCancel);
  let previewId=null,musicBusy=false;
  function resetMusic(){
   musicPanel.hidden=true;musicToggle.setAttribute('aria-expanded','false');
