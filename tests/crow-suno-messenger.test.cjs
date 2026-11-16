@@ -10,8 +10,8 @@ test('Crow Messenger offers a functional local draft without Suno generation',()
  const cloud=read('js/cloud-ui.js');
  const client=read('js/cloud.js');
  assert.match(dialog,/musicToggle\.hidden=openId!=='studio-director'/);
- assert.match(dialog,/cloud\(\)\.crowSunoPreview\(/);
- assert.match(dialog,/cloud\(\)\.cancelCrowSunoPreview\(/);
+ assert.match(dialog,/musicForm\\.addEventListener\\('submit',e=>/);
+ assert.match(dialog,/musicCancel\\.addEventListener\\('click'/);
  assert.match(dialog,/function resetMusic\(\)/);
  assert.match(dialog,/musicForm\.reset\(\)/);
  assert.doesNotMatch(dialog,/GENERATE_WITH_SUNO_CREDITS|\/suno\/crow\/execute/);
