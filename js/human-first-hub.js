@@ -238,6 +238,34 @@
      details.append(f);
     }
     card.append(details);
+   }else if(item.kind==='pokemon-proposal'){
+    card.append(e('strong','human-hub-mini-title','Προτεινόμενη αλλαγή από τον Joey'));
+    card.append(e('p','human-hub-summary',item.summary));
+    card.append(e('p','human-hub-caution',
+     'Αυτή είναι πρόταση AI και ΔΕΝ έχει δοκιμαστεί ή εφαρμοστεί στο παιχνίδι.'));
+    const details=e('details','human-hub-technical');
+    details.append(e('summary','','Δες την ακριβή αλλαγή πριν εγκρίνεις'));
+    for(const file of item.files){
+     const section=e('details','human-hub-file');
+     section.append(e('summary','',file.path+' · '+file.sha.slice(0,10)));
+     section.append(e('h4','','Τρέχουσα πηγή (γραμμές)'),
+      e('pre','',file.before),e('h4','','Προτεινόμενο αρχείο'),
+      e('pre','',file.after));
+     details.append(section);
+    }
+    card.append(details);
+    if(item.status==='pending_review'){
+     const actions=e('div','human-hub-item-actions');
+     const publish=button('Εγκρίνω Draft PR',()=>performPokemon('publish',item),'human-hub-yes');
+     publish.disabled=opBusy||loading;
+     actions.append(publish,button('Απόρριψη',()=>performPokemon('reject',item),
+      'human-hub-no'));
+     card.append(actions);
+    }else if(item.status==='draft_created'&&item.draftUrl){
+     const link=e('a','human-hub-tech-link','Άνοιξε το Draft PR στο GitHub');
+     link.href=item.draftUrl;link.target='_blank';
+     link.rel='noopener noreferrer';card.append(link);
+    }
    }else if(item.kind==='job'){
     const last=item.events.at(-1);
     card.append(e('p','human-hub-summary',
@@ -343,6 +371,39 @@
    finally{
     const failure=error;
     opBusy=false;
+    await refresh();
+    if(failure){markError(failure);render()}
+   }
+  }
+  async function performPokemon(action,item){
+   if(opBusy||loading||item?.kind!=='pokemon-proposal'||
+    item.status!=='pending_review'||!DIGEST.test(item.digest||''))return;
+   const callback=action==='publish'?publishPokemon:rejectPokemon;
+   if(typeof callback!=='function')return;
+   opBusy=true;error='';render();
+   try{
+    const raw=await load();
+    if(raw?.pokemonUnavailable===true)throw Error('Η κατάσταση της πρότασης δεν επιβεβαιώθηκε.');
+    const fresh=Array.isArray(raw?.pokemonProposals)?
+     raw.pokemonProposals.map(pokemonProposal).find(p=>
+      p?.id===item.id&&p.status==='pending_review'&&
+      p.digest===item.digest&&p.files[0]?.sha===item.files[0]?.sha&&
+      p.files[0]?.path===item.files[0]?.path&&
+      p.files[0]?.after===item.files[0]?.after):null;
+    if(!fresh)throw Error('Η πρόταση άλλαξε ή έχει ήδη εξεταστεί.');
+    const question=action==='publish'?
+     'Να δημιουργηθεί ΜΟΝΟ Draft PR στο ιδιωτικό Pokémon Echoes;\\n\\n'+
+     item.summary+'\\nΑρχείο: '+item.files[0].path+
+     '\\n\\nΗ αλλαγή ΔΕΝ έχει δοκιμαστεί. Δες πρώτα την πλήρη '+ 
+     'αντικατάσταση του αρχείου. Δεν θα γίνει merge ή deployment. '+
+     'Χρειάζεται εγκεκριμένη σύνδεση GitHub για private repositories.':
+     'Να απορριφθεί οριστικά αυτή η προτεινόμενη αλλαγή;';
+    if(!window.confirm(question))return;
+    await callback(item);
+    if(typeof onChanged==='function')onChanged(action,item);
+   }catch(err){markError(err?.message||'Η ενέργεια απέτυχε.')}
+   finally{
+    const failure=error;opBusy=false;
     await refresh();
     if(failure){markError(failure);render()}
    }
