@@ -52,7 +52,7 @@
    if(items.length){
     const conversation=e('select');
     conversation.setAttribute('aria-label','Συνομιλία προς εισαγωγή');
-    conversation.append(e('option','Επίλεξε συνομιλία'));
+    const emptyConversation=e('option','Επίλεξε συνομιλία');emptyConversation.value='';conversation.append(emptyConversation);
     for(const item of items){
      const option=e('option',item.title+' ('+item.count+' μηνύματα)');
      option.value=String(item.index);option.selected=chosen===item.index;
