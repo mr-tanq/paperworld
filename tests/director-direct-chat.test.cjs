@@ -93,7 +93,7 @@ test('Director conversation route is POST-only and owner-verified, preserving Ma
  const ui=fs.readFileSync('js/world-dialogue.js','utf8');
  assert.match(client,/ONE_DIRECTOR_COPILOT_TURN_INCLUDED_ALLOWANCE/);
  assert.match(ui,/askDirector\(id,text\)/);
- assert.match(ui,/window.confirm\('Άμεση συνομιλία/);
+ assert.doesNotMatch(ui,/window.confirm\('Άμεση συνομιλία/);
  assert.match(ui,/sendPrivateAgentMessage\(id,text\)/);
 });
 

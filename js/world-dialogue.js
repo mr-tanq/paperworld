@@ -333,10 +333,6 @@
  // Matt owns the conversation; internal agent and worker routing stays invisible.
  async function runMattWorkflow(text){
   if(openId!=='matt'||!cloud()?.signedIn()||busy||!text.trim())return;
-  if(!window.confirm('Να ρωτήσω τον Matt; Έως 3 GitHub Copilot AI κλήσεις '+
-   'με το υπάρχον όριο και επιπλέον χρέωση $0. Ο Matt μπορεί να συμβουλευτεί '+
-   'τον κατάλληλο μη ευαίσθητο Director. Δεν θα εκτελεστεί εργασία ή ανάγνωση '+
-   'αρχείων χωρίς νέα έγκριση. Συνέχεια;'))return;
   busy=true;field.disabled=true;send.disabled=true;
   veil.classList.remove('world-chat-journey');mattJourneyCaption='';
   status.textContent='Ο Matt επεξεργάζεται το αίτημα…';
@@ -621,12 +617,6 @@
    const isDirector=['listening-director','pokemon-director',
     'studio-director','wellbeing-director'].includes(id);
    if(isDirector){
-    const approved=window.confirm('Άμεση συνομιλία με τον Director. '+
-     'Εγκρίνεις 1 AI κλήση μέσω GitHub Copilot; '+
-     'Χρησιμοποιούνται διαθέσιμα AI Credits, με επιπλέον χρέωση $0 '+
-     'εφόσον ισχύει το επαληθευμένο όριο του λογαριασμού. '+
-     'ΜΟΝΟ συνομιλία: χωρίς εργαλεία, αλλαγές αρχείων ή ανάθεση εργασίας.');
-    if(!approved)return;
     const result=await cloud().askDirector(id,text);
     const existing=directorReplies.get(id)||[];
     directorReplies.set(id,[...existing,{id:result.persisted===true?result.requestId:null,
