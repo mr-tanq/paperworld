@@ -22,8 +22,16 @@ function isSunoOrigin(s){
  try{const u=new URL(s);
   return u.protocol==='https:'&&!u.username&&!u.password&&!u.search&&!u.hash&&
    (u.hostname==='suno.com'||u.hostname.endsWith('.suno.com'))&&
-   (u.port===''||u.port==='443')&&u.pathname==='/';
+   (u.port===''||u.port==='443')&&s===u.href.replace(/\/$/,'')&&
+   !u.pathname.includes('//');
  }catch(_){return false}
+}
+function serverMetadataUrls(issuer){
+ if(!isSunoOrigin(issuer))return [];
+ const u=new URL(issuer),suffix=u.pathname==='/'?'':u.pathname.replace(/\/$/,'');
+ // RFC 8414: well-known before an issuer path; OIDC: after issuer path.
+ return [u.origin+'/.well-known/oauth-authorization-server'+suffix,
+  u.origin+suffix+'/.well-known/openid-configuration'];
 }
 function validServerMeta(m,origin){
  if(!m||typeof m!=='object'||Array.isArray(m)||m.issuer!==origin)return null;
@@ -86,10 +94,9 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
   if(!resource.metadataAvailable)return null;
   for(const issuer of resource.authorizationServers||[]){
    if(!isSunoOrigin(issuer))continue;
-   for(const path of ['/.well-known/oauth-authorization-server',
-                      '/.well-known/openid-configuration']){
+   for(const metadataUrl of serverMetadataUrls(issuer)){
     try{
-     const response=await fetcher(issuer+path,{
+     const response=await fetcher(metadataUrl,{
       method:'GET',redirect:'manual',signal:AbortSignal.timeout(5000),
       headers:{Accept:'application/json'}});
      if(response.status!==200||
@@ -229,4 +236,4 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
  return Object.freeze({start,status,inspectTools,diagnose,callback,clientMetadata});
 }
 module.exports=Object.freeze({createSunoOAuthClient,validServerMeta,isSunoOrigin,
- CLIENT_ID,CALLBACK});
+ serverMetadataUrls,CLIENT_ID,CALLBACK});
