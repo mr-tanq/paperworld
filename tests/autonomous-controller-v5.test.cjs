@@ -30,3 +30,28 @@ test('Cron cannot create a mission or claim work on its own',()=>{
  assert.match(sql,/aiCalls.*0/);
  assert.match(sql,/externalActions.*0/);
 });
+
+test('Owner status API verifies actual recent heartbeat and never asserts AI execution',async()=>{
+ const {makeAutonomousMissionApi}=require('../server/v5-autonomous-mission-api.cjs');
+ const ownerId='11111111-1111-4111-8111-111111111111';
+ const threadId='22222222-2222-4222-8222-222222222222';
+ const token='Bearer '+('x'.repeat(30));
+ const fake=last=>makeAutonomousMissionApi({
+  secret:'sb_secret_synthetic_not_a_real_key',
+  guard:{authenticate:async()=>({ownerId}),ownsThread:async()=>true},
+  fetcher:async()=>({ok:true,json:async()=>[{
+   last_tick_at:last,tick_count:11}]})
+ });
+ const args={headers:{origin:'https://mr-tanq.github.io',
+  authorization:token},action:'status',body:JSON.stringify({threadId})};
+ const active=await fake(new Date().toISOString()).handle(args);
+ assert.equal(active.status,200);
+ assert.equal(active.body.controller.supervisor,'active');
+ assert.equal(active.body.controller.autonomousExecution,false);
+ assert.equal(active.body.controller.modelCallsEnabled,false);
+ const old=await fake('2025-01-01T00:00:00Z').handle(args);
+ assert.equal(old.body.controller.supervisor,'not_verified');
+ const bad=await fake(new Date().toISOString()).handle({
+  ...args,headers:{...args.headers,origin:'https://other.example'}});
+ assert.equal(bad.status,403);
+});
