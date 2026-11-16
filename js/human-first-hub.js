@@ -153,7 +153,7 @@
   const b=e('button',cls,label);b.type='button';
   b.addEventListener('click',handler);return b;
  }
- function create(host,{load,approve,reject,openMatt,openProject,
+ function create(host,{load,approve,reject,runWorker,openMatt,openProject,
   onChanged,onError,compact=false}={}){
   if(!host||typeof host.replaceChildren!=='function'||
    typeof load!=='function')throw Error('human_first_host_required');
@@ -225,10 +225,47 @@
      'ζητείται στη συνομιλία με τον Matt.':
      'Ο Director απάντησε στον Matt. Αυτή είναι καταγραφή συμβουλής, '+
      'όχι εκτελεσμένη αλλαγή ή ολοκληρωμένη εργασία.'));
+    if(item.status==='awaiting_consent'&&
+     ['listening-developer','pokemon-developer'].includes(item.workerId)&&
+     typeof runWorker==='function'){
+     const actions=e('div','human-hub-item-actions');
+     const start=button('Έγκριση ελέγχου από Worker',()=>executeWorker(item),'human-hub-yes');
+     start.disabled=opBusy||loading;
+     actions.append(start);card.append(actions);
+    }
    }else card.append(e('p','human-hub-summary',
      item.stage==='completed'?'Την ολοκλήρωση την σημείωσες εσύ.':
       'Προσωπική εργασία · δεν σημαίνει ότι εκτελέστηκε από AI agent.'));
    return card;
+  }
+  async function executeWorker(item){
+   if(opBusy||loading||!item||item.kind!=='handoff'||
+    item.status!=='awaiting_consent'||typeof runWorker!=='function')return;
+   opBusy=true;error='';render();
+   try{
+    const raw=await load();
+    const fresh=Array.isArray(raw?.teamJobs)?raw.teamJobs.find(x=>
+     x.id===item.id&&x.requestId===item.requestId&&
+     x.status==='awaiting_consent'&&x.workerId===item.workerId&&
+     x.directorId===(item.workerId==='pokemon-developer'?
+      'pokemon-director':'listening-director')):null;
+    const used=Array.isArray(raw?.workerRuns)&&raw.workerRuns.some(x=>
+     x.requestId===item.requestId);
+    if(!fresh||used||raw?.workerHistoryUnavailable===true||
+     raw?.teamUnavailable===true)
+     throw Error('Η ανάθεση δεν επιβεβαιώθηκε ή έχει ήδη εκτελεστεί.');
+    const scope=item.workerId==='pokemon-developer'?
+     'Θα διαβαστεί μόνο το ιδιωτικό project.godot του Pokémon Echoes.':
+     'Θα διαβαστούν μόνο τα επιτρεπόμενα αρχεία του Listening Mirror.';
+    if(!window.confirm('Εγκρίνεις ΜΙΑ εκτέλεση του Worker για την εργασία;\\n\\n'+
+     item.summary+'\\n\\n'+scope+
+     '\\n\\nΈως 5 AI κλήσεις με επαληθευμένο όριο επιπλέον χρέωσης $0. '+
+     'Μόνο ανάγνωση, χωρίς αλλαγές αρχείων, PR ή deployment. '+
+     'Αν διακοπεί, δεν γίνεται αυτόματη επανάληψη.'))return;
+    await runWorker(item);
+    if(typeof onChanged==='function')onChanged('worker',item);
+   }catch(err){markError(err?.message||'Η διερεύνηση δεν ολοκληρώθηκε.')}
+   finally{opBusy=false;await refresh();render()}
   }
   async function perform(action,item){
    if(opBusy||loading||item.stage!=='decision'||!DIGEST.test(item.digest))return;
