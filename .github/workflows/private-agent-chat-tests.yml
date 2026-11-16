@@ -191,8 +191,9 @@ jobs:
         env:
           PGPASSWORD: synthetic-only
         run: |
+          createdb -h 127.0.0.1 -p 5432 -U postgres dispatch_v1_synthetic
           psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
-            -h 127.0.0.1 -p 5432 -U postgres -d memory_test \
+            -h 127.0.0.1 -p 5432 -U postgres -d dispatch_v1_synthetic \
             -f tests/sql/paperworld-v5-dispatch-integration.sql
 
 # This PostgreSQL test uses a throwaway CI service, not connected PAPERWORLD
