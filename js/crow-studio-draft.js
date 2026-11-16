@@ -22,7 +22,8 @@
    if(match[1]?.trim())selected.push(match[1].trim());
    for(let j=i+1;j<lines.length&&selected.join(' ').length<1000;j++){
     const line=lines[j].trim();
-    if(section.test(line)||heading.test(line)||/^\s*\[\s*(?:verse|chorus|bridge|outro)/i.test(line))break;
+    const label=line.replace(/^#{1,4}\s*/,'').replace(/\*\*/g,'');
+    if(section.test(label)||heading.test(label)||/^\s*\[\s*(?:verse|chorus|bridge|outro)/i.test(line))break;
     if(!line){if(selected.length)break;continue}
     selected.push(line);
    }
