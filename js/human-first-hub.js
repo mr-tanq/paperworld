@@ -358,7 +358,8 @@
      raw?.teamUnavailable===true)
      throw Error('Η ανάθεση δεν επιβεβαιώθηκε ή έχει ήδη εκτελεστεί.');
     const scope=item.workerId==='pokemon-developer'?
-     'Θα διαβαστεί μόνο το ιδιωτικό project.godot του Pokémon Echoes.':
+     'Θα διαβαστεί μόνο το ιδιωτικό project.godot και έως τρία προκαθορισμένα '+
+     'GDScript αρχεία, ανάλογα με την εργασία (κίνηση, διάλογοι, μάχες ή χάρτες).':
      'Θα διαβαστούν μόνο τα επιτρεπόμενα αρχεία του Listening Mirror.';
     if(!window.confirm('Εγκρίνεις ΜΙΑ εκτέλεση του Worker για την εργασία;\\n\\n'+
      item.summary+'\\n\\n'+scope+
