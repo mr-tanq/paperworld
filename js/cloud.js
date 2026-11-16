@@ -339,6 +339,39 @@
     result.expectedCredits!==null)throw Error('Unverified Crow preview');
    return result;
   }
+  // Suno PKCE connection belongs to the authenticated Crow thread.
+  async function sunoOauthRequest(action){
+   if(!['start','status'].includes(action))throw Error('Invalid Suno OAuth action');
+   await ensureAuth();
+   const thread=await getAgentThread('studio-director',true);
+   const response=await fetcher(MATT_ORIGIN+'/auth/suno/'+action,{
+    method:'POST',redirect:'error',
+    headers:{Authorization:'Bearer '+session.access_token,
+     'Content-Type':'application/json'},
+    body:JSON.stringify({agentId:'studio-director',threadId:thread.id})
+   });
+   let result={};try{result=await response.json()}catch(_){}
+   if(!response.ok)throw Error((result.error||'Suno connection unavailable')+
+    ' (HTTP '+response.status+')');
+   if(result.canGenerate!==false)throw Error('Unverified Suno OAuth state');
+   return result;
+  }
+  async function beginSunoLink(){
+   const result=await sunoOauthRequest('start');
+   if(typeof result.authorizationUrl!=='string')
+    throw Error('Suno OAuth not ready');
+   const u=new URL(result.authorizationUrl);
+   if(u.protocol!=='https:'||
+     !(u.hostname==='suno.com'||u.hostname.endsWith('.suno.com')))
+    throw Error('Unexpected Suno authorization host');
+   return u.href;
+  }
+  async function sunoLinkStatus(){
+   const result=await sunoOauthRequest('status');
+   if(typeof result.oauthAuthorized!=='boolean'||result.ephemeral!==true)
+    throw Error('Unverified Suno link status');
+   return result;
+  }
   // OAuth discovery reads provider metadata only. Never connects or generates.
   async function crowSunoConnectionStatus(){
    await ensureAuth();
@@ -514,7 +547,8 @@
    listMissions,createMission,setMissionStatus,deleteMission,
    listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,mattJobHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
-   crowSunoPreview,cancelCrowSunoPreview,crowSunoConnectionStatus};
+   crowSunoPreview,cancelCrowSunoPreview,crowSunoConnectionStatus,
+   beginSunoLink,sunoLinkStatus};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });
