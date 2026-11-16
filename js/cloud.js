@@ -418,6 +418,45 @@
     throw Error('Draft PR creation unverified');
    return result;
   }
+  async function pokemonProposalAction(action,details={}){
+   if(!['list','reject','publish'].includes(action))throw Error('Invalid Pokémon proposal action');
+   await ensureAuth();
+   const thread=await getAgentThread('matt',false);
+   if(!thread){
+    if(action==='list')return {proposals:[]};
+    throw Error('Matt conversation required');
+   }
+   const response=await fetcher(MATT_ORIGIN+'/pokemon/proposals/'+action,{
+    method:'POST',redirect:'error',
+    headers:{Authorization:'Bearer '+session.access_token,
+     'Content-Type':'application/json'},
+    body:JSON.stringify({threadId:thread.id,...details})
+   });
+   let body={};try{body=await response.json()}catch(_){}
+   if(!response.ok)throw Error((body.error||'Pokémon proposal unavailable')+
+    ' (HTTP '+response.status+')');
+   return body;
+  }
+  async function listPokemonProposals(){
+   const data=await pokemonProposalAction('list');
+   if(!Array.isArray(data.proposals)||data.authority!=='owner_review_only')
+    throw Error('Unverified private Pokémon proposals');
+   return data.proposals;
+  }
+  async function rejectPokemonProposal(jobId,digest){
+   const data=await pokemonProposalAction('reject',{jobId,digest});
+   if(data.rejected!==true)throw Error('Unverified Pokémon rejection');
+   return true;
+  }
+  async function publishPokemonProposal(jobId,digest){
+   const data=await pokemonProposalAction('publish',{
+    jobId,digest,confirm:'CREATE_POKEMON_DRAFT_PR'
+   });
+   if(data.created!==true||data.draft!==true||data.merged!==false||
+    !/^https:\/\/github\.com\/mr-tanq\/pokemon-echoes\/pull\/[1-9][0-9]*$/.test(data.url||''))
+    throw Error('Pokémon Draft PR unverified');
+   return data;
+  }
   // Private Crow production preview. This NEVER invokes Suno or uses credits.
   async function crowSunoPreview(brief){
    await ensureAuth();
@@ -710,6 +749,7 @@
    listMissions,createMission,setMissionStatus,deleteMission,
    listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,previewImportedDirectorMemory,approveImportedDirectorMemory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,sourceFactWorker,mattJobHistory,teamHandoffHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
+   listPokemonProposals,rejectPokemonProposal,publishPokemonProposal,
    crowSunoPreview,cancelCrowSunoPreview,crowSunoConnectionStatus,
    beginSunoLink,sunoLinkStatus,inspectSunoTools,diagnoseSunoConnection};
  }

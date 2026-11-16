@@ -72,6 +72,8 @@
    compact:true,load:()=>cloud().loadHumanWork(),
    approve:item=>cloud().prepareHumanSolution(item),
    reject:item=>cloud().discardHumanSolution(item),
+   publishPokemon:item=>cloud().preparePokemonSolution(item),
+   rejectPokemon:item=>cloud().discardPokemonSolution(item),
    runSourceFact:async item=>{
     const result=await cloud().runApprovedSourceFact(item);
     const files=result.evidence?.files||[];
@@ -415,8 +417,11 @@
    if(permitted){
     const pokemon=plan.workerId==='pokemon-developer';
     const scope=pokemon?
-     'Θα διαβαστεί ΜΟΝΟ το ιδιωτικό project.godot του Pokémon Echoes και θα '+
-     'σταλεί ως πηγή στο GitHub Copilot. Η εγκεκριμένη διερεύνηση καταγράφεται στο ιδιωτικό ιστορικό όταν είναι διαθέσιμο.':
+     'Θα διαβαστεί το ιδιωτικό project.godot και έως τρία προκαθορισμένα '+
+     'GDScript αρχεία του Pokémon Echoes, μόνο από τη σχετική κατηγορία '+
+     '(κίνηση, διάλογοι, μάχες ή χάρτες). Το περιεχόμενο θα σταλεί ως '+
+     'πηγή στο GitHub Copilot για αυτή τη διερεύνηση. '+
+     'Η εγκεκριμένη διερεύνηση καταγράφεται στο ιδιωτικό ιστορικό όταν είναι διαθέσιμο.':
      'Θα διαβαστούν μόνο προκαθορισμένα αρχεία του Listening Mirror. '+
      'Η εξέλιξη καταγράφεται στο προστατευμένο ιστορικό.';
     const consent='Ο Matt προτείνει έλεγχο πηγαίου κώδικα από τον '+

@@ -79,13 +79,26 @@ function makeSourceFactWorker({oauth,guard=null,fetcher=globalThis.fetch,
       !/^[a-f0-9]{40}$/i.test(f.sha||'')))
      throw Error('unverified_listening_source');
    }else{
-    const packet=await pokemon.readProjectConfig({token:githubToken});
+    const expanded=typeof pokemon.readProjectFiles==='function';
+    // Server chooses one bounded source category from the approved task;
+    // no arbitrary file path, repository or branch can enter via the browser.
+    const category=/battle|catch|combat|μάχ|σύλληψ/i.test(input.message)?'battle':
+     /dialog|npc|διάλογ|συνομιλ/i.test(input.message)?'dialogue':
+     /map|route|alder|lab|collision|χάρτ|διαδρομ/i.test(input.message)?'map':'core';
+    const packet=expanded?
+     await pokemon.readProjectFiles({token:githubToken,category}):
+     await pokemon.readProjectConfig({token:githubToken});
     if(packet.repository!=='mr-tanq/pokemon-echoes'||packet.ref!=='main'||
-     packet.path!=='project.godot'||packet.readOnly!==true||
-     !/^[a-f0-9]{40}$/i.test(packet.sha||''))
+     packet.readOnly!==true||(expanded&&packet.sourceUntrusted!==true))
+     throw Error('unverified_pokemon_source');
+    const files=expanded?packet.files:[{path:packet.path,sha:packet.sha}];
+    if(!Array.isArray(files)||files.length<1||files.length>4||
+     files.some(f=>! /^[a-f0-9]{40}$/i.test(f.sha||'')||
+      (expanded?!pokemon.GROUPS?.[category]?.includes(f.path):
+       f.path!=='project.godot')))
      throw Error('unverified_pokemon_source');
     source={repository:packet.repository,ref:packet.ref,readOnly:true,
-     files:[{path:packet.path,sha:packet.sha}]};
+     files:files.map(f=>({path:f.path,sha:f.sha}))};
    }
    const files=source.files.map(x=>({path:x.path,sha:x.sha}));
    await journal.finish({ownerId,requestId:input.requestId,status:'reported',
