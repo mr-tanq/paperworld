@@ -15,7 +15,9 @@ function safeMetadata(json){
  const servers=json.authorization_servers;
  if(!servers.every(s=>typeof s==='string'&&s.length<500&&
   /^https:\/\/[a-z0-9.-]+(?::443)?(?:\/[^?#]*)?$/i.test(s)))return null;
- return {authorizationServers:servers.map(s=>new URL(s).origin)};
+ // Preserve issuer paths: Suno can advertise an OAuth issuer beneath /api/.
+ // Reducing this value to URL.origin breaks RFC 8414 metadata discovery.
+ return {authorizationServers:servers.map(s=>new URL(s).href.replace(/\/$/,''))};
 }
 function createSunoOAuthDiscovery({fetcher=globalThis.fetch,timeoutMs=4000}={}){
  if(typeof fetcher!=='function')throw Error('fetcher_required');

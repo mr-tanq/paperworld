@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {createHash}=require('node:crypto');
-const {createSunoOAuthClient,isSunoOrigin,validServerMeta,CLIENT_ID,CALLBACK}
+const {createSunoOAuthClient,isSunoOrigin,validServerMeta,serverMetadataUrls,CLIENT_ID,CALLBACK}
  =require('../server/suno-oauth-client.cjs');
 const ownerId='11111111-1111-4111-8111-111111111111';
 const threadId='22222222-2222-4222-8222-222222222222';
@@ -100,4 +100,30 @@ test('Serves public CIMD without private secrets and no Suno generation API',()=
  assert.match(server,/\/auth\/suno\/client-metadata/);
  assert.doesNotMatch(server,/\/suno\/crow\/execute/);
  assert.doesNotMatch(messenger,/GENERATE_WITH_SUNO_CREDITS/);
+});
+
+test('Path-based Suno OAuth issuer uses RFC 8414 discovery and PKCE without unsafe redirect',async()=>{
+ const nestedIssuer='https://studio-api-prod.suno.com/api/v2/external/oauth';
+ const nestedMeta={...metadata,issuer:nestedIssuer,
+  authorization_endpoint:nestedIssuer+'/authorize',
+  token_endpoint:nestedIssuer+'/token'};
+ const fetched=[];
+ const c=createSunoOAuthClient({identity,
+  discovery:{inspect:async()=>({metadataAvailable:true,authorizationServers:[nestedIssuer]})},
+  fetcher:async(url,opts)=>{
+   fetched.push({url,opts});
+   return {status:200,headers:{get:()=> 'application/json'},
+    text:async()=>JSON.stringify(nestedMeta)};
+  }});
+ const check=await c.start({headers,body});
+ assert.equal(check.status,200);
+ assert.equal(new URL(check.body.authorizationUrl).origin,'https://studio-api-prod.suno.com');
+ assert.equal(fetched[0].url,
+  'https://studio-api-prod.suno.com/.well-known/oauth-authorization-server/api/v2/external/oauth');
+ assert.equal(fetched[0].opts.redirect,'manual');
+ assert.equal(serverMetadataUrls(nestedIssuer)[1],
+  nestedIssuer+'/.well-known/openid-configuration');
+ assert.equal(isSunoOrigin(nestedIssuer),true);
+ assert.equal(isSunoOrigin('https://evil.test/api/v2/external/oauth'),false);
+ assert.equal(validServerMeta({...nestedMeta,token_endpoint:'https://evil.test/token'},nestedIssuer),null);
 });
