@@ -72,6 +72,8 @@
    compact:true,load:()=>cloud().loadHumanWork(),
    approve:item=>cloud().prepareHumanSolution(item),
    reject:item=>cloud().discardHumanSolution(item),
+   publishPokemon:item=>cloud().preparePokemonSolution(item),
+   rejectPokemon:item=>cloud().discardPokemonSolution(item),
    runSourceFact:async item=>{
     const result=await cloud().runApprovedSourceFact(item);
     const files=result.evidence?.files||[];
