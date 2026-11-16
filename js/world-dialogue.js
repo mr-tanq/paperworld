@@ -180,8 +180,8 @@
  const sunoInstructions=make('a','crow-music-instructions','Οδηγίες σύνδεσης Suno MCP');
  sunoInstructions.href='https://suno.com/mcp';
  sunoInstructions.target='_blank';sunoInstructions.rel='noopener noreferrer';
- musicPanel.append(musicHelp,musicFromCrow,musicForm,musicResult,musicCopy,
-  sunoConnect,sunoLinkStatus,sunoTools,sunoCheck,sunoInstructions,musicCancel);
+ musicPanel.append(musicHelp,sunoCheck,musicResult,sunoConnect,sunoLinkStatus,
+  sunoTools,sunoInstructions,musicFromCrow,musicForm,musicCopy,musicCancel);
  let previewId=null,musicBusy=false;
  function resetMusic(){
   musicPanel.hidden=true;musicToggle.setAttribute('aria-expanded','false');
