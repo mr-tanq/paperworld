@@ -11,6 +11,7 @@ function fixture({owns=true}={}){
   guard:{authenticate:async()=>({ownerId:OWNER}),ownsThread:async()=>owns},
   fetcher:async(url,options)=>{
    calls.push({url,options});
+   if(url.includes('/rpc/paperworld_v5_queue_mission'))return {ok:true,json:async()=>true};
    if(options.method==='POST'){
     const row=JSON.parse(options.body);records.push(row);
     return {ok:true,json:async()=>[row]};
@@ -46,7 +47,7 @@ test('All four Directors can save private mission drafts with zero authorization
  const list=await api.handle({headers:HEADERS,action:'list',body:body({})});
  assert.equal(list.status,200);
  assert.equal(list.body.missions.length,4);
- assert.equal(calls.length,5);
+ assert.equal(calls.length,9);
 });
 test('Missing owner auth, forged cross-origin request or unowned Matt thread makes zero writes',async()=>{
  for(const invalid of [
@@ -66,6 +67,25 @@ test('Missing owner auth, forged cross-origin request or unowned Matt thread mak
  assert.equal((await api.handle({headers:HEADERS,body:body({
   projectId:'pokemon',goal:'Safe task'}),action:'create'})).status,404);
  assert.equal(calls.length,0);
+});
+test('Owner can authorize a zero-AI simulation only for her own draft',async()=>{
+ const {api,records,calls}=fixture();
+ const created=await api.handle({headers:HEADERS,action:'create',body:body({
+  projectId:'studio',goal:'Δοκιμή εσωτερικής ουράς'})});
+ assert.equal(created.status,201);
+ const missionId=created.body.mission.id;
+ const queued=await api.handle({headers:HEADERS,action:'simulate',
+  body:body({missionId})});
+ assert.equal(queued.status,200);
+ assert.equal(queued.body.realWork,false);
+ assert.equal(queued.body.aiCalls,0);
+ assert.ok(calls.some(c=>c.url.includes('/rpc/paperworld_v5_queue_mission')));
+ const forbidden=await api.handle({headers:HEADERS,action:'simulate',
+  body:body({missionId,grant:'start_agent'})});
+ assert.equal(forbidden.status,400);
+ const other=await api.handle({headers:{...HEADERS,origin:'https://evil.invalid'},
+  action:'simulate',body:body({missionId})});
+ assert.equal(other.status,403);
 });
 test('No public mutation or autonomous AI scheduling route is installed by this PR',()=>{
  const server=fs.readFileSync('server/render-matt.cjs','utf8');
