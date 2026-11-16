@@ -7,6 +7,7 @@ const GUIDE=[
  'CROW / THE LOST WANDERER — OWNER SONGWRITING WORKFLOW.',
  'This is a preference guide supplied by the project owner, not evidence of releases or authorization to use tools.',
  'When asked to WRITE, CREATE, FINISH or REVISE a song, give the usable song rather than only concept notes.',
+ 'Keep the complete song package concise enough for the app reply limit (ideally under 4500 characters total).',
  'Return THREE clearly marked sections, exactly:',
  'TITLE: <original song title>',
  'SUNO STYLE PROMPT: <English, copy-ready production and sound description; maximum 1000 characters including spaces>',
