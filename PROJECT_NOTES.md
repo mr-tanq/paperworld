@@ -6,6 +6,12 @@ After PR #138 was merged, verified Suno's own MCP setup docs: a custom MCP clien
 
 Draft implementation adds an on-demand, owner-authenticated, read-only discovery path for Crow: fixed `api.suno.com` OAuth protected-resource metadata URLs, no redirects, bounded JSON parsing, safe resource validation and fail-closed browser status. Explicit UI in Crow Messenger reports whether metadata is discoverable, while always reporting `oauthConnected:false` and `canGenerate:false`. It never exposes a Suno generation endpoint and cannot spend Suno credits. Next milestone after reviewing this PR: a compatible OAuth 2.1 MCP client with PKCE, resource/scope binding, owner-specific token management, confirmed provider tool schemas and durable idempotent approvals before enabling any production. No automatic merge/deployment or account connection.
 
+## 2026-11-16 — Crow Suno owner OAuth PKCE implementation (draft)
+
+After Phase 6, Paperworld now has a **server-side draft implementation** of OAuth authorization for the Suno MCP client. It follows the published MCP authorization pattern: first read fixed-host Suno protected-resource metadata, then fetch Suno-hosted authorization server metadata, require explicit `client_id_metadata_document_supported=true` and PKCE `S256`, and use a public HTTPS Client ID Metadata Document with a fixed Render callback. A real owner-initiated **Σύνδεση Suno** button and authenticated owner-only status check were added. Callback uses one-time state + PKCE verifier; token exchange occurs solely on the server. Tokens live only in process memory and cannot be returned to the browser. Unsupported registration metadata causes a clear failure rather than an invented connection. No account was actually linked in development.
+
+**Explicit boundaries:** This flow has not been live-tested against Suno. It supports CIMD only and requires the provider to advertise support; it does not attempt unsafe automated registrations, scrape cookies, store tokens in GitHub or perform music generation. An OAuth token is not evidence that MCP music tools work. All music-generation endpoints remain absent and credits are untouched. The next phase must verify actual Suno authorization and MCP capabilities with owner consent, then design durable, single-use, per-song credit approvals before any execution.
+
 ## Locked product vision — 14 November 2026
 
 The user is Chief Human Officer. The Chief of Staff is currently named **Matt** (rename later).
