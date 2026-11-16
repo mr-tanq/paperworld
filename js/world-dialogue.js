@@ -108,6 +108,37 @@
  const musicCancel=make('button','crow-music-cancel','Ακύρωση πρότασης');
  musicCancel.type='button';musicCancel.hidden=true;
  musicForm.append(musicTitle,musicStyle,musicLyrics,musicSave);
+ const sunoConnect=make('button','crow-music-check','Σύνδεση Suno');
+ sunoConnect.type='button';
+ sunoConnect.addEventListener('click',async()=>{
+  if(openId!=='studio-director'||musicBusy||!cloud()?.signedIn()||
+     typeof cloud()?.beginSunoLink!=='function')return;
+  const agreed=window.confirm('Θα μεταφερθείς στη σελίδα εξουσιοδότησης του Suno. '+
+   'Δεν θα δημιουργηθεί τραγούδι και δεν θα καταναλωθούν credits. Συνέχεια;');
+  if(!agreed)return;
+  sunoConnect.disabled=true;musicResult.textContent='Έλεγχος ασφαλούς σύνδεσης…';
+  try{
+   const url=await cloud().beginSunoLink();
+   window.location.assign(url);
+  }catch(_){
+   musicResult.textContent='Το Suno δεν προσφέρει ακόμη επιβεβαιωμένη σύνδεση σε αυτόν τον client. '+
+    'Η παραγωγή παραμένει απενεργοποιημένη.';
+  }finally{sunoConnect.disabled=false}
+ });
+ const sunoLinkStatus=make('button','crow-music-check','Κατάσταση λογαριασμού Suno');
+ sunoLinkStatus.type='button';
+ sunoLinkStatus.addEventListener('click',async()=>{
+  if(openId!=='studio-director'||musicBusy||!cloud()?.signedIn()||
+   typeof cloud()?.sunoLinkStatus!=='function')return;
+  sunoLinkStatus.disabled=true;
+  try{
+   const r=await cloud().sunoLinkStatus();
+   musicResult.textContent=r.oauthAuthorized?
+    'Ο λογαριασμός εξουσιοδοτήθηκε στον server. Η παραγωγή παραμένει απενεργοποιημένη.':
+    'Ο λογαριασμός Suno δεν έχει συνδεθεί ακόμη.';
+  }catch(_){musicResult.textContent='Δεν επαληθεύτηκε η σύνδεση Suno.'}
+  finally{sunoLinkStatus.disabled=false}
+ });
  const sunoCheck=make('button','crow-music-check','Έλεγχος σύνδεσης Suno');
  sunoCheck.type='button';
  sunoCheck.addEventListener('click',async()=>{
@@ -127,7 +158,7 @@
  sunoInstructions.href='https://suno.com/mcp';
  sunoInstructions.target='_blank';sunoInstructions.rel='noopener noreferrer';
  musicPanel.append(musicHelp,musicFromCrow,musicForm,musicResult,musicCopy,
-  sunoCheck,sunoInstructions,musicCancel);
+  sunoConnect,sunoLinkStatus,sunoCheck,sunoInstructions,musicCancel);
  let previewId=null,musicBusy=false;
  function resetMusic(){
   musicPanel.hidden=true;musicToggle.setAttribute('aria-expanded','false');
