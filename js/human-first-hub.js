@@ -156,7 +156,7 @@
   const b=e('button',cls,label);b.type='button';
   b.addEventListener('click',handler);return b;
  }
- function create(host,{load,approve,reject,runWorker,openMatt,openProject,
+ function create(host,{load,approve,reject,runWorker,runSourceFact,openMatt,openProject,
   onChanged,onError,compact=false}={}){
   if(!host||typeof host.replaceChildren!=='function'||
    typeof load!=='function')throw Error('human_first_host_required');
@@ -234,12 +234,47 @@
      const actions=e('div','human-hub-item-actions');
      const start=button('Έγκριση ελέγχου από Worker',()=>executeWorker(item),'human-hub-yes');
      start.disabled=opBusy||loading;
-     actions.append(start);card.append(actions);
+     actions.append(start);
+     if(typeof runSourceFact==='function'){
+      const check=button('Έλεγχος πηγών · χωρίς AI',()=>executeSourceFact(item),'human-hub-no');
+      check.disabled=opBusy||loading;
+      actions.append(check);
+     }
+     card.append(actions);
     }
    }else card.append(e('p','human-hub-summary',
      item.stage==='completed'?'Την ολοκλήρωση την σημείωσες εσύ.':
       'Προσωπική εργασία · δεν σημαίνει ότι εκτελέστηκε από AI agent.'));
    return card;
+  }
+  async function executeSourceFact(item){
+   if(opBusy||loading||!item||item.kind!=='handoff'||
+    item.status!=='awaiting_consent'||typeof runSourceFact!=='function')return;
+   opBusy=true;error='';render();
+   try{
+    const raw=await load();
+    const matches=Array.isArray(raw?.teamJobs)&&raw.teamJobs.some(j=>
+     j.id===item.id&&j.requestId===item.requestId&&
+     j.status==='awaiting_consent'&&j.workerId===item.workerId&&
+     j.directorId===item.directorId&&j.summary===item.summary);
+    const used=Array.isArray(raw?.workerRuns)&&raw.workerRuns.some(j=>
+     j.requestId===item.requestId);
+    if(!matches||used||raw?.workerHistoryUnavailable===true||
+     raw?.teamUnavailable===true)throw Error('Δεν επιβεβαιώθηκε η εργασία.');
+    if(!window.confirm('Να ελέγξει ο Worker μόνο τα επιτρεπόμενα αρχεία GitHub;\\n\\n'+
+     item.summary+'\\n\\nΜηδέν κλήσεις AI, μηδέν αλλαγές κώδικα, '+
+     'μηδέν PR ή deployment. Η εργασία δεν επαναλαμβάνεται αυτόματα.'))return;
+    const result=await runSourceFact(item);
+    if(result?.modelCalls!==0||result?.changedFiles!==0||
+     result?.execution!=='read_only_source_facts')
+     throw Error('Η εκτέλεση δεν επιβεβαιώθηκε.');
+    if(typeof onChanged==='function')onChanged('source',item);
+   }catch(err){markError(err?.message||'Ο έλεγχος πηγών απέτυχε.')}
+   finally{
+    const failure=error;opBusy=false;
+    await refresh();
+    if(failure){markError(failure);render()}
+   }
   }
   async function executeWorker(item){
    if(opBusy||loading||!item||item.kind!=='handoff'||

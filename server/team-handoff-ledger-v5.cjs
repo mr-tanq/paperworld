@@ -51,6 +51,27 @@ function makeTeamHandoffLedger({fetcher=globalThis.fetch,
   return rows.length===1&&rows[0].owner_id===ownerId&&
    rows[0].request_id===requestId;
  }
+ async function verifyWorkerRequest({ownerId,threadId,requestId,project,workerId,message}={}){
+  if(![ownerId,threadId,requestId].every(x=>UUID.test(x||''))||
+   !PROJECTS[project]||typeof message!=='string'||!message.trim()||
+   message.length>1200||
+   !Object.hasOwn(PROJECTS[project].workers,workerId))
+   throw Error('invalid_worker_request');
+  // The exact owner/request ID is authoritative. A previous Matt handoff can
+  // never be repurposed to another project, user text or Worker.
+  const params=new URLSearchParams({select:'owner_id,thread_id,request_id,project,director_id,worker_id,status,request_summary',
+   owner_id:'eq.'+ownerId,request_id:'eq.'+requestId,limit:'2'});
+  const rows=await query('GET','paperworld_team_handoffs_v5?'+params.toString());
+  if(rows.length>1)throw Error('ambiguous_worker_handoff');
+  if(rows.length===0)return Object.freeze({matched:false});
+  const row=rows[0];
+  validateAssignment({project,director:row.director_id,worker:workerId,capability:'source_read'});
+  if(row.owner_id!==ownerId||row.thread_id!==threadId||row.request_id!==requestId||
+   row.project!==project||row.worker_id!==workerId||
+   row.status!=='awaiting_consent'||row.request_summary!==message.trim())
+   throw Error('worker_handoff_mismatch');
+  return Object.freeze({matched:true,project,workerId,requestId});
+ }
  async function list({ownerId,threadId}={}){
   if(!UUID.test(ownerId||'')||!UUID.test(threadId||''))throw Error('invalid_handoff_scope');
   const params=new URLSearchParams({select:'id,owner_id,thread_id,request_id,project,director_id,worker_id,status,request_summary,created_at',
@@ -86,6 +107,6 @@ function makeTeamHandoffLedger({fetcher=globalThis.fetch,
     authority:'recorded_handoffs_not_worker_execution'}};
   }catch(_){return {status:503,body:{error:'team_history_unavailable'}}}
  }
- return Object.freeze({record,list,handle,configured});
+ return Object.freeze({record,list,handle,verifyWorkerRequest,configured});
 }
 module.exports=Object.freeze({makeTeamHandoffLedger,ROUTES});
