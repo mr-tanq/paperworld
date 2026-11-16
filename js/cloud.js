@@ -125,6 +125,44 @@
    return user.id;
   }
 
+  // Owner-selected ChatGPT export excerpts are always proposed, never approved.
+  // The browser cannot impersonate an owner or grant itself review status.
+  async function proposeDirectorHistory({projectId,records}={}){
+   if(!['workshop','pokemon','studio','wellbeing'].includes(projectId)||
+      !Array.isArray(records)||records.length<1||records.length>40)
+    throw Error('Invalid private history import');
+   await verifiedMemoryReviewer();
+   const UUID=/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+   let imported=0,skipped=0;
+   for(const item of records){
+    if(item?.project_id!==projectId||item.status!=='proposed'||
+     item.kind!=='work_history'||item.source_type!=='conversation'||
+     item.sensitivity!=='private'||item.version!==1||
+     typeof item.source_ref!=='string'||
+     !/^chatgpt-export:[0-9a-f-]{36}:[0-9]{1,6}$/i.test(item.source_ref)||
+     !UUID.test(item.source_ref.split(':')[1])||
+     typeof item.title!=='string'||!item.title.trim()||item.title.length>140||
+     typeof item.body!=='string'||!item.body.trim()||item.body.length>4000||
+     typeof item.observed_at!=='string'||!Number.isFinite(Date.parse(item.observed_at)))
+     throw Error('Malformed private history excerpt');
+    const exists=await withAuth('/rest/v1/paperworld_director_memory?select=id'+
+     '&project_id=eq.'+encodeURIComponent(projectId)+
+     '&source_ref=eq.'+encodeURIComponent(item.source_ref)+'&limit=1');
+    if(!Array.isArray(exists)||exists.length>1)
+     throw Error('History duplication check failed');
+    if(exists.length){skipped++;continue}
+    // Explicitly whitelist columns; never accept owner_id/status=approved.
+    const data={project_id:projectId,kind:'work_history',status:'proposed',
+     title:item.title,body:item.body,source_type:'conversation',
+     source_ref:item.source_ref,observed_at:item.observed_at,
+     version:1,sensitivity:'private'};
+    await withAuth('/rest/v1/paperworld_director_memory',{
+     method:'POST',data,extra:{Prefer:'return=minimal'}});
+    imported++;
+   }
+   return {imported,skipped};
+  }
+
   // Explicit user-directed decision for exactly one proposed memory.
   // Requires installed audited migration; each call verifies live Auth identity.
   // The browser sends only the status column. PostgreSQL RLS and an append-
@@ -545,7 +583,7 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,mattJobHistory,diagnoseMattSession,
+   listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,mattJobHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
    crowSunoPreview,cancelCrowSunoPreview,crowSunoConnectionStatus,
    beginSunoLink,sunoLinkStatus};
