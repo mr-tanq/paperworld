@@ -1,5 +1,9 @@
 # PAPERWORLD — PROJECT NOTES (living source of truth)
 
+## 2026-11-16 — Crow MCP request-scoped SSE (draft)
+
+The read-only Suno `tools/list` probe now accepts **bounded request-scoped SSE** responses as well as JSON for the modern MCP 2026-07-28 HTTP request style. It handles progress notifications without mistaking them for a final result and rejects repeated responses, mismatched IDs, oversized payloads and incomplete paginated tool lists. Only tool names are retained server-side and only counts/booleans go to the browser; generation remains disabled. Earlier MCP `initialize`, session ID negotiation, older SSE, and the actual Suno OAuth/live tool response remain unverified. No credits, deployment, or real Suno request were made by this PR.
+
 ## 2026-11-16 — Crow Suno OAuth discovery (draft, not connected)
 
 After PR #138 was merged, verified Suno's own MCP setup docs: a custom MCP client requires its **own** Suno sign-in and authorization; an existing connection in ChatGPT, Claude or elsewhere cannot be reused as PAPERWORLD OAuth. The official server is `https://api.suno.com/mcp`. A server discovery check is NOT a user authorization.
