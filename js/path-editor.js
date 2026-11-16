@@ -72,7 +72,7 @@
    }else if(mode==='erase'){
     const i=edgeAt(p,tolerance);
     if(i>=0){
-     remember();const [a,b]=draft.connections.splice(i,1);
+     remember();const [[a,b]]=draft.connections.splice(i,1);
      draft.hidden=draft.hidden.filter(k=>k!==key(a,b));save()
     }
    }else if(mode==='hidden'){
