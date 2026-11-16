@@ -1,5 +1,11 @@
 # PAPERWORLD — PROJECT NOTES (living source of truth)
 
+## 2026-11-16 — Suno OAuth owner-approved credits scope (draft)
+
+Owner explicitly approved use of existing Suno credits and requested a less repetitive UI. OAuth scope selection now includes provider-advertised `credits:spend` along with `profile:read` and `library:read`. The Paperworld link confirmation mentions this once, with final consent still handled by Suno. Routine diagnostic status messages no longer repeat credit warnings. Unrelated scopes (such as write and offline access) are not requested.
+
+This change requests *permission*; it does not make Suno music creation work automatically. The existing backend remains read-only for MCP tools/list, and there is no tools/call generation route. Actual tool calling requires a separate compatible implementation and successful validation of the 401/403 error. No credit usage, merge or deployment occurred in this change. Existing permissions can be revoked at Suno.
+
 ## 2026-11-16 — Crow Suno MCP diagnostic cause codes (draft)
 
 The owner supplied a live Crow screenshot showing authorized Suno OAuth but failed MCP tools/list verification. The previous frontend displayed the same generic message for every tool-list failure, and the backend erased the detailed allowlisted reason. This change preserves only a fixed set of safe failure categories (authorization rejection, timeout, HTTP provider error/rate limit, response type, JSON-RPC format, and legacy handshake/session issues). The owner-scoped /auth/suno/diagnose and /auth/suno/inspect-tools responses include reason codes but never provider response bodies, bearer tokens, session IDs, credentials, or raw errors. Crow displays plain-language Greek explanations. No speculative claims are made about the actual live error until the user reruns the read-only probe after a separately approved backend deployment.

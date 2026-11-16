@@ -118,7 +118,12 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
      const text=await response.text();
      if(text.length>12000)continue;
      const endpoints=validServerMeta(JSON.parse(text),issuer);
-     if(endpoints)return endpoints;
+     if(endpoints){
+      const allowed=new Set(['profile:read','library:read','credits:spend']);
+      const declared=Array.isArray(resource.requestedScopes)?
+       resource.requestedScopes.filter(v=>allowed.has(v)):[];
+      return {...endpoints,requestedScopes:[...new Set(declared)]};
+     }
     }catch(_){}
    }
   }
@@ -142,6 +147,8 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
   url.searchParams.set('code_challenge',challenge);
   url.searchParams.set('code_challenge_method','S256');
   url.searchParams.set('resource',RESOURCE);
+  // User authorized Suno credits. Suno consent screen remains the grant authority.
+  if(meta.requestedScopes.length)url.searchParams.set('scope',meta.requestedScopes.join(' '));
   return answer(200,{authorizationUrl:url.href,connected:false,
    canGenerate:false,expiresInSeconds:600});
  }

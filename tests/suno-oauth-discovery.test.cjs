@@ -70,3 +70,14 @@ test('Preserves path-qualified Suno OAuth issuer without dropping its path',()=>
   authorization_servers:[issuer]});
  assert.deepEqual(parsed.authorizationServers,[issuer]);
 });
+
+test('OAuth scope discovery includes owner-approved spend when provider advertises it',()=>{
+ const parsed=safeMetadata({resource:'https://api.suno.com/mcp',
+  authorization_servers:['https://accounts.suno.com'],
+  scopes_supported:['credits:spend','profile:read','library:write',
+   'library:read','create:generate','download','offline_access','profile:read']});
+ assert.deepEqual(parsed.requestedScopes,['credits:spend','profile:read','library:read']);
+ assert.doesNotMatch(JSON.stringify(parsed),/create:generate|library:write/);
+ assert.deepEqual(safeMetadata({resource:'https://api.suno.com/mcp',
+  authorization_servers:['https://accounts.suno.com']}).requestedScopes,[]);
+});
