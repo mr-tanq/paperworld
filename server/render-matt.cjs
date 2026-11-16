@@ -6,6 +6,7 @@ const http=require('node:http');
 const {createGithubOAuth,APP_ORIGIN}=require('./github-oauth.cjs');
 const {makeMattChat}=require('./matt-live-chat.cjs');
 const {makeDirectorChat}=require('./director-direct-chat.cjs');
+const {createCrowSunoPreviewApi}=require('./crow-suno-preview-api.cjs');
 const {makeDelegation}=require('./matt-delegation.cjs');
 const {makeWorkerDelegation}=require('./matt-worker-delegation.cjs');
 const {makePokemonWorkerDelegation}=require('./pokemon-worker-delegation.cjs');
@@ -32,8 +33,9 @@ function createRenderMattServer({oauth=createGithubOAuth({
  workerFactory=({oauth,proposalMemory})=>makeWorkerDelegation({oauth,proposalMemory,clientFactory:createCopilotClient}),
  pokemonWorkerFactory=({oauth})=>makePokemonWorkerDelegation({oauth,clientFactory:createCopilotClient}),
  historyFactory=()=>makeJobHistoryApi(),
+ crowSunoPreviewFactory=()=>createCrowSunoPreviewApi(),
  proposalApiFactory=({oauth,memory,store})=>createListeningProposalApi({oauth,memory,store})}={}){
- let live,directorChat,delegation,worker,pokemonWorker,history,proposalApi;
+ let live,directorChat,delegation,worker,pokemonWorker,history,proposalApi,crowSunoPreview;
  let proposalMemory,approvalStore;
  function getProposalMemory(){
   if(proposalMemory!==undefined)return proposalMemory;
@@ -56,6 +58,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
  function getWorker(){if(!worker)worker=workerFactory({oauth,proposalMemory:getProposalMemory()});return worker}
  function getPokemonWorker(){if(!pokemonWorker)pokemonWorker=pokemonWorkerFactory({oauth});return pokemonWorker}
  function getHistory(){if(!history)history=historyFactory();return history}
+ function getCrowSunoPreview(){if(!crowSunoPreview)crowSunoPreview=crowSunoPreviewFactory();return crowSunoPreview}
  const server=http.createServer(async(req,res)=>{
   // Never enable CORS or accept browser credentials until a full OAuth review.
   if(req.method==='GET'&&req.url==='/health')
@@ -108,6 +111,36 @@ function createRenderMattServer({oauth=createGithubOAuth({
      'X-Content-Type-Options':'nosniff','Vary':'Origin'});
     res.end(JSON.stringify(result.body));return;
    }catch(_){return response(res,503,{error:'proposal_api_unavailable'})}
+  }
+  // Privately preview/cancel a Crow production brief. No Suno OAuth or
+  // provider execution routes exist here; the backend spends zero credits.
+  const crowAction={
+   '/suno/crow/propose':'propose',
+   '/suno/crow/cancel':'cancel'
+  }[req.url];
+  if(crowAction){
+   if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
+    res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
+     'Access-Control-Allow-Methods':'POST, OPTIONS',
+     'Access-Control-Allow-Headers':'authorization,content-type',
+     'Access-Control-Max-Age':'600','Vary':'Origin'});res.end();return;
+   }
+   if(req.method!=='POST')return response(res,405,{error:'method_not_allowed'});
+   if(req.headers.origin!==APP_ORIGIN)return response(res,403,{error:'origin_denied'});
+   let parts=[],size=0;
+   try{
+    for await(const chunk of req){
+     size+=chunk.length;
+     if(size>11000)return response(res,413,{error:'request_too_large'});
+     parts.push(chunk);
+    }
+    const result=await getCrowSunoPreview().handle({headers:req.headers,
+     body:Buffer.concat(parts).toString('utf8'),action:crowAction});
+    res.writeHead(result.status,{'Content-Type':'application/json; charset=utf-8',
+     'Access-Control-Allow-Origin':APP_ORIGIN,'Cache-Control':'no-store',
+     'X-Content-Type-Options':'nosniff','Vary':'Origin'});
+    res.end(JSON.stringify(result.body));return;
+   }catch(_){return response(res,503,{error:'crow_suno_preview_unavailable'})}
   }
   const isMattRequest=req.url==='/chat/director'||req.url==='/chat/matt'||req.url==='/diagnostic/matt-session'||
    req.url==='/delegate/matt'||req.url==='/delegate/matt/worker'||

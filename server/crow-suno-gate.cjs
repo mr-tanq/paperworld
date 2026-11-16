@@ -65,7 +65,7 @@ function makeCrowSunoGate({authorize,submit,enabled=false,clock=now,ttlMs=600000
  function cancel({ownerId,proposalId}={}){
   const p=pending.get(proposalId);
   if(!p||p.ownerId!==ownerId)return respond(404,'proposal_not_found');
-  if(p.used)return respond(409,'already_submitted');
+  if(p.used||p.busy)return respond(409,'already_submitted');
   pending.delete(proposalId);
   return {status:200,body:{cancelled:true}};
  }

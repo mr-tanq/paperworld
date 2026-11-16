@@ -321,6 +321,40 @@
     throw Error('Draft PR creation unverified');
    return result;
   }
+  // Private Crow production preview. This NEVER invokes Suno or uses credits.
+  async function crowSunoPreview(brief){
+   await ensureAuth();
+   const thread=await getAgentThread('studio-director',true);
+   const response=await fetcher(MATT_ORIGIN+'/suno/crow/propose',{
+    method:'POST',redirect:'error',
+    headers:{Authorization:'Bearer '+session.access_token,
+     'Content-Type':'application/json'},
+    body:JSON.stringify({agentId:'studio-director',threadId:thread.id,
+     brief,expectedCredits:null})
+   });
+   let result={};try{result=await response.json()}catch(_){}
+   if(!response.ok)throw Error((result.error||'Crow preview unavailable')+
+    ' (HTTP '+response.status+')');
+   if(typeof result.proposalId!=='string'||result.requiresExplicitApproval!==true||
+    result.expectedCredits!==null)throw Error('Unverified Crow preview');
+   return result;
+  }
+  async function cancelCrowSunoPreview(proposalId){
+   if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(proposalId||''))
+    throw Error('Invalid Crow preview ID');
+   await ensureAuth();
+   const response=await fetcher(MATT_ORIGIN+'/suno/crow/cancel',{
+    method:'POST',redirect:'error',
+    headers:{Authorization:'Bearer '+session.access_token,
+     'Content-Type':'application/json'},
+    body:JSON.stringify({proposalId})
+   });
+   let result={};try{result=await response.json()}catch(_){}
+   if(!response.ok||result.cancelled!==true)
+    throw Error((result.error||'Unable to cancel Crow preview')+
+     ' (HTTP '+response.status+')');
+   return true;
+  }
   // Delegation is explicitly a separate, up-to-three Copilot-turn operation.
   // Do not silently send multiple model calls from the ordinary chat button.
   // Separate user-authorized five-call path for evidence-based Worker analysis.
@@ -462,7 +496,8 @@
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
    listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,mattJobHistory,diagnoseMattSession,
-   listListeningProposals,rejectListeningProposal,publishListeningProposal};
+   listListeningProposals,rejectListeningProposal,publishListeningProposal,
+   crowSunoPreview,cancelCrowSunoPreview};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });
