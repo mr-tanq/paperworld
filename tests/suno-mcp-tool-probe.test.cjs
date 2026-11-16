@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs');
-const {makeSunoMcpToolProbe,summarize,ENDPOINT,VERSION}=
+const {makeSunoMcpToolProbe,summarize,parseRequestSse,ENDPOINT,VERSION}=
  require('../server/suno-mcp-tool-probe.cjs');
 const {createSunoOAuthClient}=require('../server/suno-oauth-client.cjs');
 const ownerId='11111111-1111-4111-8111-111111111111';
@@ -43,10 +43,11 @@ test('Refuses redirects, SSE-only servers, malformed JSON or unauthorized access
   const probe=makeSunoMcpToolProbe({fetcher:async()=>({status,headers:{get:()=>null}})});
   assert.equal((await probe.inspect({accessToken:'valid-access-token-1234'})).available,false);
  }
- const sse=makeSunoMcpToolProbe({fetcher:async()=>({
-  status:200,headers:{get:()=> 'text/event-stream'}})});
- assert.equal((await sse.inspect({accessToken:'valid-access-token-1234'})).reason,
-  'unsupported_mcp_transport');
+ const emptySse=makeSunoMcpToolProbe({fetcher:async()=>({
+  status:200,headers:{get:()=> 'text/event-stream'},
+  text:async()=>': heartbeat\\n\\n'})});
+ assert.equal((await emptySse.inspect({accessToken:'valid-access-token-1234'})).reason,
+  'unverified_mcp_response');
  assert.equal((await sse.inspect({accessToken:''})).reason,'not_authorized');
 });
 test('OAuth owner must be linked before MCP tool discovery; never enables generation',async()=>{
@@ -88,4 +89,40 @@ test('No execution route or tool calling method is introduced',()=>{
  assert.doesNotMatch(server,/\/suno\/crow\/execute/);
  assert.doesNotMatch(api,/method:'tools\/call'/);
  assert.doesNotMatch(ui,/GENERATE_WITH_SUNO_CREDITS/);
+});
+
+test('Bounded SSE progress plus one matching response verifies only tool names',async()=>{
+ const events=[
+  ': keepalive',
+  'event: message\\ndata: {"jsonrpc":"2.0","method":"notifications/progress","params":{"progress":1}}',
+  'event: message\\ndata: {"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"generate_song","description":"private"}]}}'
+ ].join('\\n\\n')+'\\n\\n';
+ const calls=[];
+ const probe=makeSunoMcpToolProbe({fetcher:async(url,opts)=>{
+  calls.push(opts);
+  return {status:200,
+   headers:{get:k=>k==='content-type'?'text/event-stream; charset=utf-8':null},
+   text:async()=>events};
+ }});
+ const result=await probe.inspect({accessToken:'valid-access-token-1234'});
+ assert.deepEqual(result,{available:true,reason:'read_only_tools_verified',
+  toolCount:1,tools:['generate_song']});
+ assert.equal(calls[0].opts,undefined);
+ assert.equal(calls[0].headers.Accept,'application/json, text/event-stream');
+ assert.equal(JSON.parse(calls[0].body).method,'tools/list');
+ assert.doesNotMatch(JSON.stringify(result),/private|valid-access-token/);
+});
+test('Reject truncated, duplicate, mismatched, oversized and paginated SSE',async()=>{
+ const good='event: message\\ndata: {"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"song"}]}}\\n\\n';
+ assert.deepEqual(parseRequestSse(good)?.result?.tools,[{name:'song'}]);
+ assert.equal(parseRequestSse('data: {"jsonrpc":"2.0","method":"notifications/progress"}\\n\\n'),null);
+ assert.equal(parseRequestSse(good+good),null);
+ assert.equal(parseRequestSse('data: {"jsonrpc":"2.0","id":3,"result":{"tools":[]}}\\n\\n'),null);
+ assert.equal(parseRequestSse('x'.repeat(32001)),null);
+ assert.equal(summarize({jsonrpc:'2.0',id:1,result:{tools:[],nextCursor:'next'}}),null);
+ const probe=makeSunoMcpToolProbe({fetcher:async()=>({
+  status:200,headers:{get:()=> 'text/event-stream'},
+  text:async()=>good+good
+ })});
+ assert.equal((await probe.inspect({accessToken:'valid-access-token-1234'})).available,false);
 });
