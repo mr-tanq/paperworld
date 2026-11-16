@@ -404,6 +404,24 @@
     throw Error('Unexpected Suno authorization host');
    return u.href;
   }
+  async function inspectSunoTools(){
+   await ensureAuth();
+   const thread=await getAgentThread('studio-director',true);
+   const response=await fetcher(MATT_ORIGIN+'/auth/suno/inspect-tools',{
+    method:'POST',redirect:'error',
+    headers:{Authorization:'Bearer '+session.access_token,
+     'Content-Type':'application/json'},
+    body:JSON.stringify({agentId:'studio-director',threadId:thread.id})
+   });
+   let result={};try{result=await response.json()}catch(_){}
+   if(!response.ok)throw Error((result.error||'Suno MCP tools unavailable')+
+    ' (HTTP '+response.status+')');
+   if(result.service!=='suno_mcp'||result.oauthAuthorized!==true||
+      typeof result.toolsListed!=='boolean'||result.canGenerate!==false||
+      !Number.isSafeInteger(result.toolCount)||result.toolCount<0||
+      result.toolCount>100)throw Error('Unverified Suno MCP status');
+   return result;
+  }
   async function sunoLinkStatus(){
    const result=await sunoOauthRequest('status');
    if(typeof result.oauthAuthorized!=='boolean'||result.ephemeral!==true)
@@ -586,7 +604,7 @@
    listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,mattJobHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
    crowSunoPreview,cancelCrowSunoPreview,crowSunoConnectionStatus,
-   beginSunoLink,sunoLinkStatus};
+   beginSunoLink,sunoLinkStatus,inspectSunoTools};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });
