@@ -250,7 +250,7 @@
  function resetMusic(){
   musicPanel.hidden=true;musicToggle.setAttribute('aria-expanded','false');
   musicForm.reset();musicResult.textContent='';musicCancel.hidden=true;
-  musicCopy.hidden=false;
+  musicCopy.hidden=true;
  }
  musicToggle.addEventListener('click',()=>{
   if(musicBusy)return;
