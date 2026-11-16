@@ -1,5 +1,11 @@
 # PAPERWORLD — PROJECT NOTES (living source of truth)
 
+## 2026-11-16 — Matt → Crow Music Studio handoff (draft)
+
+After Suno explicitly indicated AI-app account linking is unavailable for the owner's account, we stopped repeated OAuth experimentation and focused on a useful no-Suno workflow. Matt's existing owner-consented AI delegation already returns an authenticated, server-owned `directorReport` for Crow. A new one-click "♫ Συνέχεια στο Music Studio" handoff appears only when the latest completed Matt delegation selected `studio-director`. The report is validated, placed into the editable musical-direction field (bounded to 1000 characters), and never mistaken for original song lyrics. The owner can set title and enter lyrics manually, then create an in-tab draft and copy the full request with the existing formatter. No second AI request, external music-tool call, token, Supabase write, or Suno credits are involved in this transfer.
+
+We also replaced the unusable Crow preview form (its default Render gate is disabled) with an honest local in-tab draft workflow. Drafts do not persist across a full page reload; no false "saved in Cloud" claim is made. Existing backend preview APIs remain unchanged for backward compatibility but are no longer invoked by the Studio form. The user's approved Suno scope configuration is unchanged. No merge or deployment; owner reviews GitHub PR first.
+
 ## 2026-11-16 — Suno MCP api:v0 scope compatibility fix (draft)
 
 Owner's live diagnostics still show MCP HTTP 401/403 after OAuth reconnect using read and credits scopes. Suno's protected resource metadata reportedly includes `api:v0`, a general MCP API access permission that the Paperworld OAuth allowlist previously omitted. Based on the MCP authorization specification's recommendation to use scope hints and advertised protected-resource scopes, the OAuth request now includes `api:v0` if—and only if—the Suno resource metadata advertises it. Existing owner-approved `credits:spend` and read permissions remain. This is a testable hypothesis, not a verified 401/403 root cause. Existing in-memory tokens must be reauthorized after separately approved backend deployment. No MCP tool execution, songs or credits are consumed by this change.

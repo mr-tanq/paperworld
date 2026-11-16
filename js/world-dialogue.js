@@ -8,6 +8,7 @@
  let openId=null,revision=0,busy=false;
  const mattReplies=[];
  const directorReplies=new Map(); // Keep only replies not yet reconciled with saved history.
+ let latestStudioHandoff=null;
  let mattCachedEntries=null; // Keep visible replies while owner history refreshes.
  let mattJourneyCaption='';
  const historyCodec=()=>window.PaperworldMattHistory;
@@ -113,7 +114,7 @@
  musicLyrics.rows=3;musicLyrics.maxLength=8000;
  musicLyrics.placeholder='Πρωτότυποι στίχοι (προαιρετικό)';
  musicLyrics.setAttribute('aria-label','Πρωτότυποι στίχοι');
- const musicSave=make('button','crow-music-save','Αποθήκευση προεπισκόπησης');
+ const musicSave=make('button','crow-music-save','Ετοίμασε draft');
  musicSave.type='submit';
  const musicResult=make('p','crow-music-result','');
  musicResult.setAttribute('role','status');
@@ -234,12 +235,24 @@
  sunoInstructions.target='_blank';sunoInstructions.rel='noopener noreferrer';
  musicPanel.append(musicHelp,sunoCheck,musicResult,sunoConnect,sunoLinkStatus,
   sunoTools,sunoInstructions,musicFromCrow,musicForm,musicCopy,musicCancel);
- let previewId=null,musicBusy=false;
+ let musicBusy=false;
+ const openStudio=make('button','crow-music-toggle','♫ Συνέχεια στο Music Studio');
+ openStudio.type='button';openStudio.hidden=true;
+ openStudio.addEventListener('click',()=>{
+  if(openId!=='matt'||busy||!cloud()?.signedIn()||!latestStudioHandoff)return;
+  const draft=window.PaperworldCrowStudioDraft?.fromMatt(latestStudioHandoff);
+  if(!draft){status.textContent='Δεν υπάρχει έγκυρη αναφορά Crow για μεταφορά.';return}
+  show('studio-director');
+  musicPanel.hidden=false;musicToggle.setAttribute('aria-expanded','true');
+  musicTitle.value=draft.title;musicStyle.value=draft.style;musicLyrics.value=draft.lyrics;
+  musicResult.textContent='Μεταφέρθηκε η πραγματική αναφορά του Crow. '+
+   'Διόρθωσε τίτλο, μουσική κατεύθυνση και στίχους.';
+  musicCopy.hidden=false;musicCancel.hidden=false;musicTitle.focus();
+ });
  function resetMusic(){
   musicPanel.hidden=true;musicToggle.setAttribute('aria-expanded','false');
   musicForm.reset();musicResult.textContent='';musicCancel.hidden=true;
   musicCopy.hidden=true;
-  previewId=null;
  }
  musicToggle.addEventListener('click',()=>{
   if(musicBusy)return;
@@ -261,7 +274,8 @@
   musicResult.textContent='Προστέθηκε η τελευταία πρόταση του Crow. Έλεγξε και διόρθωσε τη μουσική κατεύθυνση.';
  });
  musicCopy.addEventListener('click',async()=>{
-  if(openId!=='studio-director'||!previewId||musicBusy)return;
+  if(openId!=='studio-director'||musicBusy||!musicTitle.value.trim()||
+    !musicStyle.value.trim())return;
   try{
    const formatter=window.PaperworldCrowSunoPrompt;
    if(!formatter?.format)throw Error('unavailable');
@@ -272,37 +286,17 @@
    musicResult.textContent='Αντιγράφηκε. Μπορείς να το χρησιμοποιήσεις σε assistant με συνδεδεμένο Suno MCP.';
   }catch(_){musicResult.textContent='Η αντιγραφή απέτυχε. Έλεγξε τα πεδία και τα δικαιώματα του browser.'}
  });
- musicForm.addEventListener('submit',async e=>{
+ musicForm.addEventListener('submit',e=>{
   e.preventDefault();
-  if(openId!=='studio-director'||musicBusy||!cloud()?.signedIn()||
-   typeof cloud()?.crowSunoPreview!=='function')return;
-  const title=musicTitle.value.trim(),style=musicStyle.value.trim(),lyrics=musicLyrics.value;
-  if(!title||!style)return;
-  musicBusy=true;musicSave.disabled=true;musicToggle.disabled=true;
-  musicResult.textContent='Αποθήκευση ιδιωτικής προεπισκόπησης…';
-  try{
-   // Cancel old owner-scoped draft before replacing, avoiding unused previews.
-   if(previewId)await cloud().cancelCrowSunoPreview(previewId);
-   previewId=null;musicCopy.hidden=true;
-   const response=await cloud().crowSunoPreview({operation:'create',title,style,lyrics});
-   previewId=response.proposalId;
-   musicCopy.hidden=false;
-   musicResult.textContent='Προεπισκόπηση έτοιμη: '+response.title+
-    '.';
-   musicCancel.hidden=false;
-  }catch(_){
-   musicResult.textContent='Η προεπισκόπηση δεν αποθηκεύτηκε. Δοκίμασε ξανά αφού συνδεθείς.';
-  }finally{musicBusy=false;musicSave.disabled=false;musicToggle.disabled=false}
+  if(openId!=='studio-director'||musicBusy)return;
+  if(!musicTitle.value.trim()||!musicStyle.value.trim())return;
+  musicCopy.hidden=false;musicCancel.hidden=false;
+  musicResult.textContent='Το draft είναι έτοιμο για επεξεργασία ή αντιγραφή.';
  });
- musicCancel.addEventListener('click',async()=>{
-  if(!previewId||musicBusy||typeof cloud()?.cancelCrowSunoPreview!=='function')return;
-  musicBusy=true;musicCancel.disabled=true;
-  try{
-   await cloud().cancelCrowSunoPreview(previewId);
-   previewId=null;musicCancel.hidden=true;musicCopy.hidden=true;
-   musicResult.textContent='Η πρόταση ακυρώθηκε.';
-  }catch(_){musicResult.textContent='Δεν επιβεβαιώθηκε η ακύρωση. Μπορείς να δοκιμάσεις ξανά.'}
-  finally{musicBusy=false;musicCancel.disabled=false}
+ musicCancel.addEventListener('click',()=>{
+  if(openId!=='studio-director'||musicBusy)return;
+  musicForm.reset();musicCancel.hidden=true;musicCopy.hidden=false;
+  musicResult.textContent='Το draft καθαρίστηκε.';
  });
  // One deliberate, owner-only batch approval for the staged private import.
  // Never trigger this from Matt's model reply or automatically on page load.
@@ -334,7 +328,7 @@
   }finally{memoryReview.disabled=false}
  });
  const composer=make('footer','world-chat-composer');
- composer.append(connectGithub,memoryReview,musicToggle,musicPanel,form);
+ composer.append(connectGithub,memoryReview,openStudio,musicToggle,musicPanel,form);
  panel.append(top,status,messages,decisions,composer);view.append(panel);
  // Matt owns the conversation; internal agent and worker routing stays invisible.
  async function runMattWorkflow(text){
@@ -407,6 +401,9 @@
     content:String(result.content||
      'Δεν μπόρεσα να προσδιορίσω με ασφάλεια τον αρμόδιο Director.'),
     time:new Date().toISOString()});
+   latestStudioHandoff=result.delegated===true&&result.directorId==='studio-director'?
+    {delegated:true,directorId:result.directorId,requestId:result.requestId,
+     request:text,directorReport:result.directorReport}:null;
    field.value='';
    if(openId==='matt')paint();
    const plan=result.delegated?result.workProposal:null;
@@ -422,6 +419,7 @@
      '(κίνηση, διάλογοι, μάχες ή χάρτες). Το περιεχόμενο θα σταλεί ως '+
      'πηγή στο GitHub Copilot για αυτή τη διερεύνηση. '+
      'Η εγκεκριμένη διερεύνηση καταγράφεται στο ιδιωτικό ιστορικό όταν είναι διαθέσιμο.':
+
      'Θα διαβαστούν μόνο προκαθορισμένα αρχεία του Listening Mirror. '+
      'Η εξέλιξη καταγράφεται στο προστατευμένο ιστορικό.';
     const consent='Ο Matt προτείνει έλεγχο πηγαίου κώδικα από τον '+
@@ -549,6 +547,7 @@
   decisions.hidden=!isMatt||!active;
   memoryReview.hidden=!isMatt||!active;
   musicToggle.hidden=openId!=='studio-director'||!active;
+  openStudio.hidden=!isMatt||!active||!latestStudioHandoff||busy;
   if(musicToggle.hidden)resetMusic();
   if(isMatt&&active){setupDecisions();void refreshDecisions()}
   if(active&&isMatt&&(mattCachedEntries!==null||mattReplies.length))

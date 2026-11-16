@@ -6,7 +6,7 @@ const cloud=fs.readFileSync('js/cloud-ui.js','utf8');
 test('Messenger is one unified in-world conversation with Matt, not a technical task selector',()=>{
  for(const x of ['world-chat-veil','world-dialogue-messages','world-chat-avatar',
   'world-chat-composer','role\x27,\x27dialog','function bubble(','messages.replaceChildren(',
-  "composer.append(connectGithub,memoryReview,musicToggle,musicPanel,form)"])
+  "composer.append(connectGithub,memoryReview,openStudio,musicToggle,musicPanel,form)"])
   assert.ok(source.includes(x),x);
  assert.match(source,/musicToggle\.hidden=openId!=='studio-director'/);
  assert.match(source,/musicPanel\.hidden=true/);
@@ -33,7 +33,8 @@ test('Worker proposal requires a separate human approval with private Pokémon d
  assert.match(source,/if\(window\.confirm\(consent\)\)/);
  assert.match(source,/delegatePokemonWorker\(text,\{saveNote:false,requestId:result\.requestId\}\)/);
  assert.match(source,/delegateMattWorker\(text,\{saveNote:false,requestId:result\.requestId,onStart:id=>\{/);
- assert.match(source,/ιδιωτικό project\.godot και έως τρία προκαθορισμένα/);
+ assert.match(source,/το ιδιωτικό project\.godot/);
+ assert.match(source,/GDScript αρχεία/);
  assert.match(source,/έως 5 AI κλήσεις/);
  assert.match(source,/επιπλέον χρέωση \$0/);
  assert.match(source,/Δεν ξεκίνησα τον Worker/);
