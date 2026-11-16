@@ -72,7 +72,7 @@ function clientFixture(exists=false){
   if(url.includes('/auth/v1/user'))
    return {ok:true,status:200,text:async()=>JSON.stringify({id:USER})};
   if(options.method==='GET'&&url.includes('source_ref=eq.'))
-   return {ok:true,status:200,text:async()=>JSON.stringify(exists?[{id:USER}]:[])};
+   return {ok:true,status:200,text:async()=>JSON.stringify(exists?[{id:USER,project_id:'studio'}]:[])};
   if(options.method==='POST')
    return {ok:true,status:201,text:async()=>''};
   throw Error('Unexpected test request');

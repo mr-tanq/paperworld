@@ -1,7 +1,7 @@
 (()=>{'use strict';
 const host=document.querySelector('#project-room'),model=window.PaperworldProjects,client=window.PaperworldCloud.createClient();
 let room='town',tasks=[],allTasks=[],busy=false,message='',edit=null,active=false;
-let memoryOpen=false,memoryView=null,historyImportView=null;
+let memoryOpen=false,memoryView=null,historyImportView=null,historyBulkView=null;
 // Display-only proposals. No approval grant or server write capability.
 let listeningReviewPayload=null,listeningStoredProposals=[],listeningProposalError='';
 let workJobs=[],jobHistoryError='',humanHub=null;
@@ -71,11 +71,37 @@ function openDirectorMemory(){
    '\n\nΗ απόφαση αφορά μόνο αυτή την καταχώριση.'
   )
  });
+ if(!historyBulkView&&window.PaperworldHistoryBulkUI?.createView&&
+  window.PaperworldHistoryRouter?.suggest&&window.PaperworldHistoryImport?.prepare){
+  historyBulkView=window.PaperworldHistoryBulkUI.createView({
+   document,router:window.PaperworldHistoryRouter,
+   parser:window.PaperworldHistoryImport,
+   upload:args=>client.proposeDirectorHistory(args),
+   confirm:({conversations,parts})=>{
+    if(!Array.isArray(conversations)||conversations.length>15||parts>30)return false;
+    const labels={workshop:'Luna',pokemon:'Joey',studio:'Crow',wellbeing:'Dave'};
+    if(conversations.some(x=>!Object.prototype.hasOwnProperty.call(labels,x.projectId)))return false;
+    const lines=conversations.map(x=>'• '+x.title+' → '+labels[x.projectId]+
+     ' ('+x.parts+' τμήματα)').join('\\n');
+    return window.confirm('Μεταφορά '+conversations.length+' συνομιλιών ('+parts+
+     ' τμήματα) στο ιδιωτικό Supabase;\\n\\n'+lines+
+     '\\n\\nΤα αρχικά αρχεία παραμένουν σε αυτή τη συσκευή. '+
+     'Οι εγγραφές θα περιλαμβάνουν ιστορικά προσωπικά δεδομένα '+
+     'και θα αποθηκευτούν ως ΜΗ εγκεκριμένη μνήμη στους συγκεκριμένους '+
+     'Directors. Ελέγχεις πρώτα τις αντιστοιχίσεις;');
+   },
+   afterImport:async()=>{
+    const panel=host.querySelector('#director-memory-panel');
+    if(panel&&memoryView)await memoryView.refresh(panel);
+   }
+  });
+ }
  if(!historyImportView&&window.PaperworldHistoryImportUI?.createView&&
   window.PaperworldHistoryImport?.prepare){
   historyImportView=window.PaperworldHistoryImportUI.createView({
    document,parser:window.PaperworldHistoryImport,
    upload:args=>client.proposeDirectorHistory(args),
+   onSource:source=>historyBulkView?.setSource(source),
    confirm:({projectId,title,count,total})=>{
     const labels={workshop:'Luna',pokemon:'Joey',studio:'Crow',wellbeing:'Dave'};
     if(!Object.prototype.hasOwnProperty.call(labels,projectId))return false;
@@ -106,6 +132,10 @@ function renderDirectorMemory(){
  if(historyImportView){
   const importer=el('section',undefined,'director-history-import-panel');
   host.append(importer);historyImportView.draw(importer);
+ }
+ if(historyBulkView){
+  const bulk=el('section',undefined,'director-history-bulk-panel');
+  host.append(bulk);historyBulkView.draw(bulk);
  }
 }
 function render(){

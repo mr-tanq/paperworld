@@ -11,7 +11,7 @@
   ['studio','Crow · The Lost Wanderer'],
   ['wellbeing','Dave · Wellbeing (private)']
  ];
- function createView({document,parser,upload,confirm,afterImport=()=>{}}={}){
+ function createView({document,parser,upload,confirm,afterImport=()=>{},onSource=()=>{}}={}){
   if(typeof document?.createElement!=='function'||typeof parser?.catalog!=='function'||
    typeof parser?.prepare!=='function'||typeof upload!=='function'||
    typeof confirm!=='function')throw Error('History import requires trusted UI callbacks');
@@ -42,9 +42,11 @@
      const catalogue=parser.catalog(json);
      if(!catalogue.length)throw Error('Δεν βρέθηκαν αναγνώσιμες συνομιλίες με κείμενο.');
      source=json;items=catalogue;chosen=null;projectId='';offset=0;
+     onSource(json);
      status='Βρέθηκαν '+catalogue.length+' συνομιλίες. Διάλεξε μία.';
     }catch(err){
      source=null;items=[];chosen=null;projectId='';offset=0;
+     onSource(null);
      status='Η ανάγνωση απέτυχε: '+err.message;
     }finally{busy=false;draw()}
    });
