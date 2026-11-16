@@ -336,6 +336,7 @@ window.PaperworldCloudUI={
  beginSunoLink:()=>client.beginSunoLink(),
  sunoLinkStatus:()=>client.sunoLinkStatus(),
  inspectSunoTools:()=>client.inspectSunoTools(),
+ diagnoseSunoConnection:()=>client.diagnoseSunoConnection(),
  cancelCrowSunoPreview:(id)=>client.cancelCrowSunoPreview(id),
  askMatt:(text)=>client.askMatt(text),
  delegateMatt:(text,opts)=>client.delegateMatt(text,opts),
