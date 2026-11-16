@@ -26,5 +26,25 @@
    originalRequest:clean(request).slice(0,1200)
   });
  }
- return Object.freeze({fromMatt});
+ function fromSavedHistory(rows,decode){
+  // Require owner-scoped persisted Matt rows and the server's director envelope.
+  // Never infer Crow ownership from natural language or a generic 409 error.
+  if(!Array.isArray(rows)||typeof decode!=='function')return null;
+  const recent=rows.slice(-24);
+  for(let i=recent.length-1;i>=0;i--){
+   const row=recent[i];
+   if(row?.role!=='agent'||typeof row.content!=='string')continue;
+   const parsed=decode(row.content);
+   if(!parsed||parsed.director!=='studio-director')continue;
+   const prior=recent.slice(0,i).reverse().find(item=>
+    item?.role==='human'&&typeof item.content==='string'&&item.content.trim());
+   if(!prior)return null;
+   const draft=fromMatt({delegated:true,directorId:'studio-director',
+    requestId:row.id,request:prior.content.slice(0,1200),
+    directorReport:parsed.text});
+   if(draft)return Object.freeze({...draft,source:'saved_matt_crow_reply'});
+  }
+  return null;
+ }
+ return Object.freeze({fromMatt,fromSavedHistory});
 });
