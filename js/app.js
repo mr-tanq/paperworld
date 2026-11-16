@@ -3,19 +3,21 @@ const canvas=document.querySelector('#map'),ctx=canvas.getContext('2d'),nameEl=d
 const W=1671,H=941;
 const depth=window.PaperworldDepth;
 if(!depth)throw new Error('PAPERWORLD depth module not loaded');
+const pathEditor=window.PaperworldPathEditor;
+if(!pathEditor)throw new Error('PAPERWORLD path editor module not loaded');
 const state={width:0,height:0,dpr:1,scale:1,fit:1,x:0,y:0,pointer:null,chosen:null,walker:{x:835,y:854,direction:'down',moving:false,walkDistance:14},route:[],destination:null,depthDemo:0};
 const defs=[
-{id:'town',name:'Town Hall',file:'./assets/town-hall.png',x:530,bottom:405,width:356,entrance:[530,392],approach:[535,520],desc:'The future approval and budget hub. All operations remain disabled.'},
-{id:'workshop',name:'Listening Mirror Workshop',file:'./assets/listening-mirror-workshop.png',x:1095,bottom:415,width:358,entrance:[1125,396],approach:[1125,515],desc:'The music discovery project workspace. No real tasks are connected.'},
-{id:'pokemon',name:'Pokémon Hub',file:'./assets/pokemon-hub.png',x:330,bottom:646,width:370,entrance:[343,561],approach:[385,665],desc:'Future home of Pokémon: Echoes development.'},
-{id:'wellbeing',name:'Wellbeing & Training Center',file:'./assets/wellbeing-training-center.png',x:1325,bottom:645,width:366,entrance:[1330,574],approach:[1240,690],desc:'Future training, nutrition, habits and progress workspace.'},
-{id:'studio',name:'The Lost Wanderer Studio',file:'./assets/lost-wanderer-studio.png',x:835,bottom:801,width:438,entrance:[872,679],approach:[835,854],desc:'Future music writing and production studio.'}
+{id:'town',name:'Town Hall',file:'./assets/town-hall.png',x:594,bottom:381,width:356,entrance:[419,523],approach:[535,520],desc:'The future approval and budget hub. All operations remain disabled.'},
+{id:'workshop',name:'Listening Mirror Workshop',file:'./assets/listening-mirror-workshop.png',x:1107,bottom:399,width:358,entrance:[1165,342],approach:[1125,515],desc:'The music discovery project workspace. No real tasks are connected.'},
+{id:'pokemon',name:'Pokémon Hub',file:'./assets/pokemon-hub.png',x:338,bottom:586,width:370,entrance:[351,501],approach:[385,665],desc:'Future home of Pokémon: Echoes development.'},
+{id:'wellbeing',name:'Wellbeing & Training Center',file:'./assets/wellbeing-training-center.png',x:1361,bottom:577,width:366,entrance:[1366,506],approach:[1240,690],desc:'Future training, nutrition, habits and progress workspace.'},
+{id:'studio',name:'The Lost Wanderer Studio',file:'./assets/lost-wanderer-studio.png',x:835,bottom:757,width:438,entrance:[872,635],approach:[835,854],desc:'Future music writing and production studio.'}
 ];
 // Preview-only marker offsets are local to the user's browser; no GitHub writes.
 const markerKey='paperworld-preview-010-marker-calibration-v1';
 try{const saved=JSON.parse(localStorage.getItem(markerKey)||'{}');for(const d of defs){const p=saved[d.id];if(Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&p[0]>=0&&p[0]<=W&&p[1]>=0&&p[1]<=H)d.entrance=[...p]}}catch(_){}
 // Building layout drafts are local to this browser until the owner exports them.
-const buildingLayoutKey='paperworld-building-layout-draft-v1';
+const buildingLayoutKey='paperworld-building-layout-draft-v2';
 const originalBuildings=Object.fromEntries(defs.map(d=>[d.id,{x:d.x,bottom:d.bottom,entrance:[...d.entrance]}]));
 let placingBuildings=false,placementSelected=null;
 try{
@@ -47,6 +49,42 @@ function movePlacement(d,dx,dy){
   Math.round(Math.max(0,Math.min(H,d.entrance[1]+my)))];
  updatePlacementStatus();
 }
+const pathToggle=document.querySelector('#path-editor-toggle');
+const pathPanel=document.querySelector('#path-editor-panel');
+const pathStatus=document.querySelector('#path-editor-status');
+const pathExport=document.querySelector('#path-editor-export');
+const pathModeSelect=document.querySelector('#path-editor-mode');
+const pathVisibility=document.querySelector('#path-editor-show-hidden');
+const pathDraft=pathEditor.create({
+ nodes:window.PaperworldNavigation.nodes,
+ connections:window.PaperworldNavigation.connections,
+ hiddenConnections:window.PaperworldNavigation.hiddenConnections,
+ width:W,height:H,
+ storage:window.localStorage,
+ storageKey:'paperworld-path-draft-v1'
+});
+let editingPaths=false;
+function updatePathStatus(note=''){
+ pathStatus.textContent=note||pathDraft.summary()+' · '+pathDraft.modeLabel();
+}
+function setPathEditing(on){
+ editingPaths=on;pathPanel.hidden=!on;pathToggle.setAttribute('aria-pressed',String(on));
+ pathToggle.textContent=on?'Τέλος paths':'Paths';
+ state.pointer=null;
+ if(on){if(placingBuildings)setPlacementMode(false);state.route=[];state.destination=null;state.chosen=null;updatePathStatus()}
+}
+pathToggle.addEventListener('click',()=>setPathEditing(!editingPaths));
+document.querySelector('#path-editor-finish').addEventListener('click',()=>setPathEditing(false));
+pathModeSelect.addEventListener('change',()=>{pathDraft.setMode(pathModeSelect.value);updatePathStatus()});
+pathVisibility.addEventListener('change',()=>{pathDraft.setShowHidden(pathVisibility.checked);updatePathStatus()});
+document.querySelector('#path-editor-undo').addEventListener('click',()=>{pathDraft.undo();updatePathStatus()});
+document.querySelector('#path-editor-reset').addEventListener('click',()=>{pathDraft.reset();updatePathStatus('Το σχέδιο επανήλθε στο αρχικό δίκτυο.')});
+document.querySelector('#path-editor-copy').addEventListener('click',async()=>{
+ const json=pathDraft.exportJSON();pathExport.hidden=false;pathExport.value=json;
+ pathExport.focus();pathExport.select();
+ try{await navigator.clipboard.writeText(json);updatePathStatus('Αντιγράφηκε το δίκτυο. Στείλε μου το JSON εδώ.')}
+ catch(_){updatePathStatus('Αντέγραψε το JSON από το πλαίσιο και στείλ’ το εδώ.')}
+});
 const placementToggle=document.querySelector('#building-placement-toggle');
 const placementPanel=document.querySelector('#building-placement-panel');
 const placementStatus=document.querySelector('#building-placement-status');
@@ -59,6 +97,7 @@ function updatePlacementStatus(){
 }
 function setPlacementMode(on){
  placingBuildings=on;placementPanel.hidden=!on;
+ if(on&&editingPaths)setPathEditing(false);
  placementToggle.setAttribute('aria-pressed',String(on));
  placementToggle.textContent=on?'Τέλος τοποθέτησης':'Τοποθέτηση κτιρίων';
  state.pointer=null;calibrating=false;
@@ -106,7 +145,7 @@ const resetMarkerButton=document.querySelector('#reset-marker');
 const exportMarkerButton=document.querySelector('#export-markers');
 const markerExportOutput=document.querySelector('#marker-export-output');
 const markerText=document.querySelector('#marker-status');
-const defaultEntrances={"town":[530,392],"workshop":[1125,396],"pokemon":[343,561],"wellbeing":[1330,574],"studio":[872,679]};
+const defaultEntrances={"town":[419,523],"workshop":[1165,342],"pokemon":[351,501],"wellbeing":[1366,506],"studio":[872,635]};
 function setCalibrating(value){calibrating=value;calibrateButton.textContent=value?'Cancel marker placement':'Place marker on door';markerText.textContent=value?'Tap the actual doorway in the village. The marker will move exactly there.':'Choose a building, then place its marker on the doorway.'}
 function updateMarkerControls(){const selected=!!state.chosen;calibrateButton.disabled=!selected;resetMarkerButton.disabled=!selected;markerText.textContent=selected?'Marker: '+state.chosen.entrance.map(v=>Math.round(v)).join(', ')+' (world coordinates)':'Select a building to adjust its marker.'}
 function saveMarker(d){try{const saved=JSON.parse(localStorage.getItem(markerKey)||'{}');saved[d.id]=d.entrance;localStorage.setItem(markerKey,JSON.stringify(saved))}catch(_){markerText.textContent='Marker moved. Browser local storage was unavailable.'}}
@@ -543,7 +582,8 @@ function tap(p){
  descEl.textContent=destination.distance>24?'Walking to the nearest paved path.':'Walking along the paved paths.';
 }
 function draw(now){spriteNow=now;ctx.clearRect(0,0,state.width,state.height);ctx.fillStyle='#151b22';ctx.fillRect(0,0,state.width,state.height);ctx.save();ctx.translate(state.x,state.y);ctx.scale(state.scale,state.scale);
-if(scene.ready)ctx.drawImage(scene.image,0,0,W,H);else{ctx.fillStyle='#a6b398';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='40px system-ui';ctx.fillText('Upload assets/environment-010.png to preview the village',105,440)}
+if(scene.ready)ctx.drawImage(scene.image,0,0,W,H);
+ if(editingPaths)pathDraft.draw(ctx);else{ctx.fillStyle='#a6b398';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='40px system-ui';ctx.fillText('Upload assets/environment-010.png to preview the village',105,440)}
 const w=state.walker;
  const drawFigure=(p,testing=false)=>{
   ctx.save();
@@ -706,6 +746,12 @@ function tick(now){
 }
 canvas.addEventListener('pointerdown',e=>{
  const p=localPoint(e),d=placingBuildings?hitBuilding(worldPoint(p)):null;
+ if(editingPaths){
+  const pt=worldPoint(p);
+  pathDraft.pointerDown([pt.x,pt.y],18/state.scale);
+  state.pointer={...p,originalX:p.x,originalY:p.y,dragged:false,path:true};
+  canvas.setPointerCapture(e.pointerId);updatePathStatus();return;
+ }
  if(placingBuildings&&d){placementSelected=d;updatePlacementStatus()}
  state.pointer={...p,originalX:p.x,originalY:p.y,dragged:false,
   building:placingBuildings?d:null};
@@ -713,6 +759,12 @@ canvas.addEventListener('pointerdown',e=>{
 });
 canvas.addEventListener('pointermove',e=>{
  const p=localPoint(e),v=state.pointer;if(!v)return;
+ if(editingPaths&&v.path){
+  const pt=worldPoint(p);
+  if(Math.hypot(p.x-v.originalX,p.y-v.originalY)>5)v.dragged=true;
+  pathDraft.pointerMove([pt.x,pt.y]);v.x=p.x;v.y=p.y;
+  updatePathStatus();return;
+ }
  if(Math.hypot(p.x-v.originalX,p.y-v.originalY)>7)v.dragged=true;
  if(v.dragged){
   if(placingBuildings&&v.building)movePlacement(v.building,(p.x-v.x)/state.scale,(p.y-v.y)/state.scale);
@@ -722,6 +774,10 @@ canvas.addEventListener('pointermove',e=>{
 });
 canvas.addEventListener('pointerup',e=>{
  const p=localPoint(e),v=state.pointer;
+ if(editingPaths&&v?.path){
+  const pt=worldPoint(p);pathDraft.pointerUp([pt.x,pt.y],18/state.scale);
+  state.pointer=null;updatePathStatus();return;
+ }
  if(placingBuildings){
   if(v?.building&&v.dragged)saveBuildingLayout();
   // Selection in layout mode never opens a Director conversation.
@@ -729,6 +785,7 @@ canvas.addEventListener('pointerup',e=>{
  state.pointer=null;
 });
 canvas.addEventListener('pointercancel',()=>{
+ if(editingPaths&&state.pointer?.path)pathDraft.cancelPointer();
  if(placingBuildings&&state.pointer?.building&&state.pointer.dragged)saveBuildingLayout();
  state.pointer=null;
 });
