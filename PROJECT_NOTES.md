@@ -1,5 +1,11 @@
 # PAPERWORLD — PROJECT NOTES (living source of truth)
 
+## 2026-11-16 — Suno OAuth least-privilege scope trial (draft)
+
+Owner's live Suno Connection Doctor reports that OAuth is authorized but MCP tools/list is rejected with HTTP 401/403. The earlier OAuth client sent resource and PKCE but no explicit OAuth scope. Official Suno resource metadata is reported to advertise separate profile/library read and credits:spend permissions. This change preserves **only** profile:read and library:read when advertised, attaches those scopes to the owner's Suno authorization URL, and refuses to request credits:spend, write, download, offline_access or create:generate. It still does not call tools/call or enable generation. This is a **hypothesis-driven fix**, not proof that missing scopes caused the 401/403. Owner must consent to the new read-only permissions at Suno login after a new approved backend deployment. If 401/403 persists, investigate token audience, requested vs granted scopes, and provider authentication challenge without logging any tokens.
+
+The provider can withhold or reject requested scopes; do not claim successful MCP capability until a live tools/list result is validated. No spending credits, plan changes or auto-deploy.
+
 ## 2026-11-16 — Crow Suno MCP diagnostic cause codes (draft)
 
 The owner supplied a live Crow screenshot showing authorized Suno OAuth but failed MCP tools/list verification. The previous frontend displayed the same generic message for every tool-list failure, and the backend erased the detailed allowlisted reason. This change preserves only a fixed set of safe failure categories (authorization rejection, timeout, HTTP provider error/rate limit, response type, JSON-RPC format, and legacy handshake/session issues). The owner-scoped /auth/suno/diagnose and /auth/suno/inspect-tools responses include reason codes but never provider response bodies, bearer tokens, session IDs, credentials, or raw errors. Crow displays plain-language Greek explanations. No speculative claims are made about the actual live error until the user reruns the read-only probe after a separately approved backend deployment.
