@@ -125,7 +125,19 @@
    stage:item.status==='failed'?'needs_attention':
     item.status==='reported'?'diagnosed':'in_progress'});
  }
- function project({jobs=[],proposals=[],pokemonProposals=[],tasks=[],teamJobs=[],workerRuns=[]}={}){
+ function scheduledReport(item){
+  if(!item||!['autonomy-paperworld','autonomy-concerts'].includes(item.id)||
+   !['checked','needs_attention'].includes(item.status)||
+   !['Paperworld','Listening Mirror'].includes(item.project)||
+   (item.id==='autonomy-paperworld')!==(item.project==='Paperworld')||
+   !/^[a-f0-9]{12}$/.test(item.commit||'')||
+   !/^https:\/\/github\.com\/mr-tanq\/paperworld\/issues\/[1-9][0-9]*$/.test(item.issueUrl||''))
+   return null;
+  return freeze({kind:'scheduled-check',id:item.id,project:item.project,
+   summary:human(item.summary,250),createdAt:human(item.createdAt,50),
+   commit:item.commit,issueUrl:item.issueUrl,stage:item.status});
+ }
+ function project({jobs=[],proposals=[],pokemonProposals=[],tasks=[],teamJobs=[],workerRuns=[],autonomyReports=[]}={}){
   const validJobs=Array.isArray(jobs)?jobs.map(job).filter(Boolean).slice(0,MAX):[];
   const validProposals=Array.isArray(proposals)?
    proposals.map(proposal).filter(Boolean).slice(0,MAX):[];
@@ -158,12 +170,15 @@
    const item=teamHandoff(entry);
    if(item&&!trackedWorkerJobs.has(item.requestId)&&!proposalIds.has(item.requestId))rows.push(item);
   }
+  if(Array.isArray(autonomyReports))for(const x of autonomyReports.slice(0,2)){
+   const item=scheduledReport(x);if(item)rows.push(item);
+  }
   if(Array.isArray(tasks))for(const t of tasks.slice(0,200)){
    const m=manual(t);if(m)rows.push(freeze({...m,
     stage:m.status==='done'?'completed':m.status==='doing'?'in_progress':'planned'}))
   }
   const order={decision:0,review_required:1,needs_attention:2,in_progress:3,
-   diagnosed:4,planned:5,prepared:6,completed:7,rejected:8};
+   checked:4,diagnosed:5,planned:6,prepared:7,completed:8,rejected:9};
   rows.sort((a,b)=>(order[a.stage]??9)-(order[b.stage]??9)||
    time(b.createdAt)-time(a.createdAt));
   const counts={decision:rows.filter(x=>x.stage==='decision').length,
@@ -173,6 +188,7 @@
   return freeze({rows:freeze(rows),counts:freeze(counts)});
  }
  function stateLabel(s){return ({
+  checked:'Ο αυτόματος έλεγχος ολοκληρώθηκε',
   decision:'Χρειάζεται η απόφασή σου',
   review_required:'Χρειάζεται επανέλεγχος',
   needs_attention:'Η διερεύνηση δεν ολοκληρώθηκε',
@@ -206,7 +222,7 @@
   };
   function visible(row){
    return filter==='all'||filter==='attention'&&
-    ['decision','review_required','needs_attention','in_progress','diagnosed','planned'].includes(row.stage)||
+    ['decision','review_required','needs_attention','in_progress','diagnosed','checked','planned'].includes(row.stage)||
     filter==='prepared'&&['prepared','completed','rejected'].includes(row.stage);
   }
   function rowCard(item){
@@ -266,6 +282,14 @@
      link.href=item.draftUrl;link.target='_blank';
      link.rel='noopener noreferrer';card.append(link);
     }
+   }else if(item.kind==='scheduled-check'){
+    card.append(e('p','human-hub-summary',item.summary));
+    card.append(e('p','human-hub-summary',
+     'Ο έλεγχος εκτελέστηκε από GitHub Actions χωρίς ανοιχτή εφαρμογή. '+
+     'Δεν περιλαμβάνει AI εργασία ή αλλαγές κώδικα.'));
+    const a=e('a','human-hub-tech-link','Δες την αυτοματοποιημένη αναφορά');
+    a.href=item.issueUrl;a.target='_blank';a.rel='noopener noreferrer';
+    card.append(a);
    }else if(item.kind==='job'){
     const last=item.events.at(-1);
     card.append(e('p','human-hub-summary',
@@ -509,5 +533,5 @@
   return freeze({refresh,focus,render,setData,get snapshot(){return current},
    get error(){return error},get ready(){return rendered}});
  }
- return freeze({project,stateLabel,create,job,proposal,pokemonProposal,manual,teamHandoff,workerRun});
+ return freeze({project,stateLabel,create,job,proposal,pokemonProposal,manual,teamHandoff,workerRun,scheduledReport});
 });
