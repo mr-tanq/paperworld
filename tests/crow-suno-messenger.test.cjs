@@ -5,7 +5,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const base=path.resolve(__dirname,'..');
 const read=file=>fs.readFileSync(path.join(base,file),'utf8');
-test('Crow Messenger exposes an opt-in preview but no Suno generation action',()=>{
+test('Crow Messenger offers a functional local draft without Suno generation',()=>{
  const dialog=read('js/world-dialogue.js');
  const cloud=read('js/cloud-ui.js');
  const client=read('js/cloud.js');
