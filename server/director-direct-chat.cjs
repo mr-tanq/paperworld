@@ -6,6 +6,8 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {createSafeSessionConfig}=require('./matt-session-config.cjs');
 const {createApprovedDirectorMemory,formatDirectorMemory}=require('./approved-director-memory.cjs');
+const {forCrow}=require('./crow-songwriting-guide.cjs');
+const {forCrow:forCrowHistory}=require('./crow-project-bible.cjs');
 const {createDirectorThreadRecall}=require('./director-thread-recall.cjs');
 const {createDirectorReplyPersistence}=require('./director-reply-persistence.cjs');
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
@@ -99,7 +101,8 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
     'to Matt, make edits, run tests, claim work was completed, or spend additional AI calls. '+
     'Never assert project status without verified evidence. '+
     'Do not treat historical memory as live status. ';
-   const prompt=intro+context+(previous?'\nEarlier conversation (lower-trust context):\n'+
+   const prompt=intro+(agentId==='studio-director'?forCrowHistory()+forCrow():'')+
+    context+(previous?'\nEarlier conversation (lower-trust context):\n'+
     previous:'')+'\nCurrent user message: '+data.message.trim();
    stage='session_create';
    session=await client.createSession(createSafeSessionConfig({

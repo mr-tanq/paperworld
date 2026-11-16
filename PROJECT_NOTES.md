@@ -1,5 +1,15 @@
 # PAPERWORLD — PROJECT NOTES (living source of truth)
 
+## 2026-11-16 — Crow as a true The Lost Wanderer creative collaborator (draft)
+
+Owner explicitly wants Crow to have continuity comparable to working with ChatGPT on The Lost Wanderer — the history, eras, accepted/rejected ideas, song craft, and the workflow of production directions **inside the lyrics**, not merely a generic prompt. The previous direct Director chat and Matt delegation both supplied general capabilities plus owner-approved database memory, but no consistent songwriting template or detailed project history.
+
+Added server-only `crow-project-bible.cjs` (curated owner creative history, preferences, past draft titles, visual identity, rejected concepts, and caution against treating drafts as public releases) and `crow-songwriting-guide.cjs` (complete `TITLE` / `SUNO STYLE PROMPT` ≤1000 characters / `LYRICS` with bracketed instrumentation and performance instructions). Both are injected **only** into Crow's AI prompt, in direct chat and Matt handoff. General queries remain ordinary conversations rather than forcing a song. Matt is asked to preserve Crow's full structured song rather than summarize it as an abstract proposal.
+
+Client Music Studio now parses actual song packages into separate Title, Style and Lyrics fields in the direct Crow flow and the verified Matt handoff, including resuming owner-authenticated saved history. A malformed/incomplete report is not falsely converted into invented lyrics. Unit tests cover project specificity, format and UI integration. The present backend response is bounded (5,500 characters in delegation; 6,000 in direct chat), so Crow is asked for a complete concise song (ideally under 4,500 chars).
+
+**Honest memory boundary:** Curated history and approved Supabase memories do not equal access to the entire ChatGPT conversation archive, and no verbatim unpublished lyrics can be recalled unless present in an authorized source. Crow must not claim access to unretrieved song files, Suno catalog, releases, or credits. Suno MCP early access remains unavailable for this owner account. No merge, deployment or AI calls performed as part of this PR.
+
 ## 2026-11-16 — Full Crow song reports and dark Matt notification
 
 Owner screenshot showed a saved Crow song brief ending mid-word ("minimal ar...") and a pale notification header with unreadable light text in the Matt Messenger. The saved Matt envelope previously silently sliced verified responses to 1,700 characters, even though the model output is bounded to 5,500. The codec now retains that full bounded response and the server-side persistence envelope allows up to 6,000 characters. The UI reloads the updated codec via cache version. The compact Matt work notification explicitly overrides the generic light header background. New tests protect long content and alert contrast.
