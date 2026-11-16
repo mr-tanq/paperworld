@@ -1,5 +1,11 @@
 # PAPERWORLD — PROJECT NOTES (living source of truth)
 
+## 2026-11-16 — Full Crow song reports and dark Matt notification
+
+Owner screenshot showed a saved Crow song brief ending mid-word ("minimal ar...") and a pale notification header with unreadable light text in the Matt Messenger. The saved Matt envelope previously silently sliced verified responses to 1,700 characters, even though the model output is bounded to 5,500. The codec now retains that full bounded response and the server-side persistence envelope allows up to 6,000 characters. The UI reloads the updated codec via cache version. The compact Matt work notification explicitly overrides the generic light header background. New tests protect long content and alert contrast.
+
+The lost tail of an already-truncated saved reply cannot be reconstructed. This change prevents future silent cuts; it does not regenerate the previous song, spend Suno credits, or automatically deploy. Existing owner-only history access remains enforced.
+
 ## 2026-11-16 — Matt → Crow Music Studio handoff (draft)
 
 After Suno explicitly indicated AI-app account linking is unavailable for the owner's account, we stopped repeated OAuth experimentation and focused on a useful no-Suno workflow. Matt's existing owner-consented AI delegation already returns an authenticated, server-owned `directorReport` for Crow. A new one-click "♫ Συνέχεια στο Music Studio" handoff appears only when the latest completed Matt delegation selected `studio-director`. The report is validated, placed into the editable musical-direction field (bounded to 1000 characters), and never mistaken for original song lyrics. The owner can set title and enter lyrics manually, then create an in-tab draft and copy the full request with the existing formatter. No second AI request, external music-tool call, token, Supabase write, or Suno credits are involved in this transfer.

@@ -9,7 +9,7 @@ function createMattPersistence({fetcher=globalThis.fetch,secret=process.env.PAPE
   if(typeof secret!=='string'||!(secret.startsWith('sb_secret_')||secret.startsWith('eyJ')))return false;
   let content;
   try{content=encode(director,text)}catch(_){return false}
-  if(content.length>2000)return false;
+  if(content.length>6000)return false;
   try{const response=await fetcher(BASE+'/rest/v1/paperworld_agent_messages',{
    method:'POST',redirect:'error',headers:{
     apikey:secret,

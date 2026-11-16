@@ -619,3 +619,6 @@ body>header span{font-size:10px;color:#a3afa6;letter-spacing:.04em}
  cursor:pointer;font-size:12px;min-height:30px;display:flex;align-items:center;
  color:#cbd8d2}
 #world-drawer .human-hub-account-settings .room-ops{margin-top:9px}
+
+/* Keep compact Matt work alerts legible within the dark Messenger. */
+.world-chat-decisions .human-hub-header{background:transparent;border:0;box-shadow:none;padding:0;color:#edf0ed}
