@@ -253,7 +253,20 @@ function renderAutonomousMissions(target){
    wellbeing:'Dave'})[mission.projectId]||'Director'));
   line.append(el('p',mission.goal,'room-task-notes'));
   const status=mission.status==='draft'?'Σχέδιο · δεν εκτελείται':mission.status;
-  line.append(el('p',status,'room-footnote'));card.append(line);
+  line.append(el('p',status,'room-footnote'));
+  if(mission.status==='draft'){
+   line.append(btn('Δοκιμή υποδομής · χωρίς AI',()=>work(async()=>{
+    if(!window.confirm('Να δοκιμάσουμε μόνο την ουρά και τον scheduler;\\n'+
+     'Δεν θα παραχθεί κώδικας, τραγούδι ή έρευνα και δεν θα καταναλωθούν AI credits.'))
+     return;
+    await client.simulateAutonomousMission(mission.id);
+    await reload();message='Η τεχνική προσομοίωση μπήκε στην ουρά. Δεν εκτελείται AI.';
+   }),'human-first-utility'));
+  }
+  if(mission.status==='completed')line.append(el('p',
+   'Αν η αποστολή ήταν δοκιμή υποδομής, το Completed δεν σημαίνει πραγματικό AI αποτέλεσμα.',
+   'room-footnote'));
+  card.append(line);
  }
  if(autonomousHistoryError)card.append(el('p',autonomousHistoryError,'room-footnote'));
  target.append(card);
