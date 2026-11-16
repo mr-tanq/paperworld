@@ -239,6 +239,12 @@ aside{min-width:0;min-height:0;overscroll-behavior:contain}
 .crow-music-save,.crow-music-cancel{padding:8px 10px;border-radius:8px;
  border:1px solid #555e69;background:#344137;color:#e7f0e4;font-weight:650;cursor:pointer}
 .crow-music-cancel{background:#3e3435;color:#f3d9d9}
+.crow-music-from-reply,.crow-music-copy{width:100%;padding:8px 10px;
+ border:1px solid #59616c;border-radius:8px;background:#2e3845;
+ color:#f2e0bf;font:inherit;font-weight:650;cursor:pointer}
+.crow-music-copy{background:#34463d;color:#e7f5e8}
+.crow-music-copy[hidden]{display:none!important}
+
 .crow-music-form :disabled,.crow-music-toggle:disabled,.crow-music-cancel:disabled{opacity:.55;cursor:wait}
 
 .world-talk-actions{z-index:5}
