@@ -6,6 +6,7 @@
 const {randomBytes,createHash}=require('node:crypto');
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {createSunoOAuthDiscovery}=require('./suno-oauth-discovery.cjs');
+const {makeSunoMcpToolProbe}=require('./suno-mcp-tool-probe.cjs');
 const APP='https://mr-tanq.github.io';
 const HOST='https://paperworld-matt-test-6hmd.onrender.com';
 const CLIENT_ID=HOST+'/auth/suno/client-metadata';
@@ -43,13 +44,14 @@ function validServerMeta(m,origin){
  }
  return result;
 }
-function createSunoOAuthClient({identity,discovery,fetcher=globalThis.fetch,
+function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.fetch,
  clock=Date.now}={}){
  if(typeof fetcher!=='function')throw Error('fetcher_required');
  const guard=identity||createSupabaseGuard({
   baseUrl:'https://jrevhzvrgenucuozjowm.supabase.co',
   publicKey:'sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL',fetcher});
  const provider=discovery||createSunoOAuthDiscovery({fetcher});
+ const tools=toolProbe||makeSunoMcpToolProbe({fetcher});
  const pending=new Map(),linked=new Map();
  const answer=(status,body)=>({status,body,headers});
  const denied=(status,error)=>answer(status,{error});
@@ -128,6 +130,23 @@ function createSunoOAuthClient({identity,discovery,fetcher=globalThis.fetch,
   const token=linked.get(who.ownerId);
   return answer(200,{oauthAuthorized:!!token,canGenerate:false,ephemeral:true});
  }
+ async function inspectTools(req={}){
+  const who=await identify(req);if(who.error)return who.error;
+  cleanup();
+  const linkedToken=linked.get(who.ownerId);
+  if(!linkedToken)return denied(409,'suno_oauth_required');
+  // Owner initiated only; a successful OAuth link does not authorize a tools/call.
+  const verdict=await tools.inspect({accessToken:linkedToken.accessToken});
+  const allowed=verdict?.available===true&&
+   Number.isSafeInteger(verdict.toolCount)&&verdict.toolCount>=0&&verdict.toolCount<=100&&
+   Array.isArray(verdict.tools)&&verdict.tools.length===verdict.toolCount&&
+   verdict.tools.every(name=>typeof name==='string'&&
+    /^[a-zA-Z0-9_.\\/-]{1,100}$/.test(name));
+  return answer(200,{service:'suno_mcp',oauthAuthorized:true,
+   toolsListed:allowed,canGenerate:false,
+   toolCount:allowed?verdict.toolCount:0,
+   reason:allowed?'read_only_tools_verified':'mcp_capability_unverified'});
+ }
  async function callback({url}={}){
   const redirect=(ok)=>({status:302,body:null,headers:{'Location':APP+
     '/paperworld/?suno_link='+(ok?'connected':'failed'),
@@ -170,7 +189,7 @@ function createSunoOAuthClient({identity,discovery,fetcher=globalThis.fetch,
    grant_types:['authorization_code'],response_types:['code'],
    token_endpoint_auth_method:'none'};
  }
- return Object.freeze({start,status,callback,clientMetadata});
+ return Object.freeze({start,status,inspectTools,callback,clientMetadata});
 }
 module.exports=Object.freeze({createSunoOAuthClient,validServerMeta,isSunoOrigin,
  CLIENT_ID,CALLBACK});
