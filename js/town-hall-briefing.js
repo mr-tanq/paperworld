@@ -81,12 +81,6 @@
      if(meetingBusy||!shown||typeof askAI!=='function')return;
      const text=String(agendaInput.value||'').trim();
      if(!text||text.length>280){message='Γράψε ένα συγκεκριμένο θέμα για τη συνάντηση.';paint(data);return}
-     if(!window.confirm('Εγκρίνεις έως 3 GitHub Copilot AI κλήσεις; '+
-      'Το θέμα και μικρά αποσπάσματα από τις απαντήσεις θα κοινοποιηθούν '+
-      'στη Luna, στον Joey και στον Crow, αλλά ΟΧΙ στον Dave. '+
-      'Οι Directors θα δώσουν συμβουλές, χωρίς εργαλεία, αποστολές, '+
-      'αλλαγές αρχείων ή δημοσίευση. '+
-      'Ισχύει το επαληθευμένο όριο μηδενικής επιπλέον χρέωσης.'))return;
      lastAgenda=text;meetingBusy=true;message='Οι Directors συζητούν το θέμα σου…';
      const consentRevision=revision;
      transcript.length=0;paint(data);
