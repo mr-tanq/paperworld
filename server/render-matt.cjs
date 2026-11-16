@@ -14,6 +14,7 @@ const {makeWorkerDelegation}=require('./matt-worker-delegation.cjs');
 const {makePokemonWorkerDelegation}=require('./pokemon-worker-delegation.cjs');
 const {makePokemonProposalStore}=require('./v5-pokemon-proposal-store.cjs');
 const {makePokemonProposalApi}=require('./v5-pokemon-proposal-api.cjs');
+const {makeAutonomousMissionApi}=require('./v5-autonomous-mission-api.cjs');
 const {makeSourceFactWorker}=require('./v5-source-fact-worker.cjs');
 const {makeJobHistoryApi}=require('./agent-job-history-api.cjs');
 const {makeTeamHandoffLedger}=require('./team-handoff-ledger-v5.cjs');
@@ -48,6 +49,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
  let sourceFactWorker;
  let proposalMemory,approvalStore;
  let pokemonProposalStore,pokemonProposalApi;
+ let autonomousMissionApi;
  function getProposalMemory(){
   if(proposalMemory!==undefined)return proposalMemory;
   try{proposalMemory=createProposalMemory()}catch(_){proposalMemory=null}
@@ -57,6 +59,10 @@ function createRenderMattServer({oauth=createGithubOAuth({
   if(approvalStore!==undefined)return approvalStore;
   try{approvalStore=createDurableApprovalStore()}catch(_){approvalStore=null}
   return approvalStore;
+ }
+ function getAutonomousMissionApi(){
+  if(!autonomousMissionApi)autonomousMissionApi=makeAutonomousMissionApi();
+  return autonomousMissionApi;
  }
  function getPokemonProposalStore(){
   if(pokemonProposalStore!==undefined)return pokemonProposalStore;
@@ -203,6 +209,32 @@ function createRenderMattServer({oauth=createGithubOAuth({
      'X-Content-Type-Options':'nosniff','Vary':'Origin'});
     res.end(JSON.stringify(result.body));return;
    }catch(_){return response(res,503,{error:'pokemon_proposal_api_unavailable'})}
+  }
+  const missionAction={'/autonomous/missions/create':'create',
+   '/autonomous/missions/list':'list'}[req.url];
+  if(missionAction){
+   if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
+    res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
+     'Access-Control-Allow-Methods':'POST, OPTIONS',
+     'Access-Control-Allow-Headers':'authorization,content-type',
+     'Vary':'Origin','Access-Control-Max-Age':'600'});res.end();return;
+   }
+   if(req.method!=='POST')return response(res,405,{error:'method_not_allowed'});
+   if(req.headers.origin!==APP_ORIGIN)return response(res,403,{error:'origin_denied'});
+   try{
+    const chunks=[];let total=0;
+    for await(const chunk of req){
+     total+=chunk.length;
+     if(total>2100)return response(res,413,{error:'request_too_large'});
+     chunks.push(chunk);
+    }
+    const result=await getAutonomousMissionApi().handle({
+     headers:req.headers,body:Buffer.concat(chunks).toString('utf8'),action:missionAction});
+    res.writeHead(result.status,{'Content-Type':'application/json; charset=utf-8',
+     'Access-Control-Allow-Origin':APP_ORIGIN,'Cache-Control':'no-store',
+     'Vary':'Origin','X-Content-Type-Options':'nosniff'});
+    res.end(JSON.stringify(result.body));return;
+   }catch(_){return response(res,503,{error:'autonomous_missions_unavailable'})}
   }
   // Privately preview/cancel a Crow production brief. No Suno OAuth or
   // provider execution routes exist here; the backend spends zero credits.
