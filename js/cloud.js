@@ -543,6 +543,30 @@
   // Delegation is explicitly a separate, up-to-three Copilot-turn operation.
   // Do not silently send multiple model calls from the ordinary chat button.
   // Separate user-authorized five-call path for evidence-based Worker analysis.
+  async function sourceFactWorker(message,{project,requestId}={}){
+   const text=String(message||'').trim();
+   if(!['listening','pokemon'].includes(project)||
+    !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(requestId||'')||
+    !text||text.length>1200)throw Error('Invalid source fact request');
+   await ensureAuth();
+   const thread=await getAgentThread('matt',false);
+   if(!thread)throw Error('Verified Matt conversation required');
+   const response=await fetcher(MATT_ORIGIN+'/delegate/matt/source-facts',{
+    method:'POST',redirect:'error',
+    headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},
+    body:JSON.stringify({threadId:thread.id,requestId,project,
+     message:text,consent:'V5_ONE_READ_ONLY_SOURCE_CHECK_NO_AI'})
+   });
+   let result={};try{result=await response.json()}catch(_){}
+   if(!response.ok)throw Error((result.error||'Source facts unavailable')+
+    ' (HTTP '+response.status+')');
+   if(result.executed!==true||result.execution!=='read_only_source_facts'||
+    result.modelCalls!==0||result.changedFiles!==0||result.createdPR!==false||
+    result.requestId!==requestId||
+    result.project!==project||!Array.isArray(result.evidence?.files))
+    throw Error('Unverified source facts result');
+   return result;
+  }
   async function delegatePokemonWorker(message,{onStart,saveNote=true,requestId=null}={}){
    const text=String(message||'').trim();
    if(!text||text.length>1200)throw Error('Message must be 1–1200 characters');
@@ -684,7 +708,7 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,previewImportedDirectorMemory,approveImportedDirectorMemory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,mattJobHistory,teamHandoffHistory,diagnoseMattSession,
+   listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,previewImportedDirectorMemory,approveImportedDirectorMemory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,sourceFactWorker,mattJobHistory,teamHandoffHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
    crowSunoPreview,cancelCrowSunoPreview,crowSunoConnectionStatus,
    beginSunoLink,sunoLinkStatus,inspectSunoTools,diagnoseSunoConnection};
