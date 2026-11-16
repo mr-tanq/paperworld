@@ -154,20 +154,28 @@
   }catch(_){musicResult.textContent='Απαιτείται ενεργή σύνδεση Suno ή συμβατή έκδοση MCP.'}
   finally{sunoTools.disabled=false}
  });
- const sunoCheck=make('button','crow-music-check','Έλεγχος σύνδεσης Suno');
+ const sunoCheck=make('button','crow-music-check','Διάγνωση σύνδεσης Suno');
  sunoCheck.type='button';
  sunoCheck.addEventListener('click',async()=>{
   if(openId!=='studio-director'||musicBusy||!cloud()?.signedIn()||
-     typeof cloud()?.crowSunoConnectionStatus!=='function')return;
+     typeof cloud()?.diagnoseSunoConnection!=='function')return;
   sunoCheck.disabled=true;
-  musicResult.textContent='Έλεγχος δημόσιων στοιχείων σύνδεσης Suno…';
+  musicResult.textContent='Έλεγχος σύνδεσης Suno, χωρίς χρήση credits…';
   try{
-   const result=await cloud().crowSunoConnectionStatus();
-   musicResult.textContent=result.metadataAvailable?
-    'Το Suno δημοσιεύει στοιχεία OAuth/MCP, αλλά ο Crow ΔΕΝ έχει συνδεθεί ακόμη. Καμία παραγωγή δεν είναι ενεργή.':
-    'Η σύνδεση Suno δεν έχει επαληθευτεί. Ο Crow παραμένει αποσυνδεδεμένος.';
-  }catch(_){musicResult.textContent='Δεν ήταν δυνατός ο έλεγχος. Το Suno παραμένει αποσυνδεδεμένο.'}
-  finally{sunoCheck.disabled=false}
+   const r=await cloud().diagnoseSunoConnection();
+   const descriptions={
+    provider_resource_unavailable:'Δεν επιβεβαιώθηκαν τα δημόσια στοιχεία MCP του Suno.',
+    client_registration_unverified:'Το Suno δεν έχει επιβεβαιώσει τη συμβατότητα εξουσιοδότησης με το Paperworld.',
+    owner_oauth_required:'Ο λογαριασμός δεν έχει συνδεθεί. Χρησιμοποίησε «Σύνδεση Suno».',
+    mcp_tools_unverified:'Ο λογαριασμός συνδέθηκε, αλλά δεν επαληθεύτηκαν τα εργαλεία MCP.',
+    generation_not_enabled:'Ο λογαριασμός και τα '+r.toolCount+' εργαλεία επαληθεύτηκαν. Η παραγωγή δεν έχει ενεργοποιηθεί.'
+   };
+   musicResult.textContent=(descriptions[r.nextStep]||
+    'Δεν ολοκληρώθηκε η διάγνωση σύνδεσης.')+
+    ' Καμία παραγωγή και κανένα Suno credit δεν χρησιμοποιήθηκε.';
+  }catch(_){
+   musicResult.textContent='Ο έλεγχος δεν ολοκληρώθηκε. Η παραγωγή παραμένει απενεργοποιημένη.';
+  }finally{sunoCheck.disabled=false}
  });
  const sunoInstructions=make('a','crow-music-instructions','Οδηγίες σύνδεσης Suno MCP');
  sunoInstructions.href='https://suno.com/mcp';
