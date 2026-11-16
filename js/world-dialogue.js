@@ -75,8 +75,79 @@
    onError:()=>{}
   });
  }
+ // Crow's optional Suno preview is a separate, owner-triggered action.
+ // Never infer consent to spend credits from a conversational AI reply.
+ const musicToggle=make('button','crow-music-toggle','♫ Προετοιμασία τραγουδιού');
+ musicToggle.type='button';musicToggle.hidden=true;
+ musicToggle.setAttribute('aria-expanded','false');
+ const musicPanel=make('section','crow-music-panel');musicPanel.hidden=true;
+ musicPanel.setAttribute('aria-label','Προεπισκόπηση τραγουδιού');
+ const musicHelp=make('p','crow-music-help',
+  'Ετοίμασε την περιγραφή για τον Crow. Δεν γίνεται ακόμη παραγωγή στο Suno και δεν ξοδεύονται credits.');
+ const musicForm=make('form','crow-music-form');
+ const musicTitle=make('input','crow-music-title');
+ musicTitle.type='text';musicTitle.maxLength=120;musicTitle.required=true;
+ musicTitle.placeholder='Τίτλος τραγουδιού';musicTitle.setAttribute('aria-label','Τίτλος τραγουδιού');
+ const musicStyle=make('textarea','crow-music-style');
+ musicStyle.rows=2;musicStyle.maxLength=1000;musicStyle.required=true;
+ musicStyle.placeholder='Ύφος, όργανα, φωνή…';musicStyle.setAttribute('aria-label','Μουσική κατεύθυνση');
+ const musicLyrics=make('textarea','crow-music-lyrics');
+ musicLyrics.rows=3;musicLyrics.maxLength=8000;
+ musicLyrics.placeholder='Πρωτότυποι στίχοι (προαιρετικό)';
+ musicLyrics.setAttribute('aria-label','Πρωτότυποι στίχοι');
+ const musicSave=make('button','crow-music-save','Αποθήκευση προεπισκόπησης');
+ musicSave.type='submit';
+ const musicResult=make('p','crow-music-result','');
+ musicResult.setAttribute('role','status');
+ const musicCancel=make('button','crow-music-cancel','Ακύρωση πρότασης');
+ musicCancel.type='button';musicCancel.hidden=true;
+ musicForm.append(musicTitle,musicStyle,musicLyrics,musicSave);
+ musicPanel.append(musicHelp,musicForm,musicResult,musicCancel);
+ let previewId=null,musicBusy=false;
+ function resetMusic(){
+  musicPanel.hidden=true;musicToggle.setAttribute('aria-expanded','false');
+  musicForm.reset();musicResult.textContent='';musicCancel.hidden=true;
+  previewId=null;
+ }
+ musicToggle.addEventListener('click',()=>{
+  if(musicBusy)return;
+  musicPanel.hidden=!musicPanel.hidden;
+  musicToggle.setAttribute('aria-expanded',String(!musicPanel.hidden));
+  if(!musicPanel.hidden)musicTitle.focus();
+ });
+ musicForm.addEventListener('submit',async e=>{
+  e.preventDefault();
+  if(openId!=='studio-director'||musicBusy||!cloud()?.signedIn()||
+   typeof cloud()?.crowSunoPreview!=='function')return;
+  const title=musicTitle.value.trim(),style=musicStyle.value.trim(),lyrics=musicLyrics.value;
+  if(!title||!style)return;
+  musicBusy=true;musicSave.disabled=true;musicToggle.disabled=true;
+  musicResult.textContent='Αποθήκευση ιδιωτικής προεπισκόπησης…';
+  try{
+   // Cancel old owner-scoped draft before replacing, avoiding unused previews.
+   if(previewId)await cloud().cancelCrowSunoPreview(previewId);
+   previewId=null;
+   const response=await cloud().crowSunoPreview({operation:'create',title,style,lyrics});
+   previewId=response.proposalId;
+   musicResult.textContent='Προεπισκόπηση έτοιμη: '+response.title+
+    '. Το Suno δεν συνδέθηκε και δεν έγινε παραγωγή. Credits: άγνωστα.';
+   musicCancel.hidden=false;
+  }catch(_){
+   musicResult.textContent='Η προεπισκόπηση δεν αποθηκεύτηκε. Δοκίμασε ξανά αφού συνδεθείς.';
+  }finally{musicBusy=false;musicSave.disabled=false;musicToggle.disabled=false}
+ });
+ musicCancel.addEventListener('click',async()=>{
+  if(!previewId||musicBusy||typeof cloud()?.cancelCrowSunoPreview!=='function')return;
+  musicBusy=true;musicCancel.disabled=true;
+  try{
+   await cloud().cancelCrowSunoPreview(previewId);
+   previewId=null;musicCancel.hidden=true;
+   musicResult.textContent='Η πρόταση ακυρώθηκε. Κανένα Suno credit δεν χρησιμοποιήθηκε.';
+  }catch(_){musicResult.textContent='Δεν επιβεβαιώθηκε η ακύρωση. Μπορείς να δοκιμάσεις ξανά.'}
+  finally{musicBusy=false;musicCancel.disabled=false}
+ });
  const composer=make('footer','world-chat-composer');
- composer.append(connectGithub,form);
+ composer.append(connectGithub,musicToggle,musicPanel,form);
  panel.append(top,status,messages,decisions,composer);view.append(panel);
  // Matt owns the conversation; internal agent and worker routing stays invisible.
  async function runMattWorkflow(text){
@@ -286,6 +357,8 @@
    isMatt?(mattJourneyCaption||'Συνομιλία με τον Matt · καμία εργασία χωρίς έγκριση'):
    'Απευθείας συνομιλία Director · κάθε AI απάντηση χρειάζεται έγκριση';
   decisions.hidden=!isMatt||!active;
+  musicToggle.hidden=openId!=='studio-director'||!active;
+  if(musicToggle.hidden)resetMusic();
   if(isMatt&&active){setupDecisions();void refreshDecisions()}
   if(active&&isMatt&&(mattCachedEntries!==null||mattReplies.length))
    appendEntries(mattCachedEntries||[]);
@@ -332,7 +405,7 @@
   field.placeholder=available?'Γράψε μήνυμα…':'Συνδέσου για να στείλεις μήνυμα';
  }
  function show(id){openId=id;paint();if(!field.disabled)field.focus()}
- function hide(){openId=null;veil.classList.remove('world-chat-journey');paint();mattBtn.focus()}
+ function hide(){openId=null;resetMusic();veil.classList.remove('world-chat-journey');paint();mattBtn.focus()}
  function nearby(){
   const target=world()?.nearestAgent(100);
   if(!target){showNotice('Δεν υπάρχει agent κοντά σου. Πλησίασε έναν χαρακτήρα.');return}
