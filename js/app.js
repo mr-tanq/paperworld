@@ -642,12 +642,26 @@ document.querySelector('#walkway-overlay')?.addEventListener('click',e=>{
  e.currentTarget.textContent='Paths: '+(showSurveyedPaths?'On':'Off');
  e.currentTarget.setAttribute('aria-pressed',String(showSurveyedPaths));
 });
+// One briefing surface combines real owner jobs, visual gathering and
+// direct one-on-one Director chat without pretending there is a multi-agent AI
+// meeting or silently spending model credits.
+let townHallBriefing=null;
 document.querySelector('#call-visual-meeting')?.addEventListener('click',()=>{
  const started=directorAssembly.call();
- nameEl.textContent='Town Hall · visual meeting';
- descEl.textContent=started
-  ?'Directors are walking on mapped paths for an illustrative gathering. No AI meeting, model call, task, or approval has been started.'
-  :'A visual gathering is already underway or no safe route is available.';
+ nameEl.textContent='Town Hall · ενημέρωση ομάδας';
+ descEl.textContent=started?
+  'Η ομάδα συγκεντρώνεται οπτικά. Η κατάσταση εργασιών διαβάζεται από τον λογαριασμό σου, χωρίς αυτόματες AI κλήσεις.':
+  'Άνοιγμα Town Hall · η οπτική συγκέντρωση δεν ξεκίνησε ξανά.';
+ const module=window.PaperworldTownHall;
+ if(module?.create){
+  if(!townHallBriefing)townHallBriefing=module.create(document.querySelector('#view'),{
+   load:()=>window.PaperworldCloudUI.loadHumanWork(),
+   chat:id=>window.PaperworldWorldDialogue?.show(id),
+   askAI:(id,prompt)=>window.PaperworldCloudUI.askDirector(id,prompt,{saveNote:false}),
+   openWork:()=>{drawer.hidden=false;window.PaperworldCloudUI.openHumanWork()}
+  });
+  void townHallBriefing.show();
+ }
 });
 
 new ResizeObserver(resize).observe(canvas);renderStatus();updateMarkerControls();requestAnimationFrame(tick);

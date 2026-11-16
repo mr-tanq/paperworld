@@ -65,7 +65,7 @@ function prepareProposal(input,{actor}={}){
 }
 function memoryTerms(value){
  if(typeof value!=='string')return [];
- return [...new Set((value.toLocaleLowerCase().match(/[\\p{L}\\p{N}]{3,}/gu)||[])
+ return [...new Set((value.toLocaleLowerCase().match(/[\p{L}\p{N}]{3,}/gu)||[])
   .filter(x=>x.length<=48))].slice(0,40);
 }
 function rankMemories(records,query){

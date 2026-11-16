@@ -52,9 +52,32 @@
  field.setAttribute('aria-label','Message to agent');
  send.type='submit';send.setAttribute('aria-label','Send message');
  form.append(field,send);
+ // Optional real decision inbox. Never invokes AI automatically or claims the
+ // village actors worked merely because an animation played.
+ const decisions=make('div','world-chat-decisions');
+ decisions.hidden=true;
+ let decisionView=null,decisionLoading=false,lastDecisionRead=0;
+ async function refreshDecisions({force=false}={}){
+  if(!cloud()?.signedIn()||!decisionView||decisionLoading)return;
+  // Avoid repeated owner-scoped HTTP reads whenever Messenger repaints.
+  // A newly finished Worker run bypasses this brief UI-only cooldown.
+  if(!force&&Date.now()-lastDecisionRead<30000)return;
+  decisionLoading=true;
+  try{await decisionView.refresh();lastDecisionRead=Date.now()}
+  finally{decisionLoading=false}
+ }
+ function setupDecisions(){
+  if(decisionView||!window.PaperworldHumanFirstHub?.create)return;
+  decisionView=window.PaperworldHumanFirstHub.create(decisions,{
+   compact:true,load:()=>cloud().loadHumanWork(),
+   approve:item=>cloud().prepareHumanSolution(item),
+   reject:item=>cloud().discardHumanSolution(item),
+   onError:()=>{}
+  });
+ }
  const composer=make('footer','world-chat-composer');
  composer.append(connectGithub,form);
- panel.append(top,status,messages,composer);view.append(panel);
+ panel.append(top,status,messages,decisions,composer);view.append(panel);
  // Matt owns the conversation; internal agent and worker routing stays invisible.
  async function runMattWorkflow(text){
   if(openId!=='matt'||!cloud()?.signedIn()||busy||!text.trim())return;
@@ -182,6 +205,8 @@
      }
      mattReplies.push({content:String(worker.content||''),time:new Date().toISOString()});
      if(openId==='matt')paint();
+     // Refresh the one real, persisted decision in the same conversation.
+     if(!pokemon)await refreshDecisions({force:true});
     }else{
      mattReplies.push({content:'Δεν ξεκίνησα τον Worker. Μπορούμε να συνεχίσουμε τη συζήτηση.',
       time:new Date().toISOString()});
@@ -213,7 +238,18 @@
   // Some Copilot responses contain literal escaped newlines. Render them
   // as plain text with line breaks, never as HTML or executable markup.
   const normalized=role==='human'?text:String(text||'').replace(/\\n/g,'\n');
-  const body=make('p','',normalized);item.append(body);
+  // AI analyses can be long. Lead with the useful opening and keep the full
+  // unaltered source text behind a disclosure instead of filling the screen.
+  if(role!=='human'&&normalized.length>850){
+   const intro=normalized.slice(0,650);
+   const cut=Math.max(intro.lastIndexOf('\n'),intro.lastIndexOf('. '));
+   const brief=intro.slice(0,cut>350?cut:intro.length);
+   item.append(make('p','world-chat-brief',brief));
+   const details=make('details','world-chat-full-report');
+   details.append(make('summary','','Ολόκληρη αναφορά · προαιρετικά'),
+    make('p','world-chat-unabridged',normalized));
+   item.append(details);
+  }else item.append(make('p','',normalized));
   if(when&&Number.isFinite(Date.parse(when))){
    const time=make('time','world-chat-time',new Date(when).toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'}));
    time.dateTime=when;item.append(time);
@@ -249,6 +285,8 @@
   status.textContent=!active?'Συνδέσου στο PAPERWORLD Cloud για να στείλεις μηνύματα.':
    isMatt?(mattJourneyCaption||'Συνομιλία με τον Matt · καμία εργασία χωρίς έγκριση'):
    'Απευθείας συνομιλία Director · κάθε AI απάντηση χρειάζεται έγκριση';
+  decisions.hidden=!isMatt||!active;
+  if(isMatt&&active){setupDecisions();void refreshDecisions()}
   if(active&&isMatt&&(mattCachedEntries!==null||mattReplies.length))
    appendEntries(mattCachedEntries||[]);
   else messages.replaceChildren(system(active?'Φόρτωση ιδιωτικού ιστορικού…':'Απαιτείται σύνδεση.'));

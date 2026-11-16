@@ -82,7 +82,7 @@ test('Neither module contains network calls or runs Copilot models',()=>{
  const fs=require('node:fs');
  for(const file of ['server/listening-proposal-intake.cjs','server/listening-write-approval.cjs']){
   const text=fs.readFileSync(file,'utf8');
-  assert.doesNotMatch(text,/fetch\(|sendAndWait|createSession|writeFile|createPullRequest|exec\(/);
+  assert.doesNotMatch(text,/fetch\(|sendAndWait|createSession|writeFile|createPullRequest|child_process|execSync|execFile|spawn\(/);
  }
 });
 
@@ -92,16 +92,16 @@ test('Worker flow uses an OPTIONAL verified review proposal without more AI turn
  const ui=fs.readFileSync('js/world-dialogue.js','utf8');
  assert.match(server,/parseWorkerProposal\(workerReport,\{job:approvedForProposal,evidence\}\)/);
  assert.match(server,/reviewProposal=suggested\?previewPayload\(suggested,evidence\):null/);
- assert.match(server,/\.\.\.\(reviewProposal\?\{reviewProposal\}:\{\}\)/);
+ assert.match(server,/\.\.\.\(reviewProposal\?\{reviewProposal,proposalPersisted\}:\{\}\)/);
  assert.match(ui,/if\(worker\.reviewProposal\)/);
  assert.match(ui,/previewListeningChange\?\.\(worker\.reviewProposal\.plan/);
  assert.doesNotMatch(ui,/approval\.secret|grantWrite|createDraftPr\(/);
 });
 
 test('Accepts exact JSON code fences but rejects trailing text or incomplete envelopes',()=>{
- const fenced='Source confirmed L1.\\n'+TAG+'```json\\n'+JSON.stringify(proposal)+'\\n```';
+ const fenced='Source confirmed L1.\n'+TAG+'```json\n'+JSON.stringify(proposal)+'\n```';
  const parsed=parseWorkerProposal(fenced,{job,evidence});
  assert.equal(parsed?.edits[0].replacement,proposal.edits[0].replacement);
- assert.equal(parseWorkerProposal(fenced+'\\nExtra instruction',{job,evidence}),null);
- assert.equal(parseWorkerProposal(TAG+'```json\\n'+JSON.stringify(proposal),{job,evidence}),null);
+ assert.equal(parseWorkerProposal(fenced+'\nExtra instruction',{job,evidence}),null);
+ assert.equal(parseWorkerProposal(TAG+'```json\n'+JSON.stringify(proposal),{job,evidence}),null);
 });
