@@ -121,6 +121,40 @@ test('Compact Messenger inbox is hidden unless an actual persisted pending decis
   assert.equal(host.findAll(x=>x.textContent==='Εγκρίνω την προετοιμασία').length,1);
  });
 });
+test('Failed authenticated refresh clears stale proposals and disables approval until verified',async()=>{
+ await withDOM(async()=>{
+  const host=new FakeElement('section');
+  let bad=true,approvals=0;
+  const view=hub.create(host,{load:async()=>{
+   if(bad)throw Error('network unavailable');
+   return fixture();
+  },approve:async()=>{approvals++},reject:async()=>{}});
+  view.setData(fixture());
+  assert.equal(view.snapshot.counts.decision,1);
+  await view.refresh();
+  assert.equal(view.snapshot.counts.decision,0);
+  assert.equal(view.snapshot.rows.length,0);
+  assert.match(view.error,/προηγούμενες αποφάσεις κρύφτηκαν/);
+  assert.equal(host.findAll(x=>x.textContent==='Εγκρίνω την προετοιμασία').length,0);
+  assert.equal(approvals,0);
+  bad=false;
+  await view.refresh();
+  assert.equal(view.error,'');
+  assert.equal(view.snapshot.counts.decision,1);
+  assert.equal(host.findAll(x=>x.textContent==='Εγκρίνω την προετοιμασία').length,1);
+ });
+});
+test('Malformed refresh data also removes old actionable approvals',async()=>{
+ await withDOM(async()=>{
+  const host=new FakeElement('section');
+  const view=hub.create(host,{load:async()=>({jobs:[],proposals:null,tasks:[]})});
+  view.setData(fixture());
+  await view.refresh();
+  assert.equal(view.snapshot.counts.all,0);
+  assert.ok(view.error);
+  assert.equal(host.findAll(x=>x.textContent==='Εγκρίνω την προετοιμασία').length,0);
+ });
+});
 test('Town Hall agenda is derived from same verified jobs and never invents a meeting',()=>{
  const a=town.getAgenda(fixture());
  assert.equal(a.count,1);
@@ -171,6 +205,26 @@ test('Real Town Hall meeting calls exactly three tool-free, owner-gated Director
   assert.ok(calls.every(x=>!x.id.includes('wellbeing')));
   assert.equal(view.findAll(x=>x.className==='town-hall-ai-reply').length,3);
   meeting.hide();
+ });
+});
+test('Failed Town Hall Director answer aborts remaining AI calls',async()=>{
+ await withDOM(async()=>{
+  const view=new FakeElement('div'),calls=[];
+  const meeting=town.create(view,{load:async()=>fixture(),chat:()=>{},
+   askAI:async(id)=>{
+    calls.push(id);
+    if(id==='pokemon-director')throw Error('simulated provider error');
+    return {executed:true,aiTurns:1,content:'First response'};
+   }});
+  await meeting.show();
+  view.findAll(x=>x.tag==='textarea')[0].value='Review project priorities';
+  const btn=view.findAll(x=>x.tag==='button'&&
+   x.textContent.startsWith('Έναρξη AI συνάντησης'))[0];
+  await btn.listeners.click();
+  assert.deepEqual(calls,['listening-director','pokemon-director']);
+  assert.equal(view.findAll(x=>x.className==='town-hall-ai-reply').length,1);
+  assert.ok(view.findAll(x=>x.className==='town-hall-progress').some(x=>
+   x.textContent.includes('διακόπηκε')));
  });
 });
 test('Refused Town Hall consent and early exit cannot make more AI requests',async()=>{
