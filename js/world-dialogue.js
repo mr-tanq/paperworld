@@ -141,7 +141,7 @@
   try{
    const r=await cloud().sunoLinkStatus();
    musicResult.textContent=r.oauthAuthorized?
-    'Ο λογαριασμός εξουσιοδοτήθηκε στον server. Η παραγωγή παραμένει απενεργοποιημένη.':
+    'Ο λογαριασμός Suno συνδέθηκε.':
     'Ο λογαριασμός Suno δεν έχει συνδεθεί ακόμη.';
   }catch(_){musicResult.textContent='Δεν επαληθεύτηκε η σύνδεση Suno.'}
   finally{sunoLinkStatus.disabled=false}
@@ -152,7 +152,7 @@
   if(openId!=='studio-director'||musicBusy||!cloud()?.signedIn()||
      typeof cloud()?.inspectSunoTools!=='function')return;
   sunoTools.disabled=true;
-  musicResult.textContent='Έλεγχος διαθέσιμων εργαλείων χωρίς δημιουργία μουσικής…';
+  musicResult.textContent='Έλεγχος εργαλείων Suno…';
   try{
    const r=await cloud().inspectSunoTools();
    const toolFailures={
@@ -173,9 +173,8 @@
     legacy_tools_unverified:'Η παλαιότερη σύνδεση δεν επέστρεψε έγκυρη λίστα εργαλείων.'
    };
    musicResult.textContent=r.toolsListed?
-    'Επαληθεύτηκαν '+r.toolCount+' εργαλεία MCP. Η παραγωγή παραμένει απενεργοποιημένη.':
-    (toolFailures[r.reason]||'Δεν επαληθεύτηκαν τα εργαλεία MCP.')+
-    ' Η παραγωγή παραμένει απενεργοποιημένη.';
+    'Επαληθεύτηκαν '+r.toolCount+' εργαλεία MCP.':
+    (toolFailures[r.reason]||'Δεν επαληθεύτηκαν τα εργαλεία MCP.');
   }catch(_){musicResult.textContent='Απαιτείται ενεργή σύνδεση Suno ή συμβατή έκδοση MCP.'}
   finally{sunoTools.disabled=false}
  });
@@ -185,7 +184,7 @@
   if(openId!=='studio-director'||musicBusy||!cloud()?.signedIn()||
      typeof cloud()?.diagnoseSunoConnection!=='function')return;
   sunoCheck.disabled=true;
-  musicResult.textContent='Έλεγχος σύνδεσης Suno, χωρίς χρήση credits…';
+  musicResult.textContent='Έλεγχος σύνδεσης Suno…';
   try{
    const r=await cloud().diagnoseSunoConnection();
    const descriptions={
@@ -193,7 +192,7 @@
     client_registration_unverified:'Το Suno δεν έχει επιβεβαιώσει τη συμβατότητα εξουσιοδότησης με το Paperworld.',
     owner_oauth_required:'Ο λογαριασμός δεν έχει συνδεθεί. Χρησιμοποίησε «Σύνδεση Suno».',
     mcp_tools_unverified:'Ο λογαριασμός συνδέθηκε, αλλά δεν επαληθεύτηκαν τα εργαλεία MCP.',
-    generation_not_enabled:'Ο λογαριασμός και τα '+r.toolCount+' εργαλεία επαληθεύτηκαν. Η παραγωγή δεν έχει ενεργοποιηθεί.'
+    generation_not_enabled:'Ο λογαριασμός και τα '+r.toolCount+' εργαλεία επαληθεύτηκαν.'
    };
    const reasonHint={
     authorization_rejected:'Ο πάροχος απέρριψε την εξουσιοδότηση.',
@@ -216,7 +215,7 @@
     'Δεν ολοκληρώθηκε η διάγνωση σύνδεσης.')+
     (hint?' Αιτία: '+hint:'');
   }catch(_){
-   musicResult.textContent='Ο έλεγχος δεν ολοκληρώθηκε. Η παραγωγή παραμένει απενεργοποιημένη.';
+   musicResult.textContent='Ο έλεγχος σύνδεσης δεν ολοκληρώθηκε.';
   }finally{sunoCheck.disabled=false}
  });
  const sunoInstructions=make('a','crow-music-instructions','Οδηγίες σύνδεσης Suno MCP');
