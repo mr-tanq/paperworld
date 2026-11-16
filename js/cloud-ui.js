@@ -49,6 +49,21 @@ function openDirectorMemory(){
   // Every individual decision re-verifies Supabase Auth and uses owner RLS.
   enableReview:true,
   requestReview:args=>client.reviewDirectorMemory(args),
+  confirmBatch:({projectId,entries})=>{
+   if(!Array.isArray(entries)||entries.length<1||entries.length>100)return false;
+   const labels={town:'Matt',workshop:'Luna',studio:'Crow',pokemon:'Joey',wellbeing:'Dave'};
+   if(!Object.prototype.hasOwnProperty.call(labels,projectId)||
+      entries.some(x=>x.projectId!==projectId))return false;
+   const preview=entries.map((x,i)=>(i+1)+'. '+x.rowTitle+
+    ' · '+x.sourceType+' / '+x.sourceRef+
+    (x.sensitivity==='private'?' · ΙΔΙΩΤΙΚΟ':'')).join('\n');
+   return window.confirm('Ενεργοποίηση '+entries.length+' αναμνήσεων για '+labels[projectId]+';'+
+    '\n\n'+preview+
+    '\n\nΟι ιδιωτικές πληροφορίες θα μπορούν να χρησιμοποιηθούν '+
+    'ως πλαίσιο στην εγκεκριμένη AI συνομιλία αυτού του Director. '+
+    'Κάθε αλλαγή καταγράφεται χωριστά. '+
+    'Δεν δίνεται πρόσβαση σε άλλους Directors ή δικαίωμα εργασιών.\n\nΕγκρίνεις;');
+  },
   confirmDecision:({entry,decision})=>window.confirm(
    (decision==='approved'?'Να εγκριθεί αυτή η ανάμνηση;':'Να απορριφθεί αυτή η ανάμνηση;')+
    '\n\n'+entry.title+'\n'+entry.body+
