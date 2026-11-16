@@ -8,6 +8,7 @@ const {makeMattChat}=require('./matt-live-chat.cjs');
 const {makeDirectorChat}=require('./director-direct-chat.cjs');
 const {createCrowSunoPreviewApi}=require('./crow-suno-preview-api.cjs');
 const {createSunoConnectionStatus}=require('./suno-connection-status.cjs');
+const {createSunoOAuthClient}=require('./suno-oauth-client.cjs');
 const {makeDelegation}=require('./matt-delegation.cjs');
 const {makeWorkerDelegation}=require('./matt-worker-delegation.cjs');
 const {makePokemonWorkerDelegation}=require('./pokemon-worker-delegation.cjs');
@@ -36,8 +37,9 @@ function createRenderMattServer({oauth=createGithubOAuth({
  historyFactory=()=>makeJobHistoryApi(),
  crowSunoPreviewFactory=()=>createCrowSunoPreviewApi(),
  sunoStatusFactory=()=>createSunoConnectionStatus(),
+ sunoOAuthFactory=()=>createSunoOAuthClient(),
  proposalApiFactory=({oauth,memory,store})=>createListeningProposalApi({oauth,memory,store})}={}){
- let live,directorChat,delegation,worker,pokemonWorker,history,proposalApi,crowSunoPreview,sunoStatus;
+ let live,directorChat,delegation,worker,pokemonWorker,history,proposalApi,crowSunoPreview,sunoStatus,sunoOAuth;
  let proposalMemory,approvalStore;
  function getProposalMemory(){
   if(proposalMemory!==undefined)return proposalMemory;
@@ -62,6 +64,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
  function getHistory(){if(!history)history=historyFactory();return history}
  function getCrowSunoPreview(){if(!crowSunoPreview)crowSunoPreview=crowSunoPreviewFactory();return crowSunoPreview}
  function getSunoStatus(){if(!sunoStatus)sunoStatus=sunoStatusFactory();return sunoStatus}
+ function getSunoOAuth(){if(!sunoOAuth)sunoOAuth=sunoOAuthFactory();return sunoOAuth}
  const server=http.createServer(async(req,res)=>{
   // Never enable CORS or accept browser credentials until a full OAuth review.
   if(req.method==='GET'&&req.url==='/health')
@@ -69,6 +72,40 @@ function createRenderMattServer({oauth=createGithubOAuth({
   if(req.url==='/auth/github/callback' || req.url?.startsWith('/auth/github/callback?')){
    const result=await oauth.callback({url:req.url});
    res.writeHead(result.status,result.headers);res.end();return;
+  }
+  // Owner-started Suno OAuth PKCE. Tokens never enter a browser response.
+  // No MCP tools/generation are available in this release.
+  if(req.method==='GET'&&req.url==='/auth/suno/client-metadata'){
+   return response(res,200,getSunoOAuth().clientMetadata());
+  }
+  if(req.method==='GET'&&
+      (req.url==='/auth/suno/callback'||req.url?.startsWith('/auth/suno/callback?'))){
+   const result=await getSunoOAuth().callback({url:req.url});
+   res.writeHead(result.status,result.headers);res.end();return;
+  }
+  const sunoAuthAction={'/auth/suno/start':'start',
+   '/auth/suno/status':'status'}[req.url];
+  if(sunoAuthAction){
+   if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
+    res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
+     'Access-Control-Allow-Methods':'POST, OPTIONS',
+     'Access-Control-Allow-Headers':'authorization,content-type',
+     'Vary':'Origin','Access-Control-Max-Age':'600'});res.end();return;
+   }
+   if(req.method!=='POST')return response(res,405,{error:'method_not_allowed'});
+   if(req.headers.origin!==APP_ORIGIN)return response(res,403,{error:'origin_denied'});
+   let parts=[],size=0;
+   try{
+    for await(const chunk of req){
+     size+=chunk.length;
+     if(size>256)return response(res,413,{error:'request_too_large'});
+     parts.push(chunk);
+    }
+    const result=await getSunoOAuth()[sunoAuthAction]({
+     headers:req.headers,body:Buffer.concat(parts).toString('utf8')});
+    res.writeHead(result.status,result.headers);
+    res.end(JSON.stringify(result.body));return;
+   }catch(_){return response(res,503,{error:'suno_oauth_unavailable'})}
   }
   const isOAuth=req.url==='/auth/github/start'||req.url==='/auth/github/status';
   if(isOAuth){
