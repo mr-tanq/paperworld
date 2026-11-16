@@ -2,6 +2,7 @@
  * Only the tools/list JSON-RPC method can be sent. No tools/call,
  * no music generation, no browser token exposure. Modern 2026-07-28
  * stateless HTTP servers only; older MCP servers fail closed for now.
+ * Supports bounded JSON and request-scoped SSE responses, not SSE sessions.
  */
 'use strict';
 const ENDPOINT='https://api.suno.com/mcp';
@@ -10,7 +11,8 @@ const MAX_BODY=32000,MAX_TOOLS=100;
 function summarize(result){
  if(!result||result.jsonrpc!=='2.0'||result.id!==1||result.error||
    !result.result||!Array.isArray(result.result.tools)||
-   result.result.tools.length>MAX_TOOLS)return null;
+   result.result.tools.length>MAX_TOOLS||
+   (result.result.nextCursor!==undefined&&result.result.nextCursor!==null))return null;
  const names=[];
  for(const tool of result.result.tools){
   if(!tool||typeof tool.name!=='string'||
@@ -20,6 +22,37 @@ function summarize(result){
  if(new Set(names).size!==names.length)return null;
  // Never send descriptions, input schemas or provider data to the browser.
  return {toolCount:names.length,tools:names};
+}
+// Parse only finite request-scoped SSE frames. A provider may emit progress
+// before the final JSON-RPC response. Never mistake a notification for a result.
+function parseRequestSse(raw){
+ if(typeof raw!=='string'||raw.length>MAX_BODY)return null;
+ const frames=raw.replace(/\r\n/g,'\n').split(/\n\n/);
+ if(frames.length>120)return null;
+ let final=null;
+ for(const frame of frames){
+  if(!frame.trim())continue;
+  const data=[];
+  let event='message';
+  for(const line of frame.split('\n')){
+   if(!line||line.startsWith(':'))continue;
+   if(line.startsWith('event:')){event=line.slice(6).trim();continue}
+   if(line.startsWith('data:')){data.push(line.slice(5).trimStart());continue}
+   // Reject malformed fields rather than treating partial streams as success.
+   if(!/^(id|retry):/.test(line))return null;
+  }
+  if(event!=='message')continue;
+  if(!data.length)continue;
+  let parsed;
+  try{parsed=JSON.parse(data.join('\n'))}catch(_){return null}
+  if(!parsed||typeof parsed!=='object'||parsed.jsonrpc!=='2.0')return null;
+  if(parsed.id===1){
+   if(final!==null)return null;
+   final=parsed;
+  }else if(Object.hasOwn(parsed,'id'))return null;
+  // Notifications without an id are informational only; never executed.
+ }
+ return final;
 }
 function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
  if(typeof fetcher!=='function')throw Error('fetcher_required');
@@ -35,7 +68,7 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
     headers:{
      Authorization:'Bearer '+accessToken,
      'Content-Type':'application/json',
-     Accept:'application/json',
+     Accept:'application/json, text/event-stream',
      'MCP-Protocol-Version':VERSION,
      'Mcp-Method':'tools/list'
     },body:JSON.stringify(request)});
@@ -44,7 +77,9 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
    if(response.status!==200)
     return {available:false,reason:'unsupported_mcp_transport'};
    const contentType=response.headers?.get?.('content-type')||'';
-   if(!/^application\/json\b/i.test(contentType))
+   const isJson=/^application\/json\b/i.test(contentType);
+   const isSse=/^text\/event-stream\b/i.test(contentType);
+   if(!isJson&&!isSse)
     return {available:false,reason:'unsupported_mcp_transport'};
    const length=response.headers?.get?.('content-length');
    if(length!==null&&length!==undefined&&
@@ -52,7 +87,8 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
     return {available:false,reason:'unverified_mcp_response'};
    const payload=await response.text();
    if(payload.length>MAX_BODY)return {available:false,reason:'unverified_mcp_response'};
-   const result=summarize(JSON.parse(payload));
+   const message=isSse?parseRequestSse(payload):JSON.parse(payload);
+   const result=summarize(message);
    if(!result)return {available:false,reason:'unverified_mcp_response'};
    // A tool list alone is NOT authorization to invoke any tool.
    return {available:true,reason:'read_only_tools_verified',
@@ -61,4 +97,4 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
  }
  return Object.freeze({inspect});
 }
-module.exports=Object.freeze({makeSunoMcpToolProbe,summarize,ENDPOINT,VERSION});
+module.exports=Object.freeze({makeSunoMcpToolProbe,summarize,parseRequestSse,ENDPOINT,VERSION});
