@@ -24,7 +24,8 @@ function setup({ownerId=OWNER,rows=[row()],badStatus=false}={}){
   fetcher:async(url,options)=>{
    calls.push({kind:'read',url,options});
    if(badStatus)return {ok:false,status:401};
-   return {ok:true,json:async()=>rows};
+   return {ok:true,json:async()=>url.includes('status=eq.approved')?
+    rows.filter(r=>r.status==='approved'):rows};
   }
  });
  return {memory,calls};

@@ -87,7 +87,7 @@ function projectContext(entries,{actor,projectId,explicitHandoff=false,
  workerTaskApproved=false,maxChars=8000,query=''}={}){
  if(!authorizedProject(actor,projectId,{explicitHandoff})||
   !Number.isInteger(maxChars)||maxChars<256||maxChars>12000||
-  !Array.isArray(entries)||entries.length>200)
+  !Array.isArray(entries)||entries.length>400)
   fail('memory_access_denied');
  if(!entries.every(e=>e&&e.projectId===projectId))fail('mixed_project_records_denied');
  const role=actor==='human'?'human':actor==='matt'?'chief':AGENTS[actor]?.role;

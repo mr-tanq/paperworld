@@ -58,11 +58,38 @@ function createDirectorMemoryStore({fetcher,baseUrl,publicKey,authenticate,verif
     sensitivity:row.sensitivity});
   }));
  }
+ // Bound search across older approved memories, not merely the newest 100.
+ // The caller-supplied project is validated and reverified for every page.
+ async function listRelevant({token,ownerId,projectId}={}){
+  const result=[];const ids=new Set();
+  for(let offset=0;offset<400;offset+=100){
+   const query='?select=id,project_id,kind,status,title,body,source_type,source_ref,'+
+    'observed_at,version,sensitivity'+
+    '&project_id=eq.'+encodeURIComponent(projectId||'')+
+    '&status=eq.approved&order=observed_at.desc,id.asc'+
+    '&limit=100&offset='+offset;
+   const page=await call({token,ownerId,projectId,query});
+   for(const row of page){
+    if(row?.project_id!==projectId||row.status!=='approved')
+     deny('memory_project_response_mismatch');
+    const entry=validateEntry({id:row.id,projectId:row.project_id,
+     kind:row.kind,status:row.status,title:row.title,body:row.body,
+     sourceType:row.source_type,sourceRef:row.source_ref,
+     observedAt:row.observed_at,version:row.version,
+     sensitivity:row.sensitivity});
+    if(ids.has(entry.id))deny('memory_duplicate_page_record');
+    ids.add(entry.id);result.push(entry);
+   }
+   if(page.length<100)return Object.freeze(result);
+  }
+  // A bounded scan must not silently pretend it covers a larger archive.
+  deny('memory_search_index_required');
+ }
  async function review(){
   // Database intentionally has no review RPC or authenticated UPDATE privilege.
   // A separately audited, one-time owner review protocol is required.
   deny('memory_review_not_configured');
  }
- return Object.freeze({propose,list,review});
+ return Object.freeze({propose,list,listRelevant,review});
 }
 module.exports=Object.freeze({createDirectorMemoryStore});
