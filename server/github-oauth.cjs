@@ -50,7 +50,7 @@ function createGithubOAuth({clientId,clientSecret,callbackUrl=BASE_CALLBACK,
   const params=new URLSearchParams({
    client_id:clientId,redirect_uri:callbackUrl,state,allow_signup:'false',
    // GitHub displays the repository-write scope for explicit human consent.
-   scope:'public_repo'
+   scope:'repo'
   });
   return json(200,{authorizationUrl:'https://github.com/login/oauth/authorize?'+params});
  }
@@ -97,8 +97,9 @@ function createGithubOAuth({clientId,clientSecret,callbackUrl=BASE_CALLBACK,
     .split(',').map(x=>x.trim());
    const writeEnabled=user.login.toLowerCase()==='mr-tanq'&&
     (scopes.includes('public_repo')||scopes.includes('repo'));
+   const privateWriteEnabled=user.login.toLowerCase()==='mr-tanq'&&scopes.includes('repo');
    linked.set(pending.ownerId,{token,githubId:user.id,login:user.login,
-    writeEnabled,expires:clock()+ttl});
+    writeEnabled,privateWriteEnabled,expires:clock()+ttl});
    return redirect(APP_ORIGIN+'/paperworld/?github_link=connected');
   }catch(_){return fail}
  }
@@ -109,11 +110,18 @@ function createGithubOAuth({clientId,clientSecret,callbackUrl=BASE_CALLBACK,
   clean();
   const link=linked.get(ownerId);
   return json(200,link?{connected:true,login:link.login,ephemeral:true,
-    ...(link.writeEnabled?{writeEnabled:true}:{})}:
+    ...(link.writeEnabled?{writeEnabled:true}:{}),
+    ...(link.privateWriteEnabled?{privateWriteEnabled:true}:{})}:
     {connected:false,ephemeral:true});
  }
  // Future AI bridge MUST still separately claim a one-time approval before
  // requesting a token. Exposes no token from HTTP endpoints.
+ function getLinkedPrivateWriteToken({ownerId}={}){
+  if(typeof ownerId!=='string'||!validId.test(ownerId))return null;
+  clean();
+  const link=linked.get(ownerId);
+  return link?.privateWriteEnabled===true?link.token:null;
+ }
  function getLinkedWriteToken({ownerId}={}){
   if(typeof ownerId!=='string'||!validId.test(ownerId))return null;
   clean();
@@ -125,6 +133,6 @@ function createGithubOAuth({clientId,clientSecret,callbackUrl=BASE_CALLBACK,
   clean();
   return linked.get(ownerId)?.token||null;
  }
- return Object.freeze({enabled:enabled&&!!guard,start,callback,status,getLinkedToken,getLinkedWriteToken});
+ return Object.freeze({enabled:enabled&&!!guard,start,callback,status,getLinkedToken,getLinkedWriteToken,getLinkedPrivateWriteToken});
 }
 module.exports=Object.freeze({createGithubOAuth,APP_ORIGIN,BASE_CALLBACK});
