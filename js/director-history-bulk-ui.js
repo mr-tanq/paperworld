@@ -55,6 +55,10 @@
     project.disabled=busy;
     const reason=el('small',(item.confidence==='suggested'?'Πρόταση: ':'Έλεγχος: ')+
      item.reason);
+    const sample=parser.mainMessages(source[item.index])
+     .filter(x=>x.role==='user').slice(0,1).map(x=>x.text.slice(0,180)).join(' ');
+    const preview=el('small','Απόσπασμα: '+(sample||'Δεν υπάρχει κείμενο χρήστη'));
+    preview.className='room-footnote';
     function chosenProject(){return project.value}
     checked.addEventListener('change',()=>{
      if(!checked.checked){choices.delete(item.index)}
@@ -72,7 +76,7 @@
      }
      draw();
     });
-    line.append(checked,label,project,reason);list.append(line);
+    line.append(checked,label,project,reason,preview);list.append(line);
    }
    section.append(list);
    const controls=el('div');
