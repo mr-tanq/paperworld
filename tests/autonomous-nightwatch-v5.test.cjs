@@ -45,7 +45,7 @@ test('Unattended queue creates two public-source issues and reports without AI, 
  assert.ok(state.calls.every(x=>x.path.startsWith('/repos/mr-tanq/paperworld/')));
  assert.ok(state.calls.every(x=>!['PUT','PATCH','DELETE'].includes(x.method)));
  const issueBody=state.issues[0].body;
- assert.match(issueBody,/no AI/i);
+ assert.match(issueBody,/does not use AI/i);
  assert.match(issueBody,/private Pokémon/);
  assert.doesNotMatch(issueBody,/token|secret value|authorization:/i);
 });
