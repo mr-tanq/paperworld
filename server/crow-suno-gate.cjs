@@ -39,12 +39,16 @@ function makeCrowSunoGate({authorize,submit,enabled=false,clock=now,ttlMs=600000
   clean();
   const p=pending.get(proposalId);
   if(!p||p.ownerId!==ownerId)return respond(404,'proposal_not_found');
-  if(p.used)return respond(409,'already_submitted');
+  if(p.used||p.busy)return respond(409,'already_submitted');
   if(p.expectedCredits===null&&acknowledgeUnknownCost!==true)
    return respond(403,'unknown_credit_cost_requires_acknowledgement');
-  // Never consume an approval until the trusted identity and feature checks pass.
-  if(await authorize({ownerId,operation:p.brief.operation})!==true)
-   return respond(403,'owner_not_authorized');
+  // Lock BEFORE any async authorization to prevent overlapping executions.
+  p.busy=true;
+  try{
+   if(await authorize({ownerId,operation:p.brief.operation})!==true)
+    return respond(403,'owner_not_authorized');
+  }catch(_){return respond(403,'owner_not_authorized')}
+  finally{p.busy=false}
   if(enabled!==true||typeof submit!=='function')
    return respond(503,'suno_not_connected');
   // Claim before awaiting the remote provider to avoid duplicate requests.
