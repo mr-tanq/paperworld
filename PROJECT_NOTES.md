@@ -452,3 +452,12 @@ Authenticated `/autonomous/missions/create` and `/autonomous/missions/list` rout
 Supabase migration `paperworld_autonomous_shared_core_v5` installs `paperworld_autonomous_missions_v5`, `paperworld_autonomous_steps_v5`, `paperworld_autonomous_events_v5`, and service-only atomic step claim, completion and lease recovery functions. Owner-RLS applies to all three tables. A worker's completion is accepted only with its own live lease. No AI calls or schedulers are installed by this migration.
 
 Remaining before true unattended work: background dispatcher, budget-verified Copilot API user token, project-specific real Worker tools, safe resumable execution and a live offline end-to-end mission. These new drafts must not be represented as autonomous execution.
+
+
+## 2026-11-16 — V5 unattended *database* controller (no AI execution)
+
+In `sql/paperworld_v5_safe_controller.sql` we installed Supabase pg_cron and scheduled `paperworld-v5-safe-controller` with `*/5 * * * *`. The invoker-rights `paperworld_v5_controller_tick()` calls the audited expiry reclaimer, moves missions with exhausted worker attempts to `needs_you` once, and persists a single last-run/counter record. It uses a PostgreSQL transaction-scoped advisory lock to avoid concurrent maintenance and exposes no execution grant to browser users.
+
+The scheduler was verified in Supabase `cron.job` with active=true, and a direct manual tick safely returned while `aiCalls=0`, `externalActions=0`. Authenticated/anon users cannot call the controller. It does **not** consume GitHub credits, schedule model calls, assign Copilot cloud agents, create branches, publish, deploy, or touch creative/health data.
+
+The full autonomous mission objective is NOT complete: still requires an owner-authorized persistent executor credential with GitHub's supported personal account API, a usage-aware dispatch/step runner, separate project adapters for all four Directors, a verified independent code sandbox, and a phone-off acceptance demonstration. The controller currently monitors and reclaims work; it does not execute queued work autonomously.
