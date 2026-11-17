@@ -15,8 +15,7 @@ const trustedAgentPr=(pr,issueNumber,effectKey)=>
  pr?.draft===true&&pr?.base?.ref==='main'&&copilotBranch(pr)&&
  (isCopilot(pr?.user?.login)||pr?.user?.login===OWNER)&&
  typeof pr?.body==='string'&&
- pr.body.includes('#'+issueNumber)&&
- pr.body.includes('<!-- paperworld-v5-effect:'+effectKey+' -->');
+ pr.body.includes('#'+issueNumber); // effect marker verified on trusted GitHub issue
 const MARKER=/<!-- paperworld-v5-effect:([a-zA-Z0-9:_-]{8,160}) -->/;
 const API='https://api.github.com';
 function allowedRepo(projectId){
@@ -135,13 +134,19 @@ function createCopilotIssueAdapter({fetcher=globalThis.fetch,token}={}){
   const repo=allowedRepo(projectId);
   if(projectId!=='pokemon'||!Number.isSafeInteger(prNumber)||prNumber<1||
    issueNumber!==1)throw Error('unsupported_independent_verification');
+  // The assignment marker is persistent on the GitHub issue, not on the
+  // agent-editable PR description. Never require it to survive in PR body.
+  const issue=await getIssue(projectId,issueNumber);
+  const markers=[...issue.body.matchAll(new RegExp(MARKER.source,'g'))];
+  if(markers.length!==1||!markers[0][1].startsWith('copilot:')||
+   !issue.assignees.some(isCopilot))
+   return Object.freeze({state:'unverified',reason:'issue_assignment_evidence_missing'});
   const pr=await call(repo,'/pulls/'+prNumber);
   const sha=pr.head?.sha;
   if(!pr.draft||pr.state!=='open'||pr.number!==prNumber||
    !/^[0-9a-f]{40}$/.test(sha||'')||
    !(isCopilot(pr.user?.login)||pr.user?.login===OWNER)||
    pr.base?.ref!=='main'||!copilotBranch(pr)||
-   !/<!-- paperworld-v5-effect:copilot:[0-9a-f-]{36} -->/.test(pr.body||'')||
    !(pr.body||'').includes('#'+issueNumber))
    return Object.freeze({state:'unverified',reason:'pr_identity_mismatch'});
   const workflow=await call(repo,
