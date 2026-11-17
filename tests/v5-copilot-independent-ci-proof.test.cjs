@@ -12,9 +12,9 @@ function fixture({good=true,bot=true,caseStep=true,shaMatches=true,draft=true}={
   const endpoint=u.pathname;
   if(endpoint.endsWith('/pulls/'+PR))
    return {ok:true,json:async()=>({number:PR,state:'open',draft,
-    head:{sha:SHA},base:{ref:'main'},
+    head:{sha:SHA,ref:'copilot/five-battle-tests'},base:{ref:'main'},
     user:{login:bot?'copilot-swe-agent[bot]':'random-user'},
-    body:'Fixes #1'})};
+    body:'Fixes #1 <!-- paperworld-v5-effect:copilot:11111111-1111-4111-8111-111111111111 -->'})};
   if(endpoint.endsWith('/actions/workflows/paperworld-verify.yml/runs'))
    return {ok:true,json:async()=>({workflow_runs:[{
     id:RUN,event:'pull_request',status:'completed',
