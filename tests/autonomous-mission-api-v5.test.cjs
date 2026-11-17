@@ -12,6 +12,7 @@ function fixture({owns=true}={}){
   fetcher:async(url,options)=>{
    calls.push({url,options});
    if(url.includes('/rpc/paperworld_v5_queue_mission'))return {ok:true,json:async()=>true};
+   if(url.includes('/rpc/paperworld_v5_queue_copilot_pilot'))return {ok:true,json:async()=>true};
    if(options.method==='POST'){
     const row=JSON.parse(options.body);records.push(row);
     return {ok:true,json:async()=>[row]};
@@ -87,6 +88,28 @@ test('Owner can authorize a zero-AI simulation only for her own draft',async()=>
  const other=await api.handle({headers:{...HEADERS,origin:'https://evil.invalid'},
   action:'simulate',body:body({missionId})});
  assert.equal(other.status,403);
+});
+test('Explicit owner pilot consent queues only the bounded Pokémon Issue #1',async()=>{
+ const {api,calls}=fixture();
+ const created=await api.handle({headers:HEADERS,action:'create',
+  body:body({projectId:'pokemon',goal:'Safe, bounded pilot'})});
+ assert.equal(created.status,201);
+ const missionId=created.body.mission.id;
+ const noConsent=await api.handle({headers:HEADERS,action:'pilot',body:body({missionId})});
+ assert.equal(noConsent.status,400);
+ const result=await api.handle({headers:HEADERS,action:'pilot',body:body({
+  missionId,consent:true})});
+ assert.equal(result.status,200);
+ assert.equal(result.body.execution,'real_copilot_pilot');
+ assert.equal(result.body.sessionBudget,1);
+ assert.equal(result.body.autoMerge,false);
+ assert.ok(calls.some(x=>x.url.includes('/rpc/paperworld_v5_queue_copilot_pilot')));
+ assert.equal(calls.filter(x=>x.url.includes('api.github.com')).length,0);
+ const crow=await api.handle({headers:HEADERS,action:'create',
+  body:body({projectId:'studio',goal:'Private research'})});
+ const blocked=await api.handle({headers:HEADERS,action:'pilot',body:body({
+  missionId:crow.body.mission.id,consent:true})});
+ assert.equal(blocked.status,409);
 });
 test('No public mutation or autonomous AI scheduling route is installed by this PR',()=>{
  const server=fs.readFileSync('server/render-matt.cjs','utf8');
