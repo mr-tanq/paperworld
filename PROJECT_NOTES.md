@@ -501,3 +501,12 @@ Supabase migrations applied: `paperworld_v5_copilot_budget_where_fix` (fixed an 
 Private Pokémon Echoes PR #2 merged, adding checksum-pinned Godot 4.7.2 setup, headless scene smoke test, independent `paperworld-verify.yml` workflow and owner review guidance. Its real headless GitHub Actions check passed. Pokémon issue #1 was narrowed to five exact battle-damage assertions and remains unassigned.
 
 **Owner action needed for any real pilot:** create a repo-scoped GitHub user PAT and two separate Supabase secret entries, confirm account budget $0 extra, and verify fresh credit snapshot. Do NOT request token in chat or activate any recurring live calls prematurely. Setup guide: `docs/COPILOT_PRO_PILOT_V5.md`. Full unattended verification and final mission completion are NOT implemented.
+
+
+## 2026-11-17 — Independent Copilot PR verification (no credentials/spend)
+
+Complementary private Pokémon PR #3 merged and passed Actions: the trusted `paperworld-verify.yml` now requires **five actual battle-damage assertions** for Copilot-authored pull requests and manually dispatched SHA checks, plus baseline Godot smoke. Skipped checks fail the Paperworld verifier. No new secrets or write permissions.
+
+Paperworld `paperworld_v5_verified_ci_completion` SQL migration and Supabase `paperworld-copilot-dispatch` Edge v3 add a read-only GitHub CI evidence polling path: exact bot-authored Draft PR, matching immutable head SHA and owner issue #1, `paperworld-verify.yml` run from pull_request on that SHA and matching PR number, successful `headless-godot` job AND successful (not skipped) smoke and five-case assertion steps. Only then the service-role SQL `paperworld_v5_finish_verified_copilot` stores the PR+SHA+workflow-run receipt and atomically marks the mission completed once. Failed/unapproved/missing workflows leave the mission at `needs_you`; there is no second Copilot session, auto-merge, auto-deploy or AI charge in this verification path.
+
+The integration suite proves the state machine against real PostgreSQL 17 and tests forged GitHub CI evidence with synthetic API responses. The real Copilot launch remains **disabled**: the personal GitHub user-token, Supabase Edge/Vault trigger, fresh credits snapshot, and explicit owner pilot approval are still required. Also note: default PR-triggered workflows for Copilot may require a human approval in GitHub; this gate is intentionally not bypassed, so a phone-off pilot may stop waiting for CI approval rather than incorrectly report success.
