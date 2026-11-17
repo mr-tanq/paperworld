@@ -320,5 +320,49 @@ begin
   where mission_id=mission and event_type='mission_completed')<>1
  then raise exception 'verification completion not idempotent'; end if;
 end $$;
+-- Owner-authorized unmetered-credit mode must retain hard session reservations.
+-- No provider/network call is made in this SQL-only transaction.
+\i sql/paperworld_v5_operator_credit_consent.sql
+do $$
+declare
+ a uuid:='11111111-1111-4111-8111-111111111111';
+ m uuid:='67676767-6767-4676-8676-676767676767';
+ w uuid:='78787878-7878-4878-8878-787878787878';
+ rec record;
+begin
+ insert into public.paperworld_autonomous_missions_v5
+ (id,owner_id,thread_id,project_id,goal,status,policy)
+ values(m,a,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','pokemon',
+  'Operator credit override SQL only','queued',
+  '{"maxAiCalls":1,"additionalSpendUsd":0}'::jsonb);
+ insert into public.paperworld_autonomous_steps_v5
+ (mission_id,owner_id,seq,role_id,capability,state,idempotency_key)
+ values(m,a,1,'pokemon-director','start_agent','ready',
+  'synthetic-credit-override-01');
+ update public.paperworld_autonomous_controller_v5 set
+  dispatch_enabled=true,live_adapters=array['copilot_agent'],
+  allow_unmetered_copilot=false,credit_snapshot=null,credit_snapshot_at=null,
+  sessions_per_day=10,sessions_per_month=20,sessions_per_mission=1
+ where singleton;
+ select * into rec from public.paperworld_v5_claim_step(w,600);
+ if rec.step_id is null then raise exception 'override step not claimed'; end if;
+ if public.paperworld_v5_begin_effect(rec.step_id,w,'override-effect-01',
+  'copilot_agent','start_agent')<>'budget_denied'
+ then raise exception 'missing snapshot must fail closed without opt-in'; end if;
+ update public.paperworld_autonomous_missions_v5
+ set status='queued' where id=m;
+ update public.paperworld_autonomous_controller_v5
+ set allow_unmetered_copilot=true where singleton;
+ if public.paperworld_v5_begin_effect(rec.step_id,w,'override-effect-01',
+  'copilot_agent','start_agent')<>'reserved'
+ then raise exception 'explicit override should reserve single session'; end if;
+ if public.paperworld_v5_begin_effect(rec.step_id,w,'override-effect-01',
+  'copilot_agent','start_agent')<>'uncertain'
+ then raise exception 'override permitted duplicate paid reservation'; end if;
+ if (select count(*) from public.paperworld_autonomous_effects_v5
+   where mission_id=m and sessions=1)<>1
+ then raise exception 'override changed session debit'; end if;
+end $$;
+
 rollback;
 select 'PASS: real PostgreSQL 17 lifecycle, uncertain effects, offline simulation, budget and RLS' as result;
