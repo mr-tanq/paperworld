@@ -32,7 +32,7 @@
   {name:'Town Hall',x:594,y:365,rx:108,ry:23},
   {name:'Listening Mirror Workshop',x:1107,y:382,rx:104,ry:24},
   {name:'Pokémon Hub',x:338,y:574,rx:83,ry:21},
-  {name:'Wellbeing & Training Center',x:1361,y:564,rx:82,ry:20},
+  {name:'Wellbeing & Training Center',x:1361,y:564,rx:78,ry:20},
   {name:'The Lost Wanderer Studio',x:835,y:741,rx:162,ry:25},
   {name:'Central cherry tree and raised planter',x:830,y:475,rx:60,ry:34}
  ];
