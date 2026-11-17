@@ -58,6 +58,26 @@ function createCopilotIssueAdapter({fetcher=globalThis.fetch,token}={}){
    assignees:(issue.assignees||[]).map(x=>x.login),
    title:issue.title||'',body:issue.body||''});
  }
+ async function prepareIssue({projectId,issueNumber,effectKey}={}){
+  if(typeof effectKey!=='string'||!/^[a-zA-Z0-9:_-]{8,160}$/.test(effectKey))
+   throw Error('invalid_effect_key');
+  const issue=await getIssue(projectId,issueNumber);
+  const marker='<!-- paperworld-v5-effect:'+effectKey+' -->';
+  const matches=[...issue.body.matchAll(new RegExp(MARKER.source,'g'))];
+  if(matches.length>1||matches.length===1&&matches[0][1]!==effectKey)
+   throw Error('issue_already_reserved_for_different_effect');
+  if(issue.assignees.includes(BOT))
+   throw Error('agent_already_assigned_before_reservation');
+  if(matches.length===1)return Object.freeze({state:'prepared',repo:issue.repo,
+   issueNumber,effectKey});
+  // May create marker in existing issue but NEVER creates another issue
+  // or assigns an agent; uncertain PATCH errors must be inspected manually.
+  try{
+   await call(issue.repo,'/issues/'+issueNumber,{method:'PATCH',
+    body:{body:(issue.body?issue.body.trim()+'\n\n':'')+marker}});
+  }catch(_){return Object.freeze({state:'uncertain',repo:issue.repo,issueNumber,effectKey})}
+  return Object.freeze({state:'prepared',repo:issue.repo,issueNumber,effectKey});
+ }
  async function assign({projectId,issueNumber,effectReceipt}={}){
   const verified=validateIntent(effectReceipt);
   if(verified.issueNumber!==issueNumber||verified.projectId!==projectId)
@@ -102,6 +122,6 @@ function createCopilotIssueAdapter({fetcher=globalThis.fetch,token}={}){
    issueNumber,repo:issue.repo,prUrl:exact?.html_url||null,
    prNumber:exact?.number||null,prDraft:exact?.draft??null});
  }
- return Object.freeze({getIssue,assign,reconcile});
+ return Object.freeze({getIssue,prepareIssue,assign,reconcile});
 }
 module.exports=Object.freeze({createCopilotIssueAdapter,allowedRepo,validateIntent});
