@@ -3,16 +3,16 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const nav=require('../js/navigation.js'),depth=require('../js/depth.js');
 const read=f=>fs.readFileSync(path.join(__dirname,'..',f),'utf8');
 const buildings=[
- {id:'pokemon',bottom:646},
- {id:'wellbeing',bottom:645},
- {id:'studio',bottom:801},
- {id:'workshop',bottom:468}
+ {id:'pokemon',bottom:586},
+ {id:'wellbeing',bottom:577},
+ {id:'studio',bottom:757},
+ {id:'workshop',bottom:399}
 ];
 
 test('all published walkable links are obstacle-free and connected',()=>{
  assert.equal(nav.safeConnections.length,nav.connections.length,'do not silently discard a blocked path');
  for(const [a,b] of nav.connections)assert.ok(nav.clearSegment(nav.nodes[a],nav.nodes[b]),'edge '+a+'-'+b+' must stay on pavement');
- const hubs=[[535,520],[1125,515],[385,665],[1240,690],[835,854]];
+ const hubs=[[612,551],[1110,558],[385,665],[1238,640],[822,861]];
  for(const a of hubs)for(const b of hubs){
   const start=nav.snapToPath(a,12),end=nav.snapToPath(b,12);
   assert.ok(start&&end,'home approaches must be on mapped paths');
@@ -20,7 +20,7 @@ test('all published walkable links are obstacle-free and connected',()=>{
  }
 });
 test('route around the central blossom uses checked pavement or hidden rear alley',()=>{
- const start=nav.snapToPath([535,520],15),end=nav.snapToPath([1125,515],15);
+ const start=nav.snapToPath([612,551],2),end=nav.snapToPath([1110,558],2);
  const route=nav.routeBetween(start,end);
  assert.ok(route.length>1,'Town Hall and Listening Mirror remain connected');
  for(let i=1;i<route.length;i++)assert.ok(nav.clearSegment(route[i-1],route[i]),'do not cross a ground-level obstruction');
@@ -30,7 +30,7 @@ test('route around the central blossom uses checked pavement or hidden rear alle
 test('front public walkway wins over building overhang only on mapped path',()=>{
  const besidePokemon={x:415,y:625};
  assert.ok(nav.snapToPath([besidePokemon.x,besidePokemon.y],17),'test actor is on a sidewalk');
- assert.ok(depth.actorWalkwayDepth(besidePokemon,nav,buildings)>646,'visible sidewalk actor stays in front of pokemon roof');
+ assert.ok(depth.actorWalkwayDepth(besidePokemon,nav,buildings)>=586,'visible sidewalk actor stays in front of pokemon roof');
  assert.equal(depth.actorWalkwayDepth({x:340,y:575},nav,buildings),575,'off-road actor must not be floated over a roof');
  assert.equal(depth.actorWalkwayDepth({x:700,y:390},nav,buildings),390,'plaza actor keeps real feet-based depth');
 });
@@ -56,7 +56,7 @@ test('tablet navigation keeps Paths toggle in the visible Work Desk, not overflo
 });
 
 test('annotated red routes are curved and visible at the correct locations',()=>{
- const expected=[[535,520],[385,665],[835,854],[1240,690],[1125,515],[720,480],[850,365],[950,500]];
+ const expected=[[612,551],[385,665],[822,861],[1238,640],[1110,558],[720,480],[850,365],[950,500]];
  for(const point of expected){
   assert.ok(nav.nodes.some(n=>n[0]===point[0]&&n[1]===point[1]),'missing annotated waypoint '+point);
  }
@@ -67,7 +67,7 @@ test('annotated red routes are curved and visible at the correct locations',()=>
 });
 
 test('rear path behind Listening Mirror is connected and deliberately not overpainted',()=>{
- assert.equal(nav.nodes.length,56,'approved main paths plus 19 hidden walkable waypoints');
+ assert.equal(nav.nodes.length,83,'all 83 operable owner-authored sidewalk waypoints');
  assert.equal(nav.safeConnections.length,nav.connections.length,'all hidden alleys must be ground-safe');
  assert.ok(nav.hiddenConnections.length>=18,'occluded paths must be explicitly classified');
  const path=nav.routeBetween(nav.snapToPath([1040,305],10),nav.snapToPath([1210,305],10));
@@ -76,6 +76,6 @@ test('rear path behind Listening Mirror is connected and deliberately not overpa
  const app=read('js/app.js');
  assert.match(app,/navigation\.isHiddenEdge\(i,j\)\)continue/,'do not draw hidden paths over roofs');
  assert.match(app,/hiddenNodes\.has\(i\)/);
- const dep=depth.actorWalkwayDepth({x:1120,y:300},nav,[{id:'workshop',bottom:468}]);
+ const dep=depth.actorWalkwayDepth({x:1120,y:300},nav,[{id:'workshop',bottom:399}]);
  assert.ok(dep<468,'rear passage is rendered behind the workshop image');
 });

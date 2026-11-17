@@ -2,10 +2,10 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const navigation=require('../js/navigation.js'),visual=require('../js/director-movement.js');
 const actors=[
- {id:'listening-director',x:1125,y:515,direction:'down'},
+ {id:'listening-director',x:1110,y:558,direction:'down'},
  {id:'pokemon-director',x:385,y:665,direction:'down'},
- {id:'wellbeing-director',x:1240,y:690,direction:'down'},
- {id:'studio-director',x:835,y:854,direction:'down'}
+ {id:'wellbeing-director',x:1238,y:640,direction:'down'},
+ {id:'studio-director',x:822,y:861,direction:'down'}
 ];
 test('all director talk positions are on mapped unobstructed sidewalks with breathing room',()=>{
  for(const actor of actors){
@@ -13,7 +13,7 @@ test('all director talk positions are on mapped unobstructed sidewalks with brea
   assert.ok(stage,actor.id+' has a safe sidewalk staging point');
   assert.ok(stage.distance>=42&&stage.distance<=85,actor.id+' never overlaps visitor');
   assert.ok(navigation.clearSegment(stage.point,[actor.x,actor.y]),actor.id+' unobstructed sightline');
-  const start=navigation.snapToPath([835,854],110),end=navigation.snapToPath(stage.point,2);
+  const start=navigation.snapToPath([822,861],2),end=navigation.snapToPath(stage.point,2);
   const route=navigation.routeBetween(start,end);
   assert.ok(route.length>1,actor.id+' reachable from Matthew spawn');
   for(let i=1;i<route.length;i++)assert.ok(navigation.clearSegment(route[i-1],route[i]),actor.id+' walking remains collision-safe');

@@ -43,13 +43,16 @@ test('flag disconnected branches instead of inventing routes',()=>{
  assert.match(app,/pathDisconnectedComponents/);
  assert.match(app,/ασύνδετα τμήματα/);
 });
-test('use owner paths only for editor review, never modify live navigation',()=>{
- assert.match(app,/nodes:window\.PaperworldOwnerPathSurvey\.nodes/);
- assert.match(app,/storageKey:'paperworld-path-draft-owner-20261117-v2'/);
+test('retain exact owner export as archive while live routes use repaired connected graph',()=>{
+ assert.match(app,/nodes:window\.PaperworldNavigation\.nodes/);
+ assert.match(app,/storageKey:'paperworld-operational-paths-v1'/);
  assert.match(html,/owner-path-survey\.js\?v=20261117/);
- assert.ok(html.indexOf('owner-path-survey.js')<html.indexOf('js/app.js'));
- assert.ok(originalNav.safeConnections.length>0);
- assert.notDeepEqual(originalNav.nodes,survey.nodes);
+ assert.ok(html.indexOf('owner-path-survey.js')<html.indexOf('navigation.js'));
+ assert.ok(html.indexOf('navigation.js')<html.indexOf('js/app.js'));
+ assert.equal(originalNav.safeConnections.length,originalNav.connections.length);
+ assert.deepEqual(originalNav.nodes,survey.nodes.slice(0,83));
+ assert.deepEqual(originalNav.operationalExcludedNodes,[83,84]);
+ assert.equal(originalNav.repairedConnections.length,5);
  assert.match(app,/navigation\.snapToPath/);
  assert.match(app,/navigation\.routeBetween/);
 });
