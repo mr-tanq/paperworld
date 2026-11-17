@@ -319,6 +319,6 @@ begin
  if (select count(*) from public.paperworld_autonomous_events_v5
   where mission_id=mission and event_type='mission_completed')<>1
  then raise exception 'verification completion not idempotent'; end if;
-end $;
+end $$;
 rollback;
 select 'PASS: real PostgreSQL 17 lifecycle, uncertain effects, offline simulation, budget and RLS' as result;
