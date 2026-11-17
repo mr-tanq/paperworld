@@ -323,7 +323,7 @@ end $$;
 -- Owner-authorized unmetered-credit mode must retain hard session reservations.
 -- No provider/network call is made in this SQL-only transaction.
 \i sql/paperworld_v5_operator_credit_consent.sql
-do $
+do $$
 declare
  a uuid:='11111111-1111-4111-8111-111111111111';
  m uuid:='67676767-6767-4676-8676-676767676767';
@@ -362,7 +362,7 @@ begin
  if (select count(*) from public.paperworld_autonomous_effects_v5
    where mission_id=m and sessions=1)<>1
  then raise exception 'override changed session debit'; end if;
-end $;
+end $$;
 
 rollback;
 select 'PASS: real PostgreSQL 17 lifecycle, uncertain effects, offline simulation, budget and RLS' as result;
