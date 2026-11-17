@@ -29,6 +29,41 @@ function createDispatcher({environment,fetcher=fetch}={}){
    throw Error('unsupported_rpc');
   return db('rpc/'+name,'POST',args);
  }
+ async function verifyPendingPr(){
+  // The shared mission remains needs_you while no matching trusted CI exists.
+  // Polling here is read-only until verification has been positively confirmed.
+  const params=new URLSearchParams({
+   select:'id,owner_id,status,last_error,project_id',
+   status:'eq.needs_you',last_error:'eq.independent_godot_verification_required',
+   project_id:'eq.pokemon',order:'updated_at.asc',limit:'10'
+  });
+  const candidates=await db('paperworld_autonomous_missions_v5?'+params,'GET');
+  for(const m of candidates){
+   if(!uuid.test(m.id))continue;
+   const steps=await db('paperworld_autonomous_steps_v5?'+new URLSearchParams({
+    select:'id,output,capability',mission_id:'eq.'+m.id,
+    capability:'eq.await_pr',state:'eq.succeeded',limit:'1'
+   }),'GET');
+   if(steps.length!==1)continue;
+   const output=steps[0].output;
+   const match=/^https:\/\/github\.com\/mr-tanq\/pokemon-echoes\/pull\/(\d+)$/.exec(output?.prUrl||'');
+   if(!match||output?.verification!=='not_independently_verified')continue;
+   const adapter=createCopilotIssueAdapter({
+    fetcher,token:env('GITHUB_COPILOT_USER_TOKEN')
+   });
+   const proof=await adapter.verifyIndependentGodot({
+    projectId:'pokemon',prNumber:Number(match[1]),issueNumber:1
+   });
+   if(proof.state!=='verified')continue;
+   const finished=await rpc('paperworld_v5_finish_verified_copilot',{
+    p_mission:m.id,p_pr_number:proof.prNumber,p_head_sha:proof.headSha,
+    p_run_id:proof.runId,p_run_url:proof.runUrl
+   });
+   if(finished===true)return {state:'completed_verified',missionId:m.id,
+    prNumber:proof.prNumber,runUrl:proof.runUrl,sessionsStarted:0};
+  }
+  return {state:'no_verified_pr',sessionsStarted:0};
+ }
  async function processStep(){
   const options=await db('paperworld_autonomous_controller_v5?select=dispatch_enabled,live_adapters&singleton=eq.true&limit=1','GET');
   if(options.length!==1||options[0].dispatch_enabled!==true||
@@ -36,7 +71,7 @@ function createDispatcher({environment,fetcher=fetch}={}){
    return {state:'disabled',sessionsStarted:0};
   const worker=crypto.randomUUID();
   const rows=await rpc('paperworld_v5_claim_copilot_pilot',{p_worker:worker,p_seconds:600});
-  if(!Array.isArray(rows)||rows.length===0)return {state:'idle',sessionsStarted:0};
+  if(!Array.isArray(rows)||rows.length===0)return verifyPendingPr();
   if(rows.length!==1)throw Error('unexpected_claim_count');
   const step=rows[0];
   if(!uuid.test(step.step_id)||!uuid.test(step.mission_id)||

@@ -38,6 +38,7 @@ insert into public.paperworld_autonomous_controller_v5(singleton) values(true);
 \i sql/paperworld_v5_dispatch_v1_simulation.sql
 \i sql/paperworld_v5_copilot_pilot.sql
 \i sql/paperworld_v5_copilot_pr_verification_gate.sql
+\i sql/paperworld_v5_verified_ci_completion.sql
 
 do $$
 declare
@@ -284,6 +285,40 @@ begin
  if public.paperworld_v5_record_unverified_copilot_pr(
   step_id,worker,'https://github.com/mr-tanq/pokemon-echoes/pull/17',17)
  then raise exception 'repeated PR outcome accepted'; end if;
+ if public.paperworld_v5_finish_verified_copilot(
+  mission,17,repeat('a',40),987,
+  'https://github.com/mr-tanq/pokemon-echoes/actions/runs/987')
+ then raise exception 'mission completed without paid effect confirmation'; end if;
+ insert into public.paperworld_autonomous_steps_v5
+ (mission_id,owner_id,seq,role_id,capability,state,idempotency_key)
+ values(mission,owner_a,1,'pokemon-director','start_agent','succeeded',
+ 'copilot-start-synthetic-ci')
+ returning id into step_id;
+ insert into public.paperworld_autonomous_effects_v5
+ (effect_key,step_id,mission_id,owner_id,adapter,kind,state,sessions)
+ values('copilot:verified-synthetic-1',step_id,mission,owner_a,
+  'copilot_agent','start_agent','done',1);
+ if public.paperworld_v5_finish_verified_copilot(
+  mission,17,repeat('b',39),987,
+  'https://github.com/mr-tanq/pokemon-echoes/actions/runs/987')
+ then raise exception 'bad sha accepted'; end if;
+ if public.paperworld_v5_finish_verified_copilot(
+  mission,17,repeat('a',40),987,'https://other.example/run/987')
+ then raise exception 'foreign workflow run accepted'; end if;
+ if not public.paperworld_v5_finish_verified_copilot(
+  mission,17,repeat('a',40),987,
+  'https://github.com/mr-tanq/pokemon-echoes/actions/runs/987')
+ then raise exception 'trusted CI proof not completed'; end if;
+ if (select status from public.paperworld_autonomous_missions_v5
+  where id=mission)<>'completed'
+ then raise exception 'mission still incomplete after CI proof'; end if;
+ if public.paperworld_v5_finish_verified_copilot(
+  mission,17,repeat('a',40),987,
+  'https://github.com/mr-tanq/pokemon-echoes/actions/runs/987')
+ then raise exception 'verification replay accepted'; end if;
+ if (select count(*) from public.paperworld_autonomous_events_v5
+  where mission_id=mission and event_type='mission_completed')<>1
+ then raise exception 'verification completion not idempotent'; end if;
 end $$;
 rollback;
 select 'PASS: real PostgreSQL 17 lifecycle, uncertain effects, offline simulation, budget and RLS' as result;
