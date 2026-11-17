@@ -36,6 +36,7 @@ revoke all on public.paperworld_autonomous_controller_v5 from anon,authenticated
 insert into public.paperworld_autonomous_controller_v5(singleton) values(true);
 \i sql/paperworld_v5_dispatch_v1.sql
 \i sql/paperworld_v5_dispatch_v1_simulation.sql
+\i sql/paperworld_v5_copilot_pilot.sql
 
 do $$
 declare
@@ -195,6 +196,58 @@ begin
  then raise exception 'simulation spent a session'; end if;
  if public.paperworld_v5_controller_tick()->'simulation'->>'status'<>'idle'
  then raise exception 'simulation reran terminal mission'; end if;
+end $$;
+
+-- Pilot: service-role-only one issue. No network, no real AI session.
+do $$
+declare
+ a uuid:='11111111-1111-4111-8111-111111111111';
+ m uuid:='55555555-5555-4555-8555-555555555555';
+ w uuid:='44444444-4444-4444-8444-444444444444';
+ record_claim record;
+ key text;
+begin
+ insert into public.paperworld_autonomous_missions_v5
+ (id,owner_id,thread_id,project_id,goal,status,policy)
+ values(m,a,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','pokemon',
+ 'Synthetic Copilot API pilot, no live execution','draft',
+ '{"maxAiCalls":0,"additionalSpendUsd":0}'::jsonb);
+ update public.paperworld_autonomous_controller_v5
+ set dispatch_enabled=false,live_adapters='{}'::text[],
+  credit_snapshot=100,credit_snapshot_at=now() where singleton;
+ if public.paperworld_v5_queue_copilot_pilot(m,1)
+ then raise exception 'kill switch allowed a real pilot'; end if;
+ if public.paperworld_v5_queue_copilot_pilot(m,2)
+ then raise exception 'unexpected issue accepted'; end if;
+ update public.paperworld_autonomous_controller_v5
+ set dispatch_enabled=true,live_adapters=array['copilot_agent'],
+  credit_snapshot=100,credit_snapshot_at=now(),
+  sessions_per_day=1,sessions_per_mission=1 where singleton;
+ if not public.paperworld_v5_queue_copilot_pilot(m,1)
+ then raise exception 'bounded pilot failed to queue'; end if;
+ if public.paperworld_v5_queue_copilot_pilot(m,1)
+ then raise exception 'pilot queued twice'; end if;
+ select * into record_claim from public.paperworld_v5_claim_copilot_pilot(w,600);
+ if record_claim.mission_id is distinct from m
+   or record_claim.issue_number<>1 or record_claim.capability<>'start_agent'
+ then raise exception 'pilot claimed wrong repo/step'; end if;
+ key:=record_claim.effect_key;
+ if public.paperworld_v5_begin_effect(record_claim.step_id,w,key,
+  'copilot_agent','start_agent')<>'reserved'
+ then raise exception 'first bounded session reservation failed'; end if;
+ if public.paperworld_v5_begin_effect(record_claim.step_id,w,key,
+  'copilot_agent','start_agent')<>'uncertain'
+ then raise exception 'second paid session could start'; end if;
+ if (select count(*) from public.paperworld_autonomous_effects_v5
+   where mission_id=m and sessions=1)<>1
+ then raise exception 'session debit not exactly one'; end if;
+ if not public.paperworld_v5_mark_copilot_uncertain(key,w)
+ then raise exception 'uncertain side effect was not stopped'; end if;
+ if (select status from public.paperworld_autonomous_missions_v5
+   where id=m)<>'needs_you'
+ then raise exception 'uncertain task not owner-blocked'; end if;
+ if exists(select 1 from public.paperworld_v5_claim_copilot_pilot(w,600))
+ then raise exception 'uncertain task was restarted'; end if;
 end $$;
 rollback;
 select 'PASS: real PostgreSQL 17 lifecycle, uncertain effects, offline simulation, budget and RLS' as result;
