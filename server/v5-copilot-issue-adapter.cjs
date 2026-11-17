@@ -7,6 +7,16 @@
 const OWNER='mr-tanq';
 const TARGETS=Object.freeze({pokemon:'pokemon-echoes',listening:'concerts'});
 const BOT='copilot-swe-agent[bot]';
+// GitHub currently returns 'Copilot' for the same cloud-agent assignment.
+const isCopilot=(login)=>login===BOT||login==='Copilot';
+const copilotBranch=(pr)=>typeof pr?.head?.ref==='string'&&
+ /^copilot\/[a-zA-Z0-9._-]{1,120}$/.test(pr.head.ref);
+const trustedAgentPr=(pr,issueNumber,effectKey)=>
+ pr?.draft===true&&pr?.base?.ref==='main'&&copilotBranch(pr)&&
+ (isCopilot(pr?.user?.login)||pr?.user?.login===OWNER)&&
+ typeof pr?.body==='string'&&
+ pr.body.includes('#'+issueNumber)&&
+ pr.body.includes('<!-- paperworld-v5-effect:'+effectKey+' -->');
 const MARKER=/<!-- paperworld-v5-effect:([a-zA-Z0-9:_-]{8,160}) -->/;
 const API='https://api.github.com';
 function allowedRepo(projectId){
@@ -66,7 +76,7 @@ function createCopilotIssueAdapter({fetcher=globalThis.fetch,token}={}){
   const matches=[...issue.body.matchAll(new RegExp(MARKER.source,'g'))];
   if(matches.length>1||matches.length===1&&matches[0][1]!==effectKey)
    throw Error('issue_already_reserved_for_different_effect');
-  if(issue.assignees.includes(BOT))
+  if(issue.assignees.some(isCopilot))
    throw Error('agent_already_assigned_before_reservation');
   if(matches.length===1)return Object.freeze({state:'prepared',repo:issue.repo,
    issueNumber,effectKey});
@@ -88,7 +98,7 @@ function createCopilotIssueAdapter({fetcher=globalThis.fetch,token}={}){
   const matches=[...issue.body.matchAll(new RegExp(MARKER.source,'g'))];
   if(matches.length!==1||matches[0][1]!==verified.effectKey)
    throw Error('issue_effect_marker_mismatch');
-  if(issue.assignees.includes(BOT))
+  if(issue.assignees.some(isCopilot))
    return Object.freeze({state:'already_assigned',issueNumber,repo:issue.repo});
   // ONE attempt only. Any error after the call is uncertain, not retryable.
   try{
@@ -97,7 +107,7 @@ function createCopilotIssueAdapter({fetcher=globalThis.fetch,token}={}){
      target_repo:issue.repo,base_branch:'main',
      custom_instructions:'Follow repository instructions. Make a Draft PR; do not merge, deploy, edit workflows or expose secrets.'
     }}});
-   const accepted=(response.assignees||[]).some(x=>x.login===BOT);
+   const accepted=(response.assignees||[]).some(x=>isCopilot(x.login));
    if(!accepted)return Object.freeze({state:'uncertain',issueNumber,repo:issue.repo});
    return Object.freeze({state:'assigned',issueNumber,repo:issue.repo});
   }catch(_){
@@ -111,12 +121,11 @@ function createCopilotIssueAdapter({fetcher=globalThis.fetch,token}={}){
   const issue=await getIssue(projectId,issueNumber);
   if(!issue.body.includes('<!-- paperworld-v5-effect:'+effectKey+' -->'))
    throw Error('issue_effect_marker_mismatch');
-  if(!issue.assignees.includes(BOT))
+  if(!issue.assignees.some(isCopilot))
    return Object.freeze({state:'uncertain',reason:'unassigned_not_proof_of_no_session',
     issueNumber,repo:issue.repo});
   const pulls=await call(issue.repo,'/pulls?state=all&per_page=100');
-  const candidates=pulls.filter(pr=>pr.user?.login===BOT&&
-   (pr.body||'').includes('#'+issueNumber));
+  const candidates=pulls.filter(pr=>trustedAgentPr(pr,issueNumber,effectKey));
   const exact=candidates.length===1?candidates[0]:null;
   return Object.freeze({state:exact?'pr_found':'assigned',
    issueNumber,repo:issue.repo,prUrl:exact?.html_url||null,
@@ -130,8 +139,9 @@ function createCopilotIssueAdapter({fetcher=globalThis.fetch,token}={}){
   const sha=pr.head?.sha;
   if(!pr.draft||pr.state!=='open'||pr.number!==prNumber||
    !/^[0-9a-f]{40}$/.test(sha||'')||
-   pr.user?.login!==BOT||
-   pr.base?.ref!=='main'||
+   !(isCopilot(pr.user?.login)||pr.user?.login===OWNER)||
+   pr.base?.ref!=='main'||!copilotBranch(pr)||
+   !/<!-- paperworld-v5-effect:copilot:[0-9a-f-]{36} -->/.test(pr.body||'')||
    !(pr.body||'').includes('#'+issueNumber))
    return Object.freeze({state:'unverified',reason:'pr_identity_mismatch'});
   const workflow=await call(repo,

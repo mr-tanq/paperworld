@@ -52,14 +52,15 @@ function makeFake({enabled=true,postResult='assigned',phase='start_agent'}={}){
    if(u.pathname.endsWith('/issues/1/assignees')){
     if(postResult==='timeout')throw Error('simulated response lost');
     assigned=true;return {ok:true,json:async()=>({
-     assignees:[{login:'copilot-swe-agent[bot]'}]})};
+     assignees:[{login:'Copilot'}]})};
    }
    if(u.pathname.endsWith('/issues/1'))return {ok:true,json:async()=>({
     number:1,state:'open',title:'Synthetic',body:issueBody,
-    assignees:assigned?[{login:'copilot-swe-agent[bot]'}]:[]})};
+    assignees:assigned?[{login:'Copilot'}]:[]})};
    if(u.pathname.endsWith('/pulls'))return {ok:true,json:async()=>[{
     number:17,draft:true,html_url:'https://github.com/mr-tanq/pokemon-echoes/pull/17',
-    user:{login:'copilot-swe-agent[bot]'},body:'Fixes #1'
+    head:{ref:'copilot/five-battle-tests'},base:{ref:'main'},
+    user:{login:'mr-tanq'},body:'Fixes #1 '+marker
    }]};
   }
   throw Error('unexpected fetch '+method+' '+url);
@@ -123,10 +124,11 @@ test('Polling PR does not start a second AI session',async()=>{
   if(url.includes('rpc/paperworld_v5_record_unverified_copilot_pr'))return {ok:true,json:async()=>true};
   if(url.includes('/issues/1'))return {ok:true,json:async()=>({
    number:1,state:'open',title:'synthetic',body:marker,
-   assignees:[{login:'copilot-swe-agent[bot]'}]})};
+   assignees:[{login:'Copilot'}]})};
   if(url.includes('/pulls'))return {ok:true,json:async()=>[{
    number:5,html_url:'https://github.com/mr-tanq/pokemon-echoes/pull/5',
-   draft:true,user:{login:'copilot-swe-agent[bot]'},body:'Closes #1'
+   draft:true,head:{ref:'copilot/five-battle-tests'},base:{ref:'main'},
+   user:{login:'mr-tanq'},body:'Closes #1 '+marker
   }]};
   throw Error('unexpected network '+method+' '+url);
  }});
