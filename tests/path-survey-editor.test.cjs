@@ -39,7 +39,7 @@ test('invalid or corrupted local path data fails closed to original network',()=
 });
 test('live walking network is not overwritten by editing the draft',()=>{
  assert.match(app,/const pathDraft=pathEditor\.create\(/);
- assert.match(app,/if\(editingPaths\)pathDraft\.draw\(ctx\)/);
+ assert.match(app,/if\(editingPaths\)\s*\{\s*pathDraft\.draw\(ctx\)/);
  assert.match(app,/if\(editingPaths&&v\?\.path\)/);
  assert.doesNotMatch(app,/navigation\s*=\s*pathDraft/);
  assert.ok(html.includes('id="path-editor-toggle"'));
