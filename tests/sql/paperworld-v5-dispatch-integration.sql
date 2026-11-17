@@ -322,7 +322,7 @@ begin
 end $$;
 -- Owner-authorized unmetered-credit mode must retain hard session reservations.
 -- No provider/network call is made in this SQL-only transaction.
-\\i sql/paperworld_v5_operator_credit_consent.sql
+\i sql/paperworld_v5_operator_credit_consent.sql
 do $
 declare
  a uuid:='11111111-1111-4111-8111-111111111111';
