@@ -61,7 +61,7 @@ const pathDraft=pathEditor.create({
  hiddenConnections:window.PaperworldNavigation.hiddenConnections,
  width:W,height:H,
  storage:window.localStorage,
- storageKey:'paperworld-operational-paths-v1'
+ storageKey:'paperworld-operational-paths-studio-only-v2'
 });
 let editingPaths=false;
 function pathDisconnectedComponents(){
