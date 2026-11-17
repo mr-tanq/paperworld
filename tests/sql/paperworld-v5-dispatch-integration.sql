@@ -37,6 +37,7 @@ insert into public.paperworld_autonomous_controller_v5(singleton) values(true);
 \i sql/paperworld_v5_dispatch_v1.sql
 \i sql/paperworld_v5_dispatch_v1_simulation.sql
 \i sql/paperworld_v5_copilot_pilot.sql
+\i sql/paperworld_v5_copilot_pr_verification_gate.sql
 
 do $$
 declare
@@ -248,6 +249,41 @@ begin
  then raise exception 'uncertain task not owner-blocked'; end if;
  if exists(select 1 from public.paperworld_v5_claim_copilot_pilot(w,600))
  then raise exception 'uncertain task was restarted'; end if;
+end $$;
+
+-- A PR link is not a verified pass: mission must remain needs_you.
+do $$
+declare
+ owner_a uuid:='11111111-1111-4111-8111-111111111111';
+ mission uuid:='12121212-1212-4212-8212-121212121212';
+ worker uuid:='34343434-3434-4434-8434-343434343434';
+ step_id uuid;
+begin
+ insert into public.paperworld_autonomous_missions_v5
+ (id,owner_id,thread_id,project_id,goal,status,policy)
+ values(mission,owner_a,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'pokemon','Synthetic unverified PR','running',
+  '{"executionMode":"copilot_pilot","maxAiCalls":1,"additionalSpendUsd":0}'::jsonb);
+ insert into public.paperworld_autonomous_steps_v5
+ (mission_id,owner_id,seq,role_id,capability,state,
+  idempotency_key,lease_owner,lease_expires_at)
+ values(mission,owner_a,2,'pokemon-director','await_pr',
+  'leased','copilot-await-pr-gate',worker,now()+interval '10 minutes')
+ returning id into step_id;
+ if public.paperworld_v5_record_unverified_copilot_pr(
+  step_id,worker,'https://github.com/attacker/repo/pull/1',1)
+ then raise exception 'untrusted PR URL accepted'; end if;
+ if not public.paperworld_v5_record_unverified_copilot_pr(
+  step_id,worker,'https://github.com/mr-tanq/pokemon-echoes/pull/17',17)
+ then raise exception 'trusted PR was not recorded'; end if;
+ if (select status from public.paperworld_autonomous_missions_v5 where id=mission)
+  <>'needs_you' then raise exception 'unverified PR incorrectly completed'; end if;
+ if (select output->>'verification' from public.paperworld_autonomous_steps_v5
+   where id=step_id)<>'not_independently_verified'
+ then raise exception 'unverified PR lacked explicit warning'; end if;
+ if public.paperworld_v5_record_unverified_copilot_pr(
+  step_id,worker,'https://github.com/mr-tanq/pokemon-echoes/pull/17',17)
+ then raise exception 'repeated PR outcome accepted'; end if;
 end $$;
 rollback;
 select 'PASS: real PostgreSQL 17 lifecycle, uncertain effects, offline simulation, budget and RLS' as result;
