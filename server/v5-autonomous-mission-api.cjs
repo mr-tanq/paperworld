@@ -45,7 +45,7 @@ function makeAutonomousMissionApi({fetcher=globalThis.fetch,
   try{
    if(action==='status'){
     const rows=await query('GET',
-     'paperworld_autonomous_controller_v5?select=last_tick_at,tick_count,dispatch_enabled,live_adapters,credit_snapshot,credit_snapshot_at&singleton=eq.true&limit=1');
+     'paperworld_autonomous_controller_v5?select=last_tick_at,tick_count,dispatch_enabled,live_adapters,credit_snapshot,credit_snapshot_at,credit_stop_at,allow_unmetered_copilot&singleton=eq.true&limit=1');
     const last=rows.length===1?rows[0].last_tick_at:null;
     const millis=typeof last==='string'?Date.parse(last):NaN;
     const healthy=Number.isFinite(millis)&&
@@ -54,8 +54,11 @@ function makeAutonomousMissionApi({fetcher=globalThis.fetch,
     const lastCredit=conf?.credit_snapshot_at?Date.parse(conf.credit_snapshot_at):NaN;
     const pilotQueueEnabled=conf?.dispatch_enabled===true&&
       Array.isArray(conf?.live_adapters)&&conf.live_adapters.includes('copilot_agent')&&
-      Number.isFinite(conf?.credit_snapshot)&&conf.credit_snapshot<1050&&
-      Number.isFinite(lastCredit)&&Date.now()-lastCredit<24*60*60*1000;
+      (conf?.allow_unmetered_copilot===true||
+       (Number.isFinite(conf?.credit_snapshot)&&
+        Number.isFinite(conf?.credit_stop_at)&&
+        conf.credit_snapshot<conf.credit_stop_at&&
+        Number.isFinite(lastCredit)&&Date.now()-lastCredit<24*60*60*1000));
     return {status:200,body:{controller:{
      supervisor:healthy?'active':'not_verified',
      lastTickAt:Number.isFinite(millis)?last:null,
