@@ -379,7 +379,7 @@
    return result;
   }
   async function autonomousMissionAction(action,details={}){
-   if(!['create','list','status','simulate'].includes(action))throw Error('Invalid mission action');
+   if(!['create','list','status','simulate','pilot'].includes(action))throw Error('Invalid mission action');
    await ensureAuth();
    const thread=await getAgentThread('matt',action==='create');
    if(!thread){
@@ -414,6 +414,17 @@
     result.controller.modelCallsEnabled!==false)
     throw Error('Unverified autonomous supervisor');
    return result.controller;
+  }
+  async function launchCopilotPilot(missionId){
+   if(!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(missionId||''))
+    throw Error('Invalid pilot mission');
+   const result=await autonomousMissionAction('pilot',{missionId,consent:true});
+   if(result?.queued!==true||result.missionId!==missionId||
+    result.execution!=='real_copilot_pilot'||
+    result.sessionBudget!==1||result.autoMerge!==false||
+    result.autoDeploy!==false)
+    throw Error('Pilot authorization not confirmed');
+   return result;
   }
   async function simulateAutonomousMission(missionId){
    if(!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(missionId||''))
@@ -799,7 +810,7 @@
   }
   return {BASE,identity,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   createAutonomousMission,listAutonomousMissions,autonomousControllerStatus,simulateAutonomousMission,
+   createAutonomousMission,listAutonomousMissions,autonomousControllerStatus,simulateAutonomousMission,launchCopilotPilot,
    listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,previewImportedDirectorMemory,approveImportedDirectorMemory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,sourceFactWorker,mattJobHistory,teamHandoffHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
    listPokemonProposals,rejectPokemonProposal,publishPokemonProposal,
