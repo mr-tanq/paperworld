@@ -36,6 +36,12 @@ begin
   'copilot:pilot:'||m.id::text,
   jsonb_build_object('issueNumber',p_issue,'repository','mr-tanq/pokemon-echoes',
     'effectKey','copilot:'||m.id::text),1);
+ insert into public.paperworld_autonomous_steps_v5
+ (mission_id,owner_id,seq,role_id,capability,state,idempotency_key,input,max_attempts)
+ values(p_mission,m.owner_id,2,'pokemon-director','await_pr','pending',
+  'copilot:await:'||m.id::text,
+  jsonb_build_object('issueNumber',p_issue,'repository','mr-tanq/pokemon-echoes',
+    'effectKey','copilot:'||m.id::text),2);
  update public.paperworld_autonomous_missions_v5 set
   status='queued',updated_at=now(),
   policy=(m.policy||jsonb_build_object('maxAiCalls',1,
@@ -55,7 +61,7 @@ end $$;
 -- the specific first pilot. A scheduled SQL simulation cannot claim it.
 create or replace function public.paperworld_v5_claim_copilot_pilot(
  p_worker uuid,p_seconds integer default 600)
-returns table(step_id uuid,mission_id uuid,owner_id uuid,issue_number integer,effect_key text)
+returns table(step_id uuid,mission_id uuid,owner_id uuid,issue_number integer,effect_key text,capability text)
 language plpgsql security invoker set search_path=public
 as $$
 declare s public.paperworld_autonomous_steps_v5%rowtype;
@@ -70,7 +76,7 @@ begin
  select st.* into s from public.paperworld_autonomous_steps_v5 st
  join public.paperworld_autonomous_missions_v5 mi on
   mi.id=st.mission_id and mi.owner_id=st.owner_id
- where st.state='ready' and st.capability='start_agent'
+ where st.state='ready' and st.capability in ('start_agent','await_pr')
   and st.attempts<st.max_attempts and st.run_after<=now()
   and st.input->>'repository'='mr-tanq/pokemon-echoes'
   and st.input->>'issueNumber'='1'
@@ -93,7 +99,7 @@ begin
  values(s.mission_id,s.owner_id,s.id,'copilot_step_claimed',
   '{"session_limit":1,"repository":"mr-tanq/pokemon-echoes"}'::jsonb);
  return query select s.id,s.mission_id,s.owner_id,
-  (s.input->>'issueNumber')::integer,s.input->>'effectKey';
+  (s.input->>'issueNumber')::integer,s.input->>'effectKey',s.capability;
 end $$;
 
 -- Mark uncertain API outcome safely; never recreate the same session.
