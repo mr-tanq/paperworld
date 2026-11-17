@@ -2,7 +2,8 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs');
 const adapterPath='../supabase/functions/paperworld-copilot-dispatch/index.mjs';
-const {createDispatcher}=await import(adapterPath);
+let createDispatcher;
+test.before(async()=>{({createDispatcher}=await import(adapterPath));});
 const trigger='test-trigger-secret-0000000000000000000000';
 const token='synthetic_github_token_0123456789';
 const service='sb_secret_synthetic_service_key';
