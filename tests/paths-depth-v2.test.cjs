@@ -66,16 +66,19 @@ test('annotated red routes are curved and visible at the correct locations',()=>
  assert.equal(nav.safeConnections.length,nav.connections.length,'all edges must remain safe');
 });
 
-test('rear path behind Listening Mirror is connected and deliberately not overpainted',()=>{
- assert.equal(nav.nodes.length,83,'all 83 operable owner-authored sidewalk waypoints');
+test('removed Listening Mirror bypass does not reappear in live navigation',()=>{
+ assert.equal(nav.nodes.length,65,'65 connected waypoints excluding the right hidden bypass');
  assert.equal(nav.safeConnections.length,nav.connections.length,'all hidden alleys must be ground-safe');
- assert.ok(nav.hiddenConnections.length>=18,'occluded paths must be explicitly classified');
- const path=nav.routeBetween(nav.snapToPath([1040,305],10),nav.snapToPath([1210,305],10));
- assert.ok(path.length>2,'rear side of Listening Mirror is reachable');
- assert.ok(path.some(([x,y])=>x>=1040&&x<=1210&&y<=320),'a route between rear alley points follows the hidden workshop passage');
+ assert.equal(nav.hiddenConnections.length,7,'only Studio rear path stays hidden');
+ const removed=[[950,355],[988,320],[1040,305],[1120,300],[1210,305],[1270,335]];
+ for(const p of removed)assert.equal(nav.nodes.some(n=>n[0]===p[0]&&n[1]===p[1]),false,
+   'right-hand purple bypass waypoint '+p+' must not exist');
+ const studio=nav.routeBetween(nav.snapToPath([700,560],2),nav.snapToPath([990,540],2));
+ assert.ok(studio.length>2,'Studio rear hidden path remains connected');
+ assert.equal(nav.isHiddenEdge(16,37),true);
  const app=read('js/app.js');
  assert.match(app,/navigation\.isHiddenEdge\(i,j\)\)continue/,'do not draw hidden paths over roofs');
  assert.match(app,/hiddenNodes\.has\(i\)/);
- const dep=depth.actorWalkwayDepth({x:1120,y:300},nav,[{id:'workshop',bottom:399}]);
- assert.ok(dep<468,'rear passage is rendered behind the workshop image');
+ const dep=depth.actorWalkwayDepth({x:820,y:560},nav,[{id:'studio',bottom:757}]);
+ assert.ok(dep<757,'Studio rear passage stays behind its artwork');
 });

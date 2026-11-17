@@ -45,14 +45,14 @@ test('flag disconnected branches instead of inventing routes',()=>{
 });
 test('retain exact owner export as archive while live routes use repaired connected graph',()=>{
  assert.match(app,/nodes:window\.PaperworldNavigation\.nodes/);
- assert.match(app,/storageKey:'paperworld-operational-paths-v1'/);
+ assert.match(app,/storageKey:'paperworld-operational-paths-studio-only-v2'/);
  assert.match(html,/owner-path-survey\.js\?v=20261117/);
  assert.ok(html.indexOf('owner-path-survey.js')<html.indexOf('navigation.js'));
  assert.ok(html.indexOf('navigation.js')<html.indexOf('js/app.js'));
  assert.equal(originalNav.safeConnections.length,originalNav.connections.length);
- assert.deepEqual(originalNav.nodes,survey.nodes.slice(0,83));
- assert.deepEqual(originalNav.operationalExcludedNodes,[83,84]);
- assert.equal(originalNav.repairedConnections.length,5);
+ assert.deepEqual(originalNav.nodes,survey.nodes.filter((_,i)=>!originalNav.operationalExcludedNodes.includes(i)));
+ assert.deepEqual(originalNav.operationalExcludedNodes,[43,44,45,46,47,48,49,50,51,52,53,54,55,78,79,80,81,82,83,84]);
+ assert.equal(originalNav.repairedConnections.length,0);
  assert.match(app,/navigation\.snapToPath/);
  assert.match(app,/navigation\.routeBetween/);
 });
