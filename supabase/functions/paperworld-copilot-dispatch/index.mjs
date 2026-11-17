@@ -12,8 +12,21 @@ const json=(status,body)=>new Response(JSON.stringify(body),{status,headers:{
  'x-content-type-options':'nosniff'}});
 function createDispatcher({environment,fetcher=fetch}={}){
  const env=(key)=>environment?.(key);
+ // Prefer modern backend-only Supabase secret API keys, with legacy fallback.
+ // Never expose credentials in logs or response bodies.
+ function dbSecret(){
+  const raw=env('SUPABASE_SECRET_KEYS');
+  if(raw){try{
+   const keys=JSON.parse(raw);
+   if(typeof keys?.default==='string'&&keys.default.startsWith('sb_secret_'))
+    return keys.default;
+  }catch(_){/* fall back to legacy if available */}
+  }
+  const legacy=env('SUPABASE_SERVICE_ROLE_KEY');
+  return typeof legacy==='string'&&legacy.length>20?legacy:null;
+ }
  async function db(path,method='POST',body){
-  const key=env('SUPABASE_SERVICE_ROLE_KEY');
+  const key=dbSecret();
   if(!key)throw Error('supabase_secret_missing');
   const r=await fetcher(PROJECT_URL+'/rest/v1/'+path,{
    method,redirect:'error',signal:AbortSignal.timeout(12000),
@@ -144,11 +157,14 @@ function createDispatcher({environment,fetcher=fetch}={}){
   if(request.method!=='POST')return json(405,{error:'method_not_allowed'});
   const secret=env('PAPERWORLD_DISPATCH_TRIGGER_SECRET');
   const token=env('GITHUB_COPILOT_USER_TOKEN');
-  const service=env('SUPABASE_SERVICE_ROLE_KEY');
-  if(!secret||secret.length<32||!service||!token)
-   return json(503,{error:'credentials_not_configured'});
+  const service=dbSecret();
+  if(!secret||secret.length<32)
+   return json(503,{error:'trigger_secret_unavailable'});
   if(request.headers.get('authorization')!=='Bearer '+secret)
    return json(401,{error:'unauthorized'});
+  if(!service||!token)
+   return json(503,{error:'credentials_not_configured',
+    missing: [!service?'supabase_backend_key':null,!token?'github_copilot_user_token':null].filter(Boolean)});
   try{return json(200,await processStep())}
   catch(_){return json(503,{error:'dispatch_paused_needs_reconciliation'})}
  }
