@@ -61,7 +61,7 @@ const pathDraft=pathEditor.create({
  hiddenConnections:window.PaperworldOwnerPathSurvey.hiddenConnections,
  width:W,height:H,
  storage:window.localStorage,
- storageKey:'paperworld-path-draft-owner-20261117-v1'
+ storageKey:'paperworld-path-draft-owner-20261117-v2'
 });
 let editingPaths=false;
 function pathDisconnectedComponents(){
