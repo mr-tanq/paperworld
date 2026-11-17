@@ -8,7 +8,7 @@ const receipt={state:'reserved',adapter:'copilot_agent',kind:'start_agent',
  verifiedBudget:true,allowedByDatabase:true,sessions:1,effectKey,
  stepId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',issueNumber,projectId};
 function fixture({assigned=false,onAssign=()=>{}}={}){
- let issueBody='Synthetic instruction',assignees=assigned?['copilot-swe-agent[bot]']:[];
+ let issueBody='Synthetic instruction',assignees=assigned?['Copilot']:[];
  const requests=[];
  const fetcher=async(url,opts)=>{
   requests.push({url,method:opts.method||'GET',body:opts.body});
@@ -19,7 +19,7 @@ function fixture({assigned=false,onAssign=()=>{}}={}){
   if(path.endsWith('/issues/1/assignees')){
    const assignedResponse=onAssign();
    if(assignedResponse==='timeout')throw Error('timeout after GitHub may have accepted');
-   assignees=['copilot-swe-agent[bot]'];
+   assignees=['Copilot'];
    return {ok:true,json:async()=>({assignees:assignees.map(login=>({login}))})};
   }
   if(path.endsWith('/issues/1'))return {ok:true,json:async()=>({
@@ -29,7 +29,7 @@ function fixture({assigned=false,onAssign=()=>{}}={}){
   throw Error('unexpected '+url);
  };
  return {adapter:createCopilotIssueAdapter({fetcher,token}),requests,
-  assigned:()=>assignees.includes('copilot-swe-agent[bot]')};
+  assigned:()=>assignees.includes('Copilot')};
 }
 test('Explicit repo allowlist excludes Crow, Dave, arbitrary repo and private owner swaps',()=>{
  assert.equal(allowedRepo('pokemon'),'mr-tanq/pokemon-echoes');
