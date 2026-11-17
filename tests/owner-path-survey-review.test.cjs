@@ -45,7 +45,7 @@ test('flag disconnected branches instead of inventing routes',()=>{
 });
 test('use owner paths only for editor review, never modify live navigation',()=>{
  assert.match(app,/nodes:window\.PaperworldOwnerPathSurvey\.nodes/);
- assert.match(app,/storageKey:'paperworld-path-draft-owner-20261117-v1'/);
+ assert.match(app,/storageKey:'paperworld-path-draft-owner-20261117-v2'/);
  assert.match(html,/owner-path-survey\.js\?v=20261117/);
  assert.ok(html.indexOf('owner-path-survey.js')<html.indexOf('js/app.js'));
  assert.ok(originalNav.safeConnections.length>0);
