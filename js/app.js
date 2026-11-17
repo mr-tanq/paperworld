@@ -5,7 +5,7 @@ const depth=window.PaperworldDepth;
 if(!depth)throw new Error('PAPERWORLD depth module not loaded');
 const pathEditor=window.PaperworldPathEditor;
 if(!pathEditor)throw new Error('PAPERWORLD path editor module not loaded');
-const state={width:0,height:0,dpr:1,scale:1,fit:1,x:0,y:0,pointer:null,chosen:null,walker:{x:835,y:854,direction:'down',moving:false,walkDistance:14},route:[],destination:null,depthDemo:0};
+const state={width:0,height:0,dpr:1,scale:1,fit:1,x:0,y:0,pointer:null,chosen:null,walker:{x:822,y:861,direction:'down',moving:false,walkDistance:14},route:[],destination:null,depthDemo:0};
 const defs=[
 {id:'town',name:'Town Hall',file:'./assets/town-hall.png',x:594,bottom:381,width:356,entrance:[419,523],approach:[535,520],desc:'The future approval and budget hub. All operations remain disabled.'},
 {id:'workshop',name:'Listening Mirror Workshop',file:'./assets/listening-mirror-workshop.png',x:1107,bottom:399,width:358,entrance:[1165,342],approach:[1125,515],desc:'The music discovery project workspace. No real tasks are connected.'},
@@ -56,12 +56,12 @@ const pathExport=document.querySelector('#path-editor-export');
 const pathModeSelect=document.querySelector('#path-editor-mode');
 const pathVisibility=document.querySelector('#path-editor-show-hidden');
 const pathDraft=pathEditor.create({
- nodes:window.PaperworldOwnerPathSurvey.nodes,
- connections:window.PaperworldOwnerPathSurvey.connections,
- hiddenConnections:window.PaperworldOwnerPathSurvey.hiddenConnections,
+ nodes:window.PaperworldNavigation.nodes,
+ connections:window.PaperworldNavigation.connections,
+ hiddenConnections:window.PaperworldNavigation.hiddenConnections,
  width:W,height:H,
  storage:window.localStorage,
- storageKey:'paperworld-path-draft-owner-20261117-v2'
+ storageKey:'paperworld-operational-paths-v1'
 });
 let editingPaths=false;
 function pathDisconnectedComponents(){
@@ -199,7 +199,19 @@ const directorDisplayNames=Object.freeze({
 function actorDisplayName(actor){
  return actor.id==='matt'?'Matt':(directorDisplayNames[actor.id]||'Director');
 }
-const actors=defs.map(d=>({id:({town:'matt',workshop:'listening-director',pokemon:'pokemon-director',wellbeing:'wellbeing-director',studio:'studio-director'})[d.id],name:d.id==='town'?'Matt':d.name+' Director',x:d.approach[0],y:d.approach[1]}));
+// Align feet to the owner's connected paved waypoints; do not move the buildings.
+const homeOnPaths=Object.freeze({
+ 'matt':[612,551],
+ 'listening-director':[1110,558],
+ 'pokemon-director':[385,665],
+ 'wellbeing-director':[1238,640],
+ 'studio-director':[822,861]
+});
+const actors=defs.map(d=>{
+ const id=({town:'matt',workshop:'listening-director',pokemon:'pokemon-director',wellbeing:'wellbeing-director',studio:'studio-director'})[d.id];
+ const [x,y]=homeOnPaths[id];
+ return {id,name:d.id==='town'?'Matt':d.name+' Director',x,y};
+});
 // Matt follows the player along previously walked positions rather than
 // teleporting through houses. This is visual companionship, not AI execution.
 // Matt's visual animation is independent of AI execution and task delegation.
