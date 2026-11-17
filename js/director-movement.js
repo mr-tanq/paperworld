@@ -11,17 +11,17 @@
  'use strict';
  const meetingPlaces=Object.freeze({
   'listening-director':[620,530],
-  'pokemon-director':[475,580],
-  'wellbeing-director':[535,520],
+  'pokemon-director':[499,600],
+  'wellbeing-director':[612,551],
   'studio-director':[415,625]
  });
  // Dedicated safe sidewalk positions next to each Director, never their feet.
  // Coordinates were chosen from the existing reviewed navigation graph.
  const talkSpots=Object.freeze({
-  'listening-director':Object.freeze([1080,530]),
+  'listening-director':Object.freeze([1040,580]),
   'pokemon-director':Object.freeze([415,625]),
-  'wellbeing-director':Object.freeze([1190,680]),
-  'studio-director':Object.freeze([895,851.091])
+  'wellbeing-director':Object.freeze([1170,625]),
+  'studio-director':Object.freeze([750,837.6])
  });
  function facingToward(from,to,previous='down'){
   const dx=to.x-from.x,dy=to.y-from.y;
