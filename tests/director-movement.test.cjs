@@ -4,10 +4,10 @@ const root=path.resolve(__dirname,'..');
 const navigation=require('../js/navigation.js');
 const assembly=require('../js/director-movement.js');
 const origins=[
- ['listening-director',1125,515],
+ ['listening-director',1110,558],
  ['pokemon-director',385,665],
- ['wellbeing-director',1240,690],
- ['studio-director',835,854]
+ ['wellbeing-director',1238,640],
+ ['studio-director',822,861]
 ];
 test('all four approved Director paths stay on the surveyed network',()=>{
  for(const [id,x,y] of origins){
