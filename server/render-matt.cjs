@@ -213,7 +213,8 @@ function createRenderMattServer({oauth=createGithubOAuth({
   const missionAction={'/autonomous/missions/create':'create',
    '/autonomous/missions/list':'list',
    '/autonomous/missions/status':'status',
-   '/autonomous/missions/simulate':'simulate'}[req.url];
+   '/autonomous/missions/simulate':'simulate',
+   '/autonomous/missions/pilot':'pilot'}[req.url];
   if(missionAction){
    if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
     res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
