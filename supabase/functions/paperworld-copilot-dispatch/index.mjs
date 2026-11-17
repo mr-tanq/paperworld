@@ -50,11 +50,9 @@ function createDispatcher({environment,fetcher=fetch}={}){
   if(step.capability==='await_pr'){
    const found=await adapter.reconcile({projectId,issueNumber,effectKey});
    if(found.state==='pr_found'&&found.prUrl){
-    const completed=await rpc('paperworld_v5_complete_step',{
-     p_step:step.step_id,p_worker:worker,p_result:{
-      issueNumber,prUrl:found.prUrl,prNumber:found.prNumber,
-      source:'github_copilot',verification:'not_yet_independently_verified'
-     }});
+    const completed=await rpc('paperworld_v5_record_unverified_copilot_pr',{
+     p_step:step.step_id,p_worker:worker,
+     p_pr_url:found.prUrl,p_pr_number:found.prNumber});
     if(completed!==true)throw Error('completion_not_persisted');
     return {state:'pr_found_requires_independent_verification',
      missionId:step.mission_id,prUrl:found.prUrl,sessionsStarted:0};
