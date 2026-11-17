@@ -3,8 +3,8 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const path=require('node:path'),nav=require('../js/navigation.js');
 const life=require('../js/village-life.js');
 const home=[
- ['listening-director',1125,515],['pokemon-director',385,665],
- ['wellbeing-director',1240,690],['studio-director',835,854]
+ ['listening-director',1110,558],['pokemon-director',385,665],
+ ['wellbeing-director',1238,640],['studio-director',822,861]
 ];
 const actors=()=>home.map(([id,x,y])=>({id,x,y,direction:'down',walkDistance:14,moving:false}));
 test('Natural life roams at bounded speed along only approved sidewalk links',()=>{
