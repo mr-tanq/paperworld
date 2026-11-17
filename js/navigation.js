@@ -14,16 +14,26 @@
  const survey=(typeof module==='object'&&module.exports)
   ?require('./owner-path-survey.js'):root.PaperworldOwnerPathSurvey;
  if(!survey||survey.nodes.length!==85)throw new Error('Owner path survey missing');
- const nodes=survey.nodes.slice(0,83).map(p=>[...p]);
- // Five short links restore the survey's interrupted upper road and connect the
- // right-hand raised terrace. No new crossing through the garden or water.
- const repairedConnections=Object.freeze([[45,46],[46,47],[47,48],[48,49],[49,78]]);
- const connections=[...survey.connections.map(e=>[...e]),...repairedConnections.map(e=>[...e])];
- const edgeKey=(a,b)=>[Math.min(a,b),Math.max(a,b)].join(':');
- const hiddenConnections=Object.freeze([
-  ...survey.hiddenConnections.map(e=>[...e]),
-  [45,46],[46,47],[47,48],[48,49]
+ // Remove the entire right-hand purple detour toward Listening Mirror,
+ // not just its overlay. Preserve the Studio's seven rear hidden edges.
+ // Old indices are kept in the immutable survey for future user reference.
+ const removedSurveyNodes=new Set([
+  43,44,45,46,47,48,49,50,51,52,53,54,55,
+  78,79,80,81,82,83,84
  ]);
+ const retainedSurveyIndices=survey.nodes.map((_,i)=>i)
+  .filter(i=>!removedSurveyNodes.has(i));
+ const operationalIndex=new Map(retainedSurveyIndices.map((id,i)=>[id,i]));
+ const nodes=retainedSurveyIndices.map(i=>[...survey.nodes[i]]);
+ const keepEdge=([a,b])=>operationalIndex.has(a)&&operationalIndex.has(b);
+ const remap=([a,b])=>[operationalIndex.get(a),operationalIndex.get(b)];
+ const connections=survey.connections.filter(keepEdge).map(remap);
+ // Only the Studio rear passage survives as a hidden (purple) walkway.
+ const hiddenConnections=Object.freeze(
+  survey.hiddenConnections.filter(keepEdge).map(remap)
+ );
+ const repairedConnections=Object.freeze([]);
+ const edgeKey=(a,b)=>[Math.min(a,b),Math.max(a,b)].join(':');
  const hiddenEdgeKeys=new Set(hiddenConnections.map(([a,b])=>edgeKey(a,b)));
  const isHiddenEdge=(a,b)=>hiddenEdgeKeys.has(edgeKey(a,b));
  // Collision bases calibrated for the owner's CURRENT building placement, not
@@ -101,5 +111,5 @@
   const ids=[];for(let at=endId;at!==-1;at=prev[at])ids.unshift(at);
   return ids.map(i=>i===startId?[...start.point]:i===endId?[...end.point]:[...nodes[i]]);
  }
- return {nodes,connections,hiddenConnections,isHiddenEdge,obstacles,safeConnections,blockedPoint,clearSegment,nearestNode,findRoute,snapToPath,routeBetween,distance,operationalExcludedNodes:Object.freeze([83,84]),repairedConnections};
+ return {nodes,connections,hiddenConnections,isHiddenEdge,obstacles,safeConnections,blockedPoint,clearSegment,nearestNode,findRoute,snapToPath,routeBetween,distance,operationalExcludedNodes:Object.freeze([...removedSurveyNodes].sort((a,b)=>a-b)),repairedConnections};
 });
