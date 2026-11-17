@@ -56,16 +56,34 @@ const pathExport=document.querySelector('#path-editor-export');
 const pathModeSelect=document.querySelector('#path-editor-mode');
 const pathVisibility=document.querySelector('#path-editor-show-hidden');
 const pathDraft=pathEditor.create({
- nodes:window.PaperworldNavigation.nodes,
- connections:window.PaperworldNavigation.connections,
- hiddenConnections:window.PaperworldNavigation.hiddenConnections,
+ nodes:window.PaperworldOwnerPathSurvey.nodes,
+ connections:window.PaperworldOwnerPathSurvey.connections,
+ hiddenConnections:window.PaperworldOwnerPathSurvey.hiddenConnections,
  width:W,height:H,
  storage:window.localStorage,
- storageKey:'paperworld-path-draft-v1'
+ storageKey:'paperworld-path-draft-owner-20261117-v1'
 });
 let editingPaths=false;
+function pathDisconnectedComponents(){
+ const snapshot=pathDraft.snapshot();
+ const adjacent=Array.from({length:snapshot.nodes.length},()=>[]);
+ for(const [a,b] of snapshot.connections){adjacent[a].push(b);adjacent[b].push(a)}
+ const visited=new Set(),groups=[];
+ for(let i=0;i<adjacent.length;i++){
+  if(visited.has(i))continue;
+  const stack=[i],group=[];visited.add(i);
+  while(stack.length){
+   const node=stack.pop();group.push(node);
+   for(const next of adjacent[node])if(!visited.has(next)){visited.add(next);stack.push(next)}
+  }
+  groups.push(group);
+ }
+ return groups;
+}
 function updatePathStatus(note=''){
- pathStatus.textContent=note||pathDraft.summary()+' · '+pathDraft.modeLabel();
+ const groups=pathDisconnectedComponents();
+ const gap=groups.length>1?' · ⚠ '+groups.length+' ασύνδετα τμήματα':' · ✓ Ενιαίο δίκτυο';
+ pathStatus.textContent=(note||pathDraft.summary()+' · '+pathDraft.modeLabel())+gap;
 }
 function setPathEditing(on){
  editingPaths=on;pathPanel.hidden=!on;pathToggle.setAttribute('aria-pressed',String(on));
@@ -615,7 +633,20 @@ layers.push({id:'player',depth:depth.actorWalkwayDepth(w,navigation,defs),paint:
  layers.push(...depth.foregroundLayers(ctx,scene.ready,scene.image,W,H));
  depth.sortLayers(layers).forEach(item=>item.paint());
  // Authoring overlay stays visible even over building art; it is never used for live routes.
- if(editingPaths)pathDraft.draw(ctx);
+ if(editingPaths){
+  pathDraft.draw(ctx);
+  // Show detached groups in orange; no edges are invented or enabled for walkers.
+  const groups=pathDisconnectedComponents().sort((a,b)=>b.length-a.length);
+  const pathNodes=pathDraft.snapshot().nodes;
+  ctx.save();ctx.fillStyle='#ff965e';ctx.strokeStyle='#481c10';ctx.lineWidth=2;
+  for(const group of groups.slice(1)){
+   for(const i of group){
+    const [x,y]=pathNodes[i];
+    ctx.beginPath();ctx.arc(x,y,9,0,Math.PI*2);ctx.fill();ctx.stroke();
+   }
+  }
+  ctx.restore();
+ }
  // Optional developer overlay: visualize only collision-checked walkable edges.
  if(showSurveyedPaths){
   ctx.save();ctx.lineWidth=4;ctx.strokeStyle='rgba(229,48,53,.92)';
