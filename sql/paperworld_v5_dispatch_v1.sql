@@ -307,14 +307,14 @@ begin
     status='paused_budget',updated_at=now() where id=m.id;
    return 'budget_denied';
   end if;
-  select count(*) into daily from public.paperworld_autonomous_effects_v5
-   where sessions=1 and state<>'denied'
+  select count(*) into daily from public.paperworld_autonomous_effects_v5 e
+   where e.sessions=1 and e.state<>'denied'
     and created_at>=date_trunc('day',now() at time zone 'UTC') at time zone 'UTC';
-  select count(*) into monthly from public.paperworld_autonomous_effects_v5
-   where sessions=1 and state<>'denied'
+  select count(*) into monthly from public.paperworld_autonomous_effects_v5 e
+   where e.sessions=1 and e.state<>'denied'
     and created_at>=date_trunc('month',now() at time zone 'UTC') at time zone 'UTC';
-  select count(*) into per_mission from public.paperworld_autonomous_effects_v5
-   where mission_id=m.id and sessions=1 and state<>'denied';
+  select count(*) into per_mission from public.paperworld_autonomous_effects_v5 e
+   where e.mission_id=m.id and e.sessions=1 and e.state<>'denied';
   if daily>=conf.sessions_per_day or monthly>=conf.sessions_per_month
    or per_mission>=conf.sessions_per_mission or
    m.ai_calls_used>=coalesce((m.policy->>'maxAiCalls')::integer,0)
