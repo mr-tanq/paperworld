@@ -122,6 +122,44 @@ function createCopilotIssueAdapter({fetcher=globalThis.fetch,token}={}){
    issueNumber,repo:issue.repo,prUrl:exact?.html_url||null,
    prNumber:exact?.number||null,prDraft:exact?.draft??null});
  }
- return Object.freeze({getIssue,prepareIssue,assign,reconcile});
+ async function verifyIndependentGodot({projectId,prNumber,issueNumber}={}){
+  const repo=allowedRepo(projectId);
+  if(projectId!=='pokemon'||!Number.isSafeInteger(prNumber)||prNumber<1||
+   issueNumber!==1)throw Error('unsupported_independent_verification');
+  const pr=await call(repo,'/pulls/'+prNumber);
+  const sha=pr.head?.sha;
+  if(!pr.draft||pr.state!=='open'||pr.number!==prNumber||
+   !/^[0-9a-f]{40}$/.test(sha||'')||
+   pr.user?.login!==BOT||
+   pr.base?.ref!=='main'||
+   !(pr.body||'').includes('#'+issueNumber))
+   return Object.freeze({state:'unverified',reason:'pr_identity_mismatch'});
+  const workflow=await call(repo,
+   '/actions/workflows/paperworld-verify.yml/runs?event=pull_request&head_sha='+sha+'&per_page=30');
+  const runs=(workflow.workflow_runs||[]).filter(run=>
+   run.head_sha===sha&&run.event==='pull_request'&&
+   run.path==='.github/workflows/paperworld-verify.yml'&&
+   run.status==='completed'&&run.conclusion==='success'&&
+   (run.pull_requests||[]).some(x=>x.number===prNumber));
+  // Multiple completed runs are okay: only trust one whose own jobs and
+  // required FIVE-CASE assertion step really succeeded, never a skipped check.
+  for(const run of runs){
+   if(!Number.isSafeInteger(run.id)||run.id<1||
+    run.html_url!=='https://github.com/'+repo+'/actions/runs/'+run.id)continue;
+   const jobData=await call(repo,'/actions/runs/'+run.id+'/jobs?per_page=100');
+   const approved=(jobData.jobs||[]).some(job=>
+    job.name==='headless-godot'&&job.conclusion==='success'&&
+    (job.steps||[]).some(st=>
+     st.name==='Require five deterministic battle-damage regression cases'&&
+     st.status==='completed'&&st.conclusion==='success')&&
+    (job.steps||[]).some(st=>
+     st.name==='Run headless smoke test (must exit 0)'&&
+     st.status==='completed'&&st.conclusion==='success'));
+   if(approved)return Object.freeze({state:'verified',projectId,prNumber,
+    headSha:sha,runId:run.id,runUrl:run.html_url});
+  }
+  return Object.freeze({state:'pending',reason:'trusted_five_case_ci_not_green'});
+ }
+ return Object.freeze({getIssue,prepareIssue,assign,reconcile,verifyIndependentGodot});
 }
 export {createCopilotIssueAdapter,allowedRepo,validateIntent};
