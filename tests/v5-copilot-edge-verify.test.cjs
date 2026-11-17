@@ -21,10 +21,11 @@ async function run({ci='green',role='bot'}={}){
    return {ok:true,json:async()=>[{id:'33333333-3333-4333-8333-333333333333',
     capability:'await_pr',output:{prUrl:'https://github.com/mr-tanq/pokemon-echoes/pull/'+PR,
      verification:'not_independently_verified'}}]};
+  if(u.pathname.endsWith('/issues/1'))return {ok:true,json:async()=>({number:1,state:'open',body:'Synthetic task <!-- paperworld-v5-effect:copilot:11111111-1111-4111-8111-111111111111 -->',assignees:[{login:'Copilot'}]})};
   if(u.pathname.endsWith('/pulls/'+PR))return {ok:true,json:async()=>({
    number:PR,draft:true,state:'open',head:{sha:HEAD,ref:'copilot/five-battle-tests'},base:{ref:'main'},
    user:{login:role==='bot'?'copilot-swe-agent[bot]':'attacker'},
-   body:'Fixes #1 <!-- paperworld-v5-effect:copilot:'+MISSION+' -->'})};
+   body:'Fixes #1'})};
   if(u.pathname.endsWith('/actions/workflows/paperworld-verify.yml/runs'))
    return {ok:true,json:async()=>({workflow_runs:[{
     id:RUN,event:'pull_request',status:'completed',
