@@ -24,20 +24,21 @@ function components(){
 test('preserve exact owner-exported path survey counts and coordinates',()=>{
  assert.equal(survey.format,'paperworld-path-survey-v1');
  assert.deepEqual(survey.scene,{width:1671,height:941});
- assert.equal(survey.nodes.length,84);
+ assert.equal(survey.nodes.length,85);
  assert.equal(survey.connections.length,82);
  assert.equal(survey.hiddenConnections.length,17);
  assert.deepEqual(survey.nodes[0],[612,551]);
  assert.deepEqual(survey.nodes[83],[884,731]);
+ assert.deepEqual(survey.nodes[84],[23,439]);
  assert.deepEqual(survey.connections.at(-1),[81,82]);
  const keys=new Set(survey.connections.map(([a,b])=>[Math.min(a,b),Math.max(a,b)].join(':')));
  for(const [a,b] of survey.hiddenConnections)assert.ok(keys.has([Math.min(a,b),Math.max(a,b)].join(':')));
 });
 test('flag disconnected branches instead of inventing routes',()=>{
  const groups=components();
- assert.equal(groups.length,6);
- assert.deepEqual(groups.map(g=>g.length).sort((a,b)=>b-a),[75,5,1,1,1,1]);
- assert.deepEqual(groups.filter(g=>g.length===1).map(g=>g[0]).sort((a,b)=>a-b),[46,47,48,83]);
+ assert.equal(groups.length,7);
+ assert.deepEqual(groups.map(g=>g.length).sort((a,b)=>b-a),[75,5,1,1,1,1,1]);
+ assert.deepEqual(groups.filter(g=>g.length===1).map(g=>g[0]).sort((a,b)=>a-b),[46,47,48,83,84]);
  assert.ok(groups.some(g=>g.join(',')==='78,79,80,81,82'));
  assert.match(app,/pathDisconnectedComponents/);
  assert.match(app,/ασύνδετα τμήματα/);
