@@ -266,6 +266,17 @@ function renderAutonomousMissions(target){
     await reload();message='Η τεχνική προσομοίωση μπήκε στην ουρά. Δεν εκτελείται AI.';
    }),'human-first-utility'));
   }
+  if(mission.status==='draft'&&mission.projectId==='pokemon'&&
+      controllerStatus?.pilotQueueEnabled===true){
+   line.append(btn('Πρώτη πραγματική δοκιμή Copilot',()=>work(async()=>{
+    if(!window.confirm('Θέλεις να αναθέσουμε το Pokémon Issue #1 στον πραγματικό Copilot Cloud Agent;\\n\\n'+
+      'Η δοκιμή χρησιμοποιεί έως μία συνεδρία από τα included AI credits και GitHub Actions minutes. '+
+      'Δεν θα γίνει αυτόματο merge, deployment ή επιπλέον πληρωμή από το Paperworld. '+
+      'Το PR θα χρειάζεται ανεξάρτητη επαλήθευση.\\n\\nΝα ξεκινήσει;'))return;
+    await client.launchCopilotPilot(mission.id);
+    await reload();message='Η πραγματική δοκιμή μπήκε στην ουρά. Ο Copilot θα αναλάβει μόνο το Pokémon Issue #1.';
+   }),'primary'));
+  }
   if(mission.status==='completed'&&mission.simulation===true)line.append(el('p',
    'Αν η αποστολή ήταν δοκιμή υποδομής, το Completed δεν σημαίνει πραγματικό AI αποτέλεσμα.',
    'room-footnote'));
