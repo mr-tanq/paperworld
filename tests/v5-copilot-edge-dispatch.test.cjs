@@ -34,6 +34,7 @@ function makeFake({enabled=true,postResult='assigned',phase='start_agent'}={}){
      paperworld_v5_begin_effect:'reserved',
      paperworld_v5_confirm_effect:true,
      paperworld_v5_complete_step:true,
+     paperworld_v5_record_unverified_copilot_pr:true,
      paperworld_v5_defer_step:true,
      paperworld_v5_mark_copilot_uncertain:true,
      paperworld_v5_fail_step:true
@@ -119,7 +120,7 @@ test('Polling PR does not start a second AI session',async()=>{
   if(url.includes('rpc/paperworld_v5_claim_copilot_pilot'))
    return {ok:true,json:async()=>[{step_id:stepId,mission_id:missionId,
     issue_number:1,effect_key:effectKey,capability:'await_pr'}]};
-  if(url.includes('rpc/paperworld_v5_complete_step'))return {ok:true,json:async()=>true};
+  if(url.includes('rpc/paperworld_v5_record_unverified_copilot_pr'))return {ok:true,json:async()=>true};
   if(url.includes('/issues/1'))return {ok:true,json:async()=>({
    number:1,state:'open',title:'synthetic',body:marker,
    assignees:[{login:'copilot-swe-agent[bot]'}]})};
