@@ -92,7 +92,8 @@ function makeTaskGithub({fetcher=fetch,token}={}){
   try{
    const result=await api(project,'/issues/'+issueNumber+'/assignees',{
     method:'POST',body:{assignees:['copilot-swe-agent[bot]'],
-     agent_assignment:{target_repo:getProject(project).repo,base_branch:'main'}}
+     agent_assignment:{target_repo:getProject(project).repo,base_branch:'main',
+      custom_instructions:'Follow repository instructions. Make a Draft PR; do not merge, deploy, edit workflows or expose secrets.'}}
    });
    if(isCopilotAssigned(result))return {state:'assigned',issueNumber};
    return {state:'uncertain',reconcile:true};
