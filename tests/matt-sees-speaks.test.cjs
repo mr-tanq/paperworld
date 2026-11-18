@@ -64,3 +64,23 @@ test('Matt answers team-wide status from live data using only one AI routing tur
  assert.ok(response.body.content.includes('Luna'));
  assert.ok(!response.body.content.includes('PRIVATE HEALTH SECRET'));
 });
+
+test('an unsolicited Matt completion notice never corrupts conversation continuation',()=>{
+ const {recover}=require('../js/matt-history.js');
+ const notice='@paperworld-matt:v1:'+JSON.stringify({
+  director:'listening-director',kind:'notification',
+  text:'Η Luna ολοκλήρωσε τη δουλειά.'});
+ const normal='@paperworld-matt:v1:'+JSON.stringify({
+  director:'studio-director',text:'Τι ύφος θέλεις;'});
+ const rows=[
+  {role:'human',content:'Θέλω ένα τραγούδι'},
+  {role:'agent',content:notice},
+  {role:'agent',content:normal}
+ ];
+ const result=recover(rows);
+ assert.equal(result.display.length,3);
+ assert.equal(result.display[1].text,'Η Luna ολοκλήρωσε τη δουλειά.');
+ assert.equal(result.activeDirector,'studio-director');
+ assert.equal(result.turns.length,2);
+ assert.equal(result.turns[0].text,'Θέλω ένα τραγούδι');
+});
