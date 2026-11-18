@@ -117,9 +117,19 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
         taskProject(m.project_id).repository+'/issues/'+issueNumber};
      }
     }else if(e.kind==='dispatch_verify'){
-     // A lost workflow-dispatch reply is NOT evidence that no run was created.
-     // Never resend automatically. A new authoritative run-id recovery path
-     // is required before this effect can advance.
+     const awaiting=steps.find(x=>x.capability==='await_agent');
+     const sha=awaiting?.output?.headSha;
+     if(typeof sha==='string'){
+      const located=await gh.findDispatchedRun(m.project_id,{
+       missionId:m.id,headSha:sha,since:e.created_at});
+      if(located.state==='found'){
+       const id=located.run.id;
+       evidence={proof:'trusted_workflow_run_id',externalId:String(id),
+        externalUrl:located.run.html_url,runId:id,headSha:sha,
+        mainSha:located.run.head_sha,
+        workflowBlob:taskProject(m.project_id).workflowBlob};
+      }
+     }
     }
    }catch(_){}
    if(evidence){
@@ -247,14 +257,18 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
    if(!Number.isSafeInteger(runId)||!/^[a-f0-9]{40}$/i.test(proof.mainSha||'')||
     proof.headSha!==sha||proof.workflowBlob!==config.workflowBlob)
     throw Error('verify_effect_receipt_invalid');
-   const run=await gh.getVerifiedRun(project,{runId,headSha:sha,
-    mainSha:proof.mainSha}).catch(()=>null);
-   if(!run){
-    // A completed-but-failed run must never become an endless retry.
+   const rawRun=await gh.getRun(project,runId);
+   if(rawRun?.status==='completed'&&rawRun.conclusion!=='success')
+    return fail(s.id,worker,'trusted_verification_failed');
+   const elapsed=clock()-Date.parse(effect.confirmed_at||'');
+   if(Number.isFinite(elapsed)&&elapsed>2*60*60*1000)
+    return fail(s.id,worker,'trusted_verification_timed_out');
+   if(rawRun?.status!=='completed'){
     await rpc('paperworld_v5_defer_task_step',{p_step:s.id,p_worker:worker,
      p_seconds:300,p_observation:proof});
     return {state:'verifying',sessionsStarted:0};
    }
+   await gh.getVerifiedRun(project,{runId,headSha:sha,mainSha:proof.mainSha});
    const proofTests=await gh.readTrustedAttestation(project,{runId,headSha:sha,
     mainSha:proof.mainSha,missionId:mission.id,requiredTests:spec.requiredTests});
    const latest=await gh.getPull(project,prNumber);
