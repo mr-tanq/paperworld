@@ -596,6 +596,9 @@ begin
   raise exception 'team snapshot missing directors'; end if;
  if snap::text not like '%Check one ticket update%' then
   raise exception 'owner did not see its own mission'; end if;
+ if snap::text not like '%"existingTestsPassed": true%' or
+    snap::text not like '%"ownNewTestPassed": false%' then
+  raise exception 'snapshot misrepresented old regression as own new test'; end if;
  if coalesce(public.paperworld_v5_team_snapshot(owner2)::text,'') like '%Check one ticket update%' then
   raise exception 'cross-owner mission leaked'; end if;
  first_run:=public.paperworld_v5_notify_matt();
