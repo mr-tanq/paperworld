@@ -118,6 +118,21 @@
  musicSave.type='submit';
  const musicResult=make('p','crow-music-result','');
  musicResult.setAttribute('role','status');
+ // The callback carries only fixed, non-sensitive categories, never provider details.
+ const sunoReturn=new URLSearchParams(window.location.search);
+ if(sunoReturn.get('suno_link')==='failed'){
+  const messages={
+   authorization_denied:'Η εξουσιοδότηση Suno δεν ολοκληρώθηκε ή απορρίφθηκε.',
+   authorization_expired:'Η σύνδεση Suno έληξε. Δοκίμασε ξανά τη σύνδεση.',
+   token_exchange_rejected:'Το Suno απέρριψε την ανταλλαγή εξουσιοδότησης. Η σύνδεση δεν ολοκληρώθηκε.',
+   token_response_invalid:'Το Suno επέστρεψε μη έγκυρη απάντηση εξουσιοδότησης.',
+   provider_unavailable:'Δεν ολοκληρώθηκε η επικοινωνία με το Suno.'
+  };
+  musicResult.textContent=messages[sunoReturn.get('suno_reason')]||
+   'Η σύνδεση Suno δεν ολοκληρώθηκε.';
+ }else if(sunoReturn.get('suno_link')==='connected'){
+  musicResult.textContent='Η εξουσιοδότηση Suno ολοκληρώθηκε. Έλεγξε τα διαθέσιμα εργαλεία πριν συνεχίσεις.';
+ }
  const musicFromCrow=make('button','crow-music-from-reply','Χρήση τελευταίας πρότασης Crow');
  musicFromCrow.type='button';
  const musicCopy=make('button','crow-music-copy','Αντιγραφή για Suno');
