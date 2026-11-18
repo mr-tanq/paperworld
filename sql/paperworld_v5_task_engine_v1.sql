@@ -105,10 +105,13 @@ begin
     (m.project_id='pokemon' and
       not (p like 'scripts/%' or p like 'scenes/%' or p like 'tests/%')) or
     (m.project_id='listening' and
-      not (p like 'js/%' or p like 'css/%' or p like 'tests/%' or
+      not (p like 'js/%' or p like 'css/%' or p like 'tests/%' or p like 'scripts/%' or
        p like 'workers/%' or p like 'server/%')))
  or exists(select 1 from unnest(required) t
-   where t !~ '^[A-Za-z][A-Za-z0-9_.-]{1,79}$')
+   where t !~ '^[A-Za-z][A-Za-z0-9_.-]{1,79}$' or
+    (m.project_id='pokemon' and t not in ('godot_smoke','battle_damage')) or
+    (m.project_id='listening' and t not in
+     ('festival_revisit','festival_discovery','identity_profile','setlist_resolver')))
  or exists(select 1 from unnest(acceptance) t
    where length(btrim(t)) not between 1 and 240)
  then return false; end if;
