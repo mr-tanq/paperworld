@@ -14,7 +14,7 @@ const MAX_BODY=512*1024,MAX_TOOLS=100;
 async function readBoundedResponse(response){
  const length=response.headers?.get?.('content-length');
  if(length!==null&&length!==undefined){
-  if(!/^\\d{1,8}$/.test(length)||Number(length)>MAX_BODY)return null;
+  if(!/^\d{1,8}$/.test(length)||Number(length)>MAX_BODY)return null;
  }
  if(response.body&&typeof response.body.getReader==='function'){
   const reader=response.body.getReader(),decoder=new TextDecoder();
