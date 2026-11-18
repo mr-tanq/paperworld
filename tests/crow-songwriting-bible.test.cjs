@@ -60,3 +60,18 @@ test('Crow bible is limited to Crow in both AI entry points',()=>{
  assert.match(ui,/musicLyrics\.value=song\.lyrics/);
  assert.match(ui,/latestSavedStudioDraft\|\|window\.PaperworldCrowStudioDraft/);
 });
+
+test('Crow follows the current sonic reference over its historical acoustic era',()=>{
+ const {currentBriefPriority}=require('../server/crow-songwriting-guide.cjs');
+ const instructions=GUIDE+'\n'+currentBriefPriority();
+ assert.match(instructions,/CURRENT BRIEF HAS HIGHEST ARTISTIC PRIORITY/);
+ assert.match(instructions,/historical acoustic\/noir\/folk preferences are only background/i);
+ assert.match(instructions,/DO NOT inject fingerpicked nylon guitar/);
+ assert.match(instructions,/ambiguous artist, album or track/);
+ assert.match(instructions,/Do NOT pretend to know the sound/);
+ assert.match(instructions,/\[End\]/);
+ const direct=fs.readFileSync('server/director-direct-chat.cjs','utf8');
+ const delegated=fs.readFileSync('server/matt-delegation.cjs','utf8');
+ assert.match(direct,/agentId==='studio-director'\?currentBriefPriority\(\):''/);
+ assert.match(delegated,/route==='studio-director'\?currentBriefPriority\(\):''/);
+});
