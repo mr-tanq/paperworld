@@ -129,14 +129,14 @@ function render(){
  if(!active)return;
  host.hidden=false;host.replaceChildren();
  if(!client.signedIn()){
-  host.append(el('h2','PAPERWORLD · Sign in'),el('p','Sign in to open your private project workspace.'),loginForm());return;
+  host.append(el('h2','PAPERWORLD · Σύνδεση'),el('p','Συνδέσου για να δεις την ομάδα και τις εργασίες σου.'),loginForm());return;
  }
  const top=el('div',undefined,'room-heading');
  top.append(el('h2',room==='workshop'?'Listening Mirror · Η ομάδα μου':room==='town'?'Οι εργασίες μου':model.ROOMS.find(r=>r.id===room).name));
- top.append(btn('Back to local',()=>{active=false;window.PaperworldRooms.open(room,true)}));
+ top.append(btn('Πίσω στο χωριό',()=>{active=false;window.PaperworldRooms.open(room,true)}));
  host.append(top);
  if(message)host.append(el('p',message,message.startsWith('Error:')?'room-error':'room-notice'));
- if(busy)host.append(el('p','Working…','room-footnote'));
+ if(busy)host.append(el('p','Ένα λεπτό…','room-footnote'));
  const userBar=el('div',undefined,'room-ops');
  userBar.append(el('small',client.identity()),
   btn('Ανανέωση',()=>work(reload)),
@@ -391,9 +391,12 @@ function renderChiefOrRoom(){
   host.append(el('p',tasks.length+' cloud tasks','room-stats'))
  }
  if(room!=='town'){
-  if(edit)host.append(form(edit===true?null:edit));
-  else host.append(btn('+ Νέα εργασία',()=>{edit=true;render()},'primary'));
-  for(const task of tasks)host.append(taskRow(task))
+  const notes=el('details',undefined,'human-hub-manual');
+  notes.append(el('summary','Προσωπικές σημειώσεις (προαιρετικά)'));
+  if(edit)notes.append(form(edit===true?null:edit));
+  else notes.append(btn('+ Νέα σημείωση',()=>{edit=true;render()},'primary'));
+  for(const task of tasks)notes.append(taskRow(task));
+  host.append(notes);
  }
  if(room==='town'){
   const pending=allTasks.filter(t=>t.status==='todo'||t.status==='doing');
