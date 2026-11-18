@@ -1,0 +1,81 @@
+/* One-shot Suno audio-create MCP submission.
+ * Never retries a credit-spending call. The provider receives a stable
+ * idempotency_key; no raw provider content, OAuth token or lyrics are returned.
+ */
+'use strict';
+const ENDPOINT='https://api.suno.com/mcp';
+const MAX_RESULT=512*1024;
+const KEY=/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+function validRequest(brief,key){
+ if(!KEY.test(key||'')||!brief||typeof brief!=='object'||Array.isArray(brief)||
+    Object.keys(brief).sort().join(',')!=='lyrics,style,title')return false;
+ return typeof brief.title==='string'&&brief.title.trim().length>0&&brief.title.length<=120&&
+  typeof brief.style==='string'&&brief.style.trim().length>0&&brief.style.length<=1000&&
+  typeof brief.lyrics==='string'&&brief.lyrics.length<=8000;
+}
+async function readBounded(response){
+ const len=response.headers?.get?.('content-length');
+ if(len!=null&&(!/^\d{1,8}$/.test(len)||Number(len)>MAX_RESULT))return null;
+ if(response.body?.getReader){
+  const reader=response.body.getReader(),decoder=new TextDecoder();let data='',bytes=0;
+  try{
+   while(true){
+    const chunk=await reader.read();if(chunk.done)break;
+    if(!(chunk.value instanceof Uint8Array))return null;
+    bytes+=chunk.value.byteLength;
+    if(bytes>MAX_RESULT){await reader.cancel().catch(()=>{});return null}
+    data+=decoder.decode(chunk.value,{stream:true});
+   }
+   return data+decoder.decode();
+  }finally{reader.releaseLock()}
+ }
+ const data=await response.text();
+ return typeof data==='string'&&Buffer.byteLength(data,'utf8')<=MAX_RESULT?data:null;
+}
+function makeSunoAudioCreate({fetcher=globalThis.fetch}={}){
+ if(typeof fetcher!=='function')throw Error('fetcher_required');
+ async function submit({accessToken,brief,idempotencyKey}={}){
+  if(typeof accessToken!=='string'||accessToken.length<12||accessToken.length>8192)
+   return {accepted:false,reason:'suno_oauth_required'};
+  if(!validRequest(brief,idempotencyKey))
+   return {accepted:false,reason:'invalid_audio_create_request'};
+  const args={title:brief.title,style:brief.style,lyrics:brief.lyrics,
+   instrumental:false,idempotency_key:idempotencyKey};
+  // No automatic retries even if a timeout might have happened after acceptance.
+  try{
+   const response=await fetcher(ENDPOINT,{method:'POST',redirect:'manual',
+    signal:AbortSignal.timeout(20000),headers:{
+     Authorization:'Bearer '+accessToken,'Content-Type':'application/json',
+     Accept:'application/json, text/event-stream',
+     'MCP-Protocol-Version':'2026-07-28','Mcp-Method':'tools/call'},
+    body:JSON.stringify({jsonrpc:'2.0',id:2,method:'tools/call',
+     params:{name:'audio-create',arguments:args}})});
+   if(response.status===401||response.status===403)
+    return {accepted:false,reason:'authorization_rejected'};
+   if(response.status===429)return {accepted:false,reason:'provider_rate_limited'};
+   // Non-2xx responses do not prove that a provider did not spend credits.
+   if(response.status!==200)return {accepted:false,reason:'submission_unconfirmed'};
+   const type=response.headers?.get?.('content-type')||'';
+   if(!/^application\/json\b/i.test(type))
+    return {accepted:false,reason:'submission_unconfirmed'};
+   const body=await readBounded(response);
+   if(body===null)return {accepted:false,reason:'submission_unconfirmed'};
+   let data;try{data=JSON.parse(body)}catch(_){
+    return {accepted:false,reason:'submission_unconfirmed'};
+   }
+   if(data?.jsonrpc!=='2.0'||data.id!==2)
+    return {accepted:false,reason:'submission_unconfirmed'};
+   if(data.error||data.result?.isError===true)
+    return {accepted:false,reason:'provider_rejected'};
+   if(!data.result||typeof data.result!=='object')
+    return {accepted:false,reason:'submission_unconfirmed'};
+   // A valid tools/call reply acknowledges the request, not completion of audio.
+   return {accepted:true,reason:'provider_acknowledged',
+    status:'submitted_unverified',idempotencyKey};
+  }catch(_){
+   return {accepted:false,reason:'submission_unconfirmed'};
+  }
+ }
+ return Object.freeze({submit});
+}
+module.exports=Object.freeze({makeSunoAudioCreate,validRequest});
