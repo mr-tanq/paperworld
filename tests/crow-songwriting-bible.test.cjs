@@ -75,3 +75,22 @@ test('Crow follows the current sonic reference over its historical acoustic era'
  assert.match(direct,/agentId==='studio-director'\?currentBriefPriority\(\):''/);
  assert.match(delegated,/route==='studio-director'\?currentBriefPriority\(\):''/);
 });
+
+test('Crow knows its own Aftermath album II sound without requesting the artist again',()=>{
+ assert.match(BIBLE,/II — The Aftermath/);
+ assert.match(BIBLE,/THE LOST WANDERER.S OWN SECOND ALBUM/);
+ assert.match(BIBLE,/upbeat and happy, trip-hop mixed/);
+ assert.match(BIBLE,/stoner\/atmospheric rock/);
+ assert.match(BIBLE,/Garden of Lies/);
+ assert.match(BIBLE,/The War Inside Me/);
+ assert.match(BIBLE,/Change/);
+ assert.match(BIBLE,/Make War, Not Love/);
+ assert.match(BIBLE,/rather than asking which Aftermath artist/);
+ assert.match(BIBLE,/new creation is NOT an archive lookup/);
+ assert.match(BIBLE,/do not borrow album IV nylon bolero/i);
+ assert.doesNotMatch(BIBLE,/Aftermath is a uniformly depressed acoustic record\./);
+ const direct=fs.readFileSync('server/director-direct-chat.cjs','utf8');
+ const viaMatt=fs.readFileSync('server/matt-delegation.cjs','utf8');
+ assert.match(direct,/forCrowHistory\(\)\+forCrow\(\)/);
+ assert.match(viaMatt,/forCrowHistory\(\)\+forCrow\(\)/);
+});
