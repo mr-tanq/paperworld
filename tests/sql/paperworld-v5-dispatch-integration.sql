@@ -477,5 +477,56 @@ begin
  <>'working' then raise exception 'mission not resumed after reconciliation'; end if;
 end $$;
 
+-- Simulate a worker crash after effect reservation but before the GitHub POST
+-- result is saved. Reclaim must not trigger a second Copilot assignment.
+\i sql/paperworld_v5_task_engine_reclaim_reconciliation_fix.sql
+do $$
+declare m uuid:='bdbdbdbd-bdbd-4bdb-8bdb-bdbdbdbdbdbd';
+declare owner uuid:='11111111-1111-4111-8111-111111111111';
+declare worker uuid:='91919191-9191-4919-8919-919191919191';
+declare s uuid;declare k text;
+declare spec jsonb:='{"projectId":"listening","directorId":"listening-director",
+"repository":"mr-tanq/concerts","title":"Crash reclaim regression",
+"summary":"Reserved effect then expired lease",
+"acceptance":["No duplicate external mutation"],"requiredTests":["festival_revisit"],
+"allowedPaths":["tests/"],"maxFiles":2,"noAutoMerge":true,"noAutoDeploy":true}'::jsonb;
+begin
+ insert into public.paperworld_autonomous_missions_v5
+ (id,owner_id,thread_id,project_id,goal,status,policy)
+ values(m,owner,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','listening',
+ 'Crash reclaim regression fixture','draft','{"maxAiCalls":0}'::jsonb);
+ if not public.paperworld_v5_plan_task(m,spec) then
+  raise exception 'crash fixture plan refused'; end if;
+ if not public.paperworld_v5_queue_task(m) then
+  raise exception 'crash fixture queue refused'; end if;
+ select id,idempotency_key into s,k from public.paperworld_autonomous_steps_v5
+ where mission_id=m and seq=1;
+ update public.paperworld_autonomous_steps_v5 set state='leased',
+  lease_owner=worker,lease_expires_at=now()+interval '90 seconds',
+  attempts=1 where id=s;
+ update public.paperworld_autonomous_missions_v5 set status='running' where id=m;
+ if public.paperworld_v5_begin_effect(s,worker,k,'copilot_agent','create_issue')<>'reserved'
+ then raise exception 'crash test effect not reserved'; end if;
+ update public.paperworld_autonomous_steps_v5
+ set lease_expires_at=now()-interval '1 second' where id=s;
+ perform public.paperworld_v5_reclaim_expired();
+ if (select state from public.paperworld_autonomous_effects_v5
+ where effect_key=k)<>'uncertain' then raise exception 'effect not uncertain'; end if;
+ if (select status from public.paperworld_autonomous_missions_v5
+ where id=m)<>'working' then raise exception 'v1 crash left needs_you'; end if;
+ if (select state from public.paperworld_autonomous_steps_v5
+ where id=s)<>'failed' then raise exception 'crash failed to retire lease'; end if;
+ if not public.paperworld_v5_reconcile_task_effect(k,'confirmed',
+ '{"proof":"issue_marker_and_number","externalId":"42",
+ "externalUrl":"https://github.com/mr-tanq/concerts/issues/42"}'::jsonb)
+ then raise exception 'crash could not reconcile without retry'; end if;
+ if (select state from public.paperworld_autonomous_steps_v5
+ where mission_id=m and seq=2)<>'ready' then
+ raise exception 'reconciled step did not advance'; end if;
+ if exists(select 1 from public.paperworld_autonomous_effects_v5
+ where mission_id=m and sessions=1) then
+ raise exception 'zero-cost issue crash created paid session'; end if;
+end $$;
+
 rollback;
 select 'PASS: real PostgreSQL 17 lifecycle, uncertain effects, offline simulation, budget and RLS' as result;
