@@ -17,7 +17,7 @@ const {buildTaskPrompt}=require('./v5-task-planner.cjs');
 const {makeMattTaskIntake}=require('./v5-matt-task-intake.cjs');
 const {createMattPersistence}=require('./matt-conversation-persistence.cjs');
 const {makeTeamHandoffLedger}=require('./team-handoff-ledger-v5.cjs');
-const {makeMattTeamSnapshot,teamSummary}=require('./matt-team-snapshot.cjs');
+const {makeMattTeamSnapshot,teamSummary,asksAboutVillage}=require('./matt-team-snapshot.cjs');
 const ORIGIN='https://mr-tanq.github.io';
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const CONSENT='MATT_DIRECTOR_UP_TO_THREE_AI_TURNS';
@@ -115,6 +115,20 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
    if(!await identity.ownsThread({threadId:data.threadId,ownerId,
      agentId:'matt',token:bearer.slice(7)}))return deny(404,'thread_not_found');
   }catch(_){return deny(401,'unauthorized')}
+  // An authenticated read of the real team ledger is not a paid AI request.
+  // Handle clearly phrased status questions before requiring Copilot or OAuth.
+  if((data.targetDirector??'auto')==='auto'&&asksAboutVillage(data.message)){
+   let snapshot=null;
+   try{snapshot=await teamView.load(ownerId)}catch(_){}
+   const reply=teamSummary(snapshot,data.message);
+   let persisted=false;
+   try{persisted=await history.save({threadId:data.threadId,ownerId,
+    requestId:data.requestId,director:'matt',text:reply})===true}catch(_){}
+   return {status:200,body:{executed:true,delegated:false,
+    directorId:null,content:reply,aiTurns:0,requestId:data.requestId,
+    routeMethod:'owner_status',routeStatus:'team_status',
+    execution:'status_only',persisted,workProposal:null}};
+  }
   if(typeof budgetVerified!=='function'||await budgetVerified({ownerId})!==true)
    return deny(403,'verify_github_zero_overage_budget');
   const githubToken=oauth.getLinkedToken({ownerId});
@@ -175,10 +189,10 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
     if(intent?.action==='team_status'){
      let snapshot=null;
      try{snapshot=await teamView.load(ownerId)}catch(_){}
-     const reply=teamSummary(snapshot);
+     const reply=teamSummary(snapshot,data.message);
      let persisted=false;
      try{persisted=await history.save({threadId:data.threadId,ownerId,
-      requestId:data.requestId,director:'listening-director',text:reply})===true}catch(_){}
+      requestId:data.requestId,director:'matt',text:reply})===true}catch(_){}
      return {status:200,body:{executed:true,delegated:false,
       directorId:null,content:reply,requestId:data.requestId,
       aiTurns,routeMethod,routeStatus:'team_status',
