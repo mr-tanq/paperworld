@@ -4,6 +4,8 @@
 'use strict';
 const http=require('node:http');
 const {createGithubOAuth,APP_ORIGIN}=require('./github-oauth.cjs');
+const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
+const {makeChatCredential}=require('./matt-durable-credential.cjs');
 const {makeMattChat}=require('./matt-live-chat.cjs');
 const {makeDirectorChat}=require('./director-direct-chat.cjs');
 const {createCrowSunoPreviewApi}=require('./crow-suno-preview-api.cjs');
@@ -50,6 +52,11 @@ function createRenderMattServer({oauth=createGithubOAuth({
  let proposalMemory,approvalStore;
  let pokemonProposalStore,pokemonProposalApi;
  let autonomousMissionApi;
+ let chatCredential;
+ const getChatCredential=()=>{
+  if(!chatCredential)chatCredential=makeChatCredential({oauth});
+  return chatCredential;
+ };
  function getProposalMemory(){
   if(proposalMemory!==undefined)return proposalMemory;
   try{proposalMemory=createProposalMemory()}catch(_){proposalMemory=null}
@@ -80,9 +87,9 @@ function createRenderMattServer({oauth=createGithubOAuth({
    memory:getProposalMemory(),store:getApprovalStore()});
   return proposalApi;
  }
- function getLive(){if(!live)live=chatFactory({oauth});return live}
- function getDirectorChat(){if(!directorChat)directorChat=directorChatFactory({oauth});return directorChat}
- function getDelegation(){if(!delegation)delegation=delegationFactory({oauth});return delegation}
+ function getLive(){if(!live)live=chatFactory({oauth:getChatCredential()});return live}
+ function getDirectorChat(){if(!directorChat)directorChat=directorChatFactory({oauth:getChatCredential()});return directorChat}
+ function getDelegation(){if(!delegation)delegation=delegationFactory({oauth:getChatCredential()});return delegation}
  function getWorker(){if(!worker)worker=workerFactory({oauth,proposalMemory:getProposalMemory()});return worker}
  function getPokemonWorker(){if(!pokemonWorker)pokemonWorker=pokemonWorkerFactory({oauth,pokemonProposalStore:getPokemonProposalStore()});return pokemonWorker}
  function getHistory(){if(!history)history=historyFactory();return history}
@@ -150,6 +157,19 @@ function createRenderMattServer({oauth=createGithubOAuth({
    try{
     const action=req.url.endsWith('/start')?oauth.start:oauth.status;
     const result=await action({headers:req.headers});
+    if(action===oauth.status&&result.status===200&&
+       result.body&&typeof oauth.getLinkedToken==='function'){
+     const guard=createSupabaseGuard({
+      baseUrl:'https://jrevhzvrgenucuozjowm.supabase.co',
+      publicKey:'sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL'});
+     const ready=await getChatCredential().chatStatus({
+      headers:req.headers,authenticate:async h=>{
+       const auth=String(h.authorization||'');
+       const profile=await guard.authenticate(auth.slice(7));
+       return profile.ownerId;
+      }});
+     if(ready)result.body={...result.body,chatConnected:true};
+    }
     res.writeHead(result.status,result.headers);res.end(JSON.stringify(result.body));return;
    }catch(_){response(res,503,{error:'oauth_unavailable'});return}
   }
