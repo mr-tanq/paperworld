@@ -38,7 +38,7 @@ test('Overlong prose is rejected rather than truncated into an unrelated style',
 test('Messenger offers one-click Crow studio and no disabled preview dependency',()=>{
  const src=fs.readFileSync('js/world-dialogue.js','utf8');
  const html=fs.readFileSync('index.html','utf8');
- assert.match(src,/latestStudioHandoff=result\.delegated===true/);
+ assert.match(src,/latestStudioHandoff=crowDraft\\?/);
  assert.match(src,/directorReport:result\.directorReport/);
  assert.match(src,/PaperworldCrowStudioDraft\?\.fromMatt/);
  assert.match(src,/♫ Συνέχεια στο Music Studio/);
@@ -46,7 +46,7 @@ test('Messenger offers one-click Crow studio and no disabled preview dependency'
  assert.match(src,/musicForm\.addEventListener\('submit',e=>/);
  assert.doesNotMatch(src,/musicForm\.addEventListener\('submit',async/);
  assert.doesNotMatch(src,/previewId/);
- assert.match(html,/crow-studio-draft\.js\?v=6-complete-lyrics/);
+ assert.match(html,/crow-studio-draft\.js\?v=7-truthful-handoff/);
  assert.ok(html.indexOf('crow-studio-draft.js')<html.indexOf('world-dialogue.js'));
 });
 
