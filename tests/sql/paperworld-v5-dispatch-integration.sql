@@ -528,5 +528,41 @@ begin
  raise exception 'zero-cost issue crash created paid session'; end if;
 end $$;
 
+-- Zero-session verification remains runnable with the paid session limit used.
+\i sql/paperworld_v5_v1_zero_session_verification_fix.sql
+do $
+declare m uuid:='bcbcbcbc-bcbc-4cbc-8cbc-bcbcbcbcbcbc';
+declare w uuid:='abababab-abab-4aba-8aba-abababababab';
+declare step uuid;
+declare key text;
+begin
+ if (select count(*) from public.paperworld_autonomous_effects_v5 e
+ where e.mission_id=m and e.sessions=1)<>1 then
+ raise exception 'paid budget test precondition failed'; end if;
+ update public.paperworld_autonomous_controller_v5
+ set sessions_per_day=1,sessions_per_mission=1,allow_unmetered_copilot=false,
+ credit_snapshot=null,credit_snapshot_at=null where singleton=true;
+ update public.paperworld_autonomous_steps_v5
+ set state='succeeded',lease_owner=null,lease_expires_at=null
+ where mission_id=m and capability='await_agent';
+ select id,idempotency_key into step,key
+ from public.paperworld_autonomous_steps_v5
+ where mission_id=m and capability='verify';
+ update public.paperworld_autonomous_steps_v5
+ set state='leased',lease_owner=w,lease_expires_at=now()+interval '5 minutes'
+ where id=step;
+ update public.paperworld_autonomous_missions_v5
+ set status='verifying' where id=m;
+ if public.paperworld_v5_begin_effect(step,w,key,
+ 'copilot_agent','dispatch_verify')<>'reserved' then
+ raise exception 'zero-session verification blocked by exhausted credits'; end if;
+ if (select sessions from public.paperworld_autonomous_effects_v5
+ where effect_key=key)<>0 then
+ raise exception 'verify dispatch erroneously billed a session'; end if;
+ if (select count(*) from public.paperworld_autonomous_effects_v5
+ where mission_id=m and sessions=1)<>1 then
+ raise exception 'verification added a second paid effect'; end if;
+end $;
+
 rollback;
 select 'PASS: real PostgreSQL 17 lifecycle, uncertain effects, offline simulation, budget and RLS' as result;
