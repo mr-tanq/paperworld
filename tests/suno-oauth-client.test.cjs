@@ -58,9 +58,11 @@ test('Suno OAuth PKCE links only after real owner authorization, never enables g
  const status=await client.status({headers,body});
  assert.deepEqual(status.body,{oauthAuthorized:true,canGenerate:false,ephemeral:true});
  assert.ok(!JSON.stringify(status).includes('mock-access-token'));
- assert.equal((await client.callback({url:'/auth/suno/callback?state='+
-  encodeURIComponent(uri.searchParams.get('state'))+'&code=abcdefghi12345'}))
-   .headers.Location.endsWith('failed'),true);
+ const replay=await client.callback({url:'/auth/suno/callback?state='+
+  encodeURIComponent(uri.searchParams.get('state'))+'&code=abcdefghi12345'});
+ const replayUrl=new URL(replay.headers.Location);
+ assert.equal(replayUrl.searchParams.get('suno_link'),'failed');
+ assert.equal(replayUrl.searchParams.get('suno_reason'),'authorization_expired');
  assert.equal(calls.filter(x=>x.opts.method==='POST').length,1);
 });
 test('Disallowed registration and unsafe metadata fail closed without redirect',async()=>{
