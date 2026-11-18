@@ -48,7 +48,8 @@ function teamSummary(snapshot){
  for(const d of snapshot.directors){
   const what=d.active?d.active+' '+(d.active===1?'εργασία σε εξέλιξη':'εργασίες σε εξέλιξη'):'καμία ενεργή εργασία';
   const needs=d.attention?' και '+d.attention+' '+(d.attention===1?'θέμα που χρειάζεται εσένα':'θέματα που χρειάζονται εσένα'):'';
-  phrases.push(d.name+': '+what+needs+'.');
+  const name=({listening:'Luna',pokemon:'Joey',studio:'Crow',wellbeing:'Dave'})[d.projectId]||'Η ομάδα';
+  phrases.push(name+': '+what+needs+'.');
  }
  return 'Αυτή είναι η εικόνα της ομάδας τώρα. '+phrases.join(' ')+
   ' Θα σου πω όταν προκύψει κάποιο νέο αποτέλεσμα.';
