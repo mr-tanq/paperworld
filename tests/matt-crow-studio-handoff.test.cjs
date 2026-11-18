@@ -56,7 +56,7 @@ test('recover owner-saved Crow reply after duplicate submission without model re
   {id:'22222222-2222-4222-8222-222222222222',role:'human',content:request},
   {id:requestId,role:'agent',content:encode('studio-director',
    ['TITLE: Song from history','SUNO STYLE PROMPT: Acoustic folk.',
-    'LYRICS:','[Verse 1]','One real lyric','[End]'].join('\\n'))},
+    'LYRICS:','[Verse 1]','One real lyric','[End]'].join('\n'))},
   {id:'33333333-3333-4333-8333-333333333333',role:'human',content:'retry'}
  ];
  const draft=fromSavedHistory(history,decode);
@@ -64,7 +64,7 @@ test('recover owner-saved Crow reply after duplicate submission without model re
  assert.equal(draft.requestId,requestId);
  assert.equal(draft.style,'Acoustic folk.');
  assert.equal(draft.originalRequest,request);
- assert.equal(draft.lyrics,'[Verse 1]\\nOne real lyric\\n[End]');
+ assert.equal(draft.lyrics,'[Verse 1]\nOne real lyric\n[End]');
 });
 test('never import general assistant messages or another director as a Crow draft',()=>{
  const {encode,decode}=require('../js/matt-history.js');
