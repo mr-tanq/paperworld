@@ -112,7 +112,8 @@ function createRenderMattServer({oauth=createGithubOAuth({
   const sunoAuthAction={'/auth/suno/start':'start',
    '/auth/suno/status':'status',
    '/auth/suno/inspect-tools':'inspectTools',
-   '/auth/suno/diagnose':'diagnose'}[req.url];
+   '/auth/suno/diagnose':'diagnose',
+   '/auth/suno/create-song':'createSong'}[req.url];
   if(sunoAuthAction){
    if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
     res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
@@ -126,7 +127,8 @@ function createRenderMattServer({oauth=createGithubOAuth({
    try{
     for await(const chunk of req){
      size+=chunk.length;
-     if(size>256)return response(res,413,{error:'request_too_large'});
+     if(size>(sunoAuthAction==='createSong'?11000:256))
+       return response(res,413,{error:'request_too_large'});
      parts.push(chunk);
     }
     const result=await getSunoOAuth()[sunoAuthAction]({
