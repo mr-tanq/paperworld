@@ -98,6 +98,25 @@ begin
    p_evidence->>'proof'<>'trusted_workflow_run_id') or
   length(coalesce(p_evidence->>'externalId','')) not between 1 and 80
  then return false; end if;
+ if e.kind='dispatch_verify' then
+  -- A recovered run ID resumes POLLING, never marks verification passed.
+  if s.state not in ('failed','ready') or s.lease_owner is not null then return false; end if;
+  update public.paperworld_autonomous_effects_v5
+  set state='started',evidence=p_evidence,
+   external_id=p_evidence->>'externalId',
+   external_url=p_evidence->>'externalUrl',
+   confirmed_at=now(),updated_at=now() where effect_key=p_key;
+  update public.paperworld_autonomous_steps_v5
+  set state='ready',run_after=now(),lease_owner=null,lease_expires_at=null,
+   output=p_evidence,finished_at=null where id=s.id;
+  update public.paperworld_autonomous_missions_v5
+  set status='verifying',last_error=null,updated_at=now() where id=m.id;
+  insert into public.paperworld_autonomous_events_v5
+  (mission_id,owner_id,step_id,event_type,payload,actor)
+  values(m.id,m.owner_id,s.id,'task_verify_dispatch_reconciled',
+   jsonb_build_object('effectKey',p_key,'noSecondDispatch',true),'dispatcher');
+  return true;
+ end if;
  update public.paperworld_autonomous_effects_v5
  set state='done',evidence=p_evidence,external_id=p_evidence->>'externalId',
  external_url=p_evidence->>'externalUrl',confirmed_at=now(),updated_at=now()
@@ -191,12 +210,89 @@ begin
  elsif s.capability='await_agent' then
   if p_result->>'completion' not in ('trusted_signal','conservative_fallback') or
     p_result->>'stableHead' is distinct from 'true' or
-    p_result->>'headSha' !~ '^[a-f0-9]{40}$' then return false; end if;
+    coalesce(p_result->>'headSha','') !~ '^[a-f0-9]{40} then return false; end if;
  elsif s.capability='verify' then
   select * into e from public.paperworld_autonomous_effects_v5
    where step_id=s.id and kind='dispatch_verify' and state='done';
   if not found or p_result->>'verification' is distinct from 'trusted' or
     p_result->>'headSha' !~ '^[a-f0-9]{40}$' or
+    length(coalesce(p_result->>'runId',''))<1
+  then return false; end if;
+ elsif s.capability='report' then
+  select output into previous from public.paperworld_autonomous_steps_v5
+  where mission_id=m.id and capability='verify' and state='succeeded';
+  if previous->>'verification' is distinct from 'trusted' or
+   previous->>'headSha' is distinct from p_result->>'headSha' or
+   p_result->>'headStillCurrent' is distinct from 'true'
+  then return false; end if;
+ else return false; end if;
+ update public.paperworld_autonomous_steps_v5
+ set state='succeeded',output=p_result,lease_owner=null,
+ lease_expires_at=null,finished_at=now() where id=s.id;
+ update public.paperworld_autonomous_steps_v5 next
+ set state='ready',run_after=now()
+ where id=(select id from public.paperworld_autonomous_steps_v5
+ where mission_id=m.id and seq>s.seq and state='pending'
+  order by seq limit 1);
+ next_status:=case when s.capability='await_agent' then 'verifying'
+  when s.capability='report' then 'completed' else 'working' end;
+ update public.paperworld_autonomous_missions_v5
+ set status=next_status,current_step=s.seq,updated_at=now(),
+ report=case when s.capability='report' then p_result else report end
+ where id=m.id;
+ insert into public.paperworld_autonomous_events_v5
+ (mission_id,owner_id,step_id,event_type,payload,actor)
+ values(m.id,m.owner_id,s.id,
+  case when s.capability='report' then 'task_completed' else 'task_step_done' end,
+  jsonb_build_object('step',s.capability),'dispatcher');
+ return true;
+end $$;
+revoke all on function public.paperworld_v5_finish_task_step(uuid,uuid,jsonb)
+ from public,anon,authenticated;
+grant execute on function public.paperworld_v5_finish_task_step(uuid,uuid,jsonb)
+ to service_role;
+ then return false; end if;
+ elsif s.capability='verify' then
+  select * into e from public.paperworld_autonomous_effects_v5
+   where step_id=s.id and kind='dispatch_verify' and state='done';
+  if not found or p_result->>'verification' is distinct from 'trusted' or
+    coalesce(p_result->>'headSha','') !~ '^[a-f0-9]{40} or
+    length(coalesce(p_result->>'runId',''))<1
+  then return false; end if;
+ elsif s.capability='report' then
+  select output into previous from public.paperworld_autonomous_steps_v5
+  where mission_id=m.id and capability='verify' and state='succeeded';
+  if previous->>'verification' is distinct from 'trusted' or
+   previous->>'headSha' is distinct from p_result->>'headSha' or
+   p_result->>'headStillCurrent' is distinct from 'true'
+  then return false; end if;
+ else return false; end if;
+ update public.paperworld_autonomous_steps_v5
+ set state='succeeded',output=p_result,lease_owner=null,
+ lease_expires_at=null,finished_at=now() where id=s.id;
+ update public.paperworld_autonomous_steps_v5 next
+ set state='ready',run_after=now()
+ where id=(select id from public.paperworld_autonomous_steps_v5
+ where mission_id=m.id and seq>s.seq and state='pending'
+  order by seq limit 1);
+ next_status:=case when s.capability='await_agent' then 'verifying'
+  when s.capability='report' then 'completed' else 'working' end;
+ update public.paperworld_autonomous_missions_v5
+ set status=next_status,current_step=s.seq,updated_at=now(),
+ report=case when s.capability='report' then p_result else report end
+ where id=m.id;
+ insert into public.paperworld_autonomous_events_v5
+ (mission_id,owner_id,step_id,event_type,payload,actor)
+ values(m.id,m.owner_id,s.id,
+  case when s.capability='report' then 'task_completed' else 'task_step_done' end,
+  jsonb_build_object('step',s.capability),'dispatcher');
+ return true;
+end $$;
+revoke all on function public.paperworld_v5_finish_task_step(uuid,uuid,jsonb)
+ from public,anon,authenticated;
+grant execute on function public.paperworld_v5_finish_task_step(uuid,uuid,jsonb)
+ to service_role;
+ or
     length(coalesce(p_result->>'runId',''))<1
   then return false; end if;
  elsif s.capability='report' then
