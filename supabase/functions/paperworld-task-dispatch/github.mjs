@@ -1,3 +1,4 @@
+import {extractTrustedJson,validateAttestation} from './artifact.mjs';
 /* GitHub operations for Paperworld Task Engine v1.
  * Pure dependency-injected adapter. No IO at import, no implicit retries.
  * The dispatcher MUST reserve a DB effect before createIssue/assign/dispatchVerify.
@@ -164,8 +165,53 @@ function makeTaskGithub({fetcher=fetch,token}={}){
     throw Error('untrusted_workflow_run');
   return run;
  }
- return Object.freeze({getIssue,findExistingIssue,createIssue,
+ async function getPull(project,number){
+  if(!Number.isSafeInteger(number)||number<1)throw Error('invalid_pr_number');
+  return api(project,'/pulls/'+number);
+ }
+ async function trustedMain(project,pinnedBlob){
+  if(!/^[a-f0-9]{40}$/i.test(pinnedBlob))throw Error('invalid_workflow_pin');
+  const ref=await api(project,'/git/ref/heads/main');
+  const mainSha=ref?.object?.sha;
+  if(!SHA.test(mainSha||''))throw Error('untrusted_main_sha');
+  const content=await api(project,
+   '/contents/.github/workflows/paperworld-verify.yml?ref='+mainSha);
+  if(content?.sha!==pinnedBlob)throw Error('trusted_verifier_changed');
+  return {mainSha,workflowBlob:content.sha};
+ }
+ async function readTrustedAttestation(project,{runId,headSha,mainSha,missionId,requiredTests}){
+  const run=await getVerifiedRun(project,{runId,headSha,mainSha});
+  if(!run||run.conclusion!=='success')throw Error('untrusted_verification_run');
+  const a=await api(project,'/actions/runs/'+runId+'/artifacts?per_page=100');
+  const matches=(a?.artifacts||[]).filter(x=>x.name==='paperworld-result'&&
+   x.expired!==true&&x.workflow_run?.id===runId);
+  if(matches.length!==1||!Number.isSafeInteger(matches[0].id))
+   throw Error('trusted_artifact_missing');
+  const base=HOST+repoPath(project,'/actions/artifacts/'+matches[0].id+'/zip');
+  const tokenHeaders={'Accept':'application/vnd.github+json',
+   'X-GitHub-Api-Version':'2026-03-10','Authorization':'Bearer '+token,
+   'User-Agent':'paperworld-v1'};
+  const redirect=await fetcher(base,{method:'GET',redirect:'manual',
+    signal:AbortSignal.timeout(12000),headers:tokenHeaders});
+  if(redirect?.status!==302&&redirect?.status!==301)
+   throw Error('artifact_redirect_unavailable');
+  const location=redirect.headers?.get('location');
+  let u;
+  try{u=new URL(location)}catch(_){throw Error('artifact_location_invalid')}
+  if(u.protocol!=='https:'||
+   !(u.hostname.endsWith('.githubusercontent.com')||
+     u.hostname.endsWith('.blob.core.windows.net')||
+     u.hostname.endsWith('.actions.githubusercontent.com')))
+   throw Error('artifact_location_untrusted');
+  const body=await fetcher(u.toString(),{method:'GET',redirect:'error',
+    signal:AbortSignal.timeout(12000),headers:{}});
+  if(!body?.ok)throw Error('artifact_download_failed');
+  const archive=await body.arrayBuffer();
+  const decoded=await extractTrustedJson(archive);
+  return validateAttestation(decoded,{projectId:project,headSha,missionId,requiredTests});
+ }
+ return Object.freeze({getIssue,findExistingIssue,createIssue,getPull,
   assignCopilot,reconcileAssignment,findLinkedPr,assertScopedChanges,
-  dispatchVerify,getVerifiedRun});
+  dispatchVerify,getVerifiedRun,trustedMain,readTrustedAttestation});
 }
 export {makeTaskGithub,repoPath,linkedIssue,markerFor,PROJECTS};
