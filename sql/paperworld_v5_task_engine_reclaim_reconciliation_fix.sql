@@ -43,8 +43,15 @@ begin
   set status='needs_you',last_error='effect_requires_reconciliation',
    updated_at=now()
   where m.id in (select mission_id from recovered where state='failed')
-   and coalesce(m.engine,'pilot')='pilot'
-   and m.status in ('queued','running')
+   and (
+     (coalesce(m.engine,'pilot')='pilot' and m.status in ('queued','running'))
+     or (m.engine='v1' and m.status in ('queued','running','working','verifying')
+       and not exists (
+         select 1 from recovered r
+         join public.paperworld_autonomous_effects_v5 e on e.step_id=r.id
+         where r.mission_id=m.id and r.state='failed'
+       ))
+   )
   returning m.id
  ), audit as (
   insert into public.paperworld_autonomous_events_v5
