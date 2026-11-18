@@ -13,6 +13,8 @@ const {createApprovedDirectorMemory,formatDirectorMemory}=require('./approved-di
 const {forCrow}=require('./crow-songwriting-guide.cjs');
 const {forCrow:forCrowHistory}=require('./crow-project-bible.cjs');
 const {parseIntent,routePrompt}=require('./matt-semantic-router.cjs');
+const {buildTaskPrompt}=require('./v5-task-planner.cjs');
+const {makeMattTaskIntake}=require('./v5-matt-task-intake.cjs');
 const {createMattPersistence}=require('./matt-conversation-persistence.cjs');
 const {makeTeamHandoffLedger}=require('./team-handoff-ledger-v5.cjs');
 const ORIGIN='https://mr-tanq.github.io';
@@ -67,7 +69,7 @@ const CAPABILITIES=Object.freeze({
  })
 });
 function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence=null,fetcher=globalThis.fetch,
- handoffLedger=null,
+ handoffLedger=null,taskIntake=null,
  budgetVerified=()=>process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED==='yes',
  diagnostics=stage=>console.warn('[PAPERWORLD director handoff]',stage),
  now=Date.now}={}){
@@ -80,6 +82,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
  const approvedMemory=memoryLoader||createApprovedDirectorMemory({fetcher,identity});
  const history=persistence||createMattPersistence({fetcher});
  const teamLedger=handoffLedger||makeTeamHandoffLedger({fetcher});
+ const codingIntake=taskIntake||makeMattTaskIntake({fetcher});
  if(typeof history.save!=='function')throw Error('invalid_persistence');
  if(typeof approvedMemory.load!=='function')throw Error('memory_loader_required');
  const busy=new Set(),spent=new Map();
@@ -156,7 +159,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
     await session.disconnect();session=null;
     return output;
    }
-   let route,workProposal=null;
+   let route,workProposal=null,taskRequested=false;
    const routeMethod=data.targetDirector&&data.targetDirector!=='auto'?
     'owner_selected':'ai_semantic';
    if(routeMethod==='owner_selected'){
@@ -168,6 +171,8 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
     const routing=await turn('matt',routePrompt(data.message,conversation));
     const intent=parseIntent(routing);
     route=intent?.director||null;
+    taskRequested=intent?.action==='build'&&
+     ['listening-director','pokemon-director'].includes(route);
     if(intent?.action==='investigate'&&intent.workerId){
      workProposal=Object.freeze({directorId:intent.director,workerId:intent.workerId,
       sourceScope:intent.director==='pokemon-director'?
@@ -199,6 +204,39 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
     token:bearer.slice(7),ownerId,actor:route
    });
    const memoryPrompt=formatDirectorMemory(memory);
+   // A real coding request needs both standing owner consent and a live v1
+   // controller. Ordinary Matt conversations retain their previous behavior.
+   if(taskRequested&&await codingIntake.available()){
+    stage='task_spec';
+    const specOutput=await turn(route,buildTaskPrompt({
+     message:data.message,directorId:route,memory:memoryPrompt
+    }));
+    stage='task_plan_queue';
+    const task=await codingIntake.submit({
+     ownerId,threadId:data.threadId,requestId:data.requestId,
+     directorId:route,message:data.message,modelOutput:specOutput
+    });
+    if(task.state!=='queued'&&task.state!=='planned')
+     throw Error('task_intake_not_ready');
+    const who=route==='listening-director'?'Luna':'Joey';
+    const message=task.state==='queued'?
+     'Ανέθεσα στον '+(who==='Luna'?'Director Luna':'Director Joey')+
+      ' την εργασία «'+task.title+'». Θα προχωρήσει στο παρασκήνιο και '+
+      'θα δεις το πραγματικό αποτέλεσμα στις αποστολές. Δεν γίνεται '+
+      'αυτόματο merge ή δημοσίευση.':
+     'Ετοίμασα την εργασία «'+task.title+'», αλλά δεν μπήκε ακόμη '+
+      'στην ουρά. Δεν ξεκίνησε Worker.';
+    let persisted=false;
+    try{persisted=await history.save({threadId:data.threadId,ownerId,
+     requestId:data.requestId,director:route,text:message})===true}catch(_){}
+    return {status:200,body:{executed:true,delegated:true,
+     directorId:route,content:message,aiTurns,requestId:data.requestId,
+     routeMethod,routeStatus:'selected',execution:task.state,
+     taskMission:{id:task.missionId,projectId:task.projectId,
+      title:task.title,status:task.state},workProposal:null,
+     persisted,handoffStored:false,
+     memory:{projectId:memory.projectId,included:memory.included}}};
+   }
    // Only project-matching context reaches a Director; never mix projects.
    const sameProject=conversation?.activeDirector===route;
    const dialogue=sameProject?JSON.stringify(conversation.turns):'[]';
