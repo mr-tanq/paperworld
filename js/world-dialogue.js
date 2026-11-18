@@ -35,18 +35,52 @@
  identity.append(heading,activity);
  const close=make('button','world-chat-close','×');
  close.type='button';close.setAttribute('aria-label','Close conversation');
- top.append(avatar,identity,close);
+
  const status=make('p','world-dialogue-status');
  status.setAttribute('role','status');
  const messages=make('div','world-dialogue-messages');
  messages.setAttribute('role','log');
  messages.setAttribute('aria-label','Conversation messages');
- const connectGithub=make('button','world-dialogue-handoff','Σύνδεσε το GitHub για να μιλήσεις στον Matt');
+ const connectGithub=make('button','world-connection-chip','GitHub · Έλεγχος…');
  connectGithub.type='button';connectGithub.hidden=true;
+ connectGithub.dataset.state='checking';
+ connectGithub.setAttribute('aria-label','Κατάσταση σύνδεσης GitHub');
+ function setGithubConnection(state){
+  connectGithub.dataset.state=state;
+  connectGithub.textContent=state==='connected'?'GitHub · Συνδεδεμένο':
+   state==='disconnected'?'GitHub · Σύνδεση':'GitHub · Έλεγχος…';
+  connectGithub.disabled=state==='connected';
+  connectGithub.title=state==='connected'?'GitHub συνδεδεμένο':
+   state==='disconnected'?'Σύνδεση στο GitHub':'Έλεγχος σύνδεσης GitHub';
+ }
+ async function refreshGithubConnection(selectedRevision=revision){
+  if(openId!=='matt'||!cloud()?.signedIn()||
+     typeof cloud()?.githubLinkStatus!=='function')return;
+  setGithubConnection('checking');
+  try{
+   const link=await cloud().githubLinkStatus();
+   if(selectedRevision!==revision||openId!=='matt')return;
+   setGithubConnection(link.connected===true||link.chatConnected===true?
+    'connected':'disconnected');
+  }catch(_){
+   if(selectedRevision===revision&&openId==='matt')
+    setGithubConnection('checking');
+  }
+ }
  connectGithub.addEventListener('click',async()=>{
+  if(openId!=='matt'||!cloud()?.signedIn())return;
+  if(connectGithub.dataset.state==='checking'){
+   await refreshGithubConnection();return;
+  }
+  if(connectGithub.dataset.state!=='disconnected')return;
+  connectGithub.disabled=true;
   try{const url=await cloud().beginGithubLink();window.location.assign(url)}
-  catch(e){status.textContent='Η σύνδεση GitHub δεν ξεκίνησε: '+e.message}
+  catch(_){
+   status.textContent='Η σύνδεση GitHub δεν ξεκίνησε.';
+   void refreshGithubConnection();
+  }finally{connectGithub.disabled=false}
  });
+ top.append(avatar,identity,connectGithub,close);
  const form=make('form','world-dialogue-form');
  const field=make('textarea','world-chat-input');
  const send=make('button','world-chat-send','➤');
@@ -525,7 +559,7 @@
  });
  const composer=make('footer','world-chat-composer');
  memoryReview.classList.add('village-maintenance-only');
- composer.append(connectGithub,memoryReview,openStudio,musicToggle,musicPanel,form);
+ composer.append(memoryReview,openStudio,musicToggle,musicPanel,form);
  panel.append(top,status,messages,decisions,composer);view.append(panel);
  // Matt owns the conversation; internal agent and worker routing stays invisible.
  async function runMattWorkflow(text){
@@ -764,18 +798,9 @@
   if(active&&isMatt&&(mattCachedEntries!==null||mattReplies.length))
    appendEntries(mattCachedEntries||[]);
   else messages.replaceChildren(system(active?'Φόρτωση ιδιωτικού ιστορικού…':'Απαιτείται σύνδεση.'));
-  connectGithub.hidden=true;
-  if(isMatt&&active&&typeof cloud()?.githubLinkStatus==='function'){
-   const selected=openId;
-   cloud().githubLinkStatus().then(link=>{
-    if(token!==revision||openId!==selected)return;
-    const canChat=link.connected===true||link.chatConnected===true;
-    connectGithub.hidden=canChat;
-    if(!canChat)status.textContent='Σύνδεσε το GitHub για να ενεργοποιηθεί η συνομιλία.';
-   }).catch(()=>{
-    if(token===revision&&openId===selected)connectGithub.hidden=false;
-   });
-  }
+  connectGithub.hidden=!isMatt||!active;
+  if(isMatt&&active)void refreshGithubConnection(token);
+  if(openId==='studio-director'&&active)void refreshSunoConnection();
   if(active&&typeof cloud()?.privateAgentMessages==='function'){
    const selected=openId;
    cloud().privateAgentMessages(selected).then(history=>{
