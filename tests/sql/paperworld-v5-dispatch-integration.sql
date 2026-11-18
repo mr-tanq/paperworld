@@ -428,7 +428,7 @@ begin
 end $$;
 
 -- Transactional evidence/side-effect state machine (no network).
-do $
+do $$
 declare mission uuid:='bcbcbcbc-bcbc-4cbc-8cbc-bcbcbcbcbcbc';
 declare worker uuid:='abababab-abab-4aba-8aba-abababababab';
 declare step uuid;
@@ -475,7 +475,7 @@ begin
  then raise exception 'await_agent not automatically promoted'; end if;
  if (select status from public.paperworld_autonomous_missions_v5 where id=mission)
  <>'working' then raise exception 'mission not resumed after reconciliation'; end if;
-end $;
+end $$;
 
 rollback;
 select 'PASS: real PostgreSQL 17 lifecycle, uncertain effects, offline simulation, budget and RLS' as result;
