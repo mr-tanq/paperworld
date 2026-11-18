@@ -54,7 +54,8 @@ function createRenderMattServer({oauth=createGithubOAuth({
  let autonomousMissionApi;
  let chatCredential;
  const getChatCredential=()=>{
-  if(!chatCredential)chatCredential=makeChatCredential({oauth});
+  if(!chatCredential)chatCredential=typeof oauth?.getLinkedToken==='function'?
+   makeChatCredential({oauth}):oauth;
   return chatCredential;
  };
  function getProposalMemory(){
