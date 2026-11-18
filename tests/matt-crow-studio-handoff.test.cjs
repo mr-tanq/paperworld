@@ -87,3 +87,22 @@ test('Messenger restores Studio link from Matt history after a 409',()=>{
  assert.match(source,/fromSavedHistory\(/);
  assert.match(source,/openStudio.hidden=false/);
 });
+
+test('Newest Crow clarification disables Studio instead of reviving an older finished song',()=>{
+ const {encode,decode}=require('../js/matt-history.js');
+ const song=['TITLE: Old song','SUNO STYLE PROMPT: Original acoustic folk',
+  'LYRICS:','[Verse 1]','A finished line','[End]'].join('\n');
+ const oldId='44444444-4444-4444-8444-444444444444';
+ const newerId='55555555-5555-4555-8555-555555555555';
+ const history=[
+  {role:'human',content:'Create an old song'},
+  {id:oldId,role:'agent',content:encode('studio-director',song)},
+  {role:'human',content:'Write in the style of an ambiguous Aftermath'},
+  {id:newerId,role:'agent',content:encode('studio-director',
+   'Which Aftermath artist or album do you mean?')}
+ ];
+ assert.equal(fromSavedHistory(history,decode),null);
+ const source=fs.readFileSync('js/world-dialogue.js','utf8');
+ assert.match(source,/latestStudioHandoff=crowDraft\?/);
+ assert.match(source,/parseSong\(result\.directorReport\)/);
+});
