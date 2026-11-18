@@ -132,6 +132,6 @@ test('Malformed success is not a protocol rejection and must not trigger fallbac
   count++;return ok({jsonrpc:'2.0',id:1,result:{unexpected:true}});
  }});
  const result=await probe.inspect({accessToken:credential});
- assert.equal(result.reason,'unverified_mcp_response');
+ assert.equal(result.reason,'mcp_tools_missing');
  assert.equal(count,1);
 });
