@@ -120,3 +120,11 @@ test('Maintenance-only controls are absent from the ordinary village, but remain
  assert.doesNotMatch(source,/Chief of Staff · GitHub Copilot/);
  assert.match(source,/Πες μου τι έχεις στο μυαλό σου/);
 });
+
+test('Matt greets owner with current verified village activity without starting AI',()=>{
+ assert.match(source,/cloud\(\)\.listAutonomousMissions\(\)\.then/);
+ assert.match(source,/PaperworldVillageActivity\?\.summary\(rows\)/);
+ assert.match(source,/Date\.now\(\)-villageActivityLastRead>30000/);
+ assert.match(source,/summary\.attention/);
+ assert.match(source,/summary\.active/);
+});
