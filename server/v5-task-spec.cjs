@@ -4,9 +4,11 @@
 'use strict';
 const REGISTRY=Object.freeze({
  listening:Object.freeze({director:'listening-director',repo:'mr-tanq/concerts',
-  paths:Object.freeze(['js/','css/','tests/','workers/','server/'])}),
+  paths:Object.freeze(['js/','css/','scripts/','tests/','workers/','server/']),
+  testIds:Object.freeze(['festival_revisit','festival_discovery','identity_profile','setlist_resolver'])}),
  pokemon:Object.freeze({director:'pokemon-director',repo:'mr-tanq/pokemon-echoes',
-  paths:Object.freeze(['scripts/','scenes/','tests/'])})
+  paths:Object.freeze(['scripts/','scenes/','tests/']),
+  testIds:Object.freeze(['godot_smoke','battle_damage'])})
 });
 const forbidden=['.github/','.paperworld/','node_modules/','addons/','assets/'];
 function safePath(p){return typeof p==='string'&&p.length<160&&p.length>1&&
@@ -29,7 +31,8 @@ function normalizedSpec(input,{projectId,directorId}={}){
   new Set(items).size===items.length;
  if(!stringList(input.acceptance,1,5,240)||!stringList(input.requiredTests,1,10,80)||
   !stringList(input.allowedPaths,1,8,160))throw Error('invalid_requirements');
- if(!input.requiredTests.every(s=>/^[a-zA-Z][a-zA-Z0-9_.-]{1,79}$/.test(s)))
+ if(!input.requiredTests.every(s=>/^[a-zA-Z][a-zA-Z0-9_.-]{1,79}$/.test(s)&&
+  reg.testIds.includes(s)))
   throw Error('unsafe_test_id');
  if(!input.allowedPaths.every(p=>safePath(p)&&
    reg.paths.some(root=>p.startsWith(root))))throw Error('path_outside_project_policy');
