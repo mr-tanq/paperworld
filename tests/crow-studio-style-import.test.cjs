@@ -50,7 +50,7 @@ test('Never import commentary as lyrics or invent song fields',()=>{
  const {parseSong,fromMatt}=require('../js/crow-studio-draft.js');
  assert.equal(parseSong('TITLE: One\nSUNO STYLE PROMPT: guitar\nLYRICS:\nThis is my suggestion\n[Verse]\nHello'),null);
  assert.equal(parseSong('TITLE: One\nSUNO STYLE PROMPT: guitar\nLYRICS:\n[Verse]\n[Outro]'),null);
- assert.equal(parseSong('TITLE: One\nSUNO STYLE PROMPT: guitar\nLYRICS:\n[Verse]\nLine\nNOTES:\nPlease revise').lyrics,'[Verse]\nLine');
+ assert.equal(parseSong('TITLE: One\nSUNO STYLE PROMPT: guitar\nLYRICS:\n[Verse]\nLine\nNOTES:\nPlease revise'),null);
  assert.equal(fromMatt({delegated:true,directorId:'studio-director',
   requestId:'11111111-1111-4111-8111-111111111111',
   request:'make me a song',directorReport:'Some thoughts, not a Suno prompt.'}),null);
@@ -60,6 +60,25 @@ test('Crow import reads persisted replies and refuses unstructured latest messag
  assert.match(source,/latestSavedCrowReply/);
  assert.match(source,/history\.filter\(m=>m\.role==='agent'/);
  assert.match(source,/const song=parser\?\.parseSong\(text\)/);
- assert.match(source,/Τα υπάρχοντα πεδία δεν άλλαξαν/);
+ assert.match(source,/Δεν άλλαξα κανένα πεδίο/);
  assert.doesNotMatch(source,/musicStyle\.value=style;\s*if\(song\)/);
+});
+
+test('Reject clipped Crow song directions and missing final [End]',()=>{
+ const {parseSong,validLyrics}=require('../js/crow-studio-draft.js');
+ const beginning='TITLE: Make War, Not Love\nSUNO STYLE PROMPT: Heavy electric guitars, fast riffing and punchy live drums.\nLYRICS:\n[Intro — driving guitars]\n[Verse 1]\nI came here with a war inside\n';
+ assert.equal(parseSong(beginning+'[Final cli'),null);
+ assert.equal(parseSong(beginning+'[Outro — fading guitars]'),null);
+ assert.equal(parseSong(beginning+'[Final climax'),null);
+ assert.equal(parseSong(beginning+'[Final climax]\n[End]')?.title,'Make War, Not Love');
+ assert.equal(validLyrics('[Verse]\nI came here\n[Final cli'),false);
+ assert.equal(validLyrics('[Verse]\nI came here\n[End]',{requireEnd:true}),true);
+ assert.equal(validLyrics('[Verse]\nI came here\n[Final cli]',{requireEnd:true}),false);
+ assert.equal(validLyrics('[Verse]\nI came here\n[End]\nnotes', {requireEnd:true}),false);
+});
+test('A strict lyric validation gate exists in browser and trusted Suno backend',()=>{
+ const ui=fs.readFileSync('js/world-dialogue.js','utf8');
+ const server=fs.readFileSync('server/suno-audio-create.cjs','utf8');
+ assert.match(ui,/validLyrics\(brief\.lyrics\)/);
+ assert.match(server,/validLyrics\(brief\.lyrics\)/);
 });
