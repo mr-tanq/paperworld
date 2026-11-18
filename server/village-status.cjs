@@ -38,21 +38,30 @@ function briefing(rows){
  const blocked=tasks.filter(r=>['paused_budget','needs_you','failed'].includes(r.status));
  const done=tasks.filter(r=>r.status==='completed'&&!r.simulation);
  const words=[];
- if(active.length)words.push('Αυτή τη στιγμή έχουμε '+active.length+(active.length===1?' εργασία σε εξέλιξη.':' εργασίες σε εξέλιξη.'));
- if(blocked.length)words.push(blocked.length===1?'Μία εργασία χρειάζεται την προσοχή μας.':blocked.length+' εργασίες χρειάζονται την προσοχή μας.');
- if(done.length)words.push('Έχουν ολοκληρωθεί '+done.length+(done.length===1?' εργασία.':' εργασίες.'));
+ if(active.length)words.push(active.length===1?
+  'Υπάρχει μία εργασία σε εξέλιξη.':
+  'Αυτή τη στιγμή έχουμε '+active.length+' εργασίες σε εξέλιξη.');
+ if(blocked.length)words.push(blocked.length===1?
+  'Μία εργασία χρειάζεται την προσοχή μας.':
+  blocked.length+' εργασίες χρειάζονται την προσοχή μας.');
+ if(done.length)words.push(done.length===1?
+  'Μία εργασία έχει ολοκληρωθεί.':
+  done.length+' εργασίες έχουν ολοκληρωθεί.');
+ const article=Object.freeze({Luna:'Η',Joey:'Ο',Crow:'Ο',Dave:'Ο'});
  const relevant=[...blocked,...active,...done].slice(0,3);
  for(const r of relevant){
-  const subject=r.title?' με το «'+r.title.replace(/[\n\r\t]/g,' ').slice(0,90)+'»':'';
+  const detail=r.project==='wellbeing'?'':r.title?
+   ' («'+r.title.replace(/[\n\r\t]/g,' ').slice(0,90)+'»)':'';
+  const who=article[r.person]+' '+r.person;
   const msg=r.status==='paused_budget'?'έχει σταματήσει προσωρινά λόγω ορίου χρήσης':
-   r.status==='needs_you'?'χρειάζεται την απόφασή σου':
+   r.status==='needs_you'?'χρειάζεται μια απόφασή σου για να συνεχίσει':
    r.status==='failed'?'δεν μπόρεσε να ολοκληρώσει την εργασία':
-   r.status==='queued'?'περιμένει να ξεκινήσει':
-   r.status==='verifying'?'ελέγχει το αποτέλεσμα':
-   r.status==='completed'&&r.verified?'έχει ετοιμάσει και ελέγξει μια αλλαγή, που δεν έχει δημοσιευτεί':
-   r.status==='completed'?'έχει καταγράψει την εργασία ως ολοκληρωμένη, αλλά δεν βλέπω επιβεβαιωμένη αλλαγή':
-   'δουλεύει πάνω στην εργασία';
-  words.push(r.person+' '+msg+subject+'.');
+   r.status==='queued'?'έχει μια εργασία στην αναμονή':
+   r.status==='verifying'?'ελέγχει μια έτοιμη αλλαγή':
+   r.status==='completed'&&r.verified?'ετοίμασε μια ελεγμένη αλλαγή που δεν έχει δημοσιευτεί':
+   r.status==='completed'?'έχει δηλώσει την εργασία ολοκληρωμένη, αλλά δεν έχω επιβεβαίωση για κάποια αλλαγή':
+   'δουλεύει σε μια εργασία';
+  words.push(who+' '+msg+detail+'.');
  }
  if(!words.length)return 'Έχουμε κάποιες εργασίες σημειωμένες, αλλά καμία δεν έχει ξεκινήσει ακόμη.';
  return words.join(' ').slice(0,1400);
