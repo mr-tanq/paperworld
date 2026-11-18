@@ -6,12 +6,13 @@
 const ENDPOINT='https://api.suno.com/mcp';
 const MAX_RESULT=512*1024;
 const KEY=/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+const {validLyrics}=require('../js/crow-studio-draft.js');
 function validRequest(brief,key){
  if(!KEY.test(key||'')||!brief||typeof brief!=='object'||Array.isArray(brief)||
     Object.keys(brief).sort().join(',')!=='lyrics,style,title')return false;
  return typeof brief.title==='string'&&brief.title.trim().length>0&&brief.title.length<=120&&
   typeof brief.style==='string'&&brief.style.trim().length>0&&brief.style.length<=1000&&
-  typeof brief.lyrics==='string'&&brief.lyrics.length<=8000;
+  validLyrics(brief.lyrics);
 }
 async function readBounded(response){
  const len=response.headers?.get?.('content-length');
