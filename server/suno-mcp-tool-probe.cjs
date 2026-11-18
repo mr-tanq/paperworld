@@ -8,7 +8,33 @@
 'use strict';
 const ENDPOINT='https://api.suno.com/mcp';
 const VERSION='2026-07-28';
-const MAX_BODY=32000,MAX_TOOLS=100;
+const MAX_BODY=512*1024,MAX_TOOLS=100;
+// Suno can include substantial JSON schemas in tools/list. Keep an upper
+// bound on actual network bytes, not just the Content-Length header.
+async function readBoundedResponse(response){
+ const length=response.headers?.get?.('content-length');
+ if(length!==null&&length!==undefined){
+  if(!/^\\d{1,8}$/.test(length)||Number(length)>MAX_BODY)return null;
+ }
+ if(response.body&&typeof response.body.getReader==='function'){
+  const reader=response.body.getReader(),decoder=new TextDecoder();
+  let size=0,data='';
+  try{
+   while(true){
+    const part=await reader.read();
+    if(part.done)break;
+    if(!(part.value instanceof Uint8Array))return null;
+    size+=part.value.byteLength;
+    if(size>MAX_BODY){await reader.cancel().catch(()=>{});return null}
+    data+=decoder.decode(part.value,{stream:true});
+   }
+   return data+decoder.decode();
+  }finally{reader.releaseLock()}
+ }
+ // Test doubles without ReadableStream: still check actual UTF-8 byte size.
+ const data=await response.text();
+ return typeof data==='string'&&Buffer.byteLength(data,'utf8')<=MAX_BODY?data:null;
+}
 // Fixed response categories only. Never return response body, RPC messages,
 // tool schemas, OAuth credentials, or private catalog data.
 function responseFailure(message){
@@ -106,12 +132,8 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
    const isSse=/^text\/event-stream\b/i.test(contentType);
    if(!isJson&&!isSse)
     return {available:false,reason:'unsupported_response_type'};
-   const length=response.headers?.get?.('content-length');
-   if(length!==null&&length!==undefined&&
-      (Number(length)>MAX_BODY||!Number.isFinite(Number(length))))
-    return {available:false,reason:'unverified_mcp_response'};
-   const payload=await response.text();
-   if(payload.length>MAX_BODY)return {available:false,reason:'mcp_response_oversized'};
+   const payload=await readBoundedResponse(response);
+   if(payload===null)return {available:false,reason:'mcp_response_oversized'};
    let message;
    try{message=isSse?parseRequestSse(payload):JSON.parse(payload)}
    catch(_){return {available:false,reason:'mcp_invalid_json'}}
