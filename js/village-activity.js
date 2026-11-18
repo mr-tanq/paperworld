@@ -37,11 +37,16 @@ function view(raw){
  const reviewed=completed&&raw.report&&typeof raw.report==='object'&&
   raw.report.headStillCurrent===true&&
   Array.isArray(raw.report.requiredTests)&&raw.report.requiredTests.length>0;
- const link=reviewed?safeUrl(raw.report.prUrl):null;
+ const verifiedUrl=reviewed?safeUrl(raw.report.prUrl):null;
+ const projectRepo={listening:'concerts',pokemon:'pokemon-echoes'};
+ const link=verifiedUrl&&projectRepo[raw.projectId]&&
+  verifiedUrl.startsWith('https://github.com/mr-tanq/'+projectRepo[raw.projectId]+'/pull/')
+  ?verifiedUrl:null;
  const isSimulation=raw.simulation===true;
  return Object.freeze({id:String(raw.id||''),person:PERSON[raw.projectId],
   projectId:raw.projectId,title,status:raw.status,
   message:isSimulation?'Ολοκληρώθηκε μόνο δοκιμή υποδομής, όχι πραγματική εργασία.':
+   completed&&!reviewed?'Η εργασία καταγράφηκε ως ολοκληρωμένη. Δεν υπάρχει εδώ επαληθευμένο αποτέλεσμα.':
    STATUS[raw.status],
   stage:raw.status==='needs_you'||raw.status==='failed'?'attention':
    ACTIVE.has(raw.status)?'active':completed?'finished':'waiting',
