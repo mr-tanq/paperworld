@@ -20,7 +20,10 @@ const SAFE_TOOL_REASONS=Object.freeze(new Set([
  'unsupported_response_type','unverified_mcp_response','provider_rpc_rejected',
  'provider_rate_limited','provider_server_error','provider_endpoint_missing',
  'provider_timeout','mcp_probe_unavailable','legacy_probe_unavailable',
- 'legacy_handshake_unverified','legacy_session_invalid','legacy_tools_unverified'
+ 'legacy_handshake_unverified','legacy_session_invalid','legacy_tools_unverified',
+ 'mcp_invalid_envelope','mcp_tools_missing','mcp_pagination_unsupported',
+ 'mcp_tool_limit_exceeded','mcp_invalid_tool_definition','mcp_response_oversized',
+ 'mcp_invalid_json','mcp_invalid_sse'
 ]));
 function safeToolReason(verdict){
  if(verdict?.available===true)return 'mcp_capability_unverified';
