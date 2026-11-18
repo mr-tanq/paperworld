@@ -4,7 +4,7 @@
  else root.PaperworldMattHistory=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){'use strict';
  const PREFIX='@paperworld-matt:v1:';
- const DIRECTORS=new Set(['studio-director','listening-director','pokemon-director']);
+ const DIRECTORS=new Set(['studio-director','listening-director','pokemon-director','matt']);
  const MAX_REPLY=5500; // matches the bounded verified Matt model response
  function encode(director,text){
   if(!DIRECTORS.has(director)||typeof text!=='string'||!text.trim())throw Error('invalid_matt_reply');
@@ -27,7 +27,9 @@
    }else if(row.role==='agent'){
     const parsed=decode(row.content);
     display.push({role:'agent',text:parsed?parsed.text:String(row.content||''),time:row.created_at});
-    if(parsed&&pending){
+    if(parsed?.director==='matt'){
+     activeDirector=null;turns=[];
+    }else if(parsed&&pending){
      if(activeDirector!==parsed.director)turns=[];
      activeDirector=parsed.director;
      turns.push({role:'human',text:pending.slice(0,600)},
