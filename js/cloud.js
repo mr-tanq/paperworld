@@ -603,6 +603,21 @@
       result.toolCount>100)throw Error('Unverified Suno MCP status');
    return result;
   }
+  async function createSunoSong(brief,idempotencyKey){
+   await ensureAuth();
+   const thread=await getAgentThread('studio-director',true);
+   const response=await fetcher(MATT_ORIGIN+'/auth/suno/create-song',{
+    method:'POST',redirect:'error',
+    headers:{Authorization:'Bearer '+session.access_token,
+     'Content-Type':'application/json'},
+    body:JSON.stringify({agentId:'studio-director',threadId:thread.id,
+     brief,idempotencyKey})
+   });
+   let result={};try{result=await response.json()}catch(_){}
+   if(result.service!=='suno_mcp'||typeof result.accepted!=='boolean')
+    throw Error('Suno submission unconfirmed');
+   return result;
+  }
   async function sunoLinkStatus(){
    const result=await sunoOauthRequest('status');
    if(typeof result.oauthAuthorized!=='boolean'||result.ephemeral!==true)
@@ -815,7 +830,8 @@
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
    listPokemonProposals,rejectPokemonProposal,publishPokemonProposal,
    crowSunoPreview,cancelCrowSunoPreview,crowSunoConnectionStatus,
-   beginSunoLink,sunoLinkStatus,inspectSunoTools,diagnoseSunoConnection};
+   beginSunoLink,sunoLinkStatus,inspectSunoTools,diagnoseSunoConnection,
+   createSunoSong};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });
