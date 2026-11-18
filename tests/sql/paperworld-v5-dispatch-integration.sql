@@ -530,7 +530,7 @@ end $$;
 
 -- Zero-session verification remains runnable with the paid session limit used.
 \i sql/paperworld_v5_v1_zero_session_verification_fix.sql
-do $
+do $$
 declare m uuid:='bcbcbcbc-bcbc-4cbc-8cbc-bcbcbcbcbcbc';
 declare w uuid:='abababab-abab-4aba-8aba-abababababab';
 declare step uuid;
@@ -562,7 +562,7 @@ begin
  if (select count(*) from public.paperworld_autonomous_effects_v5
  where mission_id=m and sessions=1)<>1 then
  raise exception 'verification added a second paid effect'; end if;
-end $;
+end $$;
 
 rollback;
 select 'PASS: real PostgreSQL 17 lifecycle, uncertain effects, offline simulation, budget and RLS' as result;
