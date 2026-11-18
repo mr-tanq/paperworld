@@ -5,7 +5,7 @@ const {createSafeSessionConfig}=require('../server/matt-session-config.cjs');
 const OWNER='11111111-1111-4111-8111-111111111111';
 const OTHER='22222222-2222-4222-8222-222222222222';
 const PAT='github_pat_'+'T'.repeat(40);
-test('owner-only durable PAT survives a fresh process construction and needs no OAuth cache',()=>{
+test('owner-only durable PAT survives a fresh process construction and needs no OAuth cache',async()=>{
  const oauth={getLinkedToken:()=>null};
  for(let i=0;i<2;i++){
   const resolver=makeChatCredential({oauth,ownerId:OWNER,token:PAT});
