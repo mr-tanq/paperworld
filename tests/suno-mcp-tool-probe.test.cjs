@@ -47,7 +47,7 @@ test('Refuses redirects, empty SSE streams, malformed JSON or unauthorized acces
   status:200,headers:{get:()=> 'text/event-stream'},
   text:async()=>': heartbeat\n\n'})});
  assert.equal((await emptySse.inspect({accessToken:'valid-access-token-1234'})).reason,
-  'unverified_mcp_response');
+  'mcp_invalid_sse');
  assert.equal((await emptySse.inspect({accessToken:''})).reason,'not_authorized');
 });
 test('OAuth owner must be linked before MCP tool discovery; never enables generation',async()=>{
@@ -125,4 +125,22 @@ test('Reject truncated, duplicate, mismatched, oversized and paginated SSE',asyn
   text:async()=>good+good
  })});
  assert.equal((await probe.inspect({accessToken:'valid-access-token-1234'})).available,false);
+});
+
+test('Categorizes invalid JSON-RPC without leaking provider content',async()=>{
+ const samples=[
+  ['not-json','mcp_invalid_json'],
+  [JSON.stringify({jsonrpc:'2.0',id:7,result:{tools:[]}}),'mcp_invalid_envelope'],
+  [JSON.stringify({jsonrpc:'2.0',id:1,result:{unexpected:'secret'}}),'mcp_tools_missing'],
+  [JSON.stringify({jsonrpc:'2.0',id:1,result:{tools:[{name:'invalid name'}]}}),'mcp_invalid_tool_definition']
+ ];
+ for(const [payload,reason] of samples){
+  const probe=makeSunoMcpToolProbe({fetcher:async()=>({
+   status:200,headers:{get:k=>k==='content-type'?'application/json':null},
+   text:async()=>payload
+  })});
+  const result=await probe.inspect({accessToken:'valid-access-token-1234'});
+  assert.equal(result.reason,reason);
+  assert.doesNotMatch(JSON.stringify(result),/secret|valid-access-token/);
+ }
 });
