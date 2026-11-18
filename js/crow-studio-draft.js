@@ -14,7 +14,7 @@
  // a music prompt, and never send trailing notes or metadata as sung lyrics.
  const labels={
   title:/^(?:title|song\s*title|τίτλος(?:\s+τραγουδιού)?)\s*[:：]\s*(.*)$/i,
-  style:/^(?:suno\s*style\s*prompt|style\s*prompt|suno\s*style|μουσικ(?:ό|ή)\s*ύφος|μουσικ(?:ή|ής)\s*κατεύθυνση|ύφος(?:\s*\([^)]{1,100}\))?)\s*[:：]\s*(.*)$/i,
+  style:/^(?:suno\s*style\s*prompt|style\s*prompt|style|suno\s*style|μουσικ(?:ό|ή)\s*ύφος|μουσικ(?:ή|ής)\s*κατεύθυνση|ύφος(?:\s*\([^)]{1,100}\))?)\s*[:：]\s*(.*)$/i,
   lyrics:/^(?:lyrics|song\s*lyrics|στίχοι)\s*[:：]\s*(.*)$/i
  };
  const other=/^(?:notes?|σημειώσεις|explanation|επεξήγηση|σχόλια|comments?|production\s*notes?|production\s*details?|description|περιγραφή|suggestions?|εναλλακτικές|next\s*steps?|οδηγίες|credits?|summary|περίληψη|analysis|ανάλυση|prompt|τίτλος|title|song\s*title|style|suno\s*style\s*prompt|lyrics|στίχοι)\s*(?:[:：]|$)/i;
@@ -73,6 +73,9 @@
     continue;
    }
    if(stopped||!part)continue;
+   if(!line&&(part==='title'||part==='style')&&sections[part].some(v=>v.trim())){
+    part=null;continue;
+   }
    if(/^`{3,}/.test(line))continue;
    if(part==='lyrics'&&/^(?:---+|___+|thanks(?:\s|[!.])|ελπίζω(?:\s|[!.])|let\s+me\s+know\b)/i.test(line)){
     stopped=true;part=null;continue;
