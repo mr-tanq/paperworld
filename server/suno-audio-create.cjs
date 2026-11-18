@@ -32,6 +32,30 @@ async function readBounded(response){
  const data=await response.text();
  return typeof data==='string'&&Buffer.byteLength(data,'utf8')<=MAX_RESULT?data:null;
 }
+function parseReply(raw,isSse){
+ if(!isSse){try{return JSON.parse(raw)}catch(_){return null}}
+ const frames=raw.replace(/\r\n/g,'\n').split(/\n\n/);
+ if(frames.length>120)return null;
+ let found=null;
+ for(const frame of frames){
+  if(!frame.trim())continue;
+  let event='message';const pieces=[];
+  for(const line of frame.split('\n')){
+   if(!line||line.startsWith(':')||/^(id|retry):/.test(line))continue;
+   if(line.startsWith('event:')){event=line.slice(6).trim();continue}
+   if(line.startsWith('data:')){pieces.push(line.slice(5).trimStart());continue}
+   return null;
+  }
+  if(event!=='message'||!pieces.length)continue;
+  let data;try{data=JSON.parse(pieces.join('\n'))}catch(_){return null}
+  if(!data||data.jsonrpc!=='2.0')return null;
+  if(Object.hasOwn(data,'id')){
+   if(data.id!==2||found!==null)return null;
+   found=data;
+  }
+ }
+ return found;
+}
 function makeSunoAudioCreate({fetcher=globalThis.fetch}={}){
  if(typeof fetcher!=='function')throw Error('fetcher_required');
  async function submit({accessToken,brief,idempotencyKey}={}){
@@ -56,13 +80,13 @@ function makeSunoAudioCreate({fetcher=globalThis.fetch}={}){
    // Non-2xx responses do not prove that a provider did not spend credits.
    if(response.status!==200)return {accepted:false,reason:'submission_unconfirmed'};
    const type=response.headers?.get?.('content-type')||'';
-   if(!/^application\/json\b/i.test(type))
+   const isJson=/^application\/json\b/i.test(type);
+   const isSse=/^text\/event-stream\b/i.test(type);
+   if(!isJson&&!isSse)
     return {accepted:false,reason:'submission_unconfirmed'};
    const body=await readBounded(response);
    if(body===null)return {accepted:false,reason:'submission_unconfirmed'};
-   let data;try{data=JSON.parse(body)}catch(_){
-    return {accepted:false,reason:'submission_unconfirmed'};
-   }
+   const data=parseReply(body,isSse);
    if(data?.jsonrpc!=='2.0'||data.id!==2)
     return {accepted:false,reason:'submission_unconfirmed'};
    if(data.error||data.result?.isError===true)
@@ -78,4 +102,4 @@ function makeSunoAudioCreate({fetcher=globalThis.fetch}={}){
  }
  return Object.freeze({submit});
 }
-module.exports=Object.freeze({makeSunoAudioCreate,validRequest});
+module.exports=Object.freeze({makeSunoAudioCreate,validRequest,parseReply});
