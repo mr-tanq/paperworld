@@ -215,8 +215,13 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
     !toolsListed?'mcp_tools_unverified':'generation_not_enabled'});
  }
  async function callback({url}={}){
-  const redirect=(ok)=>({status:302,body:null,headers:{'Location':APP+
-    '/paperworld/?suno_link='+(ok?'connected':'failed'),
+  // Only fixed, non-sensitive failure categories may reach the browser.
+  // Never expose OAuth code, state, tokens, provider response or error descriptions.
+  const reasons=new Set(['authorization_denied','authorization_expired',
+    'token_exchange_rejected','token_response_invalid','provider_unavailable']);
+  const redirect=(ok,reason)=>({status:302,body:null,headers:{'Location':APP+
+    '/paperworld/?suno_link='+(ok?'connected':'failed')+
+    (!ok&&reasons.has(reason)?'&suno_reason='+reason:''),
     'Cache-Control':'no-store','Referrer-Policy':'no-referrer'}});
   let u;try{u=new URL(url,CALLBACK)}catch(_){return redirect(false)}
   if(u.origin!==HOST||u.pathname!=='/auth/suno/callback')return redirect(false);
@@ -224,8 +229,10 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
   cleanup();
   const entry=pending.get(state);
   pending.delete(state);
-  if(!entry||entry.expires<=clock()||u.searchParams.has('error')||
-     !CODE.test(u.searchParams.get('code')||''))return redirect(false);
+  if(!entry||entry.expires<=clock())return redirect(false,'authorization_expired');
+  if(u.searchParams.has('error'))return redirect(false,'authorization_denied');
+  if(!CODE.test(u.searchParams.get('code')||''))
+   return redirect(false,'token_response_invalid');
   try{
    const params=new URLSearchParams({grant_type:'authorization_code',
     code:u.searchParams.get('code'),redirect_uri:CALLBACK,
@@ -236,19 +243,19 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
     body:params.toString()});
    if(response.status!==200||
       !/^application\/json\b/i.test(response.headers?.get?.('content-type')||''))
-    return redirect(false);
+    return redirect(false,'token_exchange_rejected');
    const body=await response.text();
-   if(body.length>12000)return redirect(false);
+   if(body.length>12000)return redirect(false,'token_response_invalid');
    const data=JSON.parse(body);
    if(typeof data.access_token!=='string'||data.access_token.length<12||
       data.access_token.length>8192||data.token_type?.toLowerCase()!=='bearer')
-    return redirect(false);
+    return redirect(false,'token_response_invalid');
    const ttl=Number(data.expires_in);
-   if(!Number.isSafeInteger(ttl)||ttl<1)return redirect(false);
+   if(!Number.isSafeInteger(ttl)||ttl<1)return redirect(false,'token_response_invalid');
    linked.set(entry.ownerId,{accessToken:data.access_token,
     expires:clock()+Math.min(ttl*1000,MAX_TTL)});
    return redirect(true);
-  }catch(_){return redirect(false)}
+  }catch(_){return redirect(false,'provider_unavailable')}
  }
  function clientMetadata(){
   return {client_id:CLIENT_ID,client_name:'Paperworld — Crow Music Studio',

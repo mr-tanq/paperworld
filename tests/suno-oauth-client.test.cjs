@@ -58,9 +58,11 @@ test('Suno OAuth PKCE links only after real owner authorization, never enables g
  const status=await client.status({headers,body});
  assert.deepEqual(status.body,{oauthAuthorized:true,canGenerate:false,ephemeral:true});
  assert.ok(!JSON.stringify(status).includes('mock-access-token'));
- assert.equal((await client.callback({url:'/auth/suno/callback?state='+
-  encodeURIComponent(uri.searchParams.get('state'))+'&code=abcdefghi12345'}))
-   .headers.Location.endsWith('failed'),true);
+ const replay=await client.callback({url:'/auth/suno/callback?state='+
+  encodeURIComponent(uri.searchParams.get('state'))+'&code=abcdefghi12345'});
+ const replayUrl=new URL(replay.headers.Location);
+ assert.equal(replayUrl.searchParams.get('suno_link'),'failed');
+ assert.equal(replayUrl.searchParams.get('suno_reason'),'authorization_expired');
  assert.equal(calls.filter(x=>x.opts.method==='POST').length,1);
 });
 test('Disallowed registration and unsafe metadata fail closed without redirect',async()=>{
@@ -142,4 +144,31 @@ test('Suno owner consent requests advertised scopes including credits spend',asy
  assert.equal(url.searchParams.get('scope'),'api:v0 profile:read library:read credits:spend');
  assert.equal(url.searchParams.get('resource'),'https://api.suno.com/mcp');
  assert.doesNotMatch(response.body.authorizationUrl,/create%3Agenerate|library%3Awrite/);
+});
+
+test('Suno callback distinguishes consent denial from expired OAuth without leaking provider details',async()=>{
+ const {client}=mock();
+ const start=await client.start({headers,body});
+ const state=new URL(start.body.authorizationUrl).searchParams.get('state');
+ const denied=await client.callback({url:'/auth/suno/callback?state='+encodeURIComponent(state)+
+  '&error=access_denied&error_description=private_provider_message'});
+ assert.equal(denied.status,302);
+ assert.equal(new URL(denied.headers.Location).searchParams.get('suno_reason'),'authorization_denied');
+ assert.doesNotMatch(denied.headers.Location,/private_provider_message|access_denied/);
+ const replay=await client.callback({url:'/auth/suno/callback?state='+encodeURIComponent(state)+
+  '&code=abcdefghi12345'});
+ assert.equal(new URL(replay.headers.Location).searchParams.get('suno_reason'),'authorization_expired');
+});
+test('Suno callback reports a rejected token exchange without exposing tokens',async()=>{
+ const fetcher=async(url,opts)=>opts.method==='GET'?
+  {status:200,headers:{get:()=> 'application/json'},text:async()=>JSON.stringify(metadata)}:
+  {status:403,headers:{get:()=> 'application/json'},text:async()=>JSON.stringify({error:'sensitive'})};
+ const client=createSunoOAuthClient({identity,discovery,fetcher});
+ const start=await client.start({headers,body});
+ const state=new URL(start.body.authorizationUrl).searchParams.get('state');
+ const callback=await client.callback({url:'/auth/suno/callback?state='+encodeURIComponent(state)+
+  '&code=abcdefghi12345'});
+ assert.equal(new URL(callback.headers.Location).searchParams.get('suno_reason'),'token_exchange_rejected');
+ assert.doesNotMatch(callback.headers.Location,/sensitive/);
+ assert.equal((await client.status({headers,body})).body.oauthAuthorized,false);
 });
