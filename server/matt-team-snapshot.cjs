@@ -35,7 +35,9 @@ function makeMattTeamSnapshot({fetcher=globalThis.fetch,
      goal:String(m.goal||'').slice(0,150),
      updatedAt:String(m.updatedAt||'').slice(0,45),
      result:m.result&&typeof m.result==='object'?
-      {prepared:m.result.prepared===true,verified:m.result.verified===true}:null
+      {hasReport:m.result.hasReport===true,
+       existingTestsPassed:m.result.existingTestsPassed===true,
+       ownNewTestPassed:false,applied:false}:null
     }))};
   });
   if(new Set(safe.map(d=>d.projectId)).size!==4)throw Error('invalid_team_snapshot');
