@@ -115,7 +115,7 @@ begin
        when 'pokemon' then 'pokemon-director'
        when 'studio' then 'studio-director'
        else 'listening-director' end,
-     'text',msg)::text)
+     'text',msg,'kind','notification')::text)
   on conflict (id) do nothing;
   if not found then
    raise exception 'matt_notification_message_conflict';
