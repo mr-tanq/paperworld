@@ -166,6 +166,28 @@ function makeTaskGithub({fetcher=fetch,token}={}){
     throw Error('untrusted_workflow_run');
   return run;
  }
+ async function getRun(project,runId){
+  if(!Number.isSafeInteger(runId)||runId<1)throw Error('bad_run_id');
+  return api(project,'/actions/runs/'+runId);
+ }
+ async function findDispatchedRun(project,{missionId,headSha,since}={}){
+  if(!/^[a-f0-9-]{36}$/i.test(missionId||'')||!SHA.test(headSha||'')||
+   !Number.isFinite(Date.parse(since||'')))throw Error('bad_run_reconcile_scope');
+  const response=await api(project,
+   '/actions/workflows/paperworld-verify.yml/runs?event=workflow_dispatch&per_page=100');
+  const title='paperworld-verify '+headSha+' '+missionId;
+  const candidates=(response?.workflow_runs||[]).filter(r=>
+   r?.display_title===title&&r.event==='workflow_dispatch'&&
+   r.head_branch==='main'&&r.path==='.github/workflows/paperworld-verify.yml'&&
+   r.run_attempt===1&&Date.parse(r.created_at)>=Date.parse(since)-2000);
+  if(candidates.length>1)return {state:'ambiguous'};
+  if(candidates.length===0)return {state:'not_found'};
+  const run=await getRun(project,candidates[0].id);
+  if(run.event!=='workflow_dispatch'||run.display_title!==title||
+   run.head_branch!=='main'||run.run_attempt!==1||
+   !SHA.test(run.head_sha||''))return {state:'ambiguous'};
+  return {state:'found',run};
+ }
  async function getPull(project,number){
   if(!Number.isSafeInteger(number)||number<1)throw Error('invalid_pr_number');
   return api(project,'/pulls/'+number);
@@ -211,7 +233,7 @@ function makeTaskGithub({fetcher=fetch,token}={}){
   const decoded=await extractTrustedJson(archive);
   return validateAttestation(decoded,{projectId:project,headSha,missionId,requiredTests});
  }
- return Object.freeze({getIssue,findExistingIssue,createIssue,getPull,
+ return Object.freeze({getIssue,findExistingIssue,createIssue,getPull,getRun,findDispatchedRun,
   assignCopilot,reconcileAssignment,findLinkedPr,assertScopedChanges,
   dispatchVerify,getVerifiedRun,trustedMain,readTrustedAttestation});
 }
