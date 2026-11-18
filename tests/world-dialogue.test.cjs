@@ -35,7 +35,7 @@ test('Worker proposal requires a separate human approval with private Pokémon d
  assert.match(source,/delegateMattWorker\(text,\{saveNote:false,requestId:result\.requestId,onStart:id=>\{/);
  assert.match(source,/το ιδιωτικό project\.godot/);
  assert.match(source,/GDScript αρχεία/);
- assert.match(source,/έως 5 AI κλήσεις/);
+ assert.match(source,/έως 5 κλήσεις/);
  assert.match(source,/χωρίς πρόσθετη χρέωση/);
  assert.match(source,/Δεν ξεκίνησα τον Worker/);
  assert.doesNotMatch(source,/dispatchWorker|workerDispatch|sendMattMessage/);
