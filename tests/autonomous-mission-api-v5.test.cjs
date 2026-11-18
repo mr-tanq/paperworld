@@ -117,7 +117,7 @@ test('No public mutation or autonomous AI scheduling route is installed by this 
  const ui=fs.readFileSync('js/cloud-ui.js','utf8');
  assert.match(server,/\/autonomous\/missions\/create/);
  assert.match(client,/createAutonomousMission/);
- assert.match(ui,/Αποστολές ολόκληρης της ομάδας/);
- assert.match(ui,/Σχέδιο · δεν εκτελείται/);
+ assert.match(ui,/Τι κάνει η ομάδα/);
+ assert.match(ui,/PaperworldVillageActivity/);
  assert.doesNotMatch(server,/\/autonomous\/missions\/execute/);
 });
