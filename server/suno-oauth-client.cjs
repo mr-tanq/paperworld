@@ -167,7 +167,7 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
   const linkedToken=linked.get(who.ownerId);
   if(!linkedToken)return denied(409,'suno_oauth_required');
   // Owner initiated only; a successful OAuth link does not authorize a tools/call.
-  const verdict=await tools.inspect({accessToken:linkedToken.accessToken});
+  const verdict=await tools.inspect({accessToken:linkedToken.accessToken,includeCreationSchema:true});
   const allowed=verdict?.available===true&&
    Number.isSafeInteger(verdict.toolCount)&&verdict.toolCount>=0&&verdict.toolCount<=100&&
    Array.isArray(verdict.tools)&&verdict.tools.length===verdict.toolCount&&
@@ -176,6 +176,8 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
   return answer(200,{service:'suno_mcp',oauthAuthorized:true,
    toolsListed:allowed,canGenerate:false,
    toolCount:allowed?verdict.toolCount:0,
+   creationTools:allowed&&Array.isArray(verdict.creationTools)?
+    verdict.creationTools:[],
    reason:allowed?'read_only_tools_verified':safeToolReason(verdict)});
  }
  // Owner-initiated connection doctor. Only existing read-only discovery

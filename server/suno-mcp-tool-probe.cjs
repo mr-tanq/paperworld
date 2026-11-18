@@ -62,6 +62,36 @@ function summarize(result){
  // Never send descriptions, input schemas or provider data to the browser.
  return {toolCount:names.length,tools:names};
 }
+// Only safe structural metadata for creation-like tools is returned to the
+// authenticated Crow owner. No descriptions, prompt examples, or raw schemas.
+function creationSignatures(message){
+ const source=message?.result?.tools;
+ if(!Array.isArray(source)||source.length>MAX_TOOLS)return [];
+ const picked=[];
+ for(const tool of source){
+  if(!tool||typeof tool.name!=='string'||
+     !/(^|[.\/-])(audio-create|create-song|generate-song|generate-music|music-create)$/.test(tool.name))continue;
+  const schema=tool.inputSchema;
+  if(!schema||typeof schema!=='object'||Array.isArray(schema))continue;
+  const props=schema.properties;
+  if(!props||typeof props!=='object'||Array.isArray(props))continue;
+  const keys=Object.keys(props);
+  if(keys.length>64||picked.length>=8)continue;
+  const fields=[];
+  for(const key of keys){
+   if(!/^[a-zA-Z0-9_.-]{1,80}$/.test(key))continue;
+   const def=props[key];
+   const type=typeof def?.type==='string'&&
+    ['string','number','integer','boolean','array','object'].includes(def.type)?
+    def.type:'unknown';
+   fields.push({name:key,type});
+  }
+  const required=Array.isArray(schema.required)?
+   schema.required.filter(key=>typeof key==='string'&&fields.some(p=>p.name===key)):[];
+  picked.push({name:tool.name,fields,required:required.slice(0,64)});
+ }
+ return picked;
+}
 // Parse only finite request-scoped SSE frames. A provider may emit progress
 // before the final JSON-RPC response. Never mistake a notification for a result.
 function parseRequestSse(raw){
@@ -95,7 +125,7 @@ function parseRequestSse(raw){
 }
 function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
  if(typeof fetcher!=='function')throw Error('fetcher_required');
- async function inspect({accessToken}={}){
+ async function inspect({accessToken,includeCreationSchema=false}={}){
   if(typeof accessToken!=='string'||accessToken.length<12||accessToken.length>8192)
    return {available:false,reason:'not_authorized'};
   const request={jsonrpc:'2.0',id:1,method:'tools/list',params:{
@@ -156,7 +186,8 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
    if(!result)return {available:false,reason:responseFailure(message)};
    // A tool list alone is NOT authorization to invoke any tool.
    return {available:true,reason:'read_only_tools_verified',
-    toolCount:result.toolCount,tools:result.tools};
+    toolCount:result.toolCount,tools:result.tools,
+    ...(includeCreationSchema===true?{creationTools:creationSignatures(message)}:{})};
   }catch(error){
    return {available:false,reason:error?.name==='TimeoutError'||
     error?.name==='AbortError'?'provider_timeout':'mcp_probe_unavailable'};
@@ -164,4 +195,4 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
  }
  return Object.freeze({inspect});
 }
-module.exports=Object.freeze({makeSunoMcpToolProbe,summarize,parseRequestSse,responseFailure,ENDPOINT,VERSION});
+module.exports=Object.freeze({makeSunoMcpToolProbe,summarize,parseRequestSse,responseFailure,creationSignatures,ENDPOINT,VERSION});

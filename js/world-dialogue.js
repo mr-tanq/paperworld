@@ -207,8 +207,14 @@
     legacy_session_invalid:'Το Suno επέστρεψε μη έγκυρο MCP session.',
     legacy_tools_unverified:'Η παλαιότερη σύνδεση δεν επέστρεψε έγκυρη λίστα εργαλείων.'
    };
+   const candidates=Array.isArray(r.creationTools)?r.creationTools:[];
+   const signatures=candidates.slice(0,4).map(t=>
+    t.name+' · fields: '+t.fields.map(f=>f.name+' ('+f.type+')').join(', ')+
+    ' · required: '+(t.required.join(', ')||'none')).join(' | ');
    musicResult.textContent=r.toolsListed?
-    'Επαληθεύτηκαν '+r.toolCount+' εργαλεία MCP.':
+    'Επαληθεύτηκαν '+r.toolCount+' εργαλεία MCP. '+
+    (signatures?'Εργαλεία παραγωγής: '+signatures:
+     'Δεν εντοπίστηκε γνωστό εργαλείο δημιουργίας στα διαθέσιμα schemas.'):
     (toolFailures[r.reason]||'Δεν επαληθεύτηκαν τα εργαλεία MCP.');
   }catch(_){musicResult.textContent='Απαιτείται ενεργή σύνδεση Suno ή συμβατή έκδοση MCP.'}
   finally{sunoTools.disabled=false}
