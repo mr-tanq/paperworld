@@ -101,6 +101,19 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
    const payload=await response.text();
    if(payload.length>MAX_BODY)return {available:false,reason:'unverified_mcp_response'};
    const message=isSse?parseRequestSse(payload):JSON.parse(payload);
+   // Some MCP servers return a valid JSON-RPC protocol/parameter rejection
+   // with HTTP 200 rather than a 400/406 status. In that narrow case only,
+   // negotiate the older, fully initialized read-only handshake. Do not
+   // fallback for arbitrary errors, auth failures, or malformed responses.
+   if(message?.jsonrpc==='2.0'&&message.id===1&&
+      message.error&&typeof message.error==='object'&&
+      Number.isInteger(message.error.code)){
+    if([-32600,-32601,-32602].includes(message.error.code)){
+     const {makeLegacySunoMcpProbe}=require('./suno-mcp-legacy-probe.cjs');
+     return makeLegacySunoMcpProbe({fetcher}).inspect({accessToken});
+    }
+    return {available:false,reason:'provider_rpc_rejected'};
+   }
    if(message?.error)return {available:false,reason:'provider_rpc_rejected'};
    const result=summarize(message);
    if(!result)return {available:false,reason:'unverified_mcp_response'};
