@@ -364,5 +364,118 @@ begin
  then raise exception 'override changed session debit'; end if;
 end $$;
 
+-- Task Engine v1: additive cutover, isolation and no session starts.
+\i sql/paperworld_v5_task_engine_v1.sql
+\i sql/paperworld_v5_task_engine_v1_execution.sql
+\i sql/paperworld_v5_task_engine_v1_shared_budget.sql
+do $$
+declare
+ owner_id uuid:='11111111-1111-4111-8111-111111111111';
+ thread uuid:='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+ mission uuid:='bcbcbcbc-bcbc-4cbc-8cbc-bcbcbcbcbcbc';
+ spec jsonb:='{"projectId":"listening","directorId":"listening-director",
+  "repository":"mr-tanq/concerts","title":"Test a small concert filter",
+  "summary":"Bounded repository test scope","acceptance":["One genre filter test passes"],
+  "requiredTests":["festival_revisit"],"allowedPaths":["tests/"],"maxFiles":2,
+  "noAutoMerge":true,"noAutoDeploy":true}'::jsonb;
+ begin_state text;
+begin
+ insert into public.paperworld_autonomous_missions_v5
+ (id,owner_id,thread_id,project_id,goal,status,policy)
+ values(mission,owner_id,thread,'listening','Test reusable task engine',
+  'draft','{"maxAiCalls":0,"additionalSpendUsd":0}'::jsonb);
+ if public.paperworld_v5_plan_task(mission,
+   spec||'{"repository":"mr-tanq/pokemon-echoes"}'::jsonb)
+ then raise exception 'cross-project repository accepted'; end if;
+ if public.paperworld_v5_plan_task(mission,
+   spec||'{"allowedPaths":[".github/"]}'::jsonb)
+ then raise exception 'protected workflow path accepted'; end if;
+ if not public.paperworld_v5_plan_task(mission,spec)
+ then raise exception 'bounded Luna spec refused'; end if;
+ if public.paperworld_v5_queue_task(mission)
+ then raise exception 'task queued with engine still pilot'; end if;
+ if exists(select 1 from public.paperworld_v5_claim_task_step(
+   'abababab-abab-4aba-8aba-abababababab',600))
+ then raise exception 'v1 claimed a task in pilot mode'; end if;
+ if not public.paperworld_v5_set_engine('v1','Synthetic CI v1 cutover')
+ then raise exception 'v1 cutover rejected'; end if;
+ if not public.paperworld_v5_queue_task(mission)
+ then raise exception 'bounded Luna mission not queued'; end if;
+ if public.paperworld_v5_queue_task(mission)
+ then raise exception 'duplicate queue allowed'; end if;
+ if (select count(*) from public.paperworld_autonomous_steps_v5
+   where mission_id=mission)<>5
+ then raise exception 'wrong step count'; end if;
+ if exists(select 1 from public.paperworld_autonomous_steps_v5
+   where mission_id=mission and seq>1 and state='ready')
+ then raise exception 'out-of-order step runnable'; end if;
+ if not exists(select 1 from public.paperworld_v5_claim_task_step(
+   'abababab-abab-4aba-8aba-abababababab',600)
+  where capability='create_issue')
+ then raise exception 'generic create_issue not claimed'; end if;
+ if not public.paperworld_v5_set_engine('off','Synthetic CI emergency stop')
+ then raise exception 'kill switch rejected'; end if;
+ if exists(select 1 from public.paperworld_v5_claim_task_step(
+   'cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd',600))
+ then raise exception 'off mode still claims tasks'; end if;
+ if has_function_privilege('authenticated',
+   'public.paperworld_v5_set_engine(text,text)','execute')
+  or has_function_privilege('authenticated',
+   'public.paperworld_v5_queue_task(uuid)','execute')
+  or has_function_privilege('anon',
+   'public.paperworld_v5_claim_task_step(uuid,integer)','execute')
+ then raise exception 'untrusted browser may control task engine'; end if;
+end $$;
+
+-- Transactional evidence/side-effect state machine (no network).
+do $$
+declare mission uuid:='bcbcbcbc-bcbc-4cbc-8cbc-bcbcbcbcbcbc';
+declare worker uuid:='abababab-abab-4aba-8aba-abababababab';
+declare step uuid;
+declare next_step uuid;
+declare key text;
+begin
+ if not public.paperworld_v5_set_engine('v1','CI effect recovery verification')
+ then raise exception 'v1 resume rejected'; end if;
+ select id,idempotency_key into step,key from public.paperworld_autonomous_steps_v5
+ where mission_id=mission and capability='create_issue';
+ if public.paperworld_v5_begin_effect(step,worker,key,'copilot_agent','create_issue')<>'reserved'
+ then raise exception 'cannot reserve cost free issue effect'; end if;
+ if public.paperworld_v5_begin_effect(step,worker,key,'copilot_agent','create_issue')<>'uncertain'
+ then raise exception 'issue creation reserved twice'; end if;
+ if not public.paperworld_v5_confirm_effect(key,worker,
+  '{"externalId":"7","externalUrl":"https://github.com/mr-tanq/concerts/issues/7",
+    "proof":"issue_marker_and_number"}'::jsonb)
+ then raise exception 'issue effect confirmation failed'; end if;
+ if not public.paperworld_v5_finish_task_step(step,worker,'{"issueNumber":7}'::jsonb)
+ then raise exception 'generic issue step did not finish'; end if;
+ select * into next_step from public.paperworld_v5_claim_task_step(worker,600)
+ where capability='start_agent';
+ if next_step is null then raise exception 'start-agent step not promoted'; end if;
+ select id,idempotency_key into step,key from public.paperworld_autonomous_steps_v5
+ where mission_id=mission and capability='start_agent';
+ if public.paperworld_v5_begin_effect(step,worker,key,'copilot_agent','start_agent')<>'reserved'
+ then raise exception 'no bounded session reservation'; end if;
+ if not public.paperworld_v5_mark_task_uncertain(key,worker,'unexpected_agent_reply')
+ then raise exception 'uncertain call not recorded'; end if;
+ if (select state from public.paperworld_autonomous_effects_v5 where effect_key=key)<>'uncertain'
+ then raise exception 'unknown external call was retried'; end if;
+ if not public.paperworld_v5_reconcile_task_effect(key,'confirmed',
+  '{"proof":"issue_marker_and_copilot_assignee","externalId":"7",
+    "externalUrl":"https://github.com/mr-tanq/concerts/issues/7"}'::jsonb)
+ then raise exception 'confirmed assignment could not reconcile'; end if;
+ if public.paperworld_v5_reconcile_task_effect(key,'confirmed',
+  '{"proof":"issue_marker_and_copilot_assignee","externalId":"7"}'::jsonb)
+ then raise exception 'assignment reconciled twice'; end if;
+ if (select count(*) from public.paperworld_autonomous_effects_v5
+  where mission_id=mission and sessions=1)<>1
+ then raise exception 'duplicate paid session after reconcile'; end if;
+ if (select state from public.paperworld_autonomous_steps_v5
+  where mission_id=mission and capability='await_agent')<>'ready'
+ then raise exception 'await_agent not automatically promoted'; end if;
+ if (select status from public.paperworld_autonomous_missions_v5 where id=mission)
+ <>'working' then raise exception 'mission not resumed after reconciliation'; end if;
+end $$;
+
 rollback;
 select 'PASS: real PostgreSQL 17 lifecycle, uncertain effects, offline simulation, budget and RLS' as result;
