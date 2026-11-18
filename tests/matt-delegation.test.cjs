@@ -372,3 +372,18 @@ test('Unresolved and unauthorized routes cannot stream any Director stages',asyn
   assert.equal(events.length,0);
  }
 });
+
+test('Crow owner sees actual specialist reply, never a contradictory Matt paraphrase',async()=>{
+ const {gateway,seen}=make({route:'studio-director'});
+ const out=await gateway.handle({headers,body:requestBody({
+  ...data,message:'Write a new song in a specific requested style'
+ })});
+ assert.equal(out.status,200);
+ assert.equal(out.body.directorId,'studio-director');
+ assert.equal(out.body.delegated,true);
+ assert.equal(out.body.content,out.body.directorReport);
+ assert.match(out.body.content,/Director found hypotheses/);
+ assert.doesNotMatch(out.body.content,/Matt: Director suggests/);
+ assert.equal(out.body.aiTurns,3);
+ assert.equal(seen.sent,3);
+});
