@@ -1,0 +1,321 @@
+/* Paperworld Task Engine v1 — one deterministic cron-woken dispatcher.
+ * No model calls, no autonomous issue merge, no user-facing CORS.
+ * External mutations only after DB intent reservation.
+ */
+import {makeTaskGithub} from './github.mjs';
+import {taskProject,verifyBoundedSpec} from './projects.mjs';
+
+const URL='https://jrevhzvrgenucuozjowm.supabase.co';
+const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+const respond=(status,body)=>new Response(JSON.stringify(body),{
+ status,headers:{'content-type':'application/json','cache-control':'no-store',
+ 'x-content-type-options':'nosniff'}
+});
+function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
+ const env=k=>environment?.(k);
+ function dbKey(){
+  try{
+   const modern=JSON.parse(env('SUPABASE_SECRET_KEYS')||'{}').default;
+   if(typeof modern==='string'&&modern.startsWith('sb_secret_'))return modern;
+  }catch(_){}
+  const legacy=env('SUPABASE_SERVICE_ROLE_KEY');
+  return typeof legacy==='string'&&legacy.length>20?legacy:null;
+ }
+ async function db(path,method='GET',body){
+  const key=dbKey();
+  if(!key)throw Error('backend_credential_unavailable');
+  const response=await fetcher(URL+'/rest/v1/'+path,{
+   method,redirect:'error',signal:AbortSignal.timeout(12000),
+   headers:{apikey:key,...(key.startsWith('eyJ')?{Authorization:'Bearer '+key}:{}),
+     Accept:'application/json','Content-Type':'application/json',
+     ...(method==='POST'?{Prefer:'return=representation'}:{})},
+   ...(body===undefined?{}:{body:JSON.stringify(body)})
+  });
+  if(!response?.ok)throw Error('database_request_failed');
+  return response.json();
+ }
+ async function rpc(name,args={}){
+  if(!/^paperworld_v5_[a-z_]+$/.test(name))throw Error('unsupported_database_operation');
+  return db('rpc/'+name,'POST',args);
+ }
+ async function fetchOne(table,selector){
+  const rows=await db(table+'?'+new URLSearchParams({...selector,limit:'1'}));
+  return Array.isArray(rows)&&rows.length===1?rows[0]:null;
+ }
+ async function readMission(id){
+  const mission=await fetchOne('paperworld_autonomous_missions_v5',{
+   select:'id,owner_id,project_id,status,engine,spec,policy',id:'eq.'+id});
+  if(!mission||mission.engine!=='v1')throw Error('mission_scope_invalid');
+  verifyBoundedSpec(mission.spec,mission.project_id);
+  return mission;
+ }
+ async function readSteps(missionId){
+  const result=await db('paperworld_autonomous_steps_v5?'+new URLSearchParams({
+   select:'id,seq,capability,input,output,state',mission_id:'eq.'+missionId,
+   order:'seq.asc',limit:'8'}));
+  if(!Array.isArray(result)||result.length!==5)throw Error('mission_step_shape_invalid');
+  return result;
+ }
+ async function readEffect(stepId){
+  return fetchOne('paperworld_autonomous_effects_v5',{
+   select:'effect_key,step_id,kind,state,external_id,external_url,confirmed_at,evidence,created_at',
+   step_id:'eq.'+stepId});
+ }
+ async function fail(step,worker,reason){
+  await rpc('paperworld_v5_fail_step',{p_step:step,p_worker:worker,
+   p_reason:reason,p_retryable:false});
+  return {state:'needs_you',reason,sessionsStarted:0};
+ }
+ async function complete(step,worker,output){
+  const ok=await rpc('paperworld_v5_finish_task_step',{
+   p_step:step,p_worker:worker,p_result:output});
+  if(ok!==true)throw Error('task_completion_refused');
+ }
+ async function reserve(step,worker,key,kind){
+  return rpc('paperworld_v5_begin_effect',{p_step:step,p_worker:worker,
+   p_key:key,p_adapter:'copilot_agent',p_kind:kind});
+ }
+ async function confirm(key,worker,ref,done=true){
+  if(await rpc('paperworld_v5_confirm_effect',{p_key:key,p_worker:worker,
+    p_reference:ref,p_done:done})!==true)
+   throw Error('effect_confirmation_refused');
+ }
+ async function uncertainty(key,worker,code){
+  if(await rpc('paperworld_v5_mark_task_uncertain',{p_key:key,p_worker:worker,
+   p_reason:code})!==true)throw Error('uncertain_effect_not_persisted');
+  return {state:'reconciling',sessionsStarted:0};
+ }
+ async function pauseBudget(step,worker){
+  if(await rpc('paperworld_v5_pause_task_budget',{
+   p_step:step,p_worker:worker})!==true)throw Error('budget_pause_failed');
+  return {state:'waiting_for_budget',sessionsStarted:0};
+ }
+ async function pendingReconciliation(gh){
+  const rows=await db('paperworld_autonomous_effects_v5?'+new URLSearchParams({
+   select:'effect_key,step_id,mission_id,kind,reconcile_attempts,state,created_at',
+   state:'eq.uncertain',order:'updated_at.asc',limit:'8'}));
+  for(const e of rows){
+   if(!UUID.test(e.mission_id)||e.reconcile_attempts>=6)continue;
+   let m;
+   try{m=await readMission(e.mission_id)}catch(_){continue}
+   if(m.status==='completed'||m.status==='cancelled')continue;
+   const steps=await readSteps(m.id);
+   const issueStep=steps.find(s=>s.capability==='create_issue');
+   let evidence=null;
+   try{
+    if(e.kind==='create_issue'){
+     const x=await gh.findExistingIssue(m.project_id,e.effect_key);
+     if(x)evidence={proof:'issue_marker_and_number',
+      externalId:String(x.number),externalUrl:x.html_url};
+    }else if(e.kind==='start_agent'){
+     const issueNumber=Number(issueStep?.output?.issueNumber);
+     if(Number.isSafeInteger(issueNumber)&&issueNumber>0){
+      const r=await gh.reconcileAssignment(m.project_id,{issueNumber,
+       effectKey:issueStep.input.effectKey});
+      if(r.state==='confirmed')evidence={proof:'issue_marker_and_copilot_assignee',
+       externalId:String(issueNumber),externalUrl:'https://github.com/'+
+        taskProject(m.project_id).repository+'/issues/'+issueNumber};
+     }
+    }else if(e.kind==='dispatch_verify'){
+     // A lost workflow-dispatch reply is NOT evidence that no run was created.
+     // Never resend automatically. A new authoritative run-id recovery path
+     // is required before this effect can advance.
+    }
+   }catch(_){}
+   if(evidence){
+    const resolved=await rpc('paperworld_v5_reconcile_task_effect',{
+     p_key:e.effect_key,p_outcome:'confirmed',p_evidence:evidence});
+    if(resolved===true)return {state:'effect_reconciled',sessionsStarted:0};
+   }else{
+    await rpc('paperworld_v5_reconcile_task_effect',{
+     p_key:e.effect_key,p_outcome:'unresolved',p_evidence:{}});
+    return {state:'awaiting_external_evidence',sessionsStarted:0};
+   }
+  }
+  return null;
+ }
+ async function runClaim(step,worker,gh){
+  if(!UUID.test(step?.step_id)||!UUID.test(step?.mission_id)||
+   !['create_issue','start_agent','await_agent','verify','report'].includes(step.capability))
+   throw Error('invalid_task_claim');
+  const mission=await readMission(step.mission_id);
+  const project=mission.project_id,spec=mission.spec;
+  const config=taskProject(project);
+  const steps=await readSteps(mission.id);
+  const s=steps.find(x=>x.id===step.step_id);
+  if(!s||s.capability!==step.capability)throw Error('step_claim_mismatch');
+  const key=s.input?.effectKey;
+  if(typeof key!=='string'||!key.startsWith('task-v1:'+mission.id+':'))
+   throw Error('effect_key_scope_invalid');
+  const issueStep=steps.find(x=>x.capability==='create_issue');
+  const startStep=steps.find(x=>x.capability==='start_agent');
+  const awaitStep=steps.find(x=>x.capability==='await_agent');
+  const verifyStep=steps.find(x=>x.capability==='verify');
+  const issue=Number(issueStep?.output?.issueNumber);
+  if(step.capability==='create_issue'){
+   const state=await reserve(s.id,worker,key,'create_issue');
+   if(state==='budget_denied')return pauseBudget(s.id,worker);
+   if(state!=='reserved')return fail(s.id,worker,'issue_effect_reservation_denied');
+   const brief=spec.summary+'\n\nAcceptance:\n'+
+     spec.acceptance.map((x,i)=>'- '+(i+1)+'. '+x).join('\n')+
+     '\n\nRequired tests: '+spec.requiredTests.join(', ')+
+     '\nAllowed paths: '+spec.allowedPaths.join(', ')+
+     '\nDraft PR only. Never modify CI, secrets, deployment or protected files.';
+   const result=await gh.createIssue(project,{effectKey:key,title:spec.title,body:brief});
+   if(result.state==='uncertain')return uncertainty(key,worker,'issue_post_uncertain');
+   await confirm(key,worker,{externalId:String(result.issueNumber),
+    externalUrl:result.issueUrl,proof:'issue_marker_and_number'},true);
+   await complete(s.id,worker,{issueNumber:result.issueNumber,issueUrl:result.issueUrl});
+   return {state:'issue_created',sessionsStarted:0};
+  }
+  if(step.capability==='start_agent'){
+   if(!Number.isSafeInteger(issue)||issue<1)throw Error('issue_not_confirmed');
+   const state=await reserve(s.id,worker,key,'start_agent');
+   if(state==='budget_denied')return pauseBudget(s.id,worker);
+   if(state!=='reserved')return fail(s.id,worker,'copilot_effect_reservation_denied');
+   const result=await gh.assignCopilot(project,{issueNumber:issue,
+    effectKey:issueStep.input.effectKey});
+   if(result.state==='uncertain')return uncertainty(key,worker,'copilot_assignment_uncertain');
+   await confirm(key,worker,{externalId:String(issue),externalUrl:issueStep.output.issueUrl,
+    proof:'issue_marker_and_copilot_assignee'},true);
+   await complete(s.id,worker,{issueNumber:issue,assignment:result.state,sessionReserved:true});
+   return {state:'agent_assigned',sessionsStarted:result.state==='assigned'?1:0};
+  }
+  if(step.capability==='await_agent'){
+   if(!Number.isSafeInteger(issue)||issue<1)throw Error('missing_issue');
+   const effect=await readEffect(startStep.id);
+   const started=Date.parse(effect?.confirmed_at||'');
+   if(!Number.isFinite(started))throw Error('assignment_time_missing');
+   const age=clock()-started;
+   const found=await gh.findLinkedPr(project,{issueNumber:issue,
+    effectKey:issueStep.input.effectKey});
+   if(found.state==='ambiguous')return fail(s.id,worker,'ambiguous_copilot_pr');
+   if(found.state!=='found'){
+    if(age>30*60*1000)return fail(s.id,worker,'copilot_pr_missing');
+    await rpc('paperworld_v5_defer_task_step',{p_step:s.id,p_worker:worker,
+     p_seconds:300,p_observation:s.output||{}});
+    return {state:'awaiting_agent_pr',sessionsStarted:0};
+   }
+   const pr=found.pr,sha=pr.head?.sha;
+   if(!/^[a-f0-9]{40}$/i.test(sha||''))throw Error('invalid_pr_head');
+   const previous=s.output||{};
+   const stable=previous.headSha===sha?
+     Number(previous.stableSince||clock()):clock();
+   const observation={prNumber:pr.number,prUrl:pr.html_url,
+    headSha:sha,stableSince:stable,confirmedStart:effect.confirmed_at};
+   if(age>3*60*60*1000)return fail(s.id,worker,'copilot_deadline_exceeded');
+   if(age>=75*60*1000&&clock()-stable>=20*60*1000){
+    await complete(s.id,worker,{...observation,
+     completion:'conservative_fallback',stableHead:true});
+    return {state:'agent_finished_waiting_verify',sessionsStarted:0};
+   }
+   await rpc('paperworld_v5_defer_task_step',{p_step:s.id,p_worker:worker,
+    p_seconds:300,p_observation:observation});
+   return {state:'awaiting_stable_head',sessionsStarted:0};
+  }
+  if(step.capability==='verify'){
+   const sha=awaitStep?.output?.headSha;
+   const prNumber=awaitStep?.output?.prNumber;
+   if(!/^[a-f0-9]{40}$/i.test(sha||'')||
+    !Number.isSafeInteger(prNumber))throw Error('unverified_pr_identity');
+   const pr=await gh.getPull(project,prNumber);
+   if(pr?.head?.sha!==sha||pr?.draft!==true||pr?.state!=='open')
+    return fail(s.id,worker,'pr_head_changed_before_verify');
+   await gh.assertScopedChanges(project,prNumber,spec.allowedPaths,spec.maxFiles);
+   const pin=await gh.trustedMain(project,config.workflowBlob);
+   let effect=await readEffect(s.id);
+   if(!effect){
+    const state=await reserve(s.id,worker,key,'dispatch_verify');
+    if(state==='budget_denied')return pauseBudget(s.id,worker);
+    if(state!=='reserved')return fail(s.id,worker,'verification_effect_reservation_denied');
+    const submitted=await gh.dispatchVerify(project,{missionId:mission.id,
+     headSha:sha,requiredTests:spec.requiredTests});
+    if(submitted.state==='uncertain')return uncertainty(key,worker,'verify_dispatch_uncertain');
+    const receipt={externalId:String(submitted.runId),
+     runId:submitted.runId,externalUrl:'https://github.com/'+config.repository+
+      '/actions/runs/'+submitted.runId,runUrl:'https://github.com/'+config.repository+
+      '/actions/runs/'+submitted.runId,
+     headSha:sha,mainSha:pin.mainSha,workflowBlob:pin.workflowBlob};
+    await confirm(key,worker,receipt,false);
+    await rpc('paperworld_v5_defer_task_step',{p_step:s.id,p_worker:worker,
+     p_seconds:300,p_observation:receipt});
+    return {state:'verification_dispatched',sessionsStarted:0};
+   }
+   if(effect.state!=='started')throw Error('verify_effect_requires_reconciliation');
+   const proof=effect.evidence||{};
+   const runId=Number(effect.external_id);
+   if(!Number.isSafeInteger(runId)||!/^[a-f0-9]{40}$/i.test(proof.mainSha||'')||
+    proof.headSha!==sha||proof.workflowBlob!==config.workflowBlob)
+    throw Error('verify_effect_receipt_invalid');
+   const run=await gh.getVerifiedRun(project,{runId,headSha:sha,
+    mainSha:proof.mainSha}).catch(()=>null);
+   if(!run){
+    // A completed-but-failed run must never become an endless retry.
+    await rpc('paperworld_v5_defer_task_step',{p_step:s.id,p_worker:worker,
+     p_seconds:300,p_observation:proof});
+    return {state:'verifying',sessionsStarted:0};
+   }
+   const proofTests=await gh.readTrustedAttestation(project,{runId,headSha:sha,
+    mainSha:proof.mainSha,missionId:mission.id,requiredTests:spec.requiredTests});
+   const latest=await gh.getPull(project,prNumber);
+   if(latest.head?.sha!==sha)return fail(s.id,worker,'pr_head_moved_after_verify');
+   const final={externalId:String(runId),runId,headSha:sha,
+    verification:'trusted',requiredTests:proofTests.requiredTests,
+    runUrl:proof.runUrl,prUrl:awaitStep.output.prUrl};
+   await confirm(key,worker,final,true);
+   await complete(s.id,worker,final);
+   return {state:'verified',sessionsStarted:0};
+  }
+  if(step.capability==='report'){
+   const v=verifyStep?.output||{};
+   const prNumber=awaitStep?.output?.prNumber;
+   if(v.verification!=='trusted'||!Number.isSafeInteger(prNumber))
+    return fail(s.id,worker,'trusted_verification_missing');
+   const pr=await gh.getPull(project,prNumber);
+   if(pr?.state!=='open'||pr?.draft!==true||pr.head?.sha!==v.headSha)
+    return fail(s.id,worker,'pr_head_moved_after_verification');
+   const outcome={title:spec.title,projectId:project,
+    prUrl:awaitStep.output.prUrl,runUrl:v.runUrl,
+    headSha:v.headSha,headStillCurrent:true,
+    requiredTests:v.requiredTests,sessionsReserved:1,
+    summary:'Draft PR checked by the trusted main workflow; review before merging.'};
+   await complete(s.id,worker,outcome);
+   return {state:'completed',missionId:mission.id,sessionsStarted:0};
+  }
+  throw Error('unknown_task_capability');
+ }
+ async function processOnce(){
+  const row=await fetchOne('paperworld_autonomous_controller_v5',{
+   select:'engine,dispatch_enabled,live_adapters',singleton:'eq.true'});
+  if(!row||row.engine!=='v1'||row.dispatch_enabled!==true||
+   !row.live_adapters?.includes('copilot_agent'))
+   return {state:'disabled',sessionsStarted:0};
+  await rpc('paperworld_v5_resume_due_budget');
+  const gh=makeTaskGithub({fetcher,token:env('GITHUB_COPILOT_USER_TOKEN')});
+  const recovered=await pendingReconciliation(gh);
+  if(recovered)return recovered;
+  const worker=crypto.randomUUID();
+  const claimed=await rpc('paperworld_v5_claim_task_step',{
+   p_worker:worker,p_lease_seconds:600});
+  if(!Array.isArray(claimed)||claimed.length===0)
+   return {state:'idle',sessionsStarted:0};
+  if(claimed.length!==1)throw Error('multiple_steps_claimed');
+  return runClaim(claimed[0],worker,gh);
+ }
+ async function handle(request){
+  if(request.method!=='POST')return respond(405,{error:'method_not_allowed'});
+  const secret=env('PAPERWORLD_DISPATCH_TRIGGER_SECRET');
+  if(!secret||secret.length<32||!dbKey()||
+   !env('GITHUB_COPILOT_USER_TOKEN'))
+   return respond(503,{error:'credentials_unavailable'});
+  if(request.headers.get('authorization')!=='Bearer '+secret)
+   return respond(401,{error:'unauthorized'});
+  try{return respond(200,await processOnce())}
+  catch(_){return respond(503,{error:'v1_dispatch_requires_reconciliation'})}
+ }
+ return Object.freeze({handle,processOnce});
+}
+export {createTaskDispatcher};
+if(typeof Deno!=='undefined'&&typeof Deno.serve==='function'){
+ Deno.serve(createTaskDispatcher({environment:k=>Deno.env.get(k)}).handle);
+}
