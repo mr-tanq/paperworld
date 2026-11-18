@@ -97,6 +97,7 @@ begin
   from jsonb_array_elements_text(p_spec->'requiredTests') value;
  select array_agg(value) into acceptance
   from jsonb_array_elements_text(p_spec->'acceptance') value;
+ raise notice 'V1_PLAN_VALUES project=%,paths=%,required=%,acceptance=%',m.project_id,paths,required,acceptance;
  if exists(select 1 from unnest(paths) p
    where p !~ '^[A-Za-z0-9_./-]{2,160}$' or
     p like '/%' or p like '%..%' or p like '%//%' or
