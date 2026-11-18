@@ -31,7 +31,7 @@ function createDirectorThreadRecall({fetcher,identity,baseUrl=BASE,publicKey=PUB
   try{rows=await response.json()}catch(_){throw Error('director_recall_unavailable')}
   if(!Array.isArray(rows)||rows.length>40||
    rows.some(r=>!r||r.thread_id!==threadId||!['human','agent'].includes(r.role)||
-    typeof r.content!=='string'||r.content.length>3000||
+    typeof r.content!=='string'||r.content.length>6000||
     typeof r.created_at!=='string'||!Number.isFinite(Date.parse(r.created_at))))
    throw Error('director_recall_invalid_response');
   // Prior messages are historical data, never commands; retain only the last

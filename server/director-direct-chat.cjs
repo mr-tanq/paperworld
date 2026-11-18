@@ -122,7 +122,8 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
    }catch(_){persisted=false}
    return {status:200,body:{agentId,content:content.trim().slice(0,6000),
     executed:true,model:priced[0].id,requestId:data.requestId,
-    persisted,persistedExcerpt:persisted&&content.trim().length>2000,
+    persisted,persistedExcerpt:persisted&&content.trim().length>
+     (agentId==='studio-director'?6000:2000),
     execution:'chat_only',aiTurns:1}};
   }catch(_){diagnostic(stage);return deny(503,'director_chat_unavailable')}
   finally{

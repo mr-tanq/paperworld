@@ -21,7 +21,12 @@ function createDirectorReplyPersistence({fetcher=globalThis.fetch,
    return false;
   if(typeof secret!=='string'||!(secret.startsWith('sb_secret_')||secret.startsWith('eyJ')))
    return false;
-  const excerpt=content.trim().slice(0,2000);
+  // Only the Crow owner-scoped song replies may use the larger approved
+  // DB limit. Human messages and other Directors remain capped at 2000.
+  const limit=agentId==='studio-director'?6000:2000;
+  // Do not store an incomplete song by silently clipping its final [End].
+  if(content.trim().length>limit)return false;
+  const excerpt=content.trim();
   const body={id:requestId,thread_id:threadId,owner_id:ownerId,role:'agent',content:excerpt};
   try{
    const response=await fetcher(baseUrl+'/rest/v1/paperworld_agent_messages',{
