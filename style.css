@@ -622,3 +622,31 @@ body>header span{font-size:10px;color:#a3afa6;letter-spacing:.04em}
 
 /* Keep compact Matt work alerts legible within the dark Messenger. */
 .world-chat-decisions .human-hub-header{background:transparent;border:0;box-shadow:none;padding:0;color:#edf0ed}
+
+/* Quiet owner connection indicators — status comes from authorized server checks. */
+.world-dialogue-head .world-connection-chip,
+.crow-music-panel .world-connection-chip{
+ display:inline-flex;align-items:center;justify-content:center;gap:6px;
+ width:auto;max-width:100%;min-width:0;min-height:30px;
+ padding:5px 9px;border-radius:999px;border:1px solid #59616c;
+ background:#20272d;color:#cbd3db;font:600 10px/1.3 system-ui;
+ white-space:nowrap;cursor:pointer;flex:none;
+}
+.world-connection-chip::before{
+ content:'';width:6px;height:6px;flex:none;border-radius:50%;
+ background:#8d939c;box-shadow:0 0 0 2px #ffffff10;
+}
+.world-connection-chip[data-state="connected"]::before{background:#70b59b}
+.world-connection-chip[data-state="disconnected"]::before{background:#cc9e66}
+.world-connection-chip[data-state="checking"]::before{background:#8d939c}
+.world-dialogue-head .world-connection-chip[data-state="connected"],
+.crow-music-panel .world-connection-chip[data-state="connected"]{
+ opacity:1;cursor:default;border-color:#4b615a;color:#c8d5cf;
+}
+.world-dialogue-head .world-connection-chip:disabled,
+.crow-music-panel .world-connection-chip:disabled{opacity:1}
+.crow-music-panel .world-connection-chip{align-self:flex-end;margin:0}
+@media(max-width:500px){
+ .world-dialogue-head .world-connection-chip{padding:5px 7px;font-size:9px}
+ .world-dialogue-head{gap:7px}
+}
