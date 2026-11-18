@@ -91,3 +91,47 @@ test('legacy tool probe does not enable generation or expose token',()=>{
  assert.match(src,/method:'initialize'/);
  assert.match(src,/method:'tools\/list'/);
 });
+
+test('HTTP 200 JSON-RPC invalid-params error triggers safe initialized MCP fallback',async()=>{
+ const seen=[];
+ const responses=[
+  ok({jsonrpc:'2.0',id:1,error:{code:-32602,message:'invalid params'}}),
+  ok(init,'SESSION-PROTOCOL-ONLY'),
+  {status:202},
+  ok(tools)
+ ];
+ const probe=makeSunoMcpToolProbe({fetcher:async(url,options)=>{
+  seen.push({url,options});
+  return responses[seen.length-1];
+ }});
+ const result=await probe.inspect({accessToken:credential});
+ assert.equal(result.available,true);
+ assert.equal(result.reason,'read_only_legacy_tools_verified');
+ assert.deepEqual(seen.map(x=>JSON.parse(x.options.body).method),
+  ['tools/list','initialize','notifications/initialized','tools/list']);
+ assert.ok(seen.every(x=>x.url==='https://api.suno.com/mcp'));
+ assert.ok(seen.every(x=>!JSON.stringify(x.options.body).includes('tools/call')));
+});
+test('Unrelated JSON-RPC errors must not trigger a second MCP request',async()=>{
+ for(const code of [-32001,-32000,-32700]){
+  let count=0;
+  const probe=makeSunoMcpToolProbe({fetcher:async()=>{
+   count++;
+   return ok({jsonrpc:'2.0',id:1,error:{code,message:'opaque provider error'}});
+  }});
+  const result=await probe.inspect({accessToken:credential});
+  assert.equal(result.available,false);
+  assert.equal(result.reason,'provider_rpc_rejected');
+  assert.equal(count,1);
+  assert.doesNotMatch(JSON.stringify(result),/opaque|test-bearer/);
+ }
+});
+test('Malformed success is not a protocol rejection and must not trigger fallback',async()=>{
+ let count=0;
+ const probe=makeSunoMcpToolProbe({fetcher:async()=>{
+  count++;return ok({jsonrpc:'2.0',id:1,result:{unexpected:true}});
+ }});
+ const result=await probe.inspect({accessToken:credential});
+ assert.equal(result.reason,'unverified_mcp_response');
+ assert.equal(count,1);
+});
