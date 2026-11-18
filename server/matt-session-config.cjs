@@ -10,7 +10,7 @@ const SYSTEM='You are Matt, the Chief of Staff of PAPERWORLD. Talk naturally wit
 'Be concise and respond in the language the user uses.';
 function createSafeSessionConfig({model,gitHubToken,probeMinimal=false}={}){
  if(typeof model!=='string'||!/^[-a-z0-9.]{1,80}$/i.test(model)||
-    typeof gitHubToken!=='string'||!/^gh[ou]_[A-Za-z0-9_]+$/.test(gitHubToken))
+    typeof gitHubToken!=='string'||!/^(?:gh[ou]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]{20,300})$/.test(gitHubToken))
   throw Error('Invalid trusted session config');
  const baseline={
   model,
