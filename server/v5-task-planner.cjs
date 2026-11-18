@@ -21,6 +21,7 @@ function buildTaskPrompt({message,directorId,projectDescription='',memory=''}={}
   'Do NOT invent repository names, model quotas, workflow commands or credentials.',
   'Acceptance must be 1–5 precise testable criteria; requiredTests 1–10 fixed test IDs.',
   'maxFiles 1–10. Use only these allowed path prefixes: '+reg.paths.join(', '),
+  'Required tests MUST be selected from these exact approved test IDs: '+reg.testIds.join(', '),
   'Do not change .github, .paperworld, assets, workflows, secrets or deployments.',
   'If request is broad, select one useful, explicitly bounded first improvement.',
   'Director: '+directorId+'; repository: '+reg.repo+'.',
