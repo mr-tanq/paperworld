@@ -10,18 +10,30 @@ const MODEL=JSON.stringify({title:'Fix concert matching filter',
  requiredTests:['festival_revisit'],allowedPaths:['js/','tests/'],maxFiles:3});
 function setup({engine='v1',enabled=true,queue=true}={}){
  const calls=[];
+ let saved=null;
  const fetcher=async(url,opts)=>{
   const path=new URL(url).pathname,method=opts.method;
   calls.push({path,method,body:opts.body&&JSON.parse(opts.body)});
   const response=data=>({ok:true,json:async()=>data});
   if(path.endsWith('/paperworld_autonomous_controller_v5'))return response([{
    engine,dispatch_enabled:true,live_adapters:['copilot_agent']}]);
-  if(path.endsWith('/paperworld_autonomous_missions_v5')&&method==='POST'){
-   const payload=JSON.parse(opts.body);
-   return response([{...payload}]);
+  if(path.endsWith('/paperworld_autonomous_missions_v5')){
+   if(method==='GET')return response(saved?[saved]:[]);
+   if(method==='POST'){
+    const payload=JSON.parse(opts.body);
+    if(saved)throw Error('duplicate_mission');
+    saved={...payload};return response([{...payload}]);
+   }
   }
-  if(path.endsWith('/paperworld_v5_plan_task'))return response(true);
-  if(path.endsWith('/paperworld_v5_queue_task'))return response(queue);
+  if(path.endsWith('/paperworld_v5_plan_task')){
+   if(!saved||saved.status!=='draft')return response(false);
+   saved.status='planned';saved.spec=JSON.parse(opts.body).p_spec;
+   return response(true);
+  }
+  if(path.endsWith('/paperworld_v5_queue_task')){
+   if(queue&&saved&&saved.status==='planned')saved.status='queued';
+   return response(queue);
+  }
   throw Error('unexpected call '+path);
  };
  const intake=makeMattTaskIntake({fetcher,enabled:()=>enabled,
@@ -77,4 +89,31 @@ test('a planned but unqueued mission never claims a Worker started',async()=>{
  const r=await intake.submit(args);
  assert.equal(r.state,'planned');
  assert.equal(r.autoMerge,false);
+});
+
+test('request replay returns existing mission without duplicate insert or queue',async()=>{
+ const {intake,args,calls}=setup();
+ const first=await intake.submit(args),second=await intake.submit(args);
+ assert.equal(first.state,'queued');
+ assert.equal(second.state,'queued');
+ assert.equal(second.replayed,true);
+ assert.equal(calls.filter(x=>x.method==='POST').length,3);
+});
+test('request replay cannot cross ownership, thread, or goal boundaries',async()=>{
+ const {intake,args,calls}=setup();
+ await intake.submit(args);
+ for(const modified of [
+  {...args,ownerId:'44444444-4444-4444-8444-444444444444'},
+  {...args,threadId:'55555555-5555-4555-8555-555555555555'},
+  {...args,message:'Change a different feature'}])
+  await assert.rejects(intake.submit(modified),/task_replay_scope_conflict/);
+ assert.equal(calls.filter(x=>x.method==='POST').length,3);
+});
+test('planned mission resumes queueing without creating another row',async()=>{
+ const {intake,args,calls}=setup({queue:false});
+ const r=await intake.submit(args);
+ assert.equal(r.state,'planned');
+ const again=await intake.submit(args);
+ assert.equal(again.state,'planned');
+ assert.equal(calls.filter(x=>x.path.endsWith('paperworld_autonomous_missions_v5')&&x.method==='POST').length,1);
 });
