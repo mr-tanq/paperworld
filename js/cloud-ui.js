@@ -424,7 +424,7 @@ function openChief(){
  if(client.signedIn())setTimeout(focusChief,350);
 }
 window.PaperworldCloudUI={
- open,openChief,isActive:()=>active,signedIn:()=>client.signedIn(),
+ open,openChief,isActive:()=>active,signedIn:()=>client.signedIn(),ownerId:()=>client.ownerId(),
  privateAgentMessages:(id)=>client.agentMessages(id),
  sendPrivateAgentMessage:(id,text)=>client.sendAgentNote(id,text),
  askDirector:(id,text,options)=>client.askDirector(id,text,options),

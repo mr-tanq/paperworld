@@ -35,18 +35,53 @@
  identity.append(heading,activity);
  const close=make('button','world-chat-close','×');
  close.type='button';close.setAttribute('aria-label','Close conversation');
- top.append(avatar,identity,close);
+
  const status=make('p','world-dialogue-status');
  status.setAttribute('role','status');
  const messages=make('div','world-dialogue-messages');
  messages.setAttribute('role','log');
  messages.setAttribute('aria-label','Conversation messages');
- const connectGithub=make('button','world-dialogue-handoff','Σύνδεσε το GitHub για να μιλήσεις στον Matt');
+ const connectGithub=make('button','world-connection-chip','GitHub · Έλεγχος…');
  connectGithub.type='button';connectGithub.hidden=true;
+ connectGithub.dataset.state='checking';
+ connectGithub.setAttribute('aria-label','Κατάσταση σύνδεσης GitHub');
+ function setGithubConnection(state){
+  connectGithub.dataset.state=state;
+  connectGithub.textContent=state==='connected'?'GitHub · Συνδεδεμένο':
+   state==='disconnected'?'GitHub · Σύνδεση':
+   state==='unknown'?'GitHub · Άγνωστο':'GitHub · Έλεγχος…';
+  connectGithub.disabled=state==='connected';
+  connectGithub.title=state==='connected'?'GitHub συνδεδεμένο':
+   state==='disconnected'?'Σύνδεση στο GitHub':'Πάτησε για επανέλεγχο GitHub';
+ }
+ async function refreshGithubConnection(selectedRevision=revision){
+  if(openId!=='matt'||!cloud()?.signedIn()||
+     typeof cloud()?.githubLinkStatus!=='function')return;
+  setGithubConnection('checking');
+  try{
+   const link=await cloud().githubLinkStatus();
+   if(selectedRevision!==revision||openId!=='matt')return;
+   setGithubConnection(link.connected===true||link.chatConnected===true?
+    'connected':'disconnected');
+  }catch(_){
+   if(selectedRevision===revision&&openId==='matt')
+    setGithubConnection('unknown');
+  }
+ }
  connectGithub.addEventListener('click',async()=>{
+  if(openId!=='matt'||!cloud()?.signedIn())return;
+  if(['checking','unknown'].includes(connectGithub.dataset.state)){
+   await refreshGithubConnection();return;
+  }
+  if(connectGithub.dataset.state!=='disconnected')return;
+  connectGithub.disabled=true;
   try{const url=await cloud().beginGithubLink();window.location.assign(url)}
-  catch(e){status.textContent='Η σύνδεση GitHub δεν ξεκίνησε: '+e.message}
+  catch(_){
+   status.textContent='Η σύνδεση GitHub δεν ξεκίνησε.';
+   void refreshGithubConnection();
+  }finally{connectGithub.disabled=false}
  });
+ top.append(avatar,identity,connectGithub,close);
  const form=make('form','world-dialogue-form');
  const field=make('textarea','world-chat-input');
  const send=make('button','world-chat-send','➤');
@@ -117,6 +152,52 @@
  musicLyrics.setAttribute('aria-label','Πρωτότυποι στίχοι');
  const musicSave=make('button','crow-music-save','Ετοίμασε draft');
  musicSave.type='submit';
+ // An OAuth redirect reloads this page. Keep the editable song in this tab
+ // across that redirect, bound to the authenticated Cloud owner and a short TTL.
+ // This never stores Suno/GitHub credentials or triggers generation.
+ const songDraftStorageKey='paperworld-crow-oauth-draft-v1';
+ const songDraftMaxAge=2*60*60*1000;
+ const songOwner=()=>cloud()?.signedIn()?cloud()?.ownerId?.():null;
+ const validSongOwner=id=>typeof id==='string'&&
+  /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id);
+ function rememberSongDraft(){
+  const ownerId=songOwner();
+  if(!validSongOwner(ownerId))return;
+  const title=musicTitle.value,style=musicStyle.value,lyrics=musicLyrics.value;
+  if(title.length>120||style.length>1000||lyrics.length>8000)return;
+  try{
+   window.sessionStorage.setItem(songDraftStorageKey,JSON.stringify({
+    ownerId,title,style,lyrics,savedAt:Date.now()
+   }));
+  }catch(_){/* Private-session storage may be unavailable. */}
+ }
+ function restoreSongDraft(){
+  const ownerId=songOwner();
+  if(!validSongOwner(ownerId))return false;
+  try{
+   const raw=window.sessionStorage.getItem(songDraftStorageKey);
+   if(!raw)return false;
+   const draft=JSON.parse(raw);
+   if(draft?.ownerId!==ownerId||!Number.isFinite(draft.savedAt)||
+      draft.savedAt>Date.now()+60000||Date.now()-draft.savedAt>songDraftMaxAge||
+      typeof draft.title!=='string'||draft.title.length>120||
+      typeof draft.style!=='string'||draft.style.length>1000||
+      typeof draft.lyrics!=='string'||draft.lyrics.length>8000){
+    window.sessionStorage.removeItem(songDraftStorageKey);return false;
+   }
+   // Do not replace a newer in-memory draft or overwrite current editing.
+   if(musicTitle.value||musicStyle.value||musicLyrics.value)return false;
+   musicTitle.value=draft.title;musicStyle.value=draft.style;
+   musicLyrics.value=draft.lyrics;
+   return !!(draft.title||draft.style||draft.lyrics);
+  }catch(_){return false}
+ }
+ function forgetSongDraft(){
+  try{window.sessionStorage.removeItem(songDraftStorageKey)}catch(_){}
+ }
+ for(const field of [musicTitle,musicStyle,musicLyrics]){
+  field.addEventListener('input',rememberSongDraft);
+ }
  const musicResult=make('p','crow-music-result','');
  musicResult.setAttribute('role','status');
  // The callback carries only fixed, non-sensitive categories, never provider details.
@@ -179,6 +260,7 @@
    musicResult.textContent='Δεν υποστηρίζεται ασφαλές μοναδικό κλειδί υποβολής.';
    return;
   }
+  rememberSongDraft();
   lastSunoSubmission=key;
   musicBusy=true;sunoGenerate.disabled=true;
   musicResult.textContent='Υποβολή στο Suno… Μην επαναλάβεις το αίτημα.';
@@ -200,22 +282,55 @@
  const musicCancel=make('button','crow-music-cancel','Ακύρωση πρότασης');
  musicCancel.type='button';musicCancel.hidden=true;
  musicForm.append(musicTitle,musicStyle,musicLyrics,musicSave);
- const sunoConnect=make('button','crow-music-check','Σύνδεση Suno');
+ const sunoConnect=make('button','world-connection-chip','Suno · Έλεγχος…');
  sunoConnect.type='button';
+ sunoConnect.dataset.state='checking';
+ sunoConnect.setAttribute('aria-label','Κατάσταση σύνδεσης Suno');
+ function setSunoConnection(state){
+  sunoConnect.dataset.state=state;
+  sunoConnect.disabled=state==='connected'||state==='checking';
+  sunoConnect.textContent=state==='connected'?'Suno · Συνδεδεμένο':
+   state==='disconnected'?'Suno · Σύνδεση':
+   state==='unknown'?'Suno · Άγνωστο':'Suno · Έλεγχος…';
+  sunoConnect.title=state==='connected'?'Suno συνδεδεμένο':
+   state==='disconnected'?'Σύνδεση στον λογαριασμό Suno':
+   'Πάτησε για επανέλεγχο σύνδεσης Suno';
+ }
+ async function refreshSunoConnection(){
+  if(openId!=='studio-director'||!cloud()?.signedIn()||
+     typeof cloud()?.sunoLinkStatus!=='function'){
+   setSunoConnection('checking');return;
+  }
+  const selectedRevision=revision;
+  setSunoConnection('checking');
+  try{
+   const r=await cloud().sunoLinkStatus();
+   if(selectedRevision!==revision||openId!=='studio-director')return;
+   setSunoConnection(r.oauthAuthorized===true?'connected':'disconnected');
+  }catch(_){
+   if(selectedRevision===revision&&openId==='studio-director')
+    setSunoConnection('unknown');
+  }
+ }
  sunoConnect.addEventListener('click',async()=>{
-  if(openId!=='studio-director'||musicBusy||!cloud()?.signedIn()||
+  if(openId!=='studio-director'||musicBusy||!cloud()?.signedIn())return;
+  if(sunoConnect.dataset.state==='unknown'){
+   await refreshSunoConnection();return;
+  }
+  if(sunoConnect.dataset.state!=='disconnected'||
      typeof cloud()?.beginSunoLink!=='function')return;
   const agreed=window.confirm('Θα μεταφερθείς στη σελίδα εξουσιοδότησης του Suno. '+
    'Δεν θα δημιουργηθεί τραγούδι και δεν θα καταναλωθούν credits. Συνέχεια;');
   if(!agreed)return;
   sunoConnect.disabled=true;musicResult.textContent='Έλεγχος ασφαλούς σύνδεσης…';
+  rememberSongDraft();
   try{
    const url=await cloud().beginSunoLink();
    window.location.assign(url);
   }catch(_){
    musicResult.textContent='Το Suno δεν προσφέρει ακόμη επιβεβαιωμένη σύνδεση σε αυτόν τον client. '+
     'Η παραγωγή παραμένει απενεργοποιημένη.';
-  }finally{sunoConnect.disabled=false}
+  }finally{void refreshSunoConnection()}
  });
  const sunoLinkStatus=make('button','crow-music-check','Κατάσταση λογαριασμού Suno');
  sunoLinkStatus.type='button';
@@ -225,6 +340,7 @@
   sunoLinkStatus.disabled=true;
   try{
    const r=await cloud().sunoLinkStatus();
+   setSunoConnection(r.oauthAuthorized===true?'connected':'disconnected');
    musicResult.textContent=r.oauthAuthorized?
     'Ο λογαριασμός Suno συνδέθηκε.':
     'Ο λογαριασμός Suno δεν έχει συνδεθεί ακόμη.';
@@ -332,7 +448,7 @@
  const crowTechnical=make('details','crow-technical-tools');
   crowTechnical.append(make('summary','','Έλεγχοι σύνδεσης για συντήρηση'),
    sunoCheck,sunoLinkStatus,sunoTools,sunoInstructions);
-  musicPanel.append(musicHelp,musicResult,sunoConnect,musicFromCrow,
+  musicPanel.append(sunoConnect,musicHelp,musicResult,musicFromCrow,
    musicForm,sunoGenerate,musicCopy,musicCancel,crowTechnical);
  let musicBusy=false;
  const openStudio=make('button','crow-music-toggle','♫ Συνέχεια στο Music Studio');
@@ -346,7 +462,7 @@
   musicTitle.value=draft.title;musicStyle.value=draft.style;musicLyrics.value=draft.lyrics;
   musicResult.textContent='Μεταφέρθηκε η πραγματική αναφορά του Crow. '+
    'Διόρθωσε τίτλο, μουσική κατεύθυνση και στίχους.';
-  musicCopy.hidden=false;musicCancel.hidden=false;musicTitle.focus();
+  musicCopy.hidden=false;musicCancel.hidden=false;rememberSongDraft();musicTitle.focus();
  });
  function resetMusic(){
   musicPanel.hidden=true;musicToggle.setAttribute('aria-expanded','false');
@@ -357,7 +473,12 @@
   if(musicBusy)return;
   musicPanel.hidden=!musicPanel.hidden;
   musicToggle.setAttribute('aria-expanded',String(!musicPanel.hidden));
-  if(!musicPanel.hidden)musicTitle.focus();
+  if(!musicPanel.hidden){
+   const restored=restoreSongDraft();
+   if(restored)musicResult.textContent='Το τραγούδι σου επανήλθε μετά τη σύνδεση.';
+   void refreshSunoConnection();
+   musicTitle.focus();
+  }
  });
  musicFromCrow.addEventListener('click',()=>{
   if(openId!=='studio-director'||musicBusy)return;
@@ -383,6 +504,7 @@
   musicStyle.value=song.style;
   musicLyrics.value=song.lyrics;
   musicCopy.hidden=false;musicCancel.hidden=false;
+  rememberSongDraft();
   musicResult.textContent='Μεταφέρθηκαν μόνο ο τίτλος, το Suno style prompt και οι στίχοι. '+
    'Έλεγξε τα πεδία πριν δημιουργήσεις τραγούδι.';
  });
@@ -404,11 +526,12 @@
   if(openId!=='studio-director'||musicBusy)return;
   if(!musicTitle.value.trim()||!musicStyle.value.trim())return;
   musicCopy.hidden=false;musicCancel.hidden=false;
+  rememberSongDraft();
   musicResult.textContent='Το draft είναι έτοιμο για επεξεργασία ή αντιγραφή.';
  });
  musicCancel.addEventListener('click',()=>{
   if(openId!=='studio-director'||musicBusy)return;
-  musicForm.reset();musicCancel.hidden=true;musicCopy.hidden=false;
+  musicForm.reset();forgetSongDraft();musicCancel.hidden=true;musicCopy.hidden=false;
   musicResult.textContent='Το draft καθαρίστηκε.';
  });
  // One deliberate, owner-only batch approval for the staged private import.
@@ -442,7 +565,7 @@
  });
  const composer=make('footer','world-chat-composer');
  memoryReview.classList.add('village-maintenance-only');
- composer.append(connectGithub,memoryReview,openStudio,musicToggle,musicPanel,form);
+ composer.append(memoryReview,openStudio,musicToggle,musicPanel,form);
  panel.append(top,status,messages,decisions,composer);view.append(panel);
  // Matt owns the conversation; internal agent and worker routing stays invisible.
  async function runMattWorkflow(text){
@@ -681,18 +804,9 @@
   if(active&&isMatt&&(mattCachedEntries!==null||mattReplies.length))
    appendEntries(mattCachedEntries||[]);
   else messages.replaceChildren(system(active?'Φόρτωση ιδιωτικού ιστορικού…':'Απαιτείται σύνδεση.'));
-  connectGithub.hidden=true;
-  if(isMatt&&active&&typeof cloud()?.githubLinkStatus==='function'){
-   const selected=openId;
-   cloud().githubLinkStatus().then(link=>{
-    if(token!==revision||openId!==selected)return;
-    const canChat=link.connected===true||link.chatConnected===true;
-    connectGithub.hidden=canChat;
-    if(!canChat)status.textContent='Σύνδεσε το GitHub για να ενεργοποιηθεί η συνομιλία.';
-   }).catch(()=>{
-    if(token===revision&&openId===selected)connectGithub.hidden=false;
-   });
-  }
+  connectGithub.hidden=!isMatt||!active;
+  if(isMatt&&active)void refreshGithubConnection(token);
+  if(openId==='studio-director'&&active)void refreshSunoConnection();
   if(active&&typeof cloud()?.privateAgentMessages==='function'){
    const selected=openId;
    cloud().privateAgentMessages(selected).then(history=>{
@@ -790,5 +904,22 @@
   if(e.key.toLowerCase()==='m'){e.preventDefault();show('matt')}
   if(e.key.toLowerCase()==='t'){e.preventDefault();nearby()}
  });
+ // Return to the prepared song after Suno redirects back to Paperworld.
+ // The callback query string alone is NOT a connection proof: the status
+ // indicator separately reads the authenticated server's current OAuth state.
+ if(sunoReturn.get('suno_link')==='connected'&&cloud()?.signedIn()&&
+    validSongOwner(songOwner())){
+  show('studio-director');
+  musicPanel.hidden=false;
+  musicToggle.setAttribute('aria-expanded','true');
+  if(restoreSongDraft()){
+   musicResult.textContent='Το τραγούδι σου διατηρήθηκε. Έλεγξε τη σύνδεση Suno και συνέχισε.';
+   musicCopy.hidden=false;musicCancel.hidden=false;
+  }
+  void refreshSunoConnection();
+ }else if(new URLSearchParams(window.location.search).get('github_link')==='connected'&&
+   cloud()?.signedIn()){
+  show('matt');
+ }
  window.PaperworldWorldDialogue=Object.freeze({show,close:hide,nearby});
 })();
