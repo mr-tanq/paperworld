@@ -564,5 +564,69 @@ begin
  raise exception 'verification added a second paid effect'; end if;
 end $$;
 
+
+-- Matt Sees & Speaks: owner-scoped team state and notification idempotency.
+create table public.paperworld_agent_messages (
+ id uuid primary key,thread_id uuid not null,
+ owner_id uuid not null,role text not null,content text not null,
+ created_at timestamptz not null default now(),
+ foreign key(thread_id,owner_id)
+ references public.paperworld_agent_threads(id,owner_id));
+\i sql/paperworld_v6_matt_sees_speaks.sql
+do $
+declare owner1 uuid:='11111111-1111-4111-8111-111111111111';
+declare owner2 uuid:='22222222-2222-4222-8222-222222222222';
+declare m uuid:='71717171-7171-4717-8717-717171717171';
+declare p uuid:='72727272-7272-4727-8727-727272727272';
+declare snap jsonb;
+declare first_run jsonb;
+declare second_run jsonb;
+begin
+ insert into public.paperworld_autonomous_missions_v5
+ (id,owner_id,thread_id,project_id,goal,status,engine,report)
+ values(m,owner1,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+ 'listening','Check one ticket update','completed','v1',
+ '{"headStillCurrent":true,"requiredTests":["festival_revisit"]}'::jsonb);
+ insert into public.paperworld_autonomous_missions_v5
+ (id,owner_id,thread_id,project_id,goal,status,engine)
+ values(p,owner1,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+ 'studio','Private draft work','needs_you','v1');
+ snap:=public.paperworld_v5_team_snapshot(owner1);
+ if jsonb_array_length(snap->'directors')<>4 then
+  raise exception 'team snapshot missing directors'; end if;
+ if snap::text not like '%Check one ticket update%' then
+  raise exception 'owner did not see its own mission'; end if;
+ if coalesce(public.paperworld_v5_team_snapshot(owner2)::text,'') like '%Check one ticket update%' then
+  raise exception 'cross-owner mission leaked'; end if;
+ first_run:=public.paperworld_v5_notify_matt();
+ second_run:=public.paperworld_v5_notify_matt();
+ if (first_run->>'messages')::integer<2 then
+  raise exception 'completion and attention messages missing'; end if;
+ if (second_run->>'messages')::integer<>0 then
+  raise exception 'duplicate Matt notifications'; end if;
+ if (select count(*) from public.paperworld_agent_messages
+ where owner_id=owner1 and role='agent')<>2 then
+  raise exception 'unexpected message count'; end if;
+ if exists(select 1 from public.paperworld_agent_messages
+ where content not like '@paperworld-matt:v1:%') then
+  raise exception 'Matt format not preserved'; end if;
+ update public.paperworld_autonomous_missions_v5
+ set status='working',updated_at=now()-interval '3 hours'
+ where id=p;
+ perform public.paperworld_v5_notify_matt();
+ if (select count(*) from public.paperworld_matt_notifications_v5
+ where mission_id=p and kind='stalled')<>1 then
+  raise exception 'stalled work did not notify'; end if;
+ perform public.paperworld_v5_notify_matt();
+ if (select count(*) from public.paperworld_agent_messages
+ where owner_id=owner1 and role='agent')<>3 then
+  raise exception 'stalled notification duplicated'; end if;
+ if has_function_privilege('authenticated',
+ 'public.paperworld_v5_team_snapshot(uuid)','EXECUTE') or
+ has_function_privilege('anon',
+ 'public.paperworld_v5_notify_matt()','EXECUTE') then
+  raise exception 'client could call privileged snapshot/notifier'; end if;
+end $;
+
 rollback;
 select 'PASS: real PostgreSQL 17 lifecycle, uncertain effects, offline simulation, budget and RLS' as result;
