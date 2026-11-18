@@ -77,11 +77,11 @@ begin
     (p_spec->>'maxFiles') !~ '^[1-9]$|^10$' or
     length(btrim(coalesce(p_spec->>'title',''))) not between 1 and 120 or
     length(btrim(coalesce(p_spec->>'summary',''))) not between 1 and 800
- then return false; end if;
+ then raise notice 'V1_PLAN_DIAGNOSTIC_1'; return false; end if;
  select * into m from public.paperworld_autonomous_missions_v5
  where id=p_mission for update;
  if not found or m.status<>'draft' or m.project_id<>p_spec->>'projectId'
-  or m.project_id not in ('pokemon','listening') then return false; end if;
+  or m.project_id not in ('pokemon','listening') then raise notice 'V1_PLAN_DIAGNOSTIC_2'; return false; end if;
  role:=case m.project_id when 'pokemon' then 'pokemon-director'
   else 'listening-director' end;
  repo:=case m.project_id when 'pokemon' then 'mr-tanq/pokemon-echoes'
@@ -90,7 +90,7 @@ begin
    p_spec->>'repository' is distinct from repo or
    p_spec->>'noAutoMerge' is distinct from 'true' or
    p_spec->>'noAutoDeploy' is distinct from 'true'
- then return false; end if;
+ then raise notice 'V1_PLAN_DIAGNOSTIC_3'; return false; end if;
  select array_agg(value) into paths
   from jsonb_array_elements_text(p_spec->'allowedPaths') value;
  select array_agg(value) into required
@@ -114,7 +114,7 @@ begin
      ('festival_revisit','festival_discovery','identity_profile','setlist_resolver')))
  or exists(select 1 from unnest(acceptance) t
    where length(btrim(t)) not between 1 and 240)
- then return false; end if;
+ then raise notice 'V1_PLAN_DIAGNOSTIC_4'; return false; end if;
  update public.paperworld_autonomous_missions_v5
  set engine='v1',status='planned',spec=p_spec,updated_at=now()
  where id=p_mission;
