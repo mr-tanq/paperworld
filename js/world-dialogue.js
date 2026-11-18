@@ -117,6 +117,52 @@
  musicLyrics.setAttribute('aria-label','Πρωτότυποι στίχοι');
  const musicSave=make('button','crow-music-save','Ετοίμασε draft');
  musicSave.type='submit';
+ // An OAuth redirect reloads this page. Keep the editable song in this tab
+ // across that redirect, bound to the authenticated Cloud owner and a short TTL.
+ // This never stores Suno/GitHub credentials or triggers generation.
+ const songDraftStorageKey='paperworld-crow-oauth-draft-v1';
+ const songDraftMaxAge=2*60*60*1000;
+ const songOwner=()=>cloud()?.signedIn()?cloud()?.ownerId?.():null;
+ const validSongOwner=id=>typeof id==='string'&&
+  /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id);
+ function rememberSongDraft(){
+  const ownerId=songOwner();
+  if(!validSongOwner(ownerId))return;
+  const title=musicTitle.value,style=musicStyle.value,lyrics=musicLyrics.value;
+  if(title.length>120||style.length>1000||lyrics.length>8000)return;
+  try{
+   window.sessionStorage.setItem(songDraftStorageKey,JSON.stringify({
+    ownerId,title,style,lyrics,savedAt:Date.now()
+   }));
+  }catch(_){/* Private-session storage may be unavailable. */}
+ }
+ function restoreSongDraft(){
+  const ownerId=songOwner();
+  if(!validSongOwner(ownerId))return false;
+  try{
+   const raw=window.sessionStorage.getItem(songDraftStorageKey);
+   if(!raw)return false;
+   const draft=JSON.parse(raw);
+   if(draft?.ownerId!==ownerId||!Number.isFinite(draft.savedAt)||
+      draft.savedAt>Date.now()+60000||Date.now()-draft.savedAt>songDraftMaxAge||
+      typeof draft.title!=='string'||draft.title.length>120||
+      typeof draft.style!=='string'||draft.style.length>1000||
+      typeof draft.lyrics!=='string'||draft.lyrics.length>8000){
+    window.sessionStorage.removeItem(songDraftStorageKey);return false;
+   }
+   // Do not replace a newer in-memory draft or overwrite current editing.
+   if(musicTitle.value||musicStyle.value||musicLyrics.value)return false;
+   musicTitle.value=draft.title;musicStyle.value=draft.style;
+   musicLyrics.value=draft.lyrics;
+   return !!(draft.title||draft.style||draft.lyrics);
+  }catch(_){return false}
+ }
+ function forgetSongDraft(){
+  try{window.sessionStorage.removeItem(songDraftStorageKey)}catch(_){}
+ }
+ for(const field of [musicTitle,musicStyle,musicLyrics]){
+  field.addEventListener('input',rememberSongDraft);
+ }
  const musicResult=make('p','crow-music-result','');
  musicResult.setAttribute('role','status');
  // The callback carries only fixed, non-sensitive categories, never provider details.
@@ -179,6 +225,7 @@
    musicResult.textContent='Δεν υποστηρίζεται ασφαλές μοναδικό κλειδί υποβολής.';
    return;
   }
+  rememberSongDraft();
   lastSunoSubmission=key;
   musicBusy=true;sunoGenerate.disabled=true;
   musicResult.textContent='Υποβολή στο Suno… Μην επαναλάβεις το αίτημα.';
@@ -209,6 +256,7 @@
    'Δεν θα δημιουργηθεί τραγούδι και δεν θα καταναλωθούν credits. Συνέχεια;');
   if(!agreed)return;
   sunoConnect.disabled=true;musicResult.textContent='Έλεγχος ασφαλούς σύνδεσης…';
+  rememberSongDraft();
   try{
    const url=await cloud().beginSunoLink();
    window.location.assign(url);
@@ -346,7 +394,7 @@
   musicTitle.value=draft.title;musicStyle.value=draft.style;musicLyrics.value=draft.lyrics;
   musicResult.textContent='Μεταφέρθηκε η πραγματική αναφορά του Crow. '+
    'Διόρθωσε τίτλο, μουσική κατεύθυνση και στίχους.';
-  musicCopy.hidden=false;musicCancel.hidden=false;musicTitle.focus();
+  musicCopy.hidden=false;musicCancel.hidden=false;rememberSongDraft();musicTitle.focus();
  });
  function resetMusic(){
   musicPanel.hidden=true;musicToggle.setAttribute('aria-expanded','false');
@@ -357,7 +405,12 @@
   if(musicBusy)return;
   musicPanel.hidden=!musicPanel.hidden;
   musicToggle.setAttribute('aria-expanded',String(!musicPanel.hidden));
-  if(!musicPanel.hidden)musicTitle.focus();
+  if(!musicPanel.hidden){
+   const restored=restoreSongDraft();
+   if(restored)musicResult.textContent='Το τραγούδι σου επανήλθε μετά τη σύνδεση.';
+   void refreshSunoConnection();
+   musicTitle.focus();
+  }
  });
  musicFromCrow.addEventListener('click',()=>{
   if(openId!=='studio-director'||musicBusy)return;
@@ -383,6 +436,7 @@
   musicStyle.value=song.style;
   musicLyrics.value=song.lyrics;
   musicCopy.hidden=false;musicCancel.hidden=false;
+  rememberSongDraft();
   musicResult.textContent='Μεταφέρθηκαν μόνο ο τίτλος, το Suno style prompt και οι στίχοι. '+
    'Έλεγξε τα πεδία πριν δημιουργήσεις τραγούδι.';
  });
@@ -404,11 +458,12 @@
   if(openId!=='studio-director'||musicBusy)return;
   if(!musicTitle.value.trim()||!musicStyle.value.trim())return;
   musicCopy.hidden=false;musicCancel.hidden=false;
+  rememberSongDraft();
   musicResult.textContent='Το draft είναι έτοιμο για επεξεργασία ή αντιγραφή.';
  });
  musicCancel.addEventListener('click',()=>{
   if(openId!=='studio-director'||musicBusy)return;
-  musicForm.reset();musicCancel.hidden=true;musicCopy.hidden=false;
+  musicForm.reset();forgetSongDraft();musicCancel.hidden=true;musicCopy.hidden=false;
   musicResult.textContent='Το draft καθαρίστηκε.';
  });
  // One deliberate, owner-only batch approval for the staged private import.
