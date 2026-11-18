@@ -23,6 +23,8 @@ test('verified result may link only to exact trusted project pull request',()=>{
  assert.equal(view({...result,report:{...result.report,headStillCurrent:false}}).resultLink,null);
  assert.equal(view({...result,report:{...result.report,prUrl:'https://evil.example/pull/9'}}).resultLink,null);
  assert.equal(view({...result,simulation:true}).resultLink,null);
+ assert.equal(view({...result,projectId:'pokemon'}).resultLink,null);
+ assert.match(view({...result,report:null}).message,/Δεν υπάρχει εδώ επαληθευμένο αποτέλεσμα/);
  assert.equal(safeUrl('https://github.com/mr-tanq/concerts/pull/9?token=secret'),null);
  assert.equal(safeUrl('https://github.com/mr-tanq/concerts/pull/9'),result.report.prUrl);
 });
