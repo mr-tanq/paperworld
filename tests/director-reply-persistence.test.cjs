@@ -38,12 +38,27 @@ test('denies wrong owner, wrong Director thread or invalid actor without posting
  assert.equal(await api.save({...args,agentId:'matt'}),false);
  assert.equal(calls.filter(c=>c.options).length,0);
 });
-test('requires configured secret, reports failed writes and clips to schema limit',async()=>{
+test('requires configured secret and stores full owner-scoped Crow replies',async()=>{
  const noSecret=mock({secret:''});
  assert.equal(await noSecret.api.save(args),false);
  const fail=mock({ok:false});
  assert.equal(await fail.api.save(args),false);
  const {api,calls}=mock();
  assert.equal(await api.save({...args,content:'X'.repeat(2300)}),true);
- assert.equal(JSON.parse(calls.find(c=>c.options).options.body).content.length,2000);
+ assert.equal(JSON.parse(calls.find(c=>c.options).options.body).content.length,2300);
+});
+
+test('Crow full lyrics survive while oversized drafts and other Directors fail closed',async()=>{
+ const {api,calls}=mock();
+ const longSong='TITLE: Original\nSUNO STYLE PROMPT: Organic trip-hop\nLYRICS:\n[Verse 1]\n'+
+  'One original lyric line\n'.repeat(130)+'[End]';
+ assert.ok(longSong.length>2000&&longSong.length<6000);
+ assert.equal(await api.save({...args,content:longSong}),true);
+ const post=calls.find(c=>c.options);
+ assert.equal(JSON.parse(post.options.body).content,longSong);
+ const before=calls.filter(x=>x.options).length;
+ assert.equal(await api.save({...args,content:'X'.repeat(6001)}),false);
+ assert.equal(await api.save({...args,agentId:'pokemon-director',
+  content:'X'.repeat(2100)}),false);
+ assert.equal(calls.filter(x=>x.options).length,before);
 });
