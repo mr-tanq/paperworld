@@ -73,6 +73,7 @@ test('model cannot request build execution for studio',async()=>{
  const f=create({route:'{"director":"studio-director","action":"build"}'});
  const r=await f.gateway.handle(params);
  assert.equal(r.status,200);
- assert.equal(r.body.execution,'analysis_only');
+ assert.equal(r.body.delegated,false);
+ assert.equal(r.body.routeStatus,'unresolved');
  assert.equal(f.calls.length,0);
 });
