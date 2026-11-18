@@ -149,8 +149,9 @@
   const brief={title:musicTitle.value.trim(),style:musicStyle.value.trim(),
    lyrics:musicLyrics.value};
   if(!brief.title||brief.title.length>120||!brief.style||brief.style.length>1000||
-     brief.lyrics.length>8000){
-   musicResult.textContent='Συμπλήρωσε τίτλο, style prompt και έγκυρους στίχους.';
+     !window.PaperworldCrowStudioDraft?.validLyrics(brief.lyrics)){
+   musicResult.textContent='Το τραγούδι δεν είναι έτοιμο: έλεγξε τίτλο, ύφος και '+
+    'τις αγκύλες στους στίχους. Οι μισογραμμένες οδηγίες δεν στέλνονται στη Suno.';
    return;
   }
   if(!window.confirm('Να στείλω αυτό το τραγούδι στο Suno; Μπορεί να χρησιμοποιηθούν Suno credits.')){
@@ -356,9 +357,9 @@
   const parser=window.PaperworldCrowStudioDraft;
   const song=parser?.parseSong(text);
   if(!song){
-   musicResult.textContent='Η τελευταία απάντηση δεν είναι ολοκληρωμένο τραγούδι με '+
-    'TITLE, SUNO STYLE PROMPT και LYRICS. Ζήτησε από τον Crow να τα δώσει '+
-    'σε τρεις ξεχωριστές ενότητες. Τα υπάρχοντα πεδία δεν άλλαξαν.';
+   musicResult.textContent='Η τελευταία απάντηση του Crow είναι ελλιπής ή έχει '+
+    'κομμένες μουσικές οδηγίες. Ζήτησέ του να ολοκληρώσει TITLE, SUNO STYLE '+
+    'PROMPT, LYRICS και να κλείσει με [End]. Δεν άλλαξα κανένα πεδίο.';
    return;
   }
   musicTitle.value=song.title;
