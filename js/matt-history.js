@@ -27,6 +27,7 @@
    }else if(row.role==='agent'){
     const parsed=decode(row.content);
     display.push({role:'agent',text:parsed?parsed.text:String(row.content||''),time:row.created_at});
+    if(parsed?.kind==='notification')continue;
     if(parsed&&pending){
      if(activeDirector!==parsed.director)turns=[];
      activeDirector=parsed.director;
