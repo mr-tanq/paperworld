@@ -376,7 +376,7 @@ declare
  spec jsonb:='{"projectId":"listening","directorId":"listening-director",
   "repository":"mr-tanq/concerts","title":"Test a small concert filter",
   "summary":"Bounded repository test scope","acceptance":["One genre filter test passes"],
-  "requiredTests":["genre-filter"],"allowedPaths":["tests/"],"maxFiles":2,
+  "requiredTests":["festival_revisit"],"allowedPaths":["tests/"],"maxFiles":2,
   "noAutoMerge":true,"noAutoDeploy":true}'::jsonb;
  begin_state text;
 begin
