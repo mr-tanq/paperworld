@@ -62,7 +62,7 @@ test('OAuth owner must be linked before MCP tool discovery; never enables genera
  const client=createSunoOAuthClient({identity,discovery,fetcher,
   toolProbe:{inspect:async({accessToken})=>{
    assert.equal(accessToken,'valid-access-token-1234');inspections++;
-   return {available:true,toolCount:1,tools:['create_song']};
+   return {available:true,toolCount:1,tools:['music/create_song']};
   }}});
  assert.equal((await client.inspectTools({headers,body})).status,409);
  const started=await client.start({headers,body});
@@ -75,9 +75,13 @@ test('OAuth owner must be linked before MCP tool discovery; never enables genera
  assert.deepEqual(result.body,{service:'suno_mcp',oauthAuthorized:true,
    toolsListed:true,canGenerate:false,toolCount:1,reason:'read_only_tools_verified'});
  assert.equal(inspections,1);
+ const doctor=await client.diagnose({headers,body});
+ assert.equal(doctor.body.toolsListed,true);
+ assert.equal(doctor.body.nextStep,'generation_not_enabled');
+ assert.equal(doctor.body.toolCount,1);
  assert.equal((await client.inspectTools({headers:{...headers,origin:'https://evil.example'},
   body})).status,403);
- assert.equal(inspections,1);
+ assert.equal(inspections,2);
  assert.doesNotMatch(JSON.stringify(result),/valid-access-token/);
 });
 test('No execution route or tool calling method is introduced',()=>{
