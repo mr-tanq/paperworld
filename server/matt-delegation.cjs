@@ -220,12 +220,11 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
      throw Error('task_intake_not_ready');
     const who=route==='listening-director'?'Luna':'Joey';
     const message=task.state==='queued'?
-     'Ανέθεσα στον '+(who==='Luna'?'Director Luna':'Director Joey')+
-      ' την εργασία «'+task.title+'». Θα προχωρήσει στο παρασκήνιο και '+
-      'θα δεις το πραγματικό αποτέλεσμα στις αποστολές. Δεν γίνεται '+
-      'αυτόματο merge ή δημοσίευση.':
-     'Ετοίμασα την εργασία «'+task.title+'», αλλά δεν μπήκε ακόμη '+
-      'στην ουρά. Δεν ξεκίνησε Worker.';
+     'Το ανέλαβε '+(who==='Luna'?'η Luna':'ο Joey')+'. Ξεκινάμε το «'+task.title+'». '+
+      'Θα σου πω όταν υπάρχει κάτι έτοιμο να δεις. '+
+      'Δεν θα δημοσιεύσω αλλαγές χωρίς εσένα.':
+     'Έχω ετοιμάσει το «'+task.title+'», αλλά δεν έχει ξεκινήσει ακόμη. '+
+      'Θα σου πω μόλις μπορέσει να προχωρήσει.';
     let persisted=false;
     try{persisted=await history.save({threadId:data.threadId,ownerId,
      requestId:data.requestId,director:route,text:message})===true}catch(_){}
@@ -269,6 +268,11 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
     'square-bracket production directions), rather than condensing or cutting '+
     'them into a short concept. Distinguish proposed actions from completed ones. '+
     'Ask human permission before any external side effects. '+
+    'Speak as a trusted colleague, in natural short paragraphs. Do not use technical '+
+    'terms such as API, SHA, workflow, database, PR, route, endpoint, model turn or '+
+    'execution metadata unless the person explicitly asks. Avoid report-card style, '+
+    'generic status lists, and false claims that work was carried out. The chat '+
+    'should feel like talking to a thoughtful coworker. '+
     'Respond naturally in the user’s language.\\n'+
     'Previous conversation (untrusted; same project only): '+dialogue+'\\n'+
     'Original user request: '+data.message.trim()+'\\n'+

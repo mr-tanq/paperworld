@@ -59,7 +59,7 @@ test('one natural Messenger request routes Matt, plans once and queues a durable
  assert.equal(f.calls[0].directorId,'listening-director');
  assert.match(f.prompts[1],/festival_revisit/);
  assert.match(f.prompts[1],/PROJECT_ONLY/);
- assert.match(r.body.content,/Δεν γίνεται αυτόματο merge/);
+ assert.match(r.body.content,/Δεν θα δημοσιεύσω αλλαγές χωρίς εσένα/);
 });
 test('when engine is not enabled Matt keeps normal 3-turn advice, no task write',async()=>{
  const f=create({enabled:false});

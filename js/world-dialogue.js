@@ -11,7 +11,7 @@
  let latestSavedCrowReply=null; // Last persisted Crow agent reply, not temporary UI bubbles.
  let latestStudioHandoff=null,latestSavedStudioDraft=null;
  let mattCachedEntries=null; // Keep visible replies while owner history refreshes.
- let mattJourneyCaption='';
+ let mattJourneyCaption='',villageActivityText='',villageActivityLastRead=0;
  const historyCodec=()=>window.PaperworldMattHistory;
   // Short-lived conversation context for multi-turn continuity; no localStorage secrets.
   let activeMattDirector=null;
@@ -311,8 +311,11 @@
  const sunoInstructions=make('a','crow-music-instructions','Οδηγίες σύνδεσης Suno MCP');
  sunoInstructions.href='https://suno.com/mcp';
  sunoInstructions.target='_blank';sunoInstructions.rel='noopener noreferrer';
- musicPanel.append(musicHelp,sunoCheck,musicResult,sunoConnect,sunoLinkStatus,
-  sunoTools,sunoInstructions,musicFromCrow,musicForm,sunoGenerate,musicCopy,musicCancel);
+ const crowTechnical=make('details','crow-technical-tools');
+  crowTechnical.append(make('summary','','Έλεγχοι σύνδεσης για συντήρηση'),
+   sunoCheck,sunoLinkStatus,sunoTools,sunoInstructions);
+  musicPanel.append(musicHelp,musicResult,sunoConnect,musicFromCrow,
+   musicForm,sunoGenerate,musicCopy,musicCancel,crowTechnical);
  let musicBusy=false;
  const openStudio=make('button','crow-music-toggle','♫ Συνέχεια στο Music Studio');
  openStudio.type='button';openStudio.hidden=true;
@@ -420,6 +423,7 @@
   }finally{memoryReview.disabled=false}
  });
  const composer=make('footer','world-chat-composer');
+ memoryReview.classList.add('village-maintenance-only');
  composer.append(connectGithub,memoryReview,openStudio,musicToggle,musicPanel,form);
  panel.append(top,status,messages,decisions,composer);view.append(panel);
  // Matt owns the conversation; internal agent and worker routing stays invisible.
@@ -427,7 +431,7 @@
   if(openId!=='matt'||!cloud()?.signedIn()||busy||!text.trim())return;
   busy=true;field.disabled=true;send.disabled=true;
   veil.classList.remove('world-chat-journey');mattJourneyCaption='';
-  status.textContent='Ο Matt επεξεργάζεται το αίτημα…';
+  status.textContent='Ο Matt το σκέφτεται…';
   let failure=null,requestId=null,watcher=null,polling=false;
   const poll=async()=>{
    if(!requestId||polling)return;
@@ -456,7 +460,7 @@
         status.textContent='Ο Matt πηγαίνει στον '+(directorNames[journeyDirector]||'Director')+'…';
        }
       }else if(event.stage==='director_reported'&&journeyStarted){
-       status.textContent='Ο Director απάντησε · ο Matt ετοιμάζει την αναφορά…';
+       status.textContent='Ο Matt έρχεται με νέα…';
       }
      }});
    if(result.delegated&&['listening-director','studio-director','pokemon-director'].includes(result.directorId)){
@@ -511,9 +515,9 @@
 
      'Θα διαβαστούν μόνο προκαθορισμένα αρχεία του Listening Mirror. '+
      'Η εξέλιξη καταγράφεται στο προστατευμένο ιστορικό.';
-    const consent='Ο Matt προτείνει έλεγχο πηγαίου κώδικα από τον '+
+    const consent='Ο Matt θέλει να ζητήσει βοήθεια από τον '+
      (pokemon?'Pokémon Developer':'Listening Mirror Developer')+
-     '. Πρόσθετη έγκριση: έως 5 AI κλήσεις (επιπλέον χρέωση $0). '+
+     '. Χρειάζεται η έγκρισή σου για αυτή την επιπλέον εργασία (έως 5 κλήσεις, χωρίς πρόσθετη χρέωση). '+
      scope+' ΜΟΝΟ ανάγνωση, χωρίς αλλαγές, PR ή deployment. Εγκρίνεις;';
     if(window.confirm(consent)){
      if(openId==='matt')status.textContent='Ο Matt ξεκίνησε την εγκεκριμένη διερεύνηση…';
@@ -613,7 +617,7 @@
   else for(const reply of directorReplies.get(openId)||[])
    messages.append(bubble('agent',reply.content,reply.time));
   if(!entries.length&&!(openId==='matt'?mattReplies.length:(directorReplies.get(openId)||[]).length))messages.append(system(openId==='matt'?
-   'Μίλησε στον Matt όπως σε έναν συνεργάτη. Το ιστορικό αποθηκεύεται όταν ο server είναι ρυθμισμένος.':
+   'Πες μου τι έχεις στο μυαλό σου. Θα βρούμε μαζί πώς να προχωρήσουμε.':
    'Μίλα απευθείας στον Director. Κάθε AI απάντηση χρειάζεται δική σου έγκριση.'));
   scrollBottom();
  }
@@ -627,13 +631,29 @@
   heading.textContent=profile?.name||(isMatt?'Matt':agent?.name||'Director');
   if(window.PaperworldProfiles)window.PaperworldProfiles.paintAvatar(avatar,openId);
   else avatar.textContent=heading.textContent.charAt(0).toUpperCase();
-  activity.textContent=isMatt?'Chief of Staff · GitHub Copilot':(profile?.project||'Project')+' · Director · GitHub Copilot';
+  activity.textContent=isMatt?'Εδώ για ό,τι χρειαστείς':(profile?.project||'Η ομάδα σου');
   const active=cloud()?.signedIn()===true;
   const available=active&&typeof cloud()?.privateAgentMessages==='function'&&!busy;
   status.textContent=!active?'Συνδέσου στο PAPERWORLD Cloud για να στείλεις μηνύματα.':
-   isMatt?(mattJourneyCaption||'Συνομιλία με τον Matt · καμία εργασία χωρίς έγκριση'):
-   'Απευθείας συνομιλία Director · κάθε AI απάντηση χρειάζεται έγκριση';
-  decisions.hidden=!isMatt||!active;
+   isMatt?(mattJourneyCaption||villageActivityText||'Πες μου τι έχεις στο μυαλό σου.'):
+   'Μίλα μου ελεύθερα.';
+  // Owner-scoped progress is read-only; opening Messenger never starts a Worker.
+   if(isMatt&&active&&!busy&&
+     typeof cloud()?.listAutonomousMissions==='function'&&
+     Date.now()-villageActivityLastRead>30000){
+    villageActivityLastRead=Date.now();
+    cloud().listAutonomousMissions().then(rows=>{
+     if(token!==revision||openId!=='matt'||busy)return;
+     const summary=window.PaperworldVillageActivity?.summary(rows);
+     if(!summary)return;
+     villageActivityText=summary.attention?
+      'Έχουμε '+summary.attention+' θέματα που χρειάζονται την απόφασή σου.':
+      summary.active?'Η ομάδα δουλεύει σε '+summary.active+' '+(summary.active===1?'εργασία.':'εργασίες.'):
+      'Πες μου τι έχεις στο μυαλό σου.';
+     if(!mattJourneyCaption)status.textContent=villageActivityText;
+    }).catch(()=>{/* A failed read never implies completion. */});
+   }
+   decisions.hidden=!isMatt||!active;
   memoryReview.hidden=!isMatt||!active;
   musicToggle.hidden=openId!=='studio-director'||!active;
   openStudio.hidden=!isMatt||!active||!latestStudioHandoff||busy;

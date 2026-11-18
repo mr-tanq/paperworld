@@ -129,14 +129,14 @@ function render(){
  if(!active)return;
  host.hidden=false;host.replaceChildren();
  if(!client.signedIn()){
-  host.append(el('h2','PAPERWORLD · Sign in'),el('p','Sign in to open your private project workspace.'),loginForm());return;
+  host.append(el('h2','PAPERWORLD · Σύνδεση'),el('p','Συνδέσου για να δεις την ομάδα και τις εργασίες σου.'),loginForm());return;
  }
  const top=el('div',undefined,'room-heading');
  top.append(el('h2',room==='workshop'?'Listening Mirror · Η ομάδα μου':room==='town'?'Οι εργασίες μου':model.ROOMS.find(r=>r.id===room).name));
- top.append(btn('Back to local',()=>{active=false;window.PaperworldRooms.open(room,true)}));
+ top.append(btn('Πίσω στο χωριό',()=>{active=false;window.PaperworldRooms.open(room,true)}));
  host.append(top);
  if(message)host.append(el('p',message,message.startsWith('Error:')?'room-error':'room-notice'));
- if(busy)host.append(el('p','Working…','room-footnote'));
+ if(busy)host.append(el('p','Ένα λεπτό…','room-footnote'));
  const userBar=el('div',undefined,'room-ops');
  userBar.append(el('small',client.identity()),
   btn('Ανανέωση',()=>work(reload)),
@@ -219,70 +219,29 @@ async function runApprovedHandoff(item){
  return result;
 }
 function renderAutonomousMissions(target){
- const card=el('section',undefined,'developer-tasks');
- card.append(el('h3','Αποστολές ολόκληρης της ομάδας'));
- card.append(el('p',controllerStatus?.supervisor==='active'?
-  'Η αυτόματη παρακολούθηση της ουράς λειτουργεί. Η αυτόνομη AI εκτέλεση δεν έχει ενεργοποιηθεί.':
-  'Η αυτόματη παρακολούθηση δεν έχει επιβεβαιωθεί. Οι AI Workers παραμένουν ανενεργοί.',
-  'room-footnote'));
- card.append(el('p','Αποθήκευσε έναν στόχο για Luna, Joey, Crow ή Dave. '+
-  'Η αποστολή καταγράφεται ως σχέδιο: δεν ξεκινά αυτόματα AI ή εξωτερικές ενέργειες.','room-footnote'));
- const form=el('form',undefined,'room-task-form');
- const select=el('select');select.setAttribute('aria-label','Director');
- for(const [value,label] of [['listening','Luna · Listening Mirror'],
-  ['pokemon','Joey · Pokémon Echoes'],['studio','Crow · Music Studio'],
-  ['wellbeing','Dave · Wellbeing']]){
-  const opt=el('option',label);opt.value=value;select.append(opt);
- }
- const goal=el('textarea');goal.rows=2;goal.required=true;goal.maxLength=1200;
- goal.placeholder='Τι θέλεις να αναλάβει η ομάδα;';
- const add=el('button','Αποθήκευση αποστολής','primary');add.type='submit';
- form.append(select,goal,add);
- form.addEventListener('submit',event=>{
-  event.preventDefault();work(async()=>{
-   const saved=await client.createAutonomousMission(select.value,goal.value.trim());
-   if(saved.status!=='draft')throw Error('Η αποστολή δεν επιβεβαιώθηκε');
-   await reload();message='Η αποστολή αποθηκεύτηκε ως σχέδιο. '+
-    'Δεν έχει ξεκινήσει αυτόνομη εργασία.';
-  });
- });
- card.append(form);
- for(const mission of autonomousMissions.slice(0,12)){
-  const line=el('article',undefined,'room-task');
-  line.append(el('strong',({listening:'Luna',pokemon:'Joey',studio:'Crow',
-   wellbeing:'Dave'})[mission.projectId]||'Director'));
-  line.append(el('p',mission.goal,'room-task-notes'));
-  const status=mission.simulation===true?
-   (mission.status==='completed'?'Τεχνική προσομοίωση ολοκληρώθηκε · χωρίς AI':
-    'Τεχνική προσομοίωση · '+mission.status):
-   mission.status==='draft'?'Σχέδιο · δεν εκτελείται':mission.status;
-  line.append(el('p',status,'room-footnote'));
-  if(mission.status==='draft'){
-   line.append(btn('Δοκιμή υποδομής · χωρίς AI',()=>work(async()=>{
-    if(!window.confirm('Να δοκιμάσουμε μόνο την ουρά και τον scheduler;\\n'+
-     'Δεν θα παραχθεί κώδικας, τραγούδι ή έρευνα και δεν θα καταναλωθούν AI credits.'))
-     return;
-    await client.simulateAutonomousMission(mission.id);
-    await reload();message='Η τεχνική προσομοίωση μπήκε στην ουρά. Δεν εκτελείται AI.';
-   }),'human-first-utility'));
+ const activity=window.PaperworldVillageActivity,card=el('section',undefined,'village-progress');
+ card.append(el('h3','Τι κάνει η ομάδα'));
+ if(!activity){card.append(el('p','Η ενημέρωση δεν είναι διαθέσιμη.','room-footnote'));target.append(card);return}
+ const summary=activity.summary(autonomousMissions);
+ if(!summary.items.length)card.append(el('p','Δεν υπάρχουν ακόμη εργασίες. Πες στον Matt τι χρειάζεσαι.','room-footnote'));
+ else{
+  const info=[];
+  if(summary.active)info.push(summary.active+' σε εξέλιξη');
+  if(summary.attention)info.push(summary.attention+' χρειάζονται προσοχή');
+  if(summary.finished)info.push(summary.finished+' ολοκληρώθηκαν');
+  if(info.length)card.append(el('p',info.join(' · '),'room-footnote'));
+  for(const item of summary.items.slice(0,8)){
+   const line=el('article',undefined,'room-task village-progress-item');
+   line.append(el('strong',item.person+' · '+({listening:'Listening Mirror',pokemon:'Pokémon Echoes',studio:'The Lost Wanderer',wellbeing:'Wellbeing'}[item.projectId])),
+    el('p',item.title,'room-task-notes'),el('p',item.message,'room-footnote'));
+   if(item.resultNote)line.append(el('p',item.resultNote,'room-footnote'));
+   if(item.resultLink){const link=el('a',item.resultLabel,'human-hub-tech-link');
+    link.href=item.resultLink;link.target='_blank';link.rel='noopener noreferrer';line.append(link)}
+   card.append(line);
   }
-  if(mission.status==='draft'&&mission.projectId==='pokemon'&&
-      controllerStatus?.pilotQueueEnabled===true){
-   line.append(btn('Πρώτη πραγματική δοκιμή Copilot',()=>work(async()=>{
-    if(!window.confirm('Θέλεις να αναθέσουμε το Pokémon Issue #1 στον πραγματικό Copilot Cloud Agent;\\n\\n'+
-      'Η δοκιμή χρησιμοποιεί έως μία συνεδρία από τα included AI credits και GitHub Actions minutes. '+
-      'Δεν θα γίνει αυτόματο merge, deployment ή επιπλέον πληρωμή από το Paperworld. '+
-      'Το PR θα χρειάζεται ανεξάρτητη επαλήθευση.\\n\\nΝα ξεκινήσει;'))return;
-    await client.launchCopilotPilot(mission.id);
-    await reload();message='Η πραγματική δοκιμή μπήκε στην ουρά. Ο Copilot θα αναλάβει μόνο το Pokémon Issue #1.';
-   }),'primary'));
-  }
-  if(mission.status==='completed'&&mission.simulation===true)line.append(el('p',
-   'Αν η αποστολή ήταν δοκιμή υποδομής, το Completed δεν σημαίνει πραγματικό AI αποτέλεσμα.',
-   'room-footnote'));
-  card.append(line);
  }
- if(autonomousHistoryError)card.append(el('p',autonomousHistoryError,'room-footnote'));
+ if(autonomousHistoryError)card.append(el('p','Δεν κατάφερα να ενημερώσω τις εργασίες.','room-footnote'));
+ card.append(btn('Μίλα στον Matt',()=>window.PaperworldWorldDialogue?.show('matt'),'primary'));
  target.append(card);
 }
 function renderHumanWork(target){
@@ -382,7 +341,7 @@ function renderWorkshop(){
    catch(_){listeningReviewPayload=null;review.clear()}
   }
  }
- const technical=el('details',undefined,'human-hub-legacy');
+ const technical=el('details',undefined,'human-hub-legacy village-maintenance-only');
  technical.append(el('summary','Τεχνικές ρυθμίσεις και λεπτομέρειες'));
  technical.append(reviewHost);
  host.append(technical);
@@ -390,19 +349,21 @@ function renderWorkshop(){
 function renderMattConversation(){
  const sec=el('section',undefined,'developer-chat');
  sec.append(el('h3','Matt · Chief of Staff'));
- sec.append(el('p','Ο Matt συζητά μαζί σου, συμβουλεύεται τον αρμόδιο Director και μπορεί να ξεκινήσει εγκεκριμένη, περιορισμένη διερεύνηση με Worker. Δεν εφαρμόζει αλλαγές χωρίς ξεχωριστή έγκριση.','room-footnote'));
- sec.append(el('p','Οι AI κλήσεις απαιτούν δική σου έγκριση και επαληθευμένο όριο κόστους.','room-footnote'));
+ sec.append(el('p','Μίλα στον Matt όπως σε έναν συνεργάτη. Εκείνος βρίσκει ποιος μπορεί να βοηθήσει και σου λέει πότε υπάρχει αποτέλεσμα.','room-footnote'));
+ sec.append(el('p','Για σημαντικές αποφάσεις ή επιπλέον κόστος θα ζητηθεί η έγκρισή σου.','room-footnote'));
  sec.append(btn('Σύνδεσε το GitHub',()=>work(async()=>{
   const authorizationUrl=await client.beginGithubLink();
   // Redirect only to verified github.com OAuth authorization URL.
   window.location.assign(authorizationUrl);
  }),'primary'));
- sec.append(btn('Έλεγχος σύνδεσης GitHub',()=>work(async()=>{
+ const githubDiagnostics=el('div',undefined,'village-maintenance-only');
+ githubDiagnostics.append(btn('Έλεγχος σύνδεσης GitHub',()=>work(async()=>{
   const status=await client.githubLinkStatus();
   message=status.connected?'GitHub συνδεδεμένο: '+status.login+
    ' · προσωρινή σύνδεση (Render Free). Καμία AI κλήση.':
    'Δεν υπάρχει ενεργή σύνδεση GitHub. Πάτησε «Σύνδεσε το GitHub».';
  })));
+ sec.append(githubDiagnostics);
  sec.append(btn('Άνοιξε το Messenger του Matt',()=>{
   if(!window.PaperworldWorldDialogue?.show){note('Το παράθυρο Messenger δεν φορτώθηκε.',true);return}
   window.PaperworldWorldDialogue.show('matt');
@@ -430,9 +391,12 @@ function renderChiefOrRoom(){
   host.append(el('p',tasks.length+' cloud tasks','room-stats'))
  }
  if(room!=='town'){
-  if(edit)host.append(form(edit===true?null:edit));
-  else host.append(btn('+ Νέα εργασία',()=>{edit=true;render()},'primary'));
-  for(const task of tasks)host.append(taskRow(task))
+  const notes=el('details',undefined,'human-hub-manual');
+  notes.append(el('summary','Προσωπικές σημειώσεις (προαιρετικά)'));
+  if(edit)notes.append(form(edit===true?null:edit));
+  else notes.append(btn('+ Νέα σημείωση',()=>{edit=true;render()},'primary'));
+  for(const task of tasks)notes.append(taskRow(task));
+  host.append(notes);
  }
  if(room==='town'){
   const pending=allTasks.filter(t=>t.status==='todo'||t.status==='doing');
