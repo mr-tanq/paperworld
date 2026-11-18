@@ -10,7 +10,7 @@
  const directorReplies=new Map(); // Keep only replies not yet reconciled with saved history.
  let latestStudioHandoff=null,latestSavedStudioDraft=null;
  let mattCachedEntries=null; // Keep visible replies while owner history refreshes.
- let mattJourneyCaption='';
+ let mattJourneyCaption='',villageActivityText='',villageActivityLastRead=0;
  const historyCodec=()=>window.PaperworldMattHistory;
   // Short-lived conversation context for multi-turn continuity; no localStorage secrets.
   let activeMattDirector=null;
@@ -634,9 +634,25 @@
   const active=cloud()?.signedIn()===true;
   const available=active&&typeof cloud()?.privateAgentMessages==='function'&&!busy;
   status.textContent=!active?'Συνδέσου στο PAPERWORLD Cloud για να στείλεις μηνύματα.':
-   isMatt?(mattJourneyCaption||'Πες μου τι έχεις στο μυαλό σου.'):
+   isMatt?(mattJourneyCaption||villageActivityText||'Πες μου τι έχεις στο μυαλό σου.'):
    'Μίλα μου ελεύθερα.';
-  decisions.hidden=!isMatt||!active;
+  // Owner-scoped mission state, read-only; no AI turn or background dispatch.
+   if(isMatt&&active&&!busy&&
+     typeof cloud()?.listAutonomousMissions==='function'&&
+     Date.now()-villageActivityLastRead>30000){
+    villageActivityLastRead=Date.now();
+    cloud().listAutonomousMissions().then(rows=>{
+     if(token!==revision||openId!=='matt'||busy)return;
+     const summary=window.PaperworldVillageActivity?.summary(rows);
+     if(!summary)return;
+     villageActivityText=summary.attention?
+      'Έχουμε '+summary.attention+' θέματα που χρειάζονται την απόφασή σου.':
+      summary.active?'Η ομάδα δουλεύει σε '+summary.active+' '+(summary.active===1?'εργασία.':'εργασίες.'):
+      'Πες μου τι έχεις στο μυαλό σου.';
+     if(!mattJourneyCaption)status.textContent=villageActivityText;
+    }).catch(()=>{/* Do not imply work completed from a failed read. */});
+   }
+   decisions.hidden=!isMatt||!active;
   memoryReview.hidden=!isMatt||!active;
   musicToggle.hidden=openId!=='studio-director'||!active;
   openStudio.hidden=!isMatt||!active||!latestStudioHandoff||busy;
