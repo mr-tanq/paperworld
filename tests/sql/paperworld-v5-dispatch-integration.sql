@@ -364,5 +364,66 @@ begin
  then raise exception 'override changed session debit'; end if;
 end $$;
 
+-- Task Engine v1: additive cutover, isolation and no session starts.
+\i sql/paperworld_v5_task_engine_v1.sql
+do $$
+declare
+ owner_id uuid:='11111111-1111-4111-8111-111111111111';
+ thread uuid:='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+ mission uuid:='bcbcbcbc-bcbc-4cbc-8cbc-bcbcbcbcbcbc';
+ spec jsonb:='{"projectId":"listening","directorId":"listening-director",
+  "repository":"mr-tanq/concerts","title":"Test a small concert filter",
+  "summary":"Bounded repository test scope","acceptance":["One genre filter test passes"],
+  "requiredTests":["genre-filter"],"allowedPaths":["tests/"],"maxFiles":2,
+  "noAutoMerge":true,"noAutoDeploy":true}'::jsonb;
+ begin_state text;
+begin
+ insert into public.paperworld_autonomous_missions_v5
+ (id,owner_id,thread_id,project_id,goal,status,policy)
+ values(mission,owner_id,thread,'listening','Test reusable task engine',
+  'draft','{"maxAiCalls":0,"additionalSpendUsd":0}'::jsonb);
+ if public.paperworld_v5_plan_task(mission,
+   spec||'{"repository":"mr-tanq/pokemon-echoes"}'::jsonb)
+ then raise exception 'cross-project repository accepted'; end if;
+ if public.paperworld_v5_plan_task(mission,
+   spec||'{"allowedPaths":[".github/"]}'::jsonb)
+ then raise exception 'protected workflow path accepted'; end if;
+ if not public.paperworld_v5_plan_task(mission,spec)
+ then raise exception 'bounded Luna spec refused'; end if;
+ if public.paperworld_v5_queue_task(mission)
+ then raise exception 'task queued with engine still pilot'; end if;
+ if exists(select 1 from public.paperworld_v5_claim_task_step(
+   'abababab-abab-4aba-8aba-abababababab',600))
+ then raise exception 'v1 claimed a task in pilot mode'; end if;
+ if not public.paperworld_v5_set_engine('v1','Synthetic CI v1 cutover')
+ then raise exception 'v1 cutover rejected'; end if;
+ if not public.paperworld_v5_queue_task(mission)
+ then raise exception 'bounded Luna mission not queued'; end if;
+ if public.paperworld_v5_queue_task(mission)
+ then raise exception 'duplicate queue allowed'; end if;
+ if (select count(*) from public.paperworld_autonomous_steps_v5
+   where mission_id=mission)<>5
+ then raise exception 'wrong step count'; end if;
+ if exists(select 1 from public.paperworld_autonomous_steps_v5
+   where mission_id=mission and seq>1 and state='ready')
+ then raise exception 'out-of-order step runnable'; end if;
+ if not exists(select 1 from public.paperworld_v5_claim_task_step(
+   'abababab-abab-4aba-8aba-abababababab',600)
+  where capability='create_issue')
+ then raise exception 'generic create_issue not claimed'; end if;
+ if not public.paperworld_v5_set_engine('off','Synthetic CI emergency stop')
+ then raise exception 'kill switch rejected'; end if;
+ if exists(select 1 from public.paperworld_v5_claim_task_step(
+   'cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd',600))
+ then raise exception 'off mode still claims tasks'; end if;
+ if has_function_privilege('authenticated',
+   'public.paperworld_v5_set_engine(text,text)','execute')
+  or has_function_privilege('authenticated',
+   'public.paperworld_v5_queue_task(uuid)','execute')
+  or has_function_privilege('anon',
+   'public.paperworld_v5_claim_task_step(uuid,integer)','execute')
+ then raise exception 'untrusted browser may control task engine'; end if;
+end $$;
+
 rollback;
 select 'PASS: real PostgreSQL 17 lifecycle, uncertain effects, offline simulation, budget and RLS' as result;
