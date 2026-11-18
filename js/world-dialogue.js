@@ -668,8 +668,9 @@
    const selected=openId;
    cloud().githubLinkStatus().then(link=>{
     if(token!==revision||openId!==selected)return;
-    connectGithub.hidden=link.connected===true;
-    if(!link.connected)status.textContent='Σύνδεσε το GitHub για να ενεργοποιηθεί το πραγματικό Copilot AI.';
+    const canChat=link.connected===true||link.chatConnected===true;
+    connectGithub.hidden=canChat;
+    if(!canChat)status.textContent='Σύνδεσε το GitHub για να ενεργοποιηθεί η συνομιλία.';
    }).catch(()=>{
     if(token===revision&&openId===selected)connectGithub.hidden=false;
    });
