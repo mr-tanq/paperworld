@@ -247,11 +247,38 @@
  const musicCancel=make('button','crow-music-cancel','Ακύρωση πρότασης');
  musicCancel.type='button';musicCancel.hidden=true;
  musicForm.append(musicTitle,musicStyle,musicLyrics,musicSave);
- const sunoConnect=make('button','crow-music-check','Σύνδεση Suno');
+ const sunoConnect=make('button','world-connection-chip','Suno · Έλεγχος…');
  sunoConnect.type='button';
+ sunoConnect.dataset.state='checking';
+ sunoConnect.setAttribute('aria-label','Κατάσταση σύνδεσης Suno');
+ function setSunoConnection(state){
+  sunoConnect.dataset.state=state;
+  sunoConnect.disabled=state==='connected'||state==='checking';
+  sunoConnect.textContent=state==='connected'?'Suno · Συνδεδεμένο':
+   state==='disconnected'?'Suno · Σύνδεση':'Suno · Έλεγχος…';
+  sunoConnect.title=state==='connected'?'Suno συνδεδεμένο':
+   state==='disconnected'?'Σύνδεση στον λογαριασμό Suno':
+   'Έλεγχος κατάστασης Suno';
+ }
+ async function refreshSunoConnection(){
+  if(openId!=='studio-director'||!cloud()?.signedIn()||
+     typeof cloud()?.sunoLinkStatus!=='function'){
+   setSunoConnection('checking');return;
+  }
+  const selectedRevision=revision;
+  setSunoConnection('checking');
+  try{
+   const r=await cloud().sunoLinkStatus();
+   if(selectedRevision!==revision||openId!=='studio-director')return;
+   setSunoConnection(r.oauthAuthorized===true?'connected':'disconnected');
+  }catch(_){
+   if(selectedRevision===revision&&openId==='studio-director')
+    setSunoConnection('disconnected');
+  }
+ }
  sunoConnect.addEventListener('click',async()=>{
-  if(openId!=='studio-director'||musicBusy||!cloud()?.signedIn()||
-     typeof cloud()?.beginSunoLink!=='function')return;
+  if(openId!=='studio-director'||musicBusy||sunoConnect.dataset.state!=='disconnected'||
+     !cloud()?.signedIn()||typeof cloud()?.beginSunoLink!=='function')return;
   const agreed=window.confirm('Θα μεταφερθείς στη σελίδα εξουσιοδότησης του Suno. '+
    'Δεν θα δημιουργηθεί τραγούδι και δεν θα καταναλωθούν credits. Συνέχεια;');
   if(!agreed)return;
@@ -263,7 +290,7 @@
   }catch(_){
    musicResult.textContent='Το Suno δεν προσφέρει ακόμη επιβεβαιωμένη σύνδεση σε αυτόν τον client. '+
     'Η παραγωγή παραμένει απενεργοποιημένη.';
-  }finally{sunoConnect.disabled=false}
+  }finally{void refreshSunoConnection()}
  });
  const sunoLinkStatus=make('button','crow-music-check','Κατάσταση λογαριασμού Suno');
  sunoLinkStatus.type='button';
@@ -273,6 +300,7 @@
   sunoLinkStatus.disabled=true;
   try{
    const r=await cloud().sunoLinkStatus();
+   setSunoConnection(r.oauthAuthorized===true?'connected':'disconnected');
    musicResult.textContent=r.oauthAuthorized?
     'Ο λογαριασμός Suno συνδέθηκε.':
     'Ο λογαριασμός Suno δεν έχει συνδεθεί ακόμη.';
@@ -380,7 +408,7 @@
  const crowTechnical=make('details','crow-technical-tools');
   crowTechnical.append(make('summary','','Έλεγχοι σύνδεσης για συντήρηση'),
    sunoCheck,sunoLinkStatus,sunoTools,sunoInstructions);
-  musicPanel.append(musicHelp,musicResult,sunoConnect,musicFromCrow,
+  musicPanel.append(sunoConnect,musicHelp,musicResult,musicFromCrow,
    musicForm,sunoGenerate,musicCopy,musicCancel,crowTechnical);
  let musicBusy=false;
  const openStudio=make('button','crow-music-toggle','♫ Συνέχεια στο Music Studio');
