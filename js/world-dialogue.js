@@ -139,6 +139,45 @@
  musicCopy.type='button';
  musicCopy.hidden=true;
  musicCopy.setAttribute('aria-label','Αντιγραφή του ελεγμένου αιτήματος για Suno MCP');
+ const sunoGenerate=make('button','crow-music-save','Δημιουργία στο Suno');
+ sunoGenerate.type='button';
+ let lastSunoSubmission=null;
+ sunoGenerate.addEventListener('click',async()=>{
+  if(openId!=='studio-director'||musicBusy||lastSunoSubmission||
+     !cloud()?.signedIn()||typeof cloud()?.createSunoSong!=='function')return;
+  const brief={title:musicTitle.value.trim(),style:musicStyle.value.trim(),
+   lyrics:musicLyrics.value};
+  if(!brief.title||brief.title.length>120||!brief.style||brief.style.length>1000||
+     brief.lyrics.length>8000){
+   musicResult.textContent='Συμπλήρωσε τίτλο, style prompt και έγκυρους στίχους.';
+   return;
+  }
+  if(!window.confirm('Να στείλω αυτό το τραγούδι στο Suno; Μπορεί να χρησιμοποιηθούν Suno credits.')){
+   return;
+  }
+  const key=window.crypto?.randomUUID?.();
+  if(!key){
+   musicResult.textContent='Δεν υποστηρίζεται ασφαλές μοναδικό κλειδί υποβολής.';
+   return;
+  }
+  lastSunoSubmission=key;
+  musicBusy=true;sunoGenerate.disabled=true;
+  musicResult.textContent='Υποβολή στο Suno… Μην επαναλάβεις το αίτημα.';
+  try{
+   const result=await cloud().createSunoSong(brief,key);
+   if(result.accepted===true){
+    musicResult.textContent='Η Suno επιβεβαίωσε τη λήψη του αιτήματος. '+
+     'Η ολοκλήρωση του τραγουδιού δεν έχει ακόμη επαληθευτεί. '+
+     'Έλεγξε τη Suno Library.';
+   }else{
+    musicResult.textContent='Δεν επιβεβαιώθηκε η δημιουργία ('+
+     result.reason+'). Μην επαναλάβεις το αίτημα πριν ελέγξεις τη Suno Library.';
+   }
+  }catch(_){
+   musicResult.textContent='Η απάντηση της Suno δεν επιβεβαιώθηκε. '+
+    'Έλεγξε τη Suno Library πριν προσπαθήσεις ξανά.';
+  }finally{musicBusy=false}
+ });
  const musicCancel=make('button','crow-music-cancel','Ακύρωση πρότασης');
  musicCancel.type='button';musicCancel.hidden=true;
  musicForm.append(musicTitle,musicStyle,musicLyrics,musicSave);
@@ -272,7 +311,7 @@
  sunoInstructions.href='https://suno.com/mcp';
  sunoInstructions.target='_blank';sunoInstructions.rel='noopener noreferrer';
  musicPanel.append(musicHelp,sunoCheck,musicResult,sunoConnect,sunoLinkStatus,
-  sunoTools,sunoInstructions,musicFromCrow,musicForm,musicCopy,musicCancel);
+  sunoTools,sunoInstructions,musicFromCrow,musicForm,sunoGenerate,musicCopy,musicCancel);
  let musicBusy=false;
  const openStudio=make('button','crow-music-toggle','♫ Συνέχεια στο Music Studio');
  openStudio.type='button';openStudio.hidden=true;

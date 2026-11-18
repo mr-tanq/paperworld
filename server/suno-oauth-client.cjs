@@ -7,6 +7,7 @@ const {randomBytes,createHash}=require('node:crypto');
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {createSunoOAuthDiscovery}=require('./suno-oauth-discovery.cjs');
 const {makeSunoMcpToolProbe}=require('./suno-mcp-tool-probe.cjs');
+const {makeSunoAudioCreate,validRequest}=require('./suno-audio-create.cjs');
 const APP='https://mr-tanq.github.io';
 const HOST='https://paperworld-matt-test-6hmd.onrender.com';
 const CLIENT_ID=HOST+'/auth/suno/client-metadata';
@@ -77,7 +78,8 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
   publicKey:'sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL',fetcher});
  const provider=discovery||createSunoOAuthDiscovery({fetcher});
  const tools=toolProbe||makeSunoMcpToolProbe({fetcher});
- const pending=new Map(),linked=new Map();
+ const pending=new Map(),linked=new Map(),submittedKeys=new Map();
+ const audioCreate=makeSunoAudioCreate({fetcher});
  const answer=(status,body)=>({status,body,headers});
  const denied=(status,error)=>answer(status,{error});
  function cleanup(){
@@ -219,6 +221,36 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
     !session?'owner_oauth_required':
     !toolsListed?'mcp_tools_unverified':'generation_not_enabled'});
  }
+ async function createSong(req={}){
+  if(typeof req.body!=='string'||Buffer.byteLength(req.body,'utf8')>11000)
+   return denied(413,'invalid_body');
+  let data;try{data=JSON.parse(req.body)}catch(_){return denied(400,'invalid_json')}
+  if(!data||typeof data!=='object'||Array.isArray(data)||
+     Object.keys(data).sort().join(',')!=='agentId,brief,idempotencyKey,threadId'||
+     !validRequest(data.brief,data.idempotencyKey))
+   return denied(400,'invalid_audio_create_request');
+  const who=await identify({headers:req.headers,body:JSON.stringify({
+   agentId:data.agentId,threadId:data.threadId})});
+  if(who.error)return who.error;
+  cleanup();
+  const linkedToken=linked.get(who.ownerId);
+  if(!linkedToken)return denied(409,'suno_oauth_required');
+  const keys=submittedKeys.get(who.ownerId)||new Set();
+  if(keys.has(data.idempotencyKey))return denied(409,'audio_create_already_submitted');
+  if(keys.size>=20)return denied(429,'audio_create_session_limit');
+  const toolVerdict=await tools.inspect({accessToken:linkedToken.accessToken});
+  if(toolVerdict?.available!==true||!toolVerdict.tools?.includes('audio-create'))
+   return denied(409,'audio_create_not_verified');
+  // Claim before first network effect: no double submissions even on timeouts.
+  keys.add(data.idempotencyKey);
+  submittedKeys.set(who.ownerId,keys);
+  const result=await audioCreate.submit({accessToken:linkedToken.accessToken,
+   brief:data.brief,idempotencyKey:data.idempotencyKey});
+  // Unknown replies remain claimed. Never automatically retry a credit event.
+  return answer(result.accepted?202:result.reason==='provider_rejected'?422:502,{
+   service:'suno_mcp',accepted:result.accepted,status:result.status||'unknown',
+   reason:result.reason,canGenerate:true,idempotencyKey:data.idempotencyKey});
+ }
  async function callback({url}={}){
   // Only fixed, non-sensitive failure categories may reach the browser.
   // Never expose OAuth code, state, tokens, provider response or error descriptions.
@@ -268,7 +300,7 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
    grant_types:['authorization_code'],response_types:['code'],
    token_endpoint_auth_method:'none'};
  }
- return Object.freeze({start,status,inspectTools,diagnose,callback,clientMetadata});
+ return Object.freeze({start,status,inspectTools,diagnose,createSong,callback,clientMetadata});
 }
 module.exports=Object.freeze({createSunoOAuthClient,validServerMeta,isSunoOrigin,
  serverMetadataUrls,CLIENT_ID,CALLBACK});
