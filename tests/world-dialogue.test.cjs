@@ -36,7 +36,7 @@ test('Worker proposal requires a separate human approval with private Pokémon d
  assert.match(source,/το ιδιωτικό project\.godot/);
  assert.match(source,/GDScript αρχεία/);
  assert.match(source,/έως 5 AI κλήσεις/);
- assert.match(source,/επιπλέον χρέωση \$0/);
+ assert.match(source,/χωρίς πρόσθετη χρέωση/);
  assert.match(source,/Δεν ξεκίνησα τον Worker/);
  assert.doesNotMatch(source,/dispatchWorker|workerDispatch|sendMattMessage/);
 });
@@ -109,4 +109,22 @@ test('Natural language Matt handoff streams progress and holds answer for return
  const css=fs.readFileSync('style.css','utf8');
  assert.match(css,/right:12px!important/);
  assert.match(css,/transform:none!important/);
+});
+
+test('Maintenance-only controls are absent from the ordinary village, but remain repairable',()=>{
+ assert.match(html,/data-paperworld-maintenance="yes"/);
+ assert.match(html,/#path-editor-toggle/);
+ assert.match(html,/#depth-demo/);
+ assert.match(source,/crowTechnical\.append/);
+ assert.match(source,/memoryReview\.classList\.add\('village-maintenance-only'\)/);
+ assert.doesNotMatch(source,/Chief of Staff · GitHub Copilot/);
+ assert.match(source,/Πες μου τι έχεις στο μυαλό σου/);
+});
+
+test('Matt greets owner with current verified village activity without starting AI',()=>{
+ assert.match(source,/cloud\(\)\.listAutonomousMissions\(\)\.then/);
+ assert.match(source,/PaperworldVillageActivity\?\.summary\(rows\)/);
+ assert.match(source,/Date\.now\(\)-villageActivityLastRead>30000/);
+ assert.match(source,/summary\.attention/);
+ assert.match(source,/summary\.active/);
 });
