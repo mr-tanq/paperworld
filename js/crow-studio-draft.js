@@ -157,7 +157,10 @@
    const draft=fromMatt({delegated:true,directorId:'studio-director',
     requestId:row.id,request:prior.content.slice(0,1200),
     directorReport:parsed.text});
-   if(draft)return Object.freeze({...draft,source:'saved_matt_crow_reply'});
+   // The most recent Crow response decides whether Studio can open.
+   // Never silently resurrect an earlier song if Crow most recently asked
+   // for clarification or gave an incomplete draft.
+   return draft?Object.freeze({...draft,source:'saved_matt_crow_reply'}):null;
   }
   return null;
  }
