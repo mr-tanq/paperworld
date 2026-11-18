@@ -30,7 +30,12 @@ with directors(project_id,person) as (
     'status',z.status,'updatedAt',z.updated_at,
     'result',case when d.project_id='wellbeing' then null
        when z.status='completed' then jsonb_build_object(
-        'prepared',z.report is not null,'verified',z.report is not null)
+        'hasReport',z.report is not null,
+        'existingTestsPassed',coalesce(
+          (z.report->>'headStillCurrent')='true' and
+          jsonb_typeof(z.report->'requiredTests')='array' and
+          jsonb_array_length(z.report->'requiredTests')>0,false),
+        'ownNewTestPassed',false,'applied',false)
        else null end) order by z.updated_at desc),'[]'::jsonb)
   from (select m.id,m.goal,m.status,m.report,m.updated_at
    from public.paperworld_autonomous_missions_v5 m
