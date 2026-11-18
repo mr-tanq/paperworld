@@ -4,7 +4,7 @@ const {buildTaskPrompt,parseModelSpec,prepareTaskPlan}=require('../server/v5-tas
 const plan=JSON.stringify({title:'Repair one recommendation edge case',
  summary:'Bounded change with deterministic regression',
  acceptance:['Recommendation is stable under empty genre input'],
- requiredTests:['genre-filter'],allowedPaths:['js/','tests/'],maxFiles:3});
+ requiredTests:['festival_revisit'],allowedPaths:['js/','tests/'],maxFiles:3});
 test('Matt proposals cannot route outside registered coding projects',()=>{
  assert.throws(()=>buildTaskPrompt({message:'Research personal health',directorId:'wellbeing-director'}));
  assert.throws(()=>parseModelSpec(plan,{directorId:'listening-director',projectId:'pokemon'}));
