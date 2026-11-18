@@ -495,9 +495,10 @@
      'Δεν μπόρεσα να προσδιορίσω με ασφάλεια τον αρμόδιο Director.'),
     time:new Date().toISOString()});
    latestSavedStudioDraft=null;
-   latestStudioHandoff=result.delegated===true&&result.directorId==='studio-director'?
-    {delegated:true,directorId:result.directorId,requestId:result.requestId,
-     request:text,directorReport:result.directorReport}:null;
+   const crowDraft=result.delegated===true&&result.directorId==='studio-director'?
+    window.PaperworldCrowStudioDraft?.parseSong(result.directorReport):null;
+   latestStudioHandoff=crowDraft?{delegated:true,directorId:result.directorId,
+    requestId:result.requestId,request:text,directorReport:result.directorReport}:null;
    field.value='';
    if(openId==='matt')paint();
    const plan=result.delegated?result.workProposal:null;
