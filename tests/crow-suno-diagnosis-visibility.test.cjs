@@ -24,3 +24,17 @@ test('GitHub Pages invalidates stale cached Messenger and Suno cloud API',()=>{
  assert.match(html,/style\.css\?v=matt-alert-contrast-v1/);
  assert.doesNotMatch(html,/world-dialogue\.js\?v=crow-transfer-v1/);
 });
+
+test('Create song button never exits silently or offers a duplicate submission',()=>{
+ const dialog=read('js/world-dialogue.js');
+ const click=dialog.split("sunoGenerate.addEventListener('click',async()=>{")[1]
+  ?.split("const musicCancel=make(")[0];
+ assert.ok(click,'Suno create handler must exist');
+ assert.match(click,/Η λειτουργία δημιουργίας Suno δεν έχει φορτωθεί/);
+ assert.match(click,/Χρειάζεται σύνδεση στο Paperworld Cloud/);
+ assert.match(click,/Έχει ήδη επιχειρηθεί υποβολή/);
+ assert.match(click,/Υπάρχει ήδη υποβολή σε εξέλιξη/);
+ assert.match(click,/cloud\(\)\.createSunoSong\(brief,key\)/);
+ assert.match(click,/sunoGenerate\.disabled=false/);
+ assert.doesNotMatch(click,/lastSunoSubmission\|\|\s*!cloud\(\)\?\.signedIn\(\).*return/);
+});
