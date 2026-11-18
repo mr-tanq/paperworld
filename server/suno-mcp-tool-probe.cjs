@@ -9,6 +9,18 @@
 const ENDPOINT='https://api.suno.com/mcp';
 const VERSION='2026-07-28';
 const MAX_BODY=32000,MAX_TOOLS=100;
+// Fixed response categories only. Never return response body, RPC messages,
+// tool schemas, OAuth credentials, or private catalog data.
+function responseFailure(message){
+ if(!message||typeof message!=='object'||Array.isArray(message))return 'mcp_invalid_envelope';
+ if(message.jsonrpc!=='2.0'||message.id!==1)return 'mcp_invalid_envelope';
+ if(message.error)return 'provider_rpc_rejected';
+ if(!message.result||typeof message.result!=='object'||
+    !Array.isArray(message.result.tools))return 'mcp_tools_missing';
+ if(message.result.nextCursor!=null)return 'mcp_pagination_unsupported';
+ if(message.result.tools.length>MAX_TOOLS)return 'mcp_tool_limit_exceeded';
+ return 'mcp_invalid_tool_definition';
+}
 function summarize(result){
  if(!result||result.jsonrpc!=='2.0'||result.id!==1||result.error||
    !result.result||!Array.isArray(result.result.tools)||
@@ -99,8 +111,11 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
       (Number(length)>MAX_BODY||!Number.isFinite(Number(length))))
     return {available:false,reason:'unverified_mcp_response'};
    const payload=await response.text();
-   if(payload.length>MAX_BODY)return {available:false,reason:'unverified_mcp_response'};
-   const message=isSse?parseRequestSse(payload):JSON.parse(payload);
+   if(payload.length>MAX_BODY)return {available:false,reason:'mcp_response_oversized'};
+   let message;
+   try{message=isSse?parseRequestSse(payload):JSON.parse(payload)}
+   catch(_){return {available:false,reason:'mcp_invalid_json'}}
+   if(message===null)return {available:false,reason:'mcp_invalid_sse'};
    // Some MCP servers return a valid JSON-RPC protocol/parameter rejection
    // with HTTP 200 rather than a 400/406 status. In that narrow case only,
    // negotiate the older, fully initialized read-only handshake. Do not
@@ -116,7 +131,7 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
    }
    if(message?.error)return {available:false,reason:'provider_rpc_rejected'};
    const result=summarize(message);
-   if(!result)return {available:false,reason:'unverified_mcp_response'};
+   if(!result)return {available:false,reason:responseFailure(message)};
    // A tool list alone is NOT authorization to invoke any tool.
    return {available:true,reason:'read_only_tools_verified',
     toolCount:result.toolCount,tools:result.tools};
@@ -127,4 +142,4 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
  }
  return Object.freeze({inspect});
 }
-module.exports=Object.freeze({makeSunoMcpToolProbe,summarize,parseRequestSse,ENDPOINT,VERSION});
+module.exports=Object.freeze({makeSunoMcpToolProbe,summarize,parseRequestSse,responseFailure,ENDPOINT,VERSION});
