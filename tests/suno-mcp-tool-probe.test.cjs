@@ -44,7 +44,7 @@ test('Refuses redirects, empty SSE streams, malformed JSON or unauthorized acces
   assert.equal((await probe.inspect({accessToken:'valid-access-token-1234'})).available,false);
  }
  const emptySse=makeSunoMcpToolProbe({fetcher:async()=>({
-  status:200,headers:{get:()=> 'text/event-stream'},
+  status:200,headers:{get:key=>key==='content-type'?'text/event-stream':null},
   text:async()=>': heartbeat\n\n'})});
  assert.equal((await emptySse.inspect({accessToken:'valid-access-token-1234'})).reason,
   'mcp_invalid_sse');
