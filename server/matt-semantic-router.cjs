@@ -65,6 +65,7 @@ function routePrompt(message,conversation=null){
  'Output strict JSON exactly: {"director":"<id>","action":"answer"} or',
  '{"director":"<id>","action":"investigate"} or',
  '{"director":"<id>","action":"build"}. If unrelated, output not_ready.',
+ 'For read-only Worker investigation, separate human consent is mandatory.',
  'This JSON only proposes project routing. The backend alone decides if',
  'a task fits standing authorization and budgets; never grant permissions.',
  'No model tool calls, no authority to execute work.',
