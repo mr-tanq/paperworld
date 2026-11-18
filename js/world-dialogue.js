@@ -310,8 +310,11 @@
  const sunoInstructions=make('a','crow-music-instructions','Οδηγίες σύνδεσης Suno MCP');
  sunoInstructions.href='https://suno.com/mcp';
  sunoInstructions.target='_blank';sunoInstructions.rel='noopener noreferrer';
- musicPanel.append(musicHelp,sunoCheck,musicResult,sunoConnect,sunoLinkStatus,
-  sunoTools,sunoInstructions,musicFromCrow,musicForm,sunoGenerate,musicCopy,musicCancel);
+ const crowTechnical=make('details','crow-technical-tools');
+  crowTechnical.append(make('summary','','Έλεγχοι σύνδεσης για συντήρηση'),
+   sunoCheck,sunoLinkStatus,sunoTools,sunoInstructions);
+  musicPanel.append(musicHelp,musicResult,sunoConnect,musicFromCrow,
+   musicForm,sunoGenerate,musicCopy,musicCancel,crowTechnical);
  let musicBusy=false;
  const openStudio=make('button','crow-music-toggle','♫ Συνέχεια στο Music Studio');
  openStudio.type='button';openStudio.hidden=true;
@@ -419,6 +422,7 @@
   }finally{memoryReview.disabled=false}
  });
  const composer=make('footer','world-chat-composer');
+ memoryReview.classList.add('village-maintenance-only');
  composer.append(connectGithub,memoryReview,openStudio,musicToggle,musicPanel,form);
  panel.append(top,status,messages,decisions,composer);view.append(panel);
  // Matt owns the conversation; internal agent and worker routing stays invisible.
@@ -426,7 +430,7 @@
   if(openId!=='matt'||!cloud()?.signedIn()||busy||!text.trim())return;
   busy=true;field.disabled=true;send.disabled=true;
   veil.classList.remove('world-chat-journey');mattJourneyCaption='';
-  status.textContent='Ο Matt επεξεργάζεται το αίτημα…';
+  status.textContent='Ο Matt το σκέφτεται…';
   let failure=null,requestId=null,watcher=null,polling=false;
   const poll=async()=>{
    if(!requestId||polling)return;
@@ -455,7 +459,7 @@
         status.textContent='Ο Matt πηγαίνει στον '+(directorNames[journeyDirector]||'Director')+'…';
        }
       }else if(event.stage==='director_reported'&&journeyStarted){
-       status.textContent='Ο Director απάντησε · ο Matt ετοιμάζει την αναφορά…';
+       status.textContent='Ο Matt έρχεται με νέα…';
       }
      }});
    if(result.delegated&&['listening-director','studio-director','pokemon-director'].includes(result.directorId)){
@@ -510,9 +514,9 @@
 
      'Θα διαβαστούν μόνο προκαθορισμένα αρχεία του Listening Mirror. '+
      'Η εξέλιξη καταγράφεται στο προστατευμένο ιστορικό.';
-    const consent='Ο Matt προτείνει έλεγχο πηγαίου κώδικα από τον '+
+    const consent='Ο Matt θέλει να ζητήσει βοήθεια από τον '+
      (pokemon?'Pokémon Developer':'Listening Mirror Developer')+
-     '. Πρόσθετη έγκριση: έως 5 AI κλήσεις (επιπλέον χρέωση $0). '+
+     '. Χρειάζεται η έγκρισή σου για αυτή την επιπλέον εργασία (έως 5 κλήσεις, χωρίς πρόσθετη χρέωση). '+
      scope+' ΜΟΝΟ ανάγνωση, χωρίς αλλαγές, PR ή deployment. Εγκρίνεις;';
     if(window.confirm(consent)){
      if(openId==='matt')status.textContent='Ο Matt ξεκίνησε την εγκεκριμένη διερεύνηση…';
@@ -612,7 +616,7 @@
   else for(const reply of directorReplies.get(openId)||[])
    messages.append(bubble('agent',reply.content,reply.time));
   if(!entries.length&&!(openId==='matt'?mattReplies.length:(directorReplies.get(openId)||[]).length))messages.append(system(openId==='matt'?
-   'Μίλησε στον Matt όπως σε έναν συνεργάτη. Το ιστορικό αποθηκεύεται όταν ο server είναι ρυθμισμένος.':
+   'Πες μου τι έχεις στο μυαλό σου. Θα βρούμε μαζί πώς να προχωρήσουμε.':
    'Μίλα απευθείας στον Director. Κάθε AI απάντηση χρειάζεται δική σου έγκριση.'));
   scrollBottom();
  }
@@ -626,12 +630,12 @@
   heading.textContent=profile?.name||(isMatt?'Matt':agent?.name||'Director');
   if(window.PaperworldProfiles)window.PaperworldProfiles.paintAvatar(avatar,openId);
   else avatar.textContent=heading.textContent.charAt(0).toUpperCase();
-  activity.textContent=isMatt?'Chief of Staff · GitHub Copilot':(profile?.project||'Project')+' · Director · GitHub Copilot';
+  activity.textContent=isMatt?'Εδώ για ό,τι χρειαστείς':(profile?.project||'Η ομάδα σου');
   const active=cloud()?.signedIn()===true;
   const available=active&&typeof cloud()?.privateAgentMessages==='function'&&!busy;
   status.textContent=!active?'Συνδέσου στο PAPERWORLD Cloud για να στείλεις μηνύματα.':
-   isMatt?(mattJourneyCaption||'Συνομιλία με τον Matt · καμία εργασία χωρίς έγκριση'):
-   'Απευθείας συνομιλία Director · κάθε AI απάντηση χρειάζεται έγκριση';
+   isMatt?(mattJourneyCaption||'Πες μου τι έχεις στο μυαλό σου.'):
+   'Μίλα μου ελεύθερα.';
   decisions.hidden=!isMatt||!active;
   memoryReview.hidden=!isMatt||!active;
   musicToggle.hidden=openId!=='studio-director'||!active;
