@@ -6,7 +6,7 @@ const good={title:'Tighten one recommendation filter',summary:'A bounded tested 
  allowedPaths:['js/','tests/'],maxFiles:4};
 test('one policy-defined contract for Joey and Luna, no model-selected repo',()=>{
  assert.equal(normalizedSpec(good,{projectId:'listening',directorId:'listening-director'}).repository,'mr-tanq/concerts');
- const p=normalizedSpec({...good,allowedPaths:['scripts/','tests/']},
+ const p=normalizedSpec({...good,requiredTests:['godot_smoke'],allowedPaths:['scripts/','tests/']},
   {projectId:'pokemon',directorId:'pokemon-director'});
  assert.equal(p.repository,'mr-tanq/pokemon-echoes');
  assert.equal(Object.keys(REGISTRY).length,2);
@@ -18,7 +18,7 @@ test('cross-project delegation and tampered model registry are refused',()=>{
   {...good,allowedPaths:['.github/workflows/']},
   {...good,allowedPaths:['tests/../../.github/']},
   {...good,allowedPaths:['assets/']},
-  {...good,allowedPaths:['scripts/']},
+  {...good,allowedPaths:['scenes/']},
   {...good,requiredTests:['run && rm -rf /']},
   {...good,requiredTests:['untrusted_test_name']},
   {...good,maxFiles:11},
