@@ -898,5 +898,22 @@
   if(e.key.toLowerCase()==='m'){e.preventDefault();show('matt')}
   if(e.key.toLowerCase()==='t'){e.preventDefault();nearby()}
  });
+ // Return to the prepared song after Suno redirects back to Paperworld.
+ // The callback query string alone is NOT a connection proof: the status
+ // indicator separately reads the authenticated server's current OAuth state.
+ if(sunoReturn.get('suno_link')==='connected'&&cloud()?.signedIn()&&
+    validSongOwner(songOwner())){
+  show('studio-director');
+  musicPanel.hidden=false;
+  musicToggle.setAttribute('aria-expanded','true');
+  if(restoreSongDraft()){
+   musicResult.textContent='Το τραγούδι σου διατηρήθηκε. Έλεγξε τη σύνδεση Suno και συνέχισε.';
+   musicCopy.hidden=false;musicCancel.hidden=false;
+  }
+  void refreshSunoConnection();
+ }else if(new URLSearchParams(window.location.search).get('github_link')==='connected'&&
+   cloud()?.signedIn()){
+  show('matt');
+ }
  window.PaperworldWorldDialogue=Object.freeze({show,close:hide,nearby});
 })();
