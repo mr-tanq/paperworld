@@ -41,7 +41,11 @@ begin
  if p_adapter='copilot_agent' then
   if not p_adapter=any(conf.live_adapters) or
    m.project_id not in ('pokemon','listening') or
-   s.capability not in ('create_issue','start_agent','dispatch_verify') or
+   not (
+    (p_kind='create_issue' and s.capability='create_issue') or
+    (p_kind='start_agent' and s.capability='start_agent') or
+    (p_kind='dispatch_verify' and s.capability='verify')
+   ) or
    (sessions=1 and not coalesce(conf.allow_unmetered_copilot,false) and (
     conf.credit_snapshot is null or conf.credit_snapshot_at is null or
     conf.credit_snapshot>=conf.credit_stop_at or
