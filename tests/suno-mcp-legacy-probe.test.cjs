@@ -135,3 +135,20 @@ test('Malformed success is not a protocol rejection and must not trigger fallbac
  assert.equal(result.reason,'mcp_tools_missing');
  assert.equal(count,1);
 });
+
+test('Legacy initialized discovery accepts schema-heavy tool response under 512 KiB',async()=>{
+ const seen=[];
+ const schemaHeavy={jsonrpc:'2.0',id:1,result:{tools:[
+  {name:'music/create_song',inputSchema:{type:'object',description:'private'.repeat(10000)}}
+ ]}};
+ const responses=[ok(init,'session-safe'),{status:202},ok(schemaHeavy)];
+ const probe=makeLegacySunoMcpProbe({fetcher:async(_,options)=>{
+  seen.push(JSON.parse(options.body).method);
+  return responses[seen.length-1];
+ }});
+ const result=await probe.inspect({accessToken:credential});
+ assert.equal(result.available,true);
+ assert.deepEqual(result.tools,['music/create_song']);
+ assert.deepEqual(seen,['initialize','notifications/initialized','tools/list']);
+ assert.doesNotMatch(JSON.stringify(result),/private/);
+});

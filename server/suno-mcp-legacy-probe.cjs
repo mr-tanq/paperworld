@@ -5,7 +5,7 @@
 'use strict';
 const ENDPOINT='https://api.suno.com/mcp';
 const VERSION='2025-11-25';
-const MAX_BODY=32000;
+const MAX_BODY=512*1024;
 const {summarize}=require('./suno-mcp-tool-probe.cjs');
 function parseMessage(raw,expectedId){
  if(typeof raw!=='string'||raw.length>MAX_BODY)return null;
@@ -45,8 +45,27 @@ async function readResponse(response,id){
  const length=response.headers?.get?.('content-length');
  if(length!==null&&length!==undefined&&
     (!/^\d{1,6}$/.test(length)||Number(length)>MAX_BODY))return null;
- const data=await response.text();
- if(data.length>MAX_BODY)return null;
+ // Legacy handshake is read-only, but the tool schemas may exceed 32 KiB.
+ // Bound the actual response stream as well as the advertised length.
+ let data='';
+ if(response.body&&typeof response.body.getReader==='function'){
+  const reader=response.body.getReader(),decoder=new TextDecoder();
+  let size=0;
+  try{
+   while(true){
+    const part=await reader.read();
+    if(part.done)break;
+    if(!(part.value instanceof Uint8Array))return null;
+    size+=part.value.byteLength;
+    if(size>MAX_BODY){await reader.cancel().catch(()=>{});return null}
+    data+=decoder.decode(part.value,{stream:true});
+   }
+   data+=decoder.decode();
+  }finally{reader.releaseLock()}
+ }else{
+  data=await response.text();
+  if(Buffer.byteLength(data,'utf8')>MAX_BODY)return null;
+ }
  return parseMessage(data,id);
 }
 function makeLegacySunoMcpProbe({fetcher=globalThis.fetch}={}){

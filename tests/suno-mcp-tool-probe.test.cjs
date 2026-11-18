@@ -122,7 +122,7 @@ test('Reject truncated, duplicate, mismatched, oversized and paginated SSE',asyn
  assert.equal(parseRequestSse('data: {"jsonrpc":"2.0","method":"notifications/progress"}\n\n'),null);
  assert.equal(parseRequestSse(good+good),null);
  assert.equal(parseRequestSse('data: {"jsonrpc":"2.0","id":3,"result":{"tools":[]}}\n\n'),null);
- assert.equal(parseRequestSse('x'.repeat(32001)),null);
+ assert.equal(parseRequestSse('x'.repeat(512*1024+1)),null);
  assert.equal(summarize({jsonrpc:'2.0',id:1,result:{tools:[],nextCursor:'next'}}),null);
  const probe=makeSunoMcpToolProbe({fetcher:async()=>({
   status:200,headers:{get:()=> 'text/event-stream'},
@@ -147,4 +147,55 @@ test('Categorizes invalid JSON-RPC without leaking provider content',async()=>{
   assert.equal(result.reason,reason);
   assert.doesNotMatch(JSON.stringify(result),/secret|valid-access-token/);
  }
+});
+
+test('Accepts legitimate 70 KiB Suno tool schemas but returns names only',async()=>{
+ const privateSchema='private music schema content '.repeat(2700);
+ const payload=JSON.stringify({jsonrpc:'2.0',id:1,result:{tools:[
+  {name:'music/create_song',description:privateSchema,inputSchema:{type:'object'}}
+ ]}});
+ assert.ok(Buffer.byteLength(payload,'utf8')>32000);
+ assert.ok(Buffer.byteLength(payload,'utf8')<512*1024);
+ const probe=makeSunoMcpToolProbe({fetcher:async()=>({
+  status:200,headers:{get:k=>k==='content-type'?'application/json':
+   k==='content-length'?String(Buffer.byteLength(payload,'utf8')):null},
+  text:async()=>payload
+ })});
+ const result=await probe.inspect({accessToken:'valid-access-token-1234'});
+ assert.deepEqual(result,{available:true,reason:'read_only_tools_verified',
+  toolCount:1,tools:['music/create_song']});
+ assert.doesNotMatch(JSON.stringify(result),/private music schema content|valid-access-token/);
+});
+test('Rejects huge declared payloads without reading response body',async()=>{
+ let reads=0;
+ const probe=makeSunoMcpToolProbe({fetcher:async()=>({
+  status:200,headers:{get:k=>k==='content-type'?'application/json':
+   k==='content-length'?String(512*1024+1):null},
+  text:async()=>{reads++;throw Error('must not read')}
+ })});
+ const result=await probe.inspect({accessToken:'valid-access-token-1234'});
+ assert.equal(result.reason,'mcp_response_oversized');
+ assert.equal(reads,0);
+});
+test('Streaming MCP response enforces actual byte limit when header is absent',async()=>{
+ const huge=new Uint8Array(512*1024+1).fill(65);
+ let cancelled=false,position=0;
+ const reader={
+  async read(){
+   if(position>=huge.length)return {done:true};
+   const end=Math.min(position+65536,huge.length);
+   const value=huge.slice(position,end);position=end;
+   return {done:false,value};
+  },
+  async cancel(){cancelled=true},
+  releaseLock(){}
+ };
+ const probe=makeSunoMcpToolProbe({fetcher:async()=>({
+  status:200,headers:{get:k=>k==='content-type'?'application/json':null},
+  body:{getReader:()=>reader},
+  text:async()=>{throw Error('must stream')}
+ })});
+ const result=await probe.inspect({accessToken:'valid-access-token-1234'});
+ assert.equal(result.reason,'mcp_response_oversized');
+ assert.equal(cancelled,true);
 });
