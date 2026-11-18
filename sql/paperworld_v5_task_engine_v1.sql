@@ -188,8 +188,13 @@ begin
  where m.engine='v1' and m.status in ('queued','running','working','verifying')
   and s.state='ready' and s.run_after<=now() and s.attempts<s.max_attempts
   and s.capability in ('create_issue','start_agent','await_agent','verify','report')
-  and not exists(select 1 from public.paperworld_autonomous_effects_v5 e
-   where e.step_id=s.id)
+  and (
+    not exists(select 1 from public.paperworld_autonomous_effects_v5 e
+     where e.step_id=s.id)
+    or (s.capability='verify' and exists(
+      select 1 from public.paperworld_autonomous_effects_v5 e
+      where e.step_id=s.id and e.kind='dispatch_verify' and e.state='started'))
+   )
   and not exists(select 1 from public.paperworld_autonomous_steps_v5 p
    where p.mission_id=s.mission_id and p.seq<s.seq and
     p.state not in ('succeeded','skipped'))
