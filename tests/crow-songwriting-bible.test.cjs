@@ -56,7 +56,7 @@ test('Crow bible is limited to Crow in both AI entry points',()=>{
  assert.match(delegated,/route==='studio-director'\?forCrowHistory\(\)\+forCrow\(\)/);
  assert.match(delegated,/preserve TITLE, SUNO STYLE PROMPT and LYRICS sections verbatim/);
  const ui=fs.readFileSync('js/world-dialogue.js','utf8');
- assert.match(ui,/parser\?\.parseSong\(last\)/);
+ assert.match(ui,/const song=parser\?\.parseSong\(text\)/);
  assert.match(ui,/musicLyrics\.value=song\.lyrics/);
  assert.match(ui,/latestSavedStudioDraft\|\|window\.PaperworldCrowStudioDraft/);
 });

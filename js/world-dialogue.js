@@ -8,6 +8,7 @@
  let openId=null,revision=0,busy=false;
  const mattReplies=[];
  const directorReplies=new Map(); // Keep only replies not yet reconciled with saved history.
+ let latestSavedCrowReply=null; // Last persisted Crow agent reply, not temporary UI bubbles.
  let latestStudioHandoff=null,latestSavedStudioDraft=null;
  let mattCachedEntries=null; // Keep visible replies while owner history refreshes.
  let mattJourneyCaption='';
@@ -340,29 +341,29 @@
  musicFromCrow.addEventListener('click',()=>{
   if(openId!=='studio-director'||musicBusy)return;
   const replies=directorReplies.get('studio-director')||[];
-  const last=replies[replies.length-1]?.content;
-  if(typeof last!=='string'||!last.trim()){
-   musicResult.textContent='Δεν υπάρχει πρόσφατη απάντηση του Crow. Μίλησέ του πρώτα.';
+  const recent=replies[replies.length-1]||null;
+  const saved=latestSavedCrowReply;
+  const latest=recent&&(!saved||Date.parse(recent.time||0)>=Date.parse(saved.time||0))?
+   recent:saved;
+  const text=latest?.content;
+  if(typeof text!=='string'||!text.trim()){
+   musicResult.textContent='Δεν υπάρχει αποθηκευμένη απάντηση Crow. Ζήτησέ του πρώτα ένα τραγούδι.';
    return;
   }
-  // Structured songs fill all fields; old replies can still supply style only.
   const parser=window.PaperworldCrowStudioDraft;
-  const song=parser?.parseSong(last);
-  const style=song?.style||parser?.extractStyle(last);
-  if(!style){
-   musicResult.textContent='Δεν βρέθηκε ξεχωριστό Suno Style Prompt. '+
-    'Ζήτησε από τον Crow ολοκληρωμένο τραγούδι ή γράψε χειροκίνητα το ύφος.';
+  const song=parser?.parseSong(text);
+  if(!song){
+   musicResult.textContent='Η τελευταία απάντηση δεν είναι ολοκληρωμένο τραγούδι με '+
+    'TITLE, SUNO STYLE PROMPT και LYRICS. Ζήτησε από τον Crow να τα δώσει '+
+    'σε τρεις ξεχωριστές ενότητες. Τα υπάρχοντα πεδία δεν άλλαξαν.';
    return;
   }
-  musicStyle.value=style;
-  if(song){
-   musicTitle.value=song.title;
-   musicLyrics.value=song.lyrics;
-   musicResult.textContent='Μεταφέρθηκαν τίτλος, Suno Style Prompt και Lyrics.';
-  }else{
-   if(!musicTitle.value.trim())musicTitle.value='New Lost Wanderer Song';
-   musicResult.textContent='Μεταφέρθηκε μόνο το μουσικό ύφος. Συμπλήρωσε τους στίχους.';
-  }
+  musicTitle.value=song.title;
+  musicStyle.value=song.style;
+  musicLyrics.value=song.lyrics;
+  musicCopy.hidden=false;musicCancel.hidden=false;
+  musicResult.textContent='Μεταφέρθηκαν μόνο ο τίτλος, το Suno style prompt και οι στίχοι. '+
+   'Έλεγξε τα πεδία πριν δημιουργήσεις τραγούδι.';
  });
  musicCopy.addEventListener('click',async()=>{
   if(openId!=='studio-director'||musicBusy||!musicTitle.value.trim()||
@@ -677,6 +678,10 @@
       mattConversation.splice(0,mattConversation.length,...recovered.turns)}
      appendEntries(recovered.display);
     }else{
+     if(selected==='studio-director'){
+      const last=history.filter(m=>m.role==='agent'&&typeof m.content==='string').at(-1);
+      latestSavedCrowReply=last?{content:last.content,time:last.created_at||null}:null;
+     }
      const existing=directorReplies.get(selected)||[];
      const savedIds=new Set(history.filter(m=>m.role==='agent').map(m=>m.id));
      const waiting=existing.filter(m=>!m.id||!savedIds.has(m.id));

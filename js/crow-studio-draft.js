@@ -10,56 +10,94 @@
  'use strict';
  // A chat reply is not automatically a Suno style prompt. Only import a
  // distinctly labeled direction, never lyrics, notes or unrelated conversation.
+ // Parse only explicit, complete Crow song packages. Do not treat chat prose as
+ // a music prompt, and never send trailing notes or metadata as sung lyrics.
+ const labels={
+  title:/^(?:title|song\s*title|τίτλος(?:\s+τραγουδιού)?)\s*[:：]\s*(.*)$/i,
+  style:/^(?:suno\s*style\s*prompt|style\s*prompt|style|suno\s*style|μουσικ(?:ό|ή)\s*ύφος|μουσικ(?:ή|ής)\s*κατεύθυνση|ύφος(?:\s*\([^)]{1,100}\))?)\s*[:：]\s*(.*)$/i,
+  lyrics:/^(?:lyrics|song\s*lyrics|στίχοι)\s*[:：]\s*(.*)$/i
+ };
+ const other=/^(?:notes?|σημειώσεις|explanation|επεξήγηση|σχόλια|comments?|production\s*notes?|production\s*details?|description|περιγραφή|suggestions?|εναλλακτικές|next\s*steps?|οδηγίες|credits?|summary|περίληψη|analysis|ανάλυση|prompt|τίτλος|title|song\s*title|style|suno\s*style\s*prompt|lyrics|στίχοι)\s*(?:[:：]|$)/i;
+ const marker=/^\[(?:intro|verse(?:\s+\d+)?|pre[\s-]?chorus|chorus|post[\s-]?chorus|bridge|outro|instrumental|break|interlude|solo|end|final|hook|refrain)(?:\s|[-—:]|\])/i;
+ function plain(line){
+  return line.trim().replace(/^#{1,6}\s*/,'').replace(/^>\s*/,'')
+   .replace(/^\*\*(.*?)\*\*(:?)/,'$1$2').replace(/__(.*?)__(:?)/,'$1$2')
+   .replace(/^\*([^*]+)\*(:?)/,'$1$2').trim();
+ }
+ function sectionLabel(line){
+  const text=plain(line);
+  for(const [name,re] of Object.entries(labels)){
+   const m=text.match(re);if(m)return {name,inline:m[1]||''};
+  }
+  return other.test(text)?{name:'stop'}:null;
+ }
+ function linesOf(reply){
+  return reply.replace(/\r\n?/g,'\n').replace(/\\n/g,'\n').split('\n');
+ }
+ function cleanStyle(lines){
+  const text=lines.map(x=>plain(x)).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+  return text&&text.length<=1000?text:null;
+ }
  function extractStyle(reply){
   if(typeof reply!=='string'||!reply.trim())return null;
-  const lines=reply.replace(/\r\n?/g,'\n').split('\n');
-  const heading=/^(?:suno\s*style\s*prompt|style\s*prompt|musical\s*direction|μουσικ(?:ό|η)\s*ύφος|μουσικ(?:ή|ης)\s*κατεύθυνση|ύφος(?:\s*\([^)]{1,100}\))?)\s*[:：]\s*(.*)$/i;
-  const section=/^\s*(?:#{1,4}\s*)?(?:\*{0,2})(?:σημειώσεις|notes|lyrics|στίχοι|title|τίτλος|verse|chorus|bridge|outro|prompt|description)(?:\*{0,2})\s*[:：]?/i;
-  for(let i=0;i<lines.length;i++){
-   const match=lines[i].trim().replace(/^#{1,4}\s*/,'').replace(/\*\*/g,'').match(heading);
-   if(!match)continue;
-   const selected=[];
-   if(match[1]?.trim())selected.push(match[1].trim());
-   for(let j=i+1;j<lines.length&&selected.join(' ').length<1000;j++){
-    const line=lines[j].trim();
-    const label=line.replace(/^#{1,4}\s*/,'').replace(/\*\*/g,'');
-    if(section.test(label)||heading.test(label)||/^\s*\[\s*(?:verse|chorus|bridge|outro)/i.test(line))break;
-    if(!line){if(selected.length)break;continue}
-    selected.push(line);
+  const lines=linesOf(reply);let inside=false,parts=[];
+  for(const raw of lines){
+   const line=plain(raw),label=sectionLabel(raw);
+   if(label){
+    if(inside)break;
+    if(label.name==='style'){
+     inside=true;if(label.inline.trim())parts.push(label.inline.trim());
+    }
+    continue;
    }
-   const result=selected.join(' ').replace(/\*\*/g,'').trim().slice(0,1000);
-   return result||null;
+   if(!inside)continue;
+   if(/^`{3,}/.test(line)){if(parts.length)break;continue}
+   if(!line){if(parts.length)break;continue}
+   if(marker.test(line)||/^\[/.test(line))break;
+   parts.push(line);
   }
-  return null;
+  return cleanStyle(parts);
  }
  function parseSong(reply){
   if(typeof reply!=='string'||!reply.trim())return null;
-  const lines=reply.replace(/\r\n?/g,'\n').split('\n');
   const sections={title:[],style:[],lyrics:[]};
-  const headings={
-   title:/^title\s*[:：]\s*(.*)$/i,
-   style:/^(?:suno\s*style\s*prompt|style\s*prompt)\s*[:：]\s*(.*)$/i,
-   lyrics:/^lyrics\s*[:：]\s*(.*)$/i
-  };
-  let part=null;
-  for(const raw of lines){
-   const line=raw.trim().replace(/^#{1,4}\s*/,'').replace(/\*\*/g,'');
-   let found=false;
-   for(const [key,re] of Object.entries(headings)){
-    const m=line.match(re);
-    if(!m)continue;
-    part=key;found=true;
-    if(m[1]?.trim())sections[key].push(m[1].trim());
-    break;
+  const seen=new Set();let part=null,stopped=false;
+  for(const raw of linesOf(reply)){
+   const line=plain(raw),label=sectionLabel(raw);
+   if(label){
+    if(label.name==='stop'){if(part==='lyrics')stopped=true;part=null;continue}
+    // Repeated section labels are ambiguous; reject rather than guess.
+    if(seen.has(label.name))return null;
+    seen.add(label.name);part=label.name;
+    if(label.inline.trim())sections[part].push(label.inline.trim());
+    continue;
    }
-   if(!found&&part)sections[part].push(raw);
+   if(stopped||!part)continue;
+   if(!line&&(part==='title'||part==='style')&&sections[part].some(v=>v.trim())){
+    part=null;continue;
+   }
+   if(/^`{3,}/.test(line))continue;
+   if(part==='lyrics'&&/^(?:---+|___+|thanks(?:\s|[!.])|ελπίζω(?:\s|[!.])|let\s+me\s+know\b)/i.test(line)){
+    stopped=true;part=null;continue;
+   }
+   sections[part].push(raw);
   }
-  const title=sections.title.join(' ').trim();
-  const style=sections.style.join(' ').replace(/\s+/g,' ').trim();
-  const lyrics=sections.lyrics.join('\n').trim();
-  if(!title||title.length>120||!style||style.length>1000||
-    !lyrics||lyrics.length>8000||!/^\[(?:Intro|Verse|Chorus|Pre-Chorus|Bridge|Outro|Instrumental|Break|End|Final)/im.test(lyrics))
-   return null;
+  if(!seen.has('title')||!seen.has('style')||!seen.has('lyrics'))return null;
+  const title=sections.title.map(plain).filter(Boolean).join(' ').trim();
+  const style=cleanStyle(sections.style);
+  const lyricLines=sections.lyrics.map(x=>x.trim());
+  while(lyricLines.length&&!lyricLines[0])lyricLines.shift();
+  while(lyricLines.length&&!lyricLines.at(-1))lyricLines.pop();
+  // Introductory chat text is not a lyric. A real package begins with a
+  // structured performance/section tag and contains at least one vocal line.
+  if(!lyricLines.length||!marker.test(lyricLines[0]))return null;
+  const endIndex=lyricLines.findIndex(l=>/^\[(?:end|final)\s*\]$/i.test(l));
+  if(endIndex>=0)lyricLines.splice(endIndex+1);
+  if(lyricLines.some(l=>sectionLabel(l)||/^`{3,}/.test(l)))return null;
+  const lyrics=lyricLines.join('\n').trim();
+  const hasVocalLine=lyricLines.some(l=>l&&!/^\[.*\]$/.test(l));
+  if(!title||title.length>120||!style||!lyrics||lyrics.length>8000||
+    !hasVocalLine)return null;
   return Object.freeze({title,style,lyrics});
  }
  function fromMatt({directorId,delegated,requestId,request,directorReport}={}){
@@ -70,14 +108,15 @@
    directorReport.length>5500)return null;
   const clean=s=>s.replace(/\r\n?/g,'\n').trim();
   const song=parseSong(directorReport);
-  const direction=song?.style||clean(directorReport).slice(0,1000);
-  if(!direction)return null;
+  // No fallback that copies Matt's entire conversational report into the
+  // Suno style field. Only a complete Crow song can be imported automatically.
+  if(!song)return null;
   return Object.freeze({
    source:'matt_to_crow',
    requestId,
-   title:song?.title||'New Lost Wanderer Song',
-   style:direction,
-   lyrics:song?.lyrics||'',
+   title:song.title,
+   style:song.style,
+   lyrics:song.lyrics,
    originalRequest:clean(request).slice(0,1200)
   });
  }
