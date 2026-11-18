@@ -46,7 +46,7 @@ test('Messenger offers one-click Crow studio and no disabled preview dependency'
  assert.match(src,/musicForm\.addEventListener\('submit',e=>/);
  assert.doesNotMatch(src,/musicForm\.addEventListener\('submit',async/);
  assert.doesNotMatch(src,/previewId/);
- assert.match(html,/crow-studio-draft\.js\?v=4-song-package/);
+ assert.match(html,/crow-studio-draft\.js\?v=5-safe-song-import/);
  assert.ok(html.indexOf('crow-studio-draft.js')<html.indexOf('world-dialogue.js'));
 });
 
