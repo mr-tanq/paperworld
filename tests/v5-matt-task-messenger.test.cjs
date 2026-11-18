@@ -17,7 +17,7 @@ function create({enabled=true,route='{"director":"listening-director","action":"
   oauth:{getLinkedToken:()=> 'gho_TEST_TEST_TEST'},
   guard:{authenticate:async()=>({ownerId:OWNER}),ownsThread:async()=>true},
   budgetVerified:async()=>true,
-  memoryLoader:{load:async()=>({projectId:'workshop',included:1,text:'PROJECT_ONLY',
+  memoryLoader:{load:async()=>({projectId:'workshop',included:1,text:'PROJECT_ONLY',untrustedContent:true,
    actor:'listening-director',capabilitiesGranted:[]})},
   persistence:{save:async p=>{writes.push(p);return true}},
   handoffLedger:{record:async()=>true},
