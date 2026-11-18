@@ -105,14 +105,15 @@
    directorReport.length>5500)return null;
   const clean=s=>s.replace(/\r\n?/g,'\n').trim();
   const song=parseSong(directorReport);
-  const direction=song?.style||clean(directorReport).slice(0,1000);
-  if(!direction)return null;
+  // No fallback that copies Matt's entire conversational report into the
+  // Suno style field. Only a complete Crow song can be imported automatically.
+  if(!song)return null;
   return Object.freeze({
    source:'matt_to_crow',
    requestId,
-   title:song?.title||'New Lost Wanderer Song',
-   style:direction,
-   lyrics:song?.lyrics||'',
+   title:song.title,
+   style:song.style,
+   lyrics:song.lyrics,
    originalRequest:clean(request).slice(0,1200)
   });
  }
