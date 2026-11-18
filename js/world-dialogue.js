@@ -144,8 +144,25 @@
  sunoGenerate.type='button';
  let lastSunoSubmission=null;
  sunoGenerate.addEventListener('click',async()=>{
-  if(openId!=='studio-director'||musicBusy||lastSunoSubmission||
-     !cloud()?.signedIn()||typeof cloud()?.createSunoSong!=='function')return;
+  if(openId!=='studio-director')return;
+  if(musicBusy){
+   musicResult.textContent='Υπάρχει ήδη υποβολή σε εξέλιξη. Δεν στέλνω δεύτερο αίτημα.';
+   return;
+  }
+  if(lastSunoSubmission){
+   musicResult.textContent='Έχει ήδη επιχειρηθεί υποβολή σε αυτή τη συνεδρία. '+
+    'Έλεγξε πρώτα τη Suno Library πριν δημιουργήσεις ξανά.';
+   return;
+  }
+  if(!cloud()?.signedIn()){
+   musicResult.textContent='Χρειάζεται σύνδεση στο Paperworld Cloud για δημιουργία στο Suno.';
+   return;
+  }
+  if(typeof cloud()?.createSunoSong!=='function'){
+   musicResult.textContent='Η λειτουργία δημιουργίας Suno δεν έχει φορτωθεί. '+
+    'Κάνε ανανέωση της σελίδας για να φορτωθεί η νέα έκδοση.';
+   return;
+  }
   const brief={title:musicTitle.value.trim(),style:musicStyle.value.trim(),
    lyrics:musicLyrics.value};
   if(!brief.title||brief.title.length>120||!brief.style||brief.style.length>1000||
@@ -178,7 +195,7 @@
   }catch(_){
    musicResult.textContent='Η απάντηση της Suno δεν επιβεβαιώθηκε. '+
     'Έλεγξε τη Suno Library πριν προσπαθήσεις ξανά.';
-  }finally{musicBusy=false}
+  }finally{musicBusy=false;sunoGenerate.disabled=false}
  });
  const musicCancel=make('button','crow-music-cancel','Ακύρωση πρότασης');
  musicCancel.type='button';musicCancel.hidden=true;
