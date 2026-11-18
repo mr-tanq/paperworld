@@ -510,3 +510,12 @@ Complementary private Pokémon PR #3 merged and passed Actions: the trusted `pap
 Paperworld `paperworld_v5_verified_ci_completion` SQL migration and Supabase `paperworld-copilot-dispatch` Edge v3 add a read-only GitHub CI evidence polling path: exact bot-authored Draft PR, matching immutable head SHA and owner issue #1, `paperworld-verify.yml` run from pull_request on that SHA and matching PR number, successful `headless-godot` job AND successful (not skipped) smoke and five-case assertion steps. Only then the service-role SQL `paperworld_v5_finish_verified_copilot` stores the PR+SHA+workflow-run receipt and atomically marks the mission completed once. Failed/unapproved/missing workflows leave the mission at `needs_you`; there is no second Copilot session, auto-merge, auto-deploy or AI charge in this verification path.
 
 The integration suite proves the state machine against real PostgreSQL 17 and tests forged GitHub CI evidence with synthetic API responses. The real Copilot launch remains **disabled**: the personal GitHub user-token, Supabase Edge/Vault trigger, fresh credits snapshot, and explicit owner pilot approval are still required. Also note: default PR-triggered workflows for Copilot may require a human approval in GitHub; this gate is intentionally not bypassed, so a phone-off pilot may stop waiting for CI approval rather than incorrectly report success.
+
+## 2026-11-18 — Human-first Village Autonomy V2 review
+- Owner wants one natural conversation with Matt and a general village that works, not TicketSwap-specific/developer control panels.
+- Audited `index.html`, Messenger, Cloud UI, team/task panels and current owner-authenticated Task Engine read API.
+- Developer map/path/asset/Suno-MCP controls will be off the ordinary screen, kept as visual-only maintenance under `?maintenance=1`.
+- Replace manual pilot forms with read-only, accurate multi-project team progress (Luna, Joey, Crow, Dave); show verified results only with safe project-matched links.
+- Make Matt respond in short, human language, preserving privacy, budgets, approvals and truthful execution status.
+- PR #205 is the implementation; no automatic merge, paid session, database migration, production deployment or additional agent credentials until verification.
+- Full source-level decisions and unfinished validation: `docs/VILLAGE_HUMAN_FIRST_AUDIT_V2.md`.
