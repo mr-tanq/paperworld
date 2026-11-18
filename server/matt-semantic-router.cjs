@@ -62,6 +62,8 @@ function routePrompt(message,conversation=null){
  'Build and investigate are allowed only for listening and pokemon.',
  'Investigation is available ONLY for listening-director or pokemon-director.',
  'Do not ever select an investigation for studio-director.',
+ 'If the user asks what the whole team is doing, its current progress or unfinished work,',
+ 'output exactly {"action":"team_status"}. This means a read-only owner-scoped status lookup.',
  'Output strict JSON exactly: {"director":"<id>","action":"answer"} or',
  '{"director":"<id>","action":"investigate"} or',
  '{"director":"<id>","action":"build"}. If unrelated, output not_ready.',
@@ -103,6 +105,8 @@ function parseIntent(answer){
   const director=parseRoute(clean);
   return director?Object.freeze({director,action:'answer',workerId:null}):null;
  }
+ if(keys.length===1&&keys[0]==='action'&&data.action==='team_status')
+  return Object.freeze({director:null,action:'team_status',workerId:null});
  if(keys.join(',')!=='action,director')return null;
  const {director,action}=data;
  if(typeof director!=='string'||!ALLOWED.has(director)||

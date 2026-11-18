@@ -15,7 +15,8 @@
   try{const item=JSON.parse(value.slice(PREFIX.length));
    if(!item||!DIRECTORS.has(item.director)||typeof item.text!=='string'||
     !item.text.trim()||item.text.length>MAX_REPLY)return null;
-   return {director:item.director,text:item.text}
+   return {director:item.director,text:item.text,
+    kind:item.kind==='notification'?'notification':'reply'}
   }catch(_){return null}
  }
  function recover(rows){
@@ -27,6 +28,7 @@
    }else if(row.role==='agent'){
     const parsed=decode(row.content);
     display.push({role:'agent',text:parsed?parsed.text:String(row.content||''),time:row.created_at});
+    if(parsed?.kind==='notification')continue;
     if(parsed&&pending){
      if(activeDirector!==parsed.director)turns=[];
      activeDirector=parsed.director;
