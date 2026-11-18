@@ -56,9 +56,9 @@ begin
     and created_at>=date_trunc('month',now() at time zone 'UTC') at time zone 'UTC';
   select count(*) into per_mission from public.paperworld_autonomous_effects_v5 e
    where e.mission_id=m.id and e.sessions=1 and e.state<>'denied';
-  if daily>=conf.sessions_per_day or monthly>=conf.sessions_per_month
+  if sessions=1 and (daily>=conf.sessions_per_day or monthly>=conf.sessions_per_month
    or per_mission>=conf.sessions_per_mission or
-   m.ai_calls_used>=coalesce((m.policy->>'maxAiCalls')::integer,0)
+   m.ai_calls_used>=coalesce((m.policy->>'maxAiCalls')::integer,0))
   then
    update public.paperworld_autonomous_missions_v5 set
      status='paused_budget',updated_at=now() where id=m.id;
