@@ -573,7 +573,7 @@ create table public.paperworld_agent_messages (
  foreign key(thread_id,owner_id)
  references public.paperworld_agent_threads(id,owner_id));
 \i sql/paperworld_v6_matt_sees_speaks.sql
-do $
+do $$
 declare owner1 uuid:='11111111-1111-4111-8111-111111111111';
 declare owner2 uuid:='22222222-2222-4222-8222-222222222222';
 declare m uuid:='71717171-7171-4717-8717-717171717171';
@@ -626,7 +626,7 @@ begin
  has_function_privilege('anon',
  'public.paperworld_v5_notify_matt()','EXECUTE') then
   raise exception 'client could call privileged snapshot/notifier'; end if;
-end $;
+end $$;
 
 rollback;
 select 'PASS: real PostgreSQL 17 lifecycle, uncertain effects, offline simulation, budget and RLS' as result;
