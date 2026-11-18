@@ -41,6 +41,8 @@
   }
   async function signout(){if(session?.access_token){try{await request('/auth/v1/logout',{method:'POST',auth:true})}catch(_){}}save(null)}
   const identity=()=>session?.user?.email||'Signed-in user';
+  // Owner ID only; never expose an OAuth access token through the UI.
+  const ownerId=()=>session?.user?.id||null;
   const signedIn=()=>!!session?.access_token;
   async function withAuth(path,opts={}){
    await ensureAuth();
