@@ -15,6 +15,7 @@ const {forCrow:forCrowHistory}=require('./crow-project-bible.cjs');
 const {parseIntent,routePrompt}=require('./matt-semantic-router.cjs');
 const {buildTaskPrompt}=require('./v5-task-planner.cjs');
 const {makeMattTaskIntake}=require('./v5-matt-task-intake.cjs');
+const {asksAboutVillage,createVillageStatus}=require('./village-status.cjs');
 const {createMattPersistence}=require('./matt-conversation-persistence.cjs');
 const {makeTeamHandoffLedger}=require('./team-handoff-ledger-v5.cjs');
 const ORIGIN='https://mr-tanq.github.io';
@@ -69,7 +70,7 @@ const CAPABILITIES=Object.freeze({
  })
 });
 function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence=null,fetcher=globalThis.fetch,
- handoffLedger=null,taskIntake=null,
+ handoffLedger=null,taskIntake=null,villageStatus=null,
  budgetVerified=()=>process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED==='yes',
  diagnostics=stage=>console.warn('[PAPERWORLD director handoff]',stage),
  now=Date.now}={}){
@@ -83,6 +84,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
  const history=persistence||createMattPersistence({fetcher});
  const teamLedger=handoffLedger||makeTeamHandoffLedger({fetcher});
  const codingIntake=taskIntake||makeMattTaskIntake({fetcher});
+ const teamStatus=villageStatus||createVillageStatus({fetcher});
  if(typeof history.save!=='function')throw Error('invalid_persistence');
  if(typeof approvedMemory.load!=='function')throw Error('memory_loader_required');
  const busy=new Set(),spent=new Map();
@@ -113,6 +115,20 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
    if(!await identity.ownsThread({threadId:data.threadId,ownerId,
      agentId:'matt',token:bearer.slice(7)}))return deny(404,'thread_not_found');
   }catch(_){return deny(401,'unauthorized')}
+  // General status questions consult the same trusted ledger as the village.
+  // This is zero-AI read-only work, before GitHub OAuth or model budget checks.
+  if((data.targetDirector??'auto')==='auto'&&asksAboutVillage(data.message)){
+   const reply=await teamStatus.read({ownerId,threadId:data.threadId});
+   const message=typeof reply==='string'&&reply.trim()?reply:
+    'Δεν μπορώ να δω αξιόπιστα την πρόοδο αυτή τη στιγμή. Δεν θα μαντέψω τι έκανε η ομάδα.';
+   let persisted=false;
+   try{persisted=await history.save({threadId:data.threadId,ownerId,
+     requestId:data.requestId,director:'matt',text:message})===true}catch(_){}
+   return {status:200,body:{executed:true,delegated:false,directorId:null,
+    content:message,aiTurns:0,requestId:data.requestId,routeMethod:'owner_status',
+    routeStatus:'read_only',execution:'status_only',persisted,
+    workProposal:null,handoffStored:false}};
+  }
   if(typeof budgetVerified!=='function'||await budgetVerified({ownerId})!==true)
    return deny(403,'verify_github_zero_overage_budget');
   const githubToken=oauth.getLinkedToken({ownerId});
