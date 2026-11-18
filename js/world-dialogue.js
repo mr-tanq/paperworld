@@ -48,10 +48,11 @@
  function setGithubConnection(state){
   connectGithub.dataset.state=state;
   connectGithub.textContent=state==='connected'?'GitHub · Συνδεδεμένο':
-   state==='disconnected'?'GitHub · Σύνδεση':'GitHub · Έλεγχος…';
+   state==='disconnected'?'GitHub · Σύνδεση':
+   state==='unknown'?'GitHub · Άγνωστο':'GitHub · Έλεγχος…';
   connectGithub.disabled=state==='connected';
   connectGithub.title=state==='connected'?'GitHub συνδεδεμένο':
-   state==='disconnected'?'Σύνδεση στο GitHub':'Έλεγχος σύνδεσης GitHub';
+   state==='disconnected'?'Σύνδεση στο GitHub':'Πάτησε για επανέλεγχο GitHub';
  }
  async function refreshGithubConnection(selectedRevision=revision){
   if(openId!=='matt'||!cloud()?.signedIn()||
@@ -64,12 +65,12 @@
     'connected':'disconnected');
   }catch(_){
    if(selectedRevision===revision&&openId==='matt')
-    setGithubConnection('checking');
+    setGithubConnection('unknown');
   }
  }
  connectGithub.addEventListener('click',async()=>{
   if(openId!=='matt'||!cloud()?.signedIn())return;
-  if(connectGithub.dataset.state==='checking'){
+  if(['checking','unknown'].includes(connectGithub.dataset.state)){
    await refreshGithubConnection();return;
   }
   if(connectGithub.dataset.state!=='disconnected')return;
@@ -289,10 +290,11 @@
   sunoConnect.dataset.state=state;
   sunoConnect.disabled=state==='connected'||state==='checking';
   sunoConnect.textContent=state==='connected'?'Suno · Συνδεδεμένο':
-   state==='disconnected'?'Suno · Σύνδεση':'Suno · Έλεγχος…';
+   state==='disconnected'?'Suno · Σύνδεση':
+   state==='unknown'?'Suno · Άγνωστο':'Suno · Έλεγχος…';
   sunoConnect.title=state==='connected'?'Suno συνδεδεμένο':
    state==='disconnected'?'Σύνδεση στον λογαριασμό Suno':
-   'Έλεγχος κατάστασης Suno';
+   'Πάτησε για επανέλεγχο σύνδεσης Suno';
  }
  async function refreshSunoConnection(){
   if(openId!=='studio-director'||!cloud()?.signedIn()||
@@ -307,12 +309,16 @@
    setSunoConnection(r.oauthAuthorized===true?'connected':'disconnected');
   }catch(_){
    if(selectedRevision===revision&&openId==='studio-director')
-    setSunoConnection('disconnected');
+    setSunoConnection('unknown');
   }
  }
  sunoConnect.addEventListener('click',async()=>{
-  if(openId!=='studio-director'||musicBusy||sunoConnect.dataset.state!=='disconnected'||
-     !cloud()?.signedIn()||typeof cloud()?.beginSunoLink!=='function')return;
+  if(openId!=='studio-director'||musicBusy||!cloud()?.signedIn())return;
+  if(sunoConnect.dataset.state==='unknown'){
+   await refreshSunoConnection();return;
+  }
+  if(sunoConnect.dataset.state!=='disconnected'||
+     typeof cloud()?.beginSunoLink!=='function')return;
   const agreed=window.confirm('Θα μεταφερθείς στη σελίδα εξουσιοδότησης του Suno. '+
    'Δεν θα δημιουργηθεί τραγούδι και δεν θα καταναλωθούν credits. Συνέχεια;');
   if(!agreed)return;
