@@ -58,6 +58,28 @@
   }
   return cleanStyle(parts);
  }
+ // Detect clipped / malformed bracketed production cues before passing
+ // anything to Suno. The finished Crow package must terminate at [End].
+ function validLyrics(lyrics,{requireEnd=false}={}){
+  if(typeof lyrics!=='string'||!lyrics.trim()||lyrics.length>8000)return false;
+  const lines=lyrics.replace(/\r\n?/g,'\n').split('\n').map(v=>v.trim()).filter(Boolean);
+  if(!lines.length)return false;
+  let vocal=false,sections=0;
+  for(const line of lines){
+   if(line.startsWith('[')||line.endsWith(']')){
+    // A production direction occupies one whole, closed bracketed line.
+    if(!/^\[[^\[\]\r\n]{1,500}\]$/.test(line))return false;
+    if(marker.test(line))sections++;
+   }else{
+    // Stray bracket characters in a lyric line indicate truncated text.
+    if(line.includes('[')||line.includes(']'))return false;
+    vocal=true;
+   }
+  }
+  if(!vocal||sections===0)return false;
+  if(requireEnd&&lines.at(-1)!=='[End]')return false;
+  return true;
+ }
  function parseSong(reply){
   if(typeof reply!=='string'||!reply.trim())return null;
   const sections={title:[],style:[],lyrics:[]};
@@ -95,9 +117,8 @@
   if(endIndex>=0)lyricLines.splice(endIndex+1);
   if(lyricLines.some(l=>sectionLabel(l)||/^`{3,}/.test(l)))return null;
   const lyrics=lyricLines.join('\n').trim();
-  const hasVocalLine=lyricLines.some(l=>l&&!/^\[.*\]$/.test(l));
-  if(!title||title.length>120||!style||!lyrics||lyrics.length>8000||
-    !hasVocalLine)return null;
+  if(!title||title.length>120||!style||
+     !validLyrics(lyrics,{requireEnd:true}))return null;
   return Object.freeze({title,style,lyrics});
  }
  function fromMatt({directorId,delegated,requestId,request,directorReport}={}){
@@ -140,5 +161,5 @@
   }
   return null;
  }
- return Object.freeze({fromMatt,fromSavedHistory,extractStyle,parseSong});
+ return Object.freeze({fromMatt,fromSavedHistory,extractStyle,parseSong,validLyrics});
 });

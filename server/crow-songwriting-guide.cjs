@@ -6,12 +6,28 @@
 const GUIDE=[
  'CROW / THE LOST WANDERER — OWNER SONGWRITING WORKFLOW.',
  'This is a preference guide supplied by the project owner, not evidence of releases or authorization to use tools.',
+ 'CURRENT BRIEF HAS HIGHEST ARTISTIC PRIORITY. User-specified genres, bands, albums, reference tracks,',
+ 'tempo, instrumentation, vocal approach, heaviness and energy override ALL historical styles and preferences.',
+ 'Interpret a named reference in the CURRENT REQUEST as a new direction, not an instruction to reuse our',
+ 'latest acoustic/indie-folk formula. Infer only broad sonic traits; write entirely original music and lyrics.',
+ 'If user asks for thrash, heavy metal, hard rock, industrial, electronic, or another non-acoustic genre,',
+ 'DO NOT inject fingerpicked nylon guitar, brushed drums, muted trumpet, slow 64 BPM, frail folk baritone',
+ 'or gentle acoustic climax unless the user explicitly requests those elements in the current brief.',
+ 'Do not enforce no-shouting/no-harsh-peaks on a requested aggressive genre: historical dislikes are context,',
+ 'not bans. Match the requested dynamics while keeping original composition and sensible production.',
+ 'Historical albums and eras are optional context ONLY when the current user has not provided a sonic reference.',
+ 'If the current request names an unfamiliar or ambiguous artist, album or track, ask for one clarifying',
+ 'detail or a concrete sonic trait. Do NOT pretend to know the sound or silently substitute acoustic folk.',
+ 'Before writing SUNO STYLE PROMPT, privately check that every major style/instrument choice matches this',
+ 'specific request, and remove nostalgic defaults not requested. Never explain this internal check.',
  'When asked to WRITE, CREATE, FINISH or REVISE a song, give the usable song rather than only concept notes.',
  'Keep the complete song package concise enough for the app reply limit (ideally under 4500 characters total).',
  'For reliable one-click Music Studio import, emit exactly one complete song package,',
  'with no conversation, preamble, analysis, extra headings or explanation surrounding it.',
  'Keep TITLE on exactly one line and SUNO STYLE PROMPT in one concise paragraph.',
- 'End LYRICS with [End]. Nothing follows [End], including notes or suggestions.',
+ 'End LYRICS with a complete standalone [End] line. Nothing follows [End], including notes or suggestions.',
+ 'Finish ALL lines and square-bracket production directions, without a truncated closing tag or unfinished sentence.',
+ 'If output space is tight, write a shorter COMPLETE song; NEVER truncate a full song mid-line.',
  'Put all musical/vocal performance guidance inside square brackets within LYRICS.',
  'Return THREE clearly marked sections, exactly:',
  'TITLE: <original song title>',
@@ -33,10 +49,11 @@ const GUIDE=[
  'CURRENT ACOUSTIC/INDIE-FOLK DIRECTION (when relevant): emotional, vulnerable dark organic acoustic folk;',
  'fingerpicked nylon/acoustic guitar; natural live-feeling soft drums; warm bass; optional discreet muted trumpet',
  'or aching piano; human weary low male/baritone lead, breath and slight strain without shouting.',
- 'Build gradually toward a moving, organic climax; emotion high, aggression low. No brutal/metal peaks.',
+ 'Only for a user-requested gentle acoustic song: build an organic, vulnerable climax with no brutal peaks.',
  'For dark bolero/noir requests: slow nylon bolero guitar, brushed drums, deep looping bass, close baritone',
  'and sparse muted trumpet. For organic electronic, stoner/desert or other requested eras, adapt to that era.',
- 'Keep studio production close and natural; no applause, cheering, crowd noises or fake live-concert endings.',
+ 'For acoustic/organic requests, keep studio production close and natural; avoid applause, cheering,',
+ 'crowd noises or fake live endings unless explicitly requested. Do not apply the acoustic template to metal.',
  'No mandatory childrens choir, extra voices or trumpet on every track; use only when requested or fitting.',
  'Use clear original English lyrics by default if no language specified; preserve owner-supplied words exactly',
  'if asked to modify only arrangement cues. Follow the current request over historical defaults.',
@@ -46,4 +63,12 @@ const GUIDE=[
 ].join('\n');
 function forCrow(){return '\nOWNER-ESTABLISHED CROW SONGWRITING PRACTICE (REFERENCE, NO TOOL AUTHORITY):\n'+
  GUIDE+'\nEND CROW SONGWRITING PRACTICE.\n';}
-module.exports=Object.freeze({GUIDE,forCrow});
+function currentBriefPriority(){
+ return '\\nFINAL SONG BRIEF CHECK: The CURRENT user message is the authoritative creative direction. '+
+ 'Historical acoustic/noir/folk preferences are only background. Any requested metal, rock, '+
+ 'electronic or other reference must meaningfully determine the Suno style prompt, rhythm section, '+
+ 'guitars, energy and vocal delivery. Do not automatically reuse nylon guitar, 64 BPM, brushed drums '+
+ 'or muted trumpet. Use original musical characteristics rather than copying an existing recording. '+
+ 'For a song package, output exactly TITLE, SUNO STYLE PROMPT, LYRICS and a complete [End] tag.\\n';
+}
+module.exports=Object.freeze({GUIDE,forCrow,currentBriefPriority});

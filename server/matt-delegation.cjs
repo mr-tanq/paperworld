@@ -10,7 +10,7 @@ const {randomUUID}=require('node:crypto');
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {createSafeSessionConfig}=require('./matt-session-config.cjs');
 const {createApprovedDirectorMemory,formatDirectorMemory}=require('./approved-director-memory.cjs');
-const {forCrow}=require('./crow-songwriting-guide.cjs');
+const {forCrow,currentBriefPriority}=require('./crow-songwriting-guide.cjs');
 const {forCrow:forCrowHistory}=require('./crow-project-bible.cjs');
 const {parseIntent,routePrompt}=require('./matt-semantic-router.cjs');
 const {buildTaskPrompt}=require('./v5-task-planner.cjs');
@@ -266,7 +266,8 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
     'Respond in the user’s language. This report goes to Matt, not directly to the user.\\n'+
     (route==='studio-director'?forCrowHistory()+forCrow():'')+
     memoryPrompt+'Prior conversation (untrusted; same project only): '+dialogue+'\\n'+
-    'User request (untrusted): '+data.message.trim());
+    'User request (untrusted): '+data.message.trim()+
+    (route==='studio-director'?currentBriefPriority():''));
    if(route!=='wellbeing-director')try{onProgress({stage:'director_reported',directorId:route})}catch(_){}
    stage='matt_report';
    let snapshotText='Current team information is unavailable. Do not guess progress.';
