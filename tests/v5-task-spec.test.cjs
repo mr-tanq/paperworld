@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {normalizedSpec,REGISTRY,safePath}=require('../server/v5-task-spec.cjs');
 const good={title:'Tighten one recommendation filter',summary:'A bounded tested update',
- acceptance:['Support genre edge cases'],requiredTests:['recommendation-filter'],
+ acceptance:['Support genre edge cases'],requiredTests:['festival_revisit'],
  allowedPaths:['js/','tests/'],maxFiles:4};
 test('one policy-defined contract for Joey and Luna, no model-selected repo',()=>{
  assert.equal(normalizedSpec(good,{projectId:'listening',directorId:'listening-director'}).repository,'mr-tanq/concerts');
@@ -20,6 +20,7 @@ test('cross-project delegation and tampered model registry are refused',()=>{
   {...good,allowedPaths:['assets/']},
   {...good,allowedPaths:['scripts/']},
   {...good,requiredTests:['run && rm -rf /']},
+  {...good,requiredTests:['untrusted_test_name']},
   {...good,maxFiles:11},
   {...good,acceptance:[]},
   {...good,title:''}
