@@ -13,8 +13,8 @@ test('recognize English heading but not freeform prose or lyrics',()=>{
 });
 test('the Crow Messenger never copies a whole reply to the style field',()=>{
  const source=fs.readFileSync('js/world-dialogue.js','utf8');
- assert.match(source,/parser\?\.extractStyle\(last\)/);
- assert.match(source,/parser\?\.parseSong\(last\)/);
+ assert.match(source,/const song=parser\?\.parseSong\(text\)/);
+ assert.match(source,/latestSavedCrowReply/);
  assert.doesNotMatch(source,/musicStyle\.value=last\.trim\(\)\.slice\(0,1000\)/);
 });
 
@@ -50,7 +50,7 @@ test('Never import commentary as lyrics or invent song fields',()=>{
  const {parseSong,fromMatt}=require('../js/crow-studio-draft.js');
  assert.equal(parseSong('TITLE: One\nSUNO STYLE PROMPT: guitar\nLYRICS:\nThis is my suggestion\n[Verse]\nHello'),null);
  assert.equal(parseSong('TITLE: One\nSUNO STYLE PROMPT: guitar\nLYRICS:\n[Verse]\n[Outro]'),null);
- assert.equal(parseSong('TITLE: One\nSUNO STYLE PROMPT: guitar\nLYRICS:\n[Verse]\nLine\nNOTES:\nPlease revise').lyrics,'[Verse]\\nLine');
+ assert.equal(parseSong('TITLE: One\nSUNO STYLE PROMPT: guitar\nLYRICS:\n[Verse]\nLine\nNOTES:\nPlease revise').lyrics,'[Verse]\nLine');
  assert.equal(fromMatt({delegated:true,directorId:'studio-director',
   requestId:'11111111-1111-4111-8111-111111111111',
   request:'make me a song',directorReport:'Some thoughts, not a Suno prompt.'}),null);
