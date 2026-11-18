@@ -6,7 +6,8 @@ const cloud=fs.readFileSync('js/cloud-ui.js','utf8');
 test('Messenger is one unified in-world conversation with Matt, not a technical task selector',()=>{
  for(const x of ['world-chat-veil','world-dialogue-messages','world-chat-avatar',
   'world-chat-composer','role\x27,\x27dialog','function bubble(','messages.replaceChildren(',
-  "composer.append(connectGithub,memoryReview,openStudio,musicToggle,musicPanel,form)"])
+  "top.append(avatar,identity,connectGithub,close)",
+  "composer.append(memoryReview,openStudio,musicToggle,musicPanel,form)"])
   assert.ok(source.includes(x),x);
  assert.match(source,/musicToggle\.hidden=openId!=='studio-director'/);
  assert.match(source,/musicPanel\.hidden=true/);
