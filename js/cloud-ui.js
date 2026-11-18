@@ -341,7 +341,7 @@ function renderWorkshop(){
    catch(_){listeningReviewPayload=null;review.clear()}
   }
  }
- const technical=el('details',undefined,'human-hub-legacy');
+ const technical=el('details',undefined,'human-hub-legacy village-maintenance-only');
  technical.append(el('summary','Τεχνικές ρυθμίσεις και λεπτομέρειες'));
  technical.append(reviewHost);
  host.append(technical);
