@@ -858,7 +858,7 @@
    const label=make('label','','Σύντομος τίτλος');
    const title=make('input','world-chat-memory-title');
    title.type='text';title.maxLength=140;title.required=true;
-   title.value=message.text.replace(/\\s+/g,' ').trim().slice(0,100);
+   title.value=message.text.replace(/\s+/g,' ').trim().slice(0,100);
    label.append(title);
    const notice=make('p','world-chat-memory-state','Θα αποθηκευτεί ιδιωτικά ως πρόταση.');
    notice.setAttribute('role','status');
