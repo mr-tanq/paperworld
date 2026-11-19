@@ -75,30 +75,47 @@ function makeSunoAudioCreate({fetcher=globalThis.fetch}={}){
      'MCP-Protocol-Version':'2026-07-28','Mcp-Method':'tools/call'},
     body:JSON.stringify({jsonrpc:'2.0',id:2,method:'tools/call',
      params:{name:'audio-create',arguments:args}})});
+   // Return only finite, non-sensitive failure classes. Never return the
+   // provider's body, RPC message, title, lyrics or bearer credentials.
    if(response.status===401||response.status===403)
     return {accepted:false,reason:'authorization_rejected'};
-   if(response.status===429)return {accepted:false,reason:'provider_rate_limited'};
-   // Non-2xx responses do not prove that a provider did not spend credits.
-   if(response.status!==200)return {accepted:false,reason:'submission_unconfirmed'};
+   if(response.status===429)
+    return {accepted:false,reason:'provider_rate_limited'};
+   if(response.status===202||response.status===204)
+    return {accepted:false,reason:'provider_async_http_unverified'};
+   if(response.status>=500&&response.status<=599)
+    return {accepted:false,reason:'provider_server_error_unverified'};
+   if(response.status!==200)
+    return {accepted:false,reason:'provider_http_unverified'};
    const type=response.headers?.get?.('content-type')||'';
    const isJson=/^application\/json\b/i.test(type);
    const isSse=/^text\/event-stream\b/i.test(type);
    if(!isJson&&!isSse)
-    return {accepted:false,reason:'submission_unconfirmed'};
+    return {accepted:false,reason:'provider_unexpected_content_type'};
    const body=await readBounded(response);
-   if(body===null)return {accepted:false,reason:'submission_unconfirmed'};
+   if(body===null)
+    return {accepted:false,reason:'provider_response_oversized'};
    const data=parseReply(body,isSse);
    if(data?.jsonrpc!=='2.0'||data.id!==2)
-    return {accepted:false,reason:'submission_unconfirmed'};
-   if(data.error||data.result?.isError===true)
-    return {accepted:false,reason:'provider_rejected'};
+    return {accepted:false,reason:'provider_mcp_reply_unverified'};
+   if(data.error){
+    const code=data.error?.code;
+    return {accepted:false,reason:code===-32602?
+     'provider_invalid_tool_arguments':'provider_rpc_rejected'};
+   }
+   if(data.result?.isError===true)
+    return {accepted:false,reason:'provider_tool_rejected'};
    if(!data.result||typeof data.result!=='object')
-    return {accepted:false,reason:'submission_unconfirmed'};
+    return {accepted:false,reason:'provider_mcp_reply_unverified'};
    // A valid tools/call reply acknowledges the request, not completion of audio.
    return {accepted:true,reason:'provider_acknowledged',
     status:'submitted_unverified',idempotencyKey};
-  }catch(_){
-   return {accepted:false,reason:'submission_unconfirmed'};
+  }catch(error){
+   // A network error or timeout may occur AFTER the provider received the
+   // request. Keep the idempotency claim and never retry automatically.
+   return {accepted:false,reason:
+    error?.name==='TimeoutError'||error?.name==='AbortError'?
+     'provider_timeout_unverified':'provider_network_unverified'};
   }
  }
  return Object.freeze({submit});

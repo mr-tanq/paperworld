@@ -48,7 +48,7 @@ test('Invalid briefs do not invoke Suno and failed provider responses remain unc
   brief:{...brief,model:'x'},idempotencyKey:key})).reason,'invalid_audio_create_request');
  assert.equal(calls,0);
  assert.equal((await transport.submit({accessToken:'secret-token-123456',
-  brief,idempotencyKey:key})).reason,'submission_unconfirmed');
+  brief,idempotencyKey:key})).reason,'provider_server_error_unverified');
  assert.equal(calls,1);
 });
 test('Authenticated Crow create-song claims key before effects and refuses repeats',async()=>{
@@ -84,4 +84,44 @@ test('Authenticated Crow create-song claims key before effects and refuses repea
  assert.equal(second.body.error,'audio_create_already_submitted');
  assert.equal(calls,1);
  assert.doesNotMatch(JSON.stringify(first),/access-token-12345678|original line/);
+});
+
+test('Safe Suno diagnostics classify provider failure without returning raw payload',async()=>{
+ const payloads=[
+  {status:202,reason:'provider_async_http_unverified'},
+  {status:502,reason:'provider_server_error_unverified'},
+  {status:418,reason:'provider_http_unverified'},
+  {status:200,type:'text/html',reason:'provider_unexpected_content_type'},
+  {status:200,type:'application/json',body:'broken json',reason:'provider_mcp_reply_unverified'},
+  {status:200,type:'application/json',body:JSON.stringify({
+   jsonrpc:'2.0',id:2,error:{code:-32602,message:'SECRET ERROR 12345'}}),
+   reason:'provider_invalid_tool_arguments'},
+  {status:200,type:'application/json',body:JSON.stringify({
+   jsonrpc:'2.0',id:2,result:{isError:true,content:[
+    {type:'text',text:'PRIVATE LYRICS AND ACCOUNT DATA'}]}}),
+   reason:'provider_tool_rejected'}
+ ];
+ for(const scenario of payloads){
+  const transport=makeSunoAudioCreate({fetcher:async()=>({
+   status:scenario.status,
+   headers:{get:key=>key==='content-type'?(scenario.type||'application/json'):null},
+   text:async()=>scenario.body||''
+  })});
+  const verdict=await transport.submit({
+   accessToken:'secret-token-123456',brief,idempotencyKey:key});
+  assert.equal(verdict.accepted,false);
+  assert.equal(verdict.reason,scenario.reason);
+  assert.doesNotMatch(JSON.stringify(verdict),
+   /SECRET ERROR|PRIVATE LYRICS|ACCOUNT DATA|secret-token/);
+ }
+});
+test('Provider timeout remains uncertain and never automatically retries',async()=>{
+ let calls=0;
+ const transport=makeSunoAudioCreate({fetcher:async()=>{
+  calls++;const e=new Error('request timed out');e.name='TimeoutError';throw e;
+ }});
+ const verdict=await transport.submit({
+  accessToken:'secret-token-123456',brief,idempotencyKey:key});
+ assert.equal(verdict.reason,'provider_timeout_unverified');
+ assert.equal(calls,1);
 });
