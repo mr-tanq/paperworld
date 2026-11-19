@@ -31,6 +31,6 @@ test('Compact visual rules are scoped, responsive and honor hidden state',()=>{
  assert.match(css,/\.world-routine-entry-actions button\[hidden\]/);
  assert.match(css,/@media\(max-width:480px\)/);
  assert.match(dialogue,/routineReview\.classList\.remove\('world-routine-list'\)/);
- assert.match(html,/messenger\.css\?v=routine-cards-v2/);
- assert.match(html,/world-dialogue\.js\?v=routine-cards-v2/);
+ assert.match(html,/messenger\.css\?v=release-1-routine-cards-v2/);
+ assert.match(html,/world-dialogue\.js\?v=release-1-routine-v4-composer-fix-cards-v2/);
 });
