@@ -21,6 +21,9 @@
   const raw=String(message||'').trim();
   if(!raw||raw.length>1200)return null;
   const t=fold(raw);
+  if(/(?:ρουτιν|προγραμματ|routines?)/i.test(t)&&
+   /(?:δειξε|δειξ|ποιες|ποια|σταματ|παυσ|απενεργοποι|list|show)/i.test(t))
+   return {kind:'list_routines'};
   if(!/(?:\b(?:every|weekly|schedule)\b|καθε|εβδομαδ|προγραμματι)/i.test(t))return null;
   const dayNames=Object.keys(weekdays).filter(k=>new RegExp('(^|[^a-zα-ω])'+k+'(?:ς)?(?=$|[^a-zα-ω])','i').test(t));
   const time=t.match(/(?:^|[^\d])([01]?\d|2[0-3]):([0-5]\d)(?!\d)/);
