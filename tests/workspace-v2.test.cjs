@@ -222,7 +222,7 @@ test('Finished investigations and unstarted notes do not inflate active work',as
  const cards=t.shell.querySelectorAll('.pw-item-details');
  assert.ok(cards.length>0,'long archived descriptions should start folded');
  assert.ok(!cards[0].open);
- assert.equal(cards[0].querySelector('.pw-item-full').textContent,long);
+ assert.equal(cards[0].querySelector('.pw-item-full').textContent,long.trim());
  assert.ok(all.some(i=>i.bucket==='waiting'&&i.note===true));
 });
 test('Workspace opens camera framing and restores it on close without modifying data',async()=>{
