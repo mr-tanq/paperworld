@@ -21,7 +21,7 @@ test('draft slot identity stays stable through multiple 5-minute ticks',()=>{
 test('the SQL stages a draft exactly once per slot and advances one week',()=>{
  assert.match(SQL,/select mission_id into existing/);
  assert.match(SQL,/if existing is null then/);
- assert.match(SQL,/primary key\(routine_id,scheduled_at\)/i);
+ assert.match(SQL,/insert into public\.paperworld_routine_slots_v1/);
  assert.match(SQL,/next_review_at=p_slot\+interval '7 days'/);
  assert.match(SQL,/utc_day<>r.day_of_week/);
  assert.match(SQL,/utc_hour<>r.hour_utc/);
