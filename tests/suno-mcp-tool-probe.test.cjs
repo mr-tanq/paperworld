@@ -78,7 +78,7 @@ test('OAuth owner must be linked before MCP tool discovery; never enables genera
  assert.equal(inspections,1);
  const doctor=await client.diagnose({headers,body});
  assert.equal(doctor.body.toolsListed,true);
- assert.equal(doctor.body.nextStep,'generation_not_enabled');
+ assert.equal(doctor.body.nextStep,'audio_create_contract_unverified');
  assert.equal(doctor.body.toolCount,1);
  assert.equal(doctor.body.toolTransport,'unverified'); // Mock does not declare modern/legacy provenance.
  assert.equal((await client.inspectTools({headers:{...headers,origin:'https://evil.example'},

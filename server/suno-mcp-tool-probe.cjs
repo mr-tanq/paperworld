@@ -84,13 +84,64 @@ function creationSignatures(message){
    const type=typeof def?.type==='string'&&
     ['string','number','integer','boolean','array','object'].includes(def.type)?
     def.type:'unknown';
-   fields.push({name:key,type});
+   const header=typeof def?.['x-mcp-header']==='string'&&
+    HEADER_TOKEN.test(def['x-mcp-header'])?def['x-mcp-header']:null;
+   fields.push(header?{name:key,type,header}:{name:key,type});
   }
   const required=Array.isArray(schema.required)?
    schema.required.filter(key=>typeof key==='string'&&fields.some(p=>p.name===key)):[];
   picked.push({name:tool.name,fields,required:required.slice(0,64)});
  }
  return picked;
+}
+// MCP 2026-07-28 (SEP-2243): a tool's inputSchema may mark primitive
+// properties with `x-mcp-header`; the client MUST then mirror those argument
+// values as `Mcp-Param-{Name}` HTTP headers on tools/call, otherwise the
+// server answers HTTP 400 / -32020 before the tool runs.
+const HEADER_TOKEN=/^[!#$%&'*+\-.^_`|~0-9A-Za-z]{1,64}$/;
+const HEADER_TYPES=new Set(['string','integer','boolean']);
+const SCHEMA_TYPES=new Set(['string','number','integer','boolean','array','object','null']);
+// Server-side only: a bounded, sanitized view of one tool's top-level input
+// contract. Never contains descriptions, examples or defaults.
+function toolContract(message,name){
+ const source=message?.result?.tools;
+ if(!Array.isArray(source)||source.length>MAX_TOOLS||typeof name!=='string')return null;
+ const tool=source.find(t=>t&&t.name===name);
+ const schema=tool?.inputSchema;
+ if(!schema||typeof schema!=='object'||Array.isArray(schema))
+  return {valid:false,fault:'input_schema_missing'};
+ const props=schema.properties===undefined?{}:schema.properties;
+ if(!props||typeof props!=='object'||Array.isArray(props))
+  return {valid:false,fault:'input_schema_invalid'};
+ const keys=Object.keys(props);
+ if(keys.length>64)return {valid:false,fault:'input_schema_too_large'};
+ const properties={},headers=new Set();
+ for(const key of keys){
+  const def=props[key];
+  if(!/^[a-zA-Z0-9_.-]{1,80}$/.test(key)||!def||typeof def!=='object'||Array.isArray(def))
+   continue;
+  const type=Array.isArray(def.type)?def.type.filter(t=>SCHEMA_TYPES.has(t)):
+   SCHEMA_TYPES.has(def.type)?[def.type]:[];
+  const entry={types:type};
+  for(const limit of ['maxLength','minLength'])
+   if(Number.isSafeInteger(def[limit])&&def[limit]>=0)entry[limit]=def[limit];
+  if(Array.isArray(def.enum)&&def.enum.length<=64&&
+     def.enum.every(v=>['string','boolean','number'].includes(typeof v)))
+   entry.enum=def.enum.slice();
+  if(Object.hasOwn(def,'x-mcp-header')){
+   const header=def['x-mcp-header'];
+   if(typeof header!=='string'||!HEADER_TOKEN.test(header)||
+      type.length!==1||!HEADER_TYPES.has(type[0])||headers.has(header.toLowerCase()))
+    return {valid:false,fault:'param_header_declaration_invalid'};
+   headers.add(header.toLowerCase());
+   entry.header=header;
+  }
+  properties[key]=entry;
+ }
+ const required=Array.isArray(schema.required)?
+  schema.required.filter(k=>typeof k==='string'&&/^[a-zA-Z0-9_.-]{1,80}$/.test(k)).slice(0,64):[];
+ return {valid:true,properties,required,
+  additionalProperties:schema.additionalProperties===false?false:true};
 }
 // Parse only finite request-scoped SSE frames. A provider may emit progress
 // before the final JSON-RPC response. Never mistake a notification for a result.
@@ -125,7 +176,7 @@ function parseRequestSse(raw){
 }
 function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
  if(typeof fetcher!=='function')throw Error('fetcher_required');
- async function inspect({accessToken,includeCreationSchema=false}={}){
+ async function inspect({accessToken,includeCreationSchema=false,contractFor=null}={}){
   if(typeof accessToken!=='string'||accessToken.length<12||accessToken.length>8192)
    return {available:false,reason:'not_authorized'};
   const request={jsonrpc:'2.0',id:1,method:'tools/list',params:{
@@ -187,7 +238,8 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
    // A tool list alone is NOT authorization to invoke any tool.
    return {available:true,reason:'read_only_tools_verified',
     toolCount:result.toolCount,tools:result.tools,
-    ...(includeCreationSchema===true?{creationTools:creationSignatures(message)}:{})};
+    ...(includeCreationSchema===true?{creationTools:creationSignatures(message)}:{}),
+    ...(typeof contractFor==='string'?{toolContract:toolContract(message,contractFor)}:{})};
   }catch(error){
    return {available:false,reason:error?.name==='TimeoutError'||
     error?.name==='AbortError'?'provider_timeout':'mcp_probe_unavailable'};
@@ -195,4 +247,4 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
  }
  return Object.freeze({inspect});
 }
-module.exports=Object.freeze({makeSunoMcpToolProbe,summarize,parseRequestSse,responseFailure,creationSignatures,ENDPOINT,VERSION});
+module.exports=Object.freeze({makeSunoMcpToolProbe,summarize,parseRequestSse,responseFailure,creationSignatures,toolContract,ENDPOINT,VERSION});

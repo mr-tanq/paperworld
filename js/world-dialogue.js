@@ -330,10 +330,24 @@
      request_too_large:'Το αίτημα είναι υπερβολικά μεγάλο για τον server.',
      unauthorized:'Η σύνδεση Paperworld Cloud χρειάζεται ανανέωση.',
      origin_denied:'Ο server απέρριψε τη σύνδεση από αυτή τη σελίδα.',
-     audio_create_session_limit:'Έχει συμπληρωθεί το όριο υποβολών αυτής της συνεδρίας.'
+     audio_create_session_limit:'Έχει συμπληρωθεί το όριο υποβολών αυτής της συνεδρίας.',
+     suno_claim_storage_missing:'Λείπει ο πίνακας ασφαλείας υποβολών στη βάση Paperworld '+
+      '(sql/paperworld_suno_durable_claim_v1.sql δεν έχει εφαρμοστεί).',
+     suno_claim_unavailable:'Η βάση Paperworld δεν επιβεβαίωσε το κλείδωμα υποβολής.',
+     audio_create_already_submitted:'Αυτό το αίτημα έχει ήδη υποβληθεί.',
+     audio_create_transport_unsupported:'Η Suno απάντησε μόνο σε παλαιότερο MCP που δεν υποστηρίζεται για δημιουργία.',
+     audio_create_schema_unverified:'Δεν επαληθεύτηκε το σχήμα του εργαλείου δημιουργίας της Suno.',
+     audio_create_schema_mismatch:'Το εργαλείο της Suno περιμένει διαφορετικό πεδίο',
+     audio_create_field_too_long:'Ένα πεδίο ξεπερνά το όριο της Suno',
+     audio_create_required_field_unsupported:'Η Suno ζητά υποχρεωτικό πεδίο που δεν υποστηρίζεται ακόμη'
     };
-    showSunoCreateStatus((hints[result.reason]||'Η υποβολή απορρίφθηκε.')+
-     ' Δεν στάλθηκε νέο αίτημα παραγωγής.','error');
+    const fieldNames={title:'τίτλος',style:'ύφος',lyrics:'στίχοι',
+     instrumental:'instrumental',idempotency_key:'κλειδί υποβολής'};
+    const fieldNote=typeof result.field==='string'?
+     ' ('+(fieldNames[result.field]||result.field.slice(0,40))+
+     (Number.isSafeInteger(result.limit)?', μέγιστο '+result.limit+' χαρακτήρες':'')+')':'';
+    showSunoCreateStatus((hints[result.reason]||'Η υποβολή απορρίφθηκε.')+fieldNote+
+     ' Δεν στάλθηκε αίτημα στη Suno και δεν χρησιμοποιήθηκαν credits.','error');
     lastSunoSubmission=null;
    }else{
     const diagnostic={
@@ -349,11 +363,22 @@
      provider_timeout_unverified:'Η επικοινωνία με τη Suno έληξε χωρίς επιβεβαίωση.',
      provider_network_unverified:'Η σύνδεση διακόπηκε χωρίς επιβεβαίωση.',
      authorization_rejected:'Η Suno απέρριψε την εξουσιοδότηση.',
-     provider_rate_limited:'Η Suno επέστρεψε προσωρινό περιορισμό αιτημάτων.'
+     provider_rate_limited:'Η Suno επέστρεψε προσωρινό περιορισμό αιτημάτων.',
+     provider_header_mismatch:'Η Suno απέρριψε τις κεφαλίδες MCP του αιτήματος πριν τρέξει το εργαλείο.',
+     provider_client_capability_required:'Η Suno ζητά δυνατότητα MCP που ο Crow δεν υποστηρίζει ακόμη.',
+     provider_protocol_version_unsupported:'Η Suno δεν δέχεται την έκδοση MCP 2026-07-28 για αυτό το αίτημα.',
+     provider_method_not_found:'Η Suno δεν βρήκε τη μέθοδο MCP.',
+     provider_invalid_request:'Η Suno απέρριψε τη μορφή του αιτήματος MCP.',
+     provider_input_required:'Η Suno ζητά επιπλέον επιβεβαίωση πριν ξεκινήσει. Το τραγούδι δεν δημιουργήθηκε.',
+     provider_result_type_unsupported:'Η Suno επέστρεψε άγνωστο τύπο αποτελέσματος MCP.'
     };
-    const providerCode=result.reason==='provider_http_unverified'&&
-      Number.isInteger(result.httpStatus)&&result.httpStatus>=300&&
-      result.httpStatus<=599?' (HTTP '+result.httpStatus+')':'';
+    const providerCode=(Number.isInteger(result.httpStatus)&&result.httpStatus>=300&&
+      result.httpStatus<=599?' (HTTP '+result.httpStatus+')':'')+
+     (Number.isInteger(result.rpcCode)?' (MCP '+result.rpcCode+')':'')+
+     (Array.isArray(result.requiredCapabilities)&&result.requiredCapabilities.length?
+      ' ['+result.requiredCapabilities.join(', ').slice(0,80)+']':'')+
+     (Array.isArray(result.inputKinds)&&result.inputKinds.length?
+      ' ['+result.inputKinds.join(', ').slice(0,80)+']':'');
     showSunoCreateStatus((diagnostic[result.reason]||
      'Δεν επιβεβαιώθηκε η υποβολή.')+providerCode+' Κωδικός: '+
      String(result.reason||'unknown').slice(0,80)+
@@ -378,9 +403,20 @@
    const mode=result.toolTransport==='modern'?'Νεότερο MCP (2026-07-28)':
     result.toolTransport==='legacy'?'Παλαιότερο MCP (handshake)':
     'Μη επαληθευμένη έκδοση MCP';
+   const create=result.audioCreate;
+   const createNote=!create?'':create.compatible===true?
+    ' Δημιουργία: συμβατό σχήμα'+(Array.isArray(create.paramHeaders)&&
+     create.paramHeaders.length?' ('+create.paramHeaders.length+' Mcp-Param)':'')+'.':
+    ' Δημιουργία: μη συμβατό σχήμα ('+String(create.reason||'unknown').slice(0,60)+
+     (typeof create.field==='string'?': '+create.field.slice(0,40):'')+').';
+   const claimNote=typeof result.createClaimReady!=='boolean'?'':
+    result.createClaimReady?' Ασφάλεια υποβολών: έτοιμη.':
+    ' Ασφάλεια υποβολών: ΜΗ έτοιμη ('+
+     String(result.createClaimReason||'unknown').slice(0,40)+').';
    showSunoCreateStatus('Suno: '+mode+'. Εργαλεία: '+
-    (result.toolsListed?result.toolCount:'μη επαληθευμένα')+
-    '. Δεν έγινε δημιουργία ή χρήση credits.','notice');
+    (result.toolsListed?result.toolCount:'μη επαληθευμένα')+'.'+createNote+claimNote+
+    ' Δεν έγινε δημιουργία ή χρήση credits.',
+    create&&create.compatible===false||result.createClaimReady===false?'error':'notice');
   }catch(_){
    showSunoCreateStatus('Δεν ολοκληρώθηκε ο read-only έλεγχος MCP. '+
     'Δεν στάλθηκε τραγούδι.','error');

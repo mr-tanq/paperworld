@@ -13,9 +13,11 @@ const metadata={issuer,client_id_metadata_document_supported:true,
  response_types_supported:['code'],code_challenge_methods_supported:['S256'],
  authorization_endpoint:issuer+'/oauth/authorize',token_endpoint:issuer+'/oauth/token'};
 const discovery={inspect:async()=>({metadataAvailable:true,authorizationServers:[issuer]})};
-function setup({metadataResponse=metadata,discover=discovery,toolResponse}={}){
+function setup({metadataResponse=metadata,discover=discovery,toolResponse,
+ claimReady={ready:true,reason:'claim_storage_ready'}}={}){
  let reads=0,toolCalls=0;
  const client=createSunoOAuthClient({identity,discovery:discover,
+  sunoClaim:{ready:async()=>claimReady,reserve:async()=>{throw Error('no paid call in diagnostics')}},
   fetcher:async(url,options)=>{
    if(options.method==='GET'){reads++;return {
     status:200,headers:{get:()=> 'application/json'},
@@ -36,6 +38,8 @@ test('diagnosis shows provider metadata and registration without pretending user
  assert.deepEqual(result.body,{service:'suno_mcp',resourceAvailable:true,
   clientRegistrationSupported:true,oauthAuthorized:false,
   toolsListed:false,toolCount:0,toolTransport:'unverified',toolReason:'not_authorized',
+  audioCreate:{compatible:false,reason:'not_authorized',paramHeaders:[]},
+  createClaimReady:true,createClaimReason:'claim_storage_ready',
   canGenerate:false,nextStep:'owner_oauth_required'});
  assert.equal(x.toolCalls(),0);
  assert.ok(x.reads()>0);
@@ -51,7 +55,9 @@ test('after simulated OAuth diagnosis verifies tool list but never enables gener
  assert.deepEqual(response.body,{service:'suno_mcp',resourceAvailable:true,
   clientRegistrationSupported:true,oauthAuthorized:true,
   toolsListed:true,toolCount:2,toolTransport:'unverified',toolReason:'read_only_tools_verified',
-  canGenerate:false,nextStep:'generation_not_enabled'});
+  audioCreate:{compatible:false,reason:'audio_create_not_listed',paramHeaders:[]},
+  createClaimReady:true,createClaimReason:'claim_storage_ready',
+  canGenerate:false,nextStep:'audio_create_contract_unverified'});
  assert.equal(x.toolCalls(),1);
  assert.doesNotMatch(JSON.stringify(response),/super-secret/);
 });
