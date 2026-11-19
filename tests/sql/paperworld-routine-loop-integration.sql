@@ -2,9 +2,18 @@
 \set ON_ERROR_STOP on
 BEGIN;
 CREATE SCHEMA auth;
-CREATE ROLE authenticated NOLOGIN;
-CREATE ROLE anon NOLOGIN;
-CREATE ROLE service_role NOLOGIN BYPASSRLS;
+-- PostgreSQL roles are cluster-wide. Another CI database already initialized
+-- anon/authenticated in this same throwaway service instance.
+DO $
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='authenticated')
+ THEN CREATE ROLE authenticated NOLOGIN; END IF;
+ IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='anon')
+ THEN CREATE ROLE anon NOLOGIN; END IF;
+ IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='service_role')
+ THEN CREATE ROLE service_role NOLOGIN BYPASSRLS; END IF;
+END $;
+ALTER ROLE service_role BYPASSRLS;
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
  SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid
 $$;
