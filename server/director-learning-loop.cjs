@@ -11,7 +11,7 @@ const SENSITIVITIES=new Set(['standard','private']);
 const ID=/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 function fail(code){const e=new Error(code);e.code=code;throw e}
 function ownerCorrectionProposal({actor,ownerConfirmed=false,threadId,
- title,correction,sourceRef,sensitivity='private',kind='preference',
+ title,correction,messageId,sensitivity='private',kind='preference',
  observedAt,entryId}={}){
  // The caller must verify actual owner identity and user message source.
  // This flag by itself is NOT a proof of authorization.
@@ -20,9 +20,8 @@ function ownerCorrectionProposal({actor,ownerConfirmed=false,threadId,
  if(!ID.test(threadId||''))fail('learning_thread_reference_required');
  if(!TYPES.has(kind)||!SENSITIVITIES.has(sensitivity))
   fail('learning_kind_or_sensitivity_invalid');
- if(typeof sourceRef!=='string'||!sourceRef.trim()||sourceRef.length>300||
-  !sourceRef.startsWith('owner-thread:'))
-  fail('learning_owner_source_required');
+ if(!ID.test(messageId||''))fail('learning_owner_source_required');
+ const sourceRef='owner-thread:'+threadId+'/message:'+messageId;
  const time=observedAt===undefined?new Date().toISOString():observedAt;
  const data={id:entryId||randomUUID(),projectId:projectForActor(actor),
   kind,status:'proposed',title,body:correction,
