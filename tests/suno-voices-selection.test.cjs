@@ -82,3 +82,9 @@ test('Crow uses Wanderer as fail-closed default and random only by explicit sele
  assert.match(wrapper,/listSunoVoices:.*client\.listSunoVoices/);
  assert.match(backend,/voices\.voices\.some\(v=>v\.id===selectedVoice\)/);
 });
+
+test('Suno voice selector and refresh are actually mounted in Crow Music Studio',()=>{
+ const ui=fs.readFileSync('js/world-dialogue.js','utf8');
+ assert.match(ui,/musicForm\.append\(musicTitle,musicStyle,musicLyrics,\s*voiceLabel,voiceRefresh,voiceHint,musicSave\)/);
+ assert.match(ui,/musicPanel\.append\(sunoConnect,musicHelp,musicResult,musicFromCrow,\s*musicForm,/);
+});
