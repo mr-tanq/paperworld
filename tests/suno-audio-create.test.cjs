@@ -65,7 +65,13 @@ test('Authenticated Crow create-song claims key before effects and refuses repea
    text:async()=>JSON.stringify({access_token:'access-token-12345678',
     token_type:'Bearer',expires_in:600})};
  };
+ const claimed=new Set();
  const client=createSunoOAuthClient({identity,discovery,fetcher,
+  sunoClaim:{reserve:async ({ownerId,idempotencyKey})=>{
+   const bound=ownerId+':'+idempotencyKey;
+   if(claimed.has(bound))return false;
+   claimed.add(bound);return true;
+  }},
   toolProbe:{inspect:async()=>({available:true,toolCount:1,tools:['audio-create']})}});
  const start=await client.start({headers,body:JSON.stringify({agentId:'studio-director',threadId})});
  const state=new URL(start.body.authorizationUrl).searchParams.get('state');
