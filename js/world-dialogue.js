@@ -763,6 +763,56 @@
    'Μίλα απευθείας στον Director. Κάθε AI απάντηση χρειάζεται δική σου έγκριση.'));
   scrollBottom();
  }
+ // Matt's authenticated history includes spontaneous village notifications.
+ // Read-only, visible-chat-only refresh. No AI turns, jobs or background writes.
+ let mattLiveTimer=null,mattLiveReading=false,mattHistorySignature='';
+ function ingestMattHistory(history){
+  if(!Array.isArray(history)||!historyCodec())return;
+  const fingerprint=history.length+':'+history.map(m=>String(m?.id||'')).join('|');
+  if(fingerprint===mattHistorySignature&&mattCachedEntries!==null)return;
+  mattHistorySignature=fingerprint;
+   const recovered=historyCodec().recover(history);
+   // Recover owner-scoped Crow drafts after reload or a duplicate HTTP 409.
+   const savedStudio=window.PaperworldCrowStudioDraft?.fromSavedHistory(
+    history,historyCodec().decode);
+   if(savedStudio&&!latestStudioHandoff){
+    latestSavedStudioDraft=savedStudio;
+    latestStudioHandoff={delegated:true,directorId:'studio-director',
+     requestId:savedStudio.requestId,request:savedStudio.originalRequest,
+     directorReport:savedStudio.style};
+    openStudio.hidden=false;
+   }
+   // Persisted ID = original request UUID. Discard only the matching
+   // temporary bubble to prevent duplicates, not all unsaved replies.
+   const freshReplies=historyCodec().reconcileReplies(mattReplies,history);
+   mattReplies.splice(0,mattReplies.length,...freshReplies);
+   mattCachedEntries=recovered.display;
+   if(!busy){activeMattDirector=recovered.activeDirector;
+    mattConversation.splice(0,mattConversation.length,...recovered.turns)}
+   appendEntries(recovered.display);
+ }
+ async function refreshLiveMatt(){
+  if(mattLiveReading||openId!=='matt'||busy||
+   !cloud()?.signedIn()||typeof cloud()?.privateAgentMessages!=='function'||
+   (typeof document.visibilityState==='string'&&document.visibilityState!=='visible'))
+   return;
+  const selectedRevision=revision;
+  mattLiveReading=true;
+  try{
+   const history=await cloud().privateAgentMessages('matt');
+   if(openId==='matt'&&!busy&&selectedRevision===revision)
+    ingestMattHistory(history);
+  }catch(_){/* A failed read never implies any completed work. */}
+  finally{mattLiveReading=false}
+ }
+ function stopLiveMatt(){
+  if(mattLiveTimer!==null){clearInterval(mattLiveTimer);mattLiveTimer=null}
+ }
+ function startLiveMatt(){
+  stopLiveMatt();
+  if(openId==='matt'&&cloud()?.signedIn())
+   mattLiveTimer=setInterval(()=>{void refreshLiveMatt()},20000);
+ }
  function paint(){
   const token=++revision;
   if(!openId){panel.hidden=true;veil.hidden=true;return}
@@ -812,25 +862,7 @@
    cloud().privateAgentMessages(selected).then(history=>{
     if(token!==revision||openId!==selected)return;
     if(selected==='matt'&&historyCodec()){
-     const recovered=historyCodec().recover(history);
-     // Recover owner-scoped Crow drafts after reload or a duplicate HTTP 409.
-     const savedStudio=window.PaperworldCrowStudioDraft?.fromSavedHistory(
-      history,historyCodec().decode);
-     if(savedStudio&&!latestStudioHandoff){
-      latestSavedStudioDraft=savedStudio;
-      latestStudioHandoff={delegated:true,directorId:'studio-director',
-       requestId:savedStudio.requestId,request:savedStudio.originalRequest,
-       directorReport:savedStudio.style};
-      openStudio.hidden=false;
-     }
-     // Persisted ID = original request UUID. Discard only the matching
-     // temporary bubble to prevent duplicates, not all unsaved replies.
-     const freshReplies=historyCodec().reconcileReplies(mattReplies,history);
-     mattReplies.splice(0,mattReplies.length,...freshReplies);
-     mattCachedEntries=recovered.display;
-     if(!busy){activeMattDirector=recovered.activeDirector;
-      mattConversation.splice(0,mattConversation.length,...recovered.turns)}
-     appendEntries(recovered.display);
+     ingestMattHistory(history);
     }else{
      if(selected==='studio-director'){
       const last=history.filter(m=>m.role==='agent'&&typeof m.content==='string').at(-1);
@@ -851,8 +883,8 @@
   field.disabled=!available;send.disabled=!available;
   field.placeholder=available?'Γράψε μήνυμα…':'Συνδέσου για να στείλεις μήνυμα';
  }
- function show(id){openId=id;paint();if(!field.disabled)field.focus()}
- function hide(){openId=null;resetMusic();veil.classList.remove('world-chat-journey');paint();mattBtn.focus()}
+ function show(id){stopLiveMatt();openId=id;paint();startLiveMatt();if(!field.disabled)field.focus()}
+ function hide(){stopLiveMatt();openId=null;resetMusic();veil.classList.remove('world-chat-journey');paint();mattBtn.focus()}
  function nearby(){
   const target=world()?.nearestAgent(100);
   if(!target){showNotice('Δεν υπάρχει agent κοντά σου. Πλησίασε έναν χαρακτήρα.');return}
@@ -921,5 +953,8 @@
    cloud()?.signedIn()){
   show('matt');
  }
+ document.addEventListener('visibilitychange',()=>{
+  if(openId==='matt'&&document.visibilityState==='visible')void refreshLiveMatt();
+ });
  window.PaperworldWorldDialogue=Object.freeze({show,close:hide,nearby});
 })();
