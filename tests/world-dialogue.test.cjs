@@ -110,7 +110,7 @@ test('Natural language Matt handoff streams progress and holds answer for return
   source.indexOf('mattReplies.push({id:result.persisted===true'));
  // Docked beside the village, never centred over it.
  const css=fs.readFileSync('messenger.css','utf8');
- assert.match(css,/inset:12px 12px 12px auto/);
+ assert.match(css,/inset:64px 12px 12px auto/);
  assert.match(css,/transform:none;/);
 });
 

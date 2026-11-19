@@ -1,38 +1,117 @@
-/* Optional team drawer; does not claim workers are online. */
+/* PAPERWORLD Team view ("Η ομάδα σου") — rendered inside the Workspace.
+ * Who helps with what, how to reach them, and what they are doing ONLY when
+ * real owner-scoped records say so. Availability is never inferred: there are
+ * no presence indicators, fake statistics or simulated activity here.
+ */
 (()=>{'use strict';
-const view=document.querySelector('#view'),controls=document.querySelector('.controls'),profiles=window.PaperworldProfiles;
-if(!view||!controls||!profiles)return;
+const profiles=window.PaperworldProfiles;
+if(!profiles)return;
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n};
-const launch=el('button','team-launch','♟');launch.type='button';launch.title='Directors & Workers';launch.setAttribute('aria-label','Open team directory');launch.setAttribute('aria-expanded','false');
-controls.insertBefore(launch,controls.querySelector('#world-work-panel'));
-const panel=el('section','team-panel');panel.hidden=true;panel.setAttribute('aria-label','Team directory');
-const title=el('div','team-panel-head');title.append(el('strong','','Η ΟΜΑΔΑ ΣΟΥ'));
-const close=el('button','team-panel-close','×');close.type='button';close.setAttribute('aria-label','Close team directory');title.append(close);
-const tabs=el('div','team-panel-tabs'),directors=el('button','team-tab','Directors'),workers=el('button','team-tab','Workers');
-directors.type=workers.type='button';tabs.append(directors,workers);
-const roster=el('div','team-roster');
-panel.append(title,tabs,roster,el('p','team-panel-note','Οι Directors δέχονται απευθείας μηνύματα. Για εργασία Worker μίλησε στον αρμόδιο Director ή στον Matt. Δεν εμφανίζονται ψευδείς καταστάσεις διαθεσιμότητας.'));view.append(panel);
-let active='director';
-function toggle(show){panel.hidden=!show;launch.setAttribute('aria-expanded',String(show));if(show)render()}
-function render(){
- roster.replaceChildren();directors.setAttribute('aria-pressed',String(active==='director'));workers.setAttribute('aria-pressed',String(active==='worker'));
- for(const p of profiles.entries(active)){
-  const row=el('button','team-person');row.type='button';
-  const avatar=el('span','team-person-avatar');profiles.paintAvatar(avatar,p.id);
-  const info=el('span','team-person-info');info.append(el('strong','',p.name),el('small','',p.project+' · '+p.role));
-  row.append(avatar,info,el('span','team-person-trailing',active==='worker'?'Μέσω Director':'›'));
-  // Workers work through their Director; opening a Worker never fabricates
-  // an independent AI account, call, assignment or message.
-  const responsible=p.id==='listening-developer'?'listening-director':
-   p.id==='pokemon-developer'?'pokemon-director':p.id;
-  row.title=active==='worker'?'Μίλα στον αρμόδιο Director':'Άνοιξε συνομιλία';
-  row.addEventListener('click',()=>{
-   toggle(false);window.PaperworldWorldDialogue?.show(responsible);
-  });
-  roster.append(row);
- }
+// Static descriptions of responsibility (not activity claims).
+const ABOUT=Object.freeze({
+ matt:'Οργανώνει την ομάδα, βρίσκει ποιος μπορεί να βοηθήσει και σου φέρνει τα αποτελέσματα.',
+ 'listening-director':'Η εφαρμογή Listening Mirror: συναυλίες, εμπειρία χρήστη και ανάπτυξη.',
+ 'pokemon-director':'Το παιχνίδι Pokémon: Echoes σε Godot 4: χάρτες, μάχες και διάλογοι.',
+ 'studio-director':'Η μουσική του The Lost Wanderer: τραγούδια, στίχοι και Music Studio.',
+ 'wellbeing-director':'Προπόνηση, διατροφή και καθημερινές συνήθειες. Ιδιωτικό project.',
+ 'listening-developer':'Διαβάζει τον κώδικα του Listening Mirror όταν το εγκρίνεις.',
+ 'pokemon-developer':'Διαβάζει τα αρχεία του Pokémon: Echoes όταν το εγκρίνεις.'
+});
+const PROJECT_OF=Object.freeze({matt:'town','listening-director':'workshop',
+ 'pokemon-director':'pokemon','studio-director':'studio','wellbeing-director':'wellbeing'});
+// "Ο Matt" / "η Luna": Greek articles for natural action labels.
+const article=id=>id==='listening-director'?'τη':'τον';
+function activityLine(stats){
+ // stats: {attention,active,done} from real records, or null when unavailable.
+ if(!stats)return {text:'Η δραστηριότητα δεν είναι διαθέσιμη χωρίς σύνδεση.',state:'unknown'};
+ const parts=[];
+ if(stats.attention)parts.push(stats.attention+(stats.attention===1?' χρειάζεται εσένα':' χρειάζονται εσένα'));
+ if(stats.active)parts.push(stats.active+' σε εξέλιξη');
+ if(!parts.length)return {text:stats.done?'Καμία ενεργή εργασία · '+stats.done+' ολοκληρώθηκαν πρόσφατα':
+  'Καμία καταγεγραμμένη εργασία αυτή τη στιγμή',state:'idle'};
+ return {text:parts.join(' · '),state:stats.attention?'attention':'active'};
 }
-launch.addEventListener('click',()=>toggle(panel.hidden));close.addEventListener('click',()=>toggle(false));
-directors.addEventListener('click',()=>{active='director';render()});workers.addEventListener('click',()=>{active='worker';render()});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!panel.hidden)toggle(false)});
+function actionButton(label,cls,handler,aria){
+ const b=el('button',cls,label);b.type='button';if(aria)b.setAttribute('aria-label',aria);
+ b.addEventListener('click',handler);return b;
+}
+function agentCard(p,{stats,featured,ctx}){
+ const card=el('article','pw-agent-card'+(featured?' pw-agent-featured':''));
+ card.dataset.agent=p.id;
+ const avatar=el('span','pw-agent-portrait');profiles.paintAvatar(avatar,p.id);
+ avatar.setAttribute('aria-hidden','true');
+ const head=el('div','pw-agent-head');
+ const who=el('div','pw-agent-who');
+ who.append(el('h3','pw-agent-name',p.name),
+  el('p','pw-agent-role',p.id==='matt'?'Chief of Staff · Όλα τα projects':p.project+' · '+p.role));
+ head.append(avatar,who);
+ const line=activityLine(stats);
+ const activity=el('p','pw-agent-activity',line.text);activity.dataset.state=line.state;
+ const actions=el('div','pw-agent-actions');
+ actions.append(actionButton('Συνομιλία','pw-btn-primary',()=>ctx.chat(p.id),
+  'Συνομιλία με '+article(p.id)+' '+p.name));
+ if(PROJECT_OF[p.id]&&p.id!=='matt')actions.append(actionButton('Εργασίες','pw-btn-secondary',
+  ()=>ctx.project(PROJECT_OF[p.id]),'Εργασίες του project '+p.project));
+ actions.append(actionButton('⌖','pw-icon-btn pw-agent-locate',()=>ctx.locate(p.id),
+  'Δες '+article(p.id)+' '+p.name+' στο χωριό'));
+ card.append(head,el('p','pw-agent-about',ABOUT[p.id]||''),activity,actions);
+ return card;
+}
+function workerRow(p,{status,ctx}){
+ // Workers work through their Director; opening a Worker never fabricates
+ // an independent AI account, call, assignment or message.
+ const responsible=p.id==='listening-developer'?'listening-director':
+  p.id==='pokemon-developer'?'pokemon-director':p.id;
+ const director=profiles.get(responsible);
+ const row=el('article','pw-worker');
+ const avatar=el('span','pw-worker-avatar');profiles.paintAvatar(avatar,p.id);
+ const info=el('div','pw-worker-info');
+ info.append(el('strong','',p.name),el('p','pw-agent-about',ABOUT[p.id]||''));
+ if(status)info.append(el('p','pw-agent-activity',status));
+ const via=actionButton('Μέσω '+(director?.name||'Director')+' ›','pw-chip',
+  ()=>ctx.chat(responsible),
+  'Μίλα στον αρμόδιο Director, '+(director?.name||''));
+ row.title='Μίλα στον αρμόδιο Director';
+ row.append(avatar,info,via);
+ return row;
+}
+// Latest REAL worker state per worker (read-only investigation records).
+function workerStatus(raw,workerId){
+ const project=workerId==='listening-developer'?'listening':'pokemon';
+ const awaiting=(raw?.teamJobs||[]).some(j=>j?.workerId===workerId&&j?.status==='awaiting_consent');
+ if(awaiting)return 'Μια διερεύνηση περιμένει την έγκρισή σου.';
+ const runs=(raw?.workerRuns||[]).filter(r=>r?.project===project&&r?.workerId===workerId);
+ const last=runs.sort((a,b)=>Date.parse(b.createdAt||0)-Date.parse(a.createdAt||0))[0];
+ if(!last)return null;
+ return last.status==='running'?'Τελευταία διερεύνηση: καταγράφηκε ως εκκρεμής.':
+  last.status==='reported'?'Τελευταία διερεύνηση: ολοκληρώθηκε (μόνο ανάγνωση).':
+  last.status==='failed'?'Τελευταία διερεύνηση: δεν ολοκληρώθηκε.':null;
+}
+function render(host,ctx){
+ host.replaceChildren();
+ const intro=el('div','pw-view-intro');
+ intro.append(el('p','pw-lede','Ποιος βοηθά σε τι. Πάτησε «Συνομιλία» για να μιλήσεις απευθείας.'));
+ const hall=document.querySelector('#call-visual-meeting');
+ if(hall)intro.append(actionButton('Συγκέντρωση στο Town Hall','pw-chip',()=>ctx.townHall(),
+  'Συγκέντρωσε την ομάδα στο Town Hall'));
+ host.append(intro);
+ const all=profiles.entries('director');
+ const matt=all.find(p=>p.id==='matt');
+ if(matt)host.append(agentCard(matt,{stats:ctx.stats('town',true),featured:true,ctx}));
+ const grid=el('div','pw-agent-grid');grid.setAttribute('role','list');
+ for(const p of all.filter(p=>p.id!=='matt')){
+  const card=agentCard(p,{stats:ctx.stats(PROJECT_OF[p.id]),ctx});card.setAttribute('role','listitem');
+  grid.append(card);
+ }
+ const directors=el('section','pw-section');
+ directors.append(el('h2','pw-section-title','Directors'),grid);
+ host.append(directors);
+ const workers=el('section','pw-section pw-workers');
+ workers.append(el('h2','pw-section-title','Workers'),
+  el('p','pw-section-hint','Δουλεύουν μόνο μέσω του Director τους και μόνο με τη δική σου έγκριση.'));
+ for(const p of profiles.entries('worker'))
+  workers.append(workerRow(p,{status:ctx.raw?workerStatus(ctx.raw,p.id):null,ctx}));
+ host.append(workers);
+}
+window.PaperworldTeamView=Object.freeze({render,activityLine,workerStatus,ABOUT,PROJECT_OF});
 })();

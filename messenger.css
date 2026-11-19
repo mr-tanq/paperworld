@@ -16,7 +16,8 @@
      ≤ 760px  full-height view sized to the visual viewport (keyboard-safe);
               sheets cover the chat and offer a back button
    ========================================================================== */
-#view .pw-messenger{
+/* Shared Paperworld UI tokens (Messenger, Workspace and future surfaces). */
+:root{
  --pw-bg:#101216;--pw-s1:#15181c;--pw-s2:#1b1f24;--pw-s3:#23282e;--pw-s4:#2c323a;
  --pw-line:rgba(255,255,255,.07);--pw-line-2:rgba(255,255,255,.12);
  --pw-text:#eceef1;--pw-text-2:#b9c0c8;--pw-text-3:#8d959f;
@@ -26,8 +27,10 @@
  --pw-r-ctl:10px;--pw-r-card:12px;--pw-r-bubble:18px;--pw-r-panel:22px;
  --pw-ease:cubic-bezier(.2,.8,.2,1);--pw-fast:120ms;--pw-mid:180ms;
  --pw-font:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans","Helvetica Neue",Arial,sans-serif;
+}
+#view .pw-messenger{
  --pw-chat-w:420px;
- position:absolute;z-index:17;inset:12px 12px 12px auto;
+ position:absolute;z-index:17;inset:64px 12px 12px auto;
  width:min(var(--pw-chat-w),calc(100% - 24px));height:auto;max-height:none;min-height:0;
  display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"chat";
  margin:0;padding:0;overflow:hidden;transform:none;
@@ -71,12 +74,12 @@
 .pw-messenger .world-chat-presence::before{content:'';width:7px;height:7px;border-radius:50%;flex:none;background:#6b727b}
 .pw-messenger .world-chat-presence[data-state="online"]::before{background:var(--pw-ok);box-shadow:0 0 0 3px rgba(130,195,166,.15)}
 .pw-messenger .pw-head-tools{position:relative;display:flex;align-items:center;gap:4px}
-.pw-messenger .pw-icon-btn,.pw-messenger .world-chat-close,.pw-messenger .pw-studio-btn{
+:is(.pw-messenger,.pw-workspace) .pw-icon-btn,.pw-messenger .world-chat-close,.pw-messenger .pw-studio-btn{
  display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:40px;height:40px;
  padding:0 10px;border:1px solid transparent;border-radius:var(--pw-r-ctl);background:transparent;
  color:var(--pw-text-2);font:600 13px/1 var(--pw-font);cursor:pointer;
  transition:background var(--pw-fast) var(--pw-ease),color var(--pw-fast) var(--pw-ease)}
-.pw-messenger .pw-icon-btn:hover,.pw-messenger .world-chat-close:hover,.pw-messenger .pw-studio-btn:hover{background:var(--pw-s3);color:var(--pw-text)}
+:is(.pw-messenger,.pw-workspace) .pw-icon-btn:hover,.pw-messenger .world-chat-close:hover,.pw-messenger .pw-studio-btn:hover{background:var(--pw-s3);color:var(--pw-text)}
 .pw-messenger .pw-menu-btn{font-size:20px;letter-spacing:.04em}
 .pw-messenger .world-chat-close{font-size:22px;font-weight:400}
 .pw-messenger .pw-ico-back{display:none;font-size:30px;line-height:.8;margin-top:-3px}
@@ -84,8 +87,8 @@
 .pw-messenger .pw-studio-btn[aria-expanded="true"]{background:var(--pw-accent-soft);border-color:transparent}
 .pw-messenger .pw-studio-glyph{font-size:15px}
 /* Focus is always visible for keyboard users, never for mouse taps. */
-.pw-messenger :focus{outline:none}
-.pw-messenger :focus-visible{outline:2px solid var(--pw-accent);outline-offset:2px;border-radius:var(--pw-r-ctl)}
+:is(.pw-messenger,.pw-workspace) :focus{outline:none}
+:is(.pw-messenger,.pw-workspace) :focus-visible{outline:2px solid var(--pw-accent);outline-offset:2px;border-radius:var(--pw-r-ctl)}
 
 /* Overflow menu */
 .pw-messenger .pw-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:5;min-width:236px;padding:6px;
@@ -168,13 +171,13 @@
 .pw-messenger .pw-failure-detail p{margin:6px 0 0;font-size:12px;color:var(--pw-text-3);overflow-wrap:anywhere}
 
 /* Chips: contextual, never aggressive */
-.pw-messenger .pw-chip{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 12px;
+:is(.pw-messenger,.pw-workspace) .pw-chip{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 12px;
  border:1px solid var(--pw-line-2);border-radius:999px;background:var(--pw-s3);color:var(--pw-text);
  font:550 13px/1 var(--pw-font);cursor:pointer;white-space:nowrap;
  transition:background var(--pw-fast) var(--pw-ease),border-color var(--pw-fast) var(--pw-ease)}
-.pw-messenger .pw-chip:hover{background:var(--pw-s4)}
-.pw-messenger .pw-chip-accent{background:var(--pw-accent-soft);border-color:transparent;color:var(--pw-accent)}
-.pw-messenger .pw-chip-accent:hover{background:var(--pw-accent);color:var(--pw-accent-ink)}
+:is(.pw-messenger,.pw-workspace) .pw-chip:hover{background:var(--pw-s4)}
+:is(.pw-messenger,.pw-workspace) .pw-chip-accent{background:var(--pw-accent-soft);border-color:transparent;color:var(--pw-accent)}
+:is(.pw-messenger,.pw-workspace) .pw-chip-accent:hover{background:var(--pw-accent);color:var(--pw-accent-ink)}
 /* Learning loop: a discreet "Remember this?" */
 .pw-messenger .world-chat-remember{align-self:flex-end;min-height:30px;padding:0 4px;border:0;background:none;
  color:var(--pw-text-2);font:500 12px/1 var(--pw-font);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
@@ -221,18 +224,18 @@
 .pw-messenger .world-dialogue-form :disabled{opacity:.45;cursor:not-allowed}
 
 /* ---- Buttons (shared) ---------------------------------------------------- */
-.pw-messenger .pw-btn-primary,.pw-messenger .pw-btn-secondary,.pw-messenger .pw-btn-ghost,.pw-messenger .crow-music-check{
+:is(.pw-messenger,.pw-workspace) .pw-btn-primary,:is(.pw-messenger,.pw-workspace) .pw-btn-secondary,:is(.pw-messenger,.pw-workspace) .pw-btn-ghost,.pw-messenger .crow-music-check{
  display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;
  border-radius:12px;border:1px solid var(--pw-line-2);background:var(--pw-s3);color:var(--pw-text);
  font:600 14px/1.2 var(--pw-font);cursor:pointer;width:auto;text-align:center;
  transition:background var(--pw-fast) var(--pw-ease),transform var(--pw-fast) var(--pw-ease)}
-.pw-messenger .pw-btn-primary{background:var(--pw-accent);color:var(--pw-accent-ink);border-color:transparent}
-.pw-messenger .pw-btn-primary:hover{filter:brightness(1.06)}
-.pw-messenger .pw-btn-secondary:hover,.pw-messenger .crow-music-check:hover{background:var(--pw-s4)}
-.pw-messenger .pw-btn-ghost{background:transparent;border-color:transparent;color:var(--pw-text-2)}
-.pw-messenger .pw-btn-ghost:hover{color:var(--pw-text);background:var(--pw-s3)}
-.pw-messenger button:active:not(:disabled){transform:translateY(1px)}
-.pw-messenger button:disabled{opacity:.5;cursor:not-allowed}
+:is(.pw-messenger,.pw-workspace) .pw-btn-primary{background:var(--pw-accent);color:var(--pw-accent-ink);border-color:transparent}
+:is(.pw-messenger,.pw-workspace) .pw-btn-primary:hover{filter:brightness(1.06)}
+:is(.pw-messenger,.pw-workspace) .pw-btn-secondary:hover,.pw-messenger .crow-music-check:hover{background:var(--pw-s4)}
+:is(.pw-messenger,.pw-workspace) .pw-btn-ghost{background:transparent;border-color:transparent;color:var(--pw-text-2)}
+:is(.pw-messenger,.pw-workspace) .pw-btn-ghost:hover{color:var(--pw-text);background:var(--pw-s3)}
+:is(.pw-messenger,.pw-workspace) button:active:not(:disabled){transform:translateY(1px)}
+:is(.pw-messenger,.pw-workspace) button:disabled{opacity:.5;cursor:not-allowed}
 
 /* ---- Workspaces: Music Studio & Memory ---------------------------------- */
 .pw-messenger .pw-studio,.pw-messenger .pw-sheet{grid-area:studio;display:flex;flex-direction:column;min-width:0;min-height:0;
@@ -321,7 +324,7 @@
 .pw-messenger .pw-memory-source{font-size:12px;color:var(--pw-text-3)}
 .pw-messenger .pw-memory-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;padding:0 12px 12px}
 .pw-messenger .pw-memory-error{width:100%;margin:0;font-size:12px;color:var(--pw-danger)}
-.pw-messenger .pw-empty{margin:0;padding:12px 2px;color:var(--pw-text-3);font-size:14px}
+:is(.pw-messenger,.pw-workspace) .pw-empty{margin:0;padding:12px 2px;color:var(--pw-text-3);font-size:14px}
 
 /* ---- Responsive layout --------------------------------------------------- */
 /* Desktop & landscape tablet: studio opens beside the chat, chat stays right. */
@@ -373,8 +376,9 @@
 @keyframes pw-pop{from{opacity:0;transform:translateY(-4px) scale(.98)}to{opacity:1;transform:none}}
 @keyframes pw-slide{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
 @keyframes pw-dot{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+html.pw-reduce-motion :is(.pw-messenger,.pw-workspace),html.pw-reduce-motion :is(.pw-messenger,.pw-workspace) *{animation:none!important;transition:none!important}
 @media (prefers-reduced-motion:reduce){
- #view .pw-messenger,.pw-messenger *,.pw-messenger *::before,.pw-messenger *::after{
+ #view .pw-messenger,#view .pw-workspace,.pw-workspace *,.pw-messenger *,.pw-messenger *::before,.pw-messenger *::after{
   animation:none!important;transition:none!important;scroll-behavior:auto!important}
 }
 
