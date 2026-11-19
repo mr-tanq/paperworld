@@ -1142,6 +1142,7 @@
    const close=make('button','','Κλείσιμο');
    close.type='button';close.addEventListener('click',clearRoutineReview);
    routineReview.append(close);routineReview.hidden=false;
+   return true;
   }catch(_){
    if(openId==='matt')showRoutineMessage('Δεν μπόρεσα να φορτώσω τα προγράμματα. Δεν έγινε καμία αλλαγή.');
   }finally{routinePending=false}
@@ -1224,6 +1225,7 @@
    controls.append(cancel,confirm);
    routineReview.append(heading,description,detail,safety,feedback,controls);
    routineReview.hidden=false;
+   return true; // Preview verified: the user's request was accepted for review.
   }catch(_){
    if(openId==='matt')showRoutineMessage('Δεν μπόρεσα να επαληθεύσω πρόγραμμα. Δεν δημιουργήθηκε καμία ρουτίνα.');
   }finally{routinePending=false}
@@ -1766,8 +1768,21 @@
   if(id==='matt'){
    const routineIntent=window.PaperworldRoutineIntent?.classify?.(text);
    if(routineIntent){
-    if(routineIntent.kind==='list_routines')await listMattRoutines();
-    else await previewMattRoutine(routineIntent);
+    // A recognized scheduling request is not an AI chat dispatch. Only mark
+    // it submitted after the authenticated routine preview/list succeeded.
+    // On errors/clarifications keep the draft so the owner can retry/edit.
+    const accepted=routineIntent.kind==='list_routines'?
+     await listMattRoutines():await previewMattRoutine(routineIntent);
+    if(accepted===true&&openId==='matt'){
+     // Never erase newer text typed while the asynchronous preview was loading.
+     if(field.value.trim()===text){field.value='';autoGrow()}
+     const submitted=bubble('human',text,new Date().toISOString());
+     submitted.classList.add('pw-routine-request');
+     submitted.setAttribute('aria-label','Αίτημα προγράμματος');
+     messages.querySelector('.world-dialogue-note')?.remove();
+     messages.append(submitted);
+     scrollBottom();
+    }
     return;
    }
    clearRoutineReview();
