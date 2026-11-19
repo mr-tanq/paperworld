@@ -321,6 +321,20 @@
     showSunoCreateStatus('Η Suno επιβεβαίωσε τη λήψη του αιτήματος. '+
      'Η ολοκλήρωση του τραγουδιού δεν έχει ακόμη επαληθευτεί. '+
      'Έλεγξε τη Suno Library.','success');
+   }else if(result.status==='blocked_before_submission'){
+    const hints={
+     suno_oauth_required:'Η σύνδεση Suno έληξε. Σύνδεσε ξανά τον λογαριασμό.',
+     audio_create_not_verified:'Το εργαλείο δημιουργίας Suno δεν επαληθεύτηκε.',
+     invalid_audio_create_request:'Το τραγούδι απορρίφθηκε πριν σταλεί στη Suno. Έλεγξε τίτλο και στίχους.',
+     invalid_body:'Το τραγούδι έχει υπερβολικό μέγεθος.',
+     request_too_large:'Το αίτημα είναι υπερβολικά μεγάλο για τον server.',
+     unauthorized:'Η σύνδεση Paperworld Cloud χρειάζεται ανανέωση.',
+     origin_denied:'Ο server απέρριψε τη σύνδεση από αυτή τη σελίδα.',
+     audio_create_session_limit:'Έχει συμπληρωθεί το όριο υποβολών αυτής της συνεδρίας.'
+    };
+    showSunoCreateStatus((hints[result.reason]||'Η υποβολή απορρίφθηκε.')+
+     ' Δεν στάλθηκε νέο αίτημα παραγωγής.','error');
+    lastSunoSubmission=null;
    }else{
     showSunoCreateStatus('Δεν επιβεβαιώθηκε η δημιουργία ('+
      result.reason+'). Μην επαναλάβεις το αίτημα πριν ελέγξεις τη Suno Library.','error');
