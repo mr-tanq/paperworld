@@ -35,7 +35,8 @@ const PROBE_BRIEF=Object.freeze({title:'Paperworld compatibility check',
 const PROBE_KEY='00000000-0000-4000-8000-000000000000';
 const CREATE_REASONS=Object.freeze(new Set(['audio_create_schema_unverified',
  'audio_create_schema_mismatch','audio_create_field_too_long',
- 'audio_create_required_field_unsupported','invalid_audio_create_request']));
+ 'audio_create_required_field_unsupported','invalid_audio_create_request',
+ 'audio_create_voice_invalid','audio_create_voice_unsupported']));
 function audioCreateReadiness(verdict){
  if(verdict?.available!==true||!verdict.tools?.includes('audio-create'))
   return {compatible:false,reason:'audio_create_not_listed',paramHeaders:[]};
