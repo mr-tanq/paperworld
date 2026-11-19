@@ -8,6 +8,7 @@
  let openId=null,revision=0,busy=false;
  const mattReplies=[];
  const directorReplies=new Map(); // Keep only replies not yet reconciled with saved history.
+ const proposedMemoryMessages=new Set(); // UI hint only; server+RLS remain authority.
  let latestSavedCrowReply=null; // Last persisted Crow agent reply, not temporary UI bubbles.
  let latestStudioHandoff=null,latestSavedStudioDraft=null;
  let mattCachedEntries=null; // Keep visible replies while owner history refreshes.
@@ -950,7 +951,64 @@
    }else if(!failure)showNotice('Ο Matt απάντησε. Πάτησε M για να δεις τη συνομιλία.');
   }
  }
- function bubble(role,text,when){
+ function rememberAction(item,message){
+  if(openId==='matt'||![
+    'listening-director','pokemon-director','studio-director','wellbeing-director'
+   ].includes(openId)||typeof cloud()?.proposeDirectorCorrection!=='function'||
+   !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(message?.id||''))
+   return;
+  const targetDirector=openId;
+  const button=make('button','world-chat-remember',
+   proposedMemoryMessages.has(message.id)?'Προτάθηκε για μνήμη':'Να το θυμάται;');
+  button.type='button';
+  button.disabled=proposedMemoryMessages.has(message.id);
+  const review=make('div','world-chat-memory-preview');
+  review.hidden=true;
+  button.addEventListener('click',()=>{
+   if(openId!==targetDirector||review.hidden===false)return;
+   review.replaceChildren();
+   const heading=make('strong','','Πρόταση μνήμης');
+   const explanation=make('p','',
+    'Ο Director θα μπορεί να το χρησιμοποιεί μόνο μετά από ξεχωριστή έγκρισή σου.');
+   const excerpt=make('p','world-chat-memory-excerpt',message.text);
+   const label=make('label','','Σύντομος τίτλος');
+   const title=make('input','world-chat-memory-title');
+   title.type='text';title.maxLength=140;title.required=true;
+   title.value=message.text.replace(/\s+/g,' ').trim().slice(0,100);
+   label.append(title);
+   const notice=make('p','world-chat-memory-state','Θα αποθηκευτεί ιδιωτικά ως πρόταση.');
+   notice.setAttribute('role','status');
+   const controls=make('div','world-chat-memory-controls');
+   const cancel=make('button','','Ακύρωση');
+   const confirm=make('button','','Πρόταση');
+   cancel.type=confirm.type='button';
+   cancel.addEventListener('click',()=>{review.hidden=true;review.replaceChildren()});
+   confirm.addEventListener('click',async()=>{
+    if(openId!==targetDirector||!title.value.trim())return;
+    confirm.disabled=true;cancel.disabled=true;button.disabled=true;
+    notice.textContent='Αποθήκευση πρότασης…';
+    try{
+     const result=await cloud().proposeDirectorCorrection(targetDirector,message.id,{
+      title:title.value.trim()});
+     if(result.status!=='proposed'||result.approved!==false)throw Error('unverified');
+     proposedMemoryMessages.add(message.id);
+     button.textContent='Προτάθηκε για μνήμη';
+     notice.textContent='Αποθηκεύτηκε ως πρόταση, όχι ως εγκεκριμένη μνήμη.';
+     cancel.textContent='Κλείσιμο';cancel.disabled=false;
+     confirm.hidden=true;
+    }catch(_){
+     notice.textContent='Δεν αποθηκεύτηκε επιβεβαιωμένη πρόταση. Έλεγξε τη μνήμη Directors πριν ξαναδοκιμάσεις.';
+     button.disabled=false;cancel.disabled=false;confirm.disabled=false;
+    }
+   });
+   controls.append(cancel,confirm);
+   review.append(heading,explanation,excerpt,label,notice,controls);
+   review.hidden=false;
+   title.focus();
+  });
+  item.append(button,review);
+ }
+ function bubble(role,text,when,message=null){
   const item=make('article','world-chat-message '+(role==='human'?'world-dialogue-human':'world-dialogue-agent'));
   // Some Copilot responses contain literal escaped newlines. Render them
   // as plain text with line breaks, never as HTML or executable markup.
@@ -971,13 +1029,19 @@
    const time=make('time','world-chat-time',new Date(when).toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'}));
    time.dateTime=when;item.append(time);
   }
+  if(role==='human'&&message?.rememberable===true)rememberAction(item,message);
   return item;
  }
  function system(text){return make('p','world-dialogue-note',text)}
  function scrollBottom(){messages.scrollTop=messages.scrollHeight}
  function appendEntries(entries){
   messages.replaceChildren();
-  for(const m of entries)messages.append(bubble(m.role,m.text,m.time));
+  const eligible=entries.map((m,i)=>m.role==='human'&&m.id?i:-1)
+   .filter(i=>i>=0).at(-1);
+  for(const [i,m] of entries.entries())
+   messages.append(bubble(m.role,m.text,m.time,{
+    id:m.id,text:m.text,rememberable:i===eligible&&openId!=='matt'
+   }));
   if(openId==='matt')for(const reply of mattReplies)messages.append(bubble('agent',reply.content,reply.time));
   else for(const reply of directorReplies.get(openId)||[])
    messages.append(bubble('agent',reply.content,reply.time));
@@ -1096,7 +1160,7 @@
      const waiting=existing.filter(m=>!m.id||!savedIds.has(m.id));
      directorReplies.set(selected,waiting);
      appendEntries(history.map(m=>({role:m.role==='human'?'human':'agent',
-      text:m.content,time:m.created_at})));
+      id:m.id,text:m.content,time:m.created_at})));
     }
    }).catch(error=>{
     if(token!==revision||openId!==selected)return;

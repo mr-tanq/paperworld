@@ -67,3 +67,10 @@ test('storage failure never claims learning succeeded',async()=>{
  assert.equal(r.status,409);
  assert.equal(r.body.error,'learning_proposal_not_saved');
 });
+
+test('multiline human correction is normalized before strict memory validation',async()=>{
+ const {api,savedProposals}=setup({rows:[{...saved,content:'Keep this.\n\tAlways do it.'}]});
+ const r=await api.handle({headers,body:JSON.stringify(payload)});
+ assert.equal(r.status,201);
+ assert.equal(savedProposals[0].entry.body,'Keep this. Always do it.');
+});
