@@ -47,8 +47,8 @@ test('Cloud owner marker is UUID only and browser cache versions advance togethe
  for(const marker of [
   'cloud.js?v=suno-create-preflight-v13',
   'cloud-ui.js?v=suno-create-exposed-v14',
-  'world-dialogue.js?v=suno-create-feedback-v13',
-  'style.css?v=suno-create-feedback-v13'
+  'world-dialogue.js?v=suno-mcp-diagnostic-v15',
+  'style.css?v=suno-mcp-diagnostic-v15'
  ])assert.ok(html.includes(marker),marker);
 });
 
@@ -66,5 +66,5 @@ test('One GitHub tap verifies status then opens OAuth without a second click',()
  assert.match(script,/let githubLinkBusy=false/);
  assert.match(script,/githubLinkBusy\|\|/);
  const html=fs.readFileSync('index.html','utf8');
- assert.match(html,/world-dialogue\.js\?v=suno-create-feedback-v13/);
+ assert.match(html,/world-dialogue\.js\?v=suno-mcp-diagnostic-v15/);
 });
