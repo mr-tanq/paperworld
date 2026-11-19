@@ -428,6 +428,7 @@ window.PaperworldCloudUI={
  privateAgentMessages:(id)=>client.agentMessages(id),
  sendPrivateAgentMessage:(id,text)=>client.sendAgentNote(id,text),
  askDirector:(id,text,options)=>client.askDirector(id,text,options),
+ proposeDirectorCorrection:(id,messageId,options)=>client.proposeDirectorCorrection(id,messageId,options),
  crowSunoPreview:(brief)=>client.crowSunoPreview(brief),
  crowSunoConnectionStatus:()=>client.crowSunoConnectionStatus(),
  beginSunoLink:()=>client.beginSunoLink(),
