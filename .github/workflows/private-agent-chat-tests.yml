@@ -43,6 +43,8 @@ on:
       - 'js/director-memory-review.js'
       - 'js/messenger-format.js'
       - 'js/workspace.js'
+      - 'js/camera-framing.js'
+      - 'js/connection-status.js'
       - 'js/team-panel.js'
       - 'js/human-first-hub.js'
       - 'workspace.css'
@@ -96,6 +98,8 @@ jobs:
           node --check js/world-dialogue.js
           node --check js/messenger-format.js
           node --check js/workspace.js
+          node --check js/camera-framing.js
+          node --check js/connection-status.js
           node --check js/team-panel.js
           node --check js/human-first-hub.js
           node --check js/town-hall-briefing.js
@@ -122,6 +126,8 @@ jobs:
             tests/world-dialogue.test.cjs \
             tests/messenger-v2.test.cjs \
             tests/workspace-v2.test.cjs \
+            tests/camera-framing.test.cjs \
+            tests/connection-status.test.cjs \
             tests/director-memory-retrieval.test.cjs \
             tests/visual-agent-workflow.test.cjs \
             tests/village-first.test.cjs \

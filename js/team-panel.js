@@ -79,18 +79,18 @@ function workerRow(p,{status,ctx}){
 function workerStatus(raw,workerId){
  const project=workerId==='listening-developer'?'listening':'pokemon';
  const awaiting=(raw?.teamJobs||[]).some(j=>j?.workerId===workerId&&j?.status==='awaiting_consent');
- if(awaiting)return 'Μια διερεύνηση περιμένει την έγκρισή σου.';
+ if(awaiting)return 'Ένας έλεγχος περιμένει την έγκρισή σου.';
  const runs=(raw?.workerRuns||[]).filter(r=>r?.project===project&&r?.workerId===workerId);
  const last=runs.sort((a,b)=>Date.parse(b.createdAt||0)-Date.parse(a.createdAt||0))[0];
  if(!last)return null;
- return last.status==='running'?'Τελευταία διερεύνηση: καταγράφηκε ως εκκρεμής.':
-  last.status==='reported'?'Τελευταία διερεύνηση: ολοκληρώθηκε (μόνο ανάγνωση).':
-  last.status==='failed'?'Τελευταία διερεύνηση: δεν ολοκληρώθηκε.':null;
+ return last.status==='running'?'Τελευταίος έλεγχος: δεν έχει τελειώσει.':
+  last.status==='reported'?'Τελευταίος έλεγχος: ολοκληρώθηκε χωρίς αλλαγές.':
+  last.status==='failed'?'Τελευταίος έλεγχος: σταμάτησε.':null;
 }
 function render(host,ctx){
  host.replaceChildren();
  const intro=el('div','pw-view-intro');
- intro.append(el('p','pw-lede','Ποιος βοηθά σε τι. Πάτησε «Συνομιλία» για να μιλήσεις απευθείας.'));
+ intro.append(el('p','pw-lede','Πάτησε «Συνομιλία» για να μιλήσεις απευθείας με κάποιον.'));
  const hall=document.querySelector('#call-visual-meeting');
  if(hall)intro.append(actionButton('Συγκέντρωση στο Town Hall','pw-chip',()=>ctx.townHall(),
   'Συγκέντρωσε την ομάδα στο Town Hall'));
@@ -107,8 +107,8 @@ function render(host,ctx){
  directors.append(el('h2','pw-section-title','Directors'),grid);
  host.append(directors);
  const workers=el('section','pw-section pw-workers');
- workers.append(el('h2','pw-section-title','Workers'),
-  el('p','pw-section-hint','Δουλεύουν μόνο μέσω του Director τους και μόνο με τη δική σου έγκριση.'));
+ workers.append(el('h2','pw-section-title','Βοηθοί ανάπτυξης'),
+  el('p','pw-section-hint','Ελέγχουν κώδικα μόνο μέσω του υπεύθυνου του project και μόνο με την έγκρισή σου.'));
  for(const p of profiles.entries('worker'))
   workers.append(workerRow(p,{status:ctx.raw?workerStatus(ctx.raw,p.id):null,ctx}));
  host.append(workers);

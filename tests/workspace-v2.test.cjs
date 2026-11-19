@@ -39,8 +39,10 @@ function boot({signedIn=true,fail=false,github='connected',suno='disconnected',c
   preparePokemonSolution:spy('publishPokemon'),discardPokemonSolution:spy('rejectPokemon'),
   runApprovedHandoff:spy('runWorker'),runApprovedSourceFact:spy('runSourceFact'),
   addTask:spy('addTask'),updateTask:spy('updateTask'),removeTask:spy('removeTask'),
-  githubLinkStatus:async()=>({connected:github==='connected'}),
-  sunoLinkStatus:async()=>({oauthAuthorized:suno==='connected'}),
+  githubLinkStatus:async()=>{if(github==='not_configured')throw Error('oauth_not_configured (HTTP 503)');
+   if(github==='down')throw Error('Failed to fetch');return {connected:github==='connected',ephemeral:true}},
+  sunoLinkStatus:async()=>{if(suno==='down')throw Error('suno_oauth_unavailable (HTTP 503)');
+   return {oauthAuthorized:suno==='connected',canGenerate:false,ephemeral:true}},
   beginGithubLink:spy('beginGithubLink','https://github.com/login/oauth/authorize?x'),
   beginSunoLink:spy('beginSunoLink','https://auth.suno.com/x'),
   signOut:spy('signOut'),signIn:spy('signIn'),openClassicDesk:spy('openClassicDesk')};
@@ -55,11 +57,12 @@ function boot({signedIn=true,fail=false,github='connected',suno='disconnected',c
   confirm:(...a)=>{calls.push(['confirm',...a]);return confirm(...a)},
   location:{assign:u=>calls.push(['navigate',u])},
   CustomEvent:class{constructor(type,init){this.type=type;this.detail=init?.detail}},
+  innerWidth:1280,innerHeight:800,
   Image:class{set src(_){}},PaperworldCloudUI:cloud,PaperworldWorldDialogue:dialogue,
   PaperworldWorld:{focusAgent:(id)=>{calls.push(['locate',id]);return true}}};
  win.window=win;win.globalThis=win;
  const ctx=vm.createContext(win);
- for(const f of ['js/agent-profiles.js','js/village-activity.js','js/human-first-hub.js','js/team-panel.js','js/workspace.js'])
+ for(const f of ['js/agent-profiles.js','js/village-activity.js','js/human-first-hub.js','js/team-panel.js','js/connection-status.js','js/workspace.js'])
   vm.runInContext(fs.readFileSync(f,'utf8'),ctx,{filename:f});
  const shell=doc.querySelector('.pw-workspace');
  const text=()=>shell.textContent;
@@ -198,7 +201,7 @@ test('Static guarantees: no innerHTML, no fabricated presence, shared design tok
  assert.match(app,/if\(window\.PaperworldWorkspace\?\.open\)\{window\.PaperworldWorkspace\.open\('work'\);return\}/);
  assert.ok(html.indexOf('js/workspace.js')>html.indexOf('js/world-dialogue.js'));
  assert.ok(html.indexOf('js/workspace.js')>html.indexOf('js/human-first-hub.js'));
- assert.match(html,/workspace\.css\?v=workspace-progress-v2-2/);
+ assert.match(html,/workspace\.css\?v=responsive-1/);
 });
 
 test('Finished investigations and unstarted notes do not inflate active work',async()=>{
@@ -218,7 +221,7 @@ test('Finished investigations and unstarted notes do not inflate active work',as
  assert.equal(old.length,2);
  assert.ok(old.every(i=>i.bucket!=='active'));
  assert.deepEqual(t.shell.querySelectorAll('.pw-stat strong').map(x=>x.textContent),['2','1','2']);
- assert.match(t.text(),/Διερευνήθηκαν \/ Προετοιμάστηκαν/);
+ assert.match(t.text(),/Έτοιμα για ματιά/);
  const cards=t.shell.querySelectorAll('.pw-item-details');
  assert.ok(cards.length>0,'long archived descriptions should start folded');
  assert.ok(!cards[0].open);
@@ -232,6 +235,53 @@ test('Workspace opens camera framing and restores it on close without modifying 
  t.ws.close();
  assert.ok(t.calls.some(x=>x[0]==='frame'&&x[1].open===false));
  const app=fs.readFileSync('js/app.js','utf8');
- assert.match(app,/frameForWorkspace:\(\{open=false,panelWidth=0\}/);
- assert.match(app,/state\.x=visible\/2-\(W\/2\)\*state\.scale/);
+ // Docked panel on a 1280×800 tablet: pan beside it, never zoom.
+ const frame=t.calls.find(x=>x[0]==='frame'&&x[1].open===true)[1];
+ assert.ok(frame.panelWidth>0);assert.equal(frame.panelHeight,0);
+ assert.match(app,/frameForWorkspace:\(\{open=false,panelWidth=0,panelHeight=0\}/);
+ assert.match(app,/framing\.frameAround\(/);
+});
+
+test('Settings names unavailable and unconfigured services and offers a retry',async()=>{
+ const t=boot({github:'not_configured',suno:'down'});t.ws.open('settings');await flush(10);
+ assert.match(t.text(),/GitHub · Δεν έχει ρυθμιστεί/);
+ assert.match(t.text(),/Suno · Μη διαθέσιμο τώρα/);
+ assert.doesNotMatch(t.text(),/Έλεγχος…|Συνδεδεμένο/);
+ const row=t.shell.querySelectorAll('.pw-setting').find(r=>/Suno/.test(r.textContent));
+ assert.equal(row.querySelector('.pw-dot').dataset.state,'unavailable');
+ assert.ok(row.querySelectorAll('button').some(b=>b.textContent==='Δοκίμασε ξανά'));
+});
+test('A temporary GitHub link is labelled as temporary, never as permanent',async()=>{
+ const t=boot({github:'connected'});t.ws.open('settings');await flush(10);
+ assert.match(t.text(),/GitHub · Συνδεδεμένο/);
+ assert.match(t.text(),/προσωρινή και χάνεται αν γίνει επανεκκίνηση/);
+});
+test('Portrait-tablet bottom sheet frames the village above it; Messenger is framed too',async()=>{
+ const t=boot();t.win.innerWidth=800;t.win.innerHeight=1280;
+ t.shell.getBoundingClientRect=()=>({x:0,y:563,top:563,width:800,height:717});
+ t.win.PaperworldWorld.frameForWorkspace=payload=>{t.calls.push(['frame',payload])};
+ t.ws.open('work');await flush();
+ const sheet=t.calls.find(c=>c[0]==='frame'&&c[1].open)[1];
+ assert.equal(sheet.panelWidth,0);assert.ok(sheet.panelHeight>=700);
+ // Messenger opening (event) frames beside/above the chat panel as well.
+ const chat=t.doc.createElement('section');chat.className='pw-messenger';t.doc.body.append(chat);
+ chat.getBoundingClientRect=()=>({top:64,width:420,height:700});
+ t.calls.length=0;
+ t.doc.dispatchEvent(new t.win.CustomEvent('paperworld:chat-opened',{detail:{id:'matt'}}));await flush();
+ assert.ok(t.calls.some(c=>c[0]==='frame'&&c[1].open&&c[1].panelWidth>0));
+ t.doc.dispatchEvent(new t.win.CustomEvent('paperworld:chat-closed',{detail:{id:'matt'}}));await flush();
+ assert.ok(t.calls.some(c=>c[0]==='frame'&&c[1].open===false));
+});
+test('Everyday wording avoids internal jargon; technical detail stays collapsed',async()=>{
+ const t=boot();t.ws.open('work');await flush();
+ const card=t.shell.querySelector('.pw-decisions .human-hub-item');
+ const visible=card.querySelectorAll('button').map(b=>b.textContent).join(' | ')+' '+
+  card.querySelector('.human-hub-summary').textContent+' '+card.querySelector('.human-hub-status').textContent;
+ assert.doesNotMatch(visible,/Worker|Director|AI|διερεύνηση από/);
+ assert.match(visible,/Έγκριση ελέγχου/);assert.match(visible,/Περιμένει την έγκρισή σου/);
+ const hub=fs.readFileSync('js/human-first-hub.js','utf8');
+ assert.match(hub,/STEP\[event\.state\]\|\|'Ενημέρωση'/);
+ assert.doesNotMatch(hub,/human\(event\.state,35\)/,'raw step IDs are not shown');
+ t.button('Ομάδα').click();await flush();
+ assert.doesNotMatch(t.shell.querySelector('.pw-workers .pw-section-title').textContent,/Workers/);
 });

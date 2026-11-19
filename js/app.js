@@ -423,22 +423,28 @@ function resolveMattReturn(){while(mattReturnWaiters.length)mattReturnWaiters.sh
 let workspaceFrame=null;
 window.PaperworldWorld=Object.freeze({
  agents:()=>actors.map(a=>({...a})),
- frameForWorkspace:({open=false,panelWidth=0}={})=>{
+ camera:()=>({x:state.x,y:state.y,scale:state.scale,fit:state.fit,
+  width:state.width,height:state.height,adjusted:state.adjusted===true}),
+ frameForWorkspace:({open=false,panelWidth=0,panelHeight=0}={})=>{
   if(open){
-   if(!Number.isFinite(panelWidth)||panelWidth<0)return false;
-   if(!workspaceFrame)workspaceFrame={x:state.x,y:state.y,scale:state.scale,
-    width:state.width,height:state.height};
-   const visible=Math.max(280,state.width-Math.min(panelWidth,state.width-280));
-   // Keep the user's zoom; pan the landscape into the unobscured left region.
-   // Using the original image's center also keeps a predictable framing.
-   state.x=visible/2-(W/2)*state.scale;
-   state.y=state.height/2-(H/2)*state.scale;
+   if(!Number.isFinite(panelWidth)||panelWidth<0||
+      !Number.isFinite(panelHeight)||panelHeight<0)return false;
+   if(!workspaceFrame)workspaceFrame={x:state.x,y:state.y,scale:state.scale,fit:state.fit,
+    adjusted:state.adjusted===true,width:state.width,height:state.height};
+   workspaceFrame.panel={width:panelWidth,height:panelHeight};
+   // Keep the user's zoom; pan the village into the unobscured region.
+   framePanel(workspaceFrame.panel);
    return true;
   }
   if(workspaceFrame){
    const saved=workspaceFrame;workspaceFrame=null;
    if(saved.width===state.width&&saved.height===state.height){
-    state.x=saved.x;state.y=saved.y;state.scale=saved.scale;
+    state.x=saved.x;state.y=saved.y;state.scale=saved.scale;state.adjusted=saved.adjusted;
+   }else if(framing){
+    // The device rotated while a panel was open: carry the saved view over.
+    const cam=framing.resize({prev:saved,next:{width:state.width,height:state.height},
+     W,H,content:villageContent()});
+    state.fit=cam.fit;state.scale=cam.scale;state.x=cam.x;state.y=cam.y;state.adjusted=cam.adjusted;
    }else resetCamera();
   }
   return true;
@@ -604,16 +610,37 @@ function setAgentWorkflowStage(stateName){
  return true;
 }
 
-function resize(){const r=canvas.getBoundingClientRect();state.width=r.width;state.height=r.height;state.dpr=Math.min(2,devicePixelRatio||1);canvas.width=Math.max(1,Math.round(r.width*state.dpr));canvas.height=Math.max(1,Math.round(r.height*state.dpr));ctx.setTransform(state.dpr,0,0,state.dpr,0,0);state.fit=Math.min((r.width-14)/W,(r.height-14)/H);resetCamera();
- if(workspaceFrame){
-  const panel=document.querySelector('.pw-workspace:not([hidden])');
-  const width=panel?.getBoundingClientRect?.().width||0;
-  const visible=Math.max(280,state.width-Math.min(width+12,state.width-280));
-  state.x=visible/2-(W/2)*state.scale;
-  state.y=state.height/2-(H/2)*state.scale;
- }
+// Camera framing lives in js/camera-framing.js (pure, tested). The world image
+// and coordinates never change; only scale/translation adapt to the viewport.
+const framing=window.PaperworldCameraFraming;
+function villageContent(){return framing?.contentBox(defs,W,H)||{x:0,y:0,w:W,h:H}}
+function resize(){const r=canvas.getBoundingClientRect();
+ const prev=state.width>0?{width:state.width,height:state.height,x:state.x,y:state.y,
+  scale:state.scale,fit:state.fit,adjusted:state.adjusted===true}:null;
+ state.width=r.width;state.height=r.height;state.dpr=Math.min(2,devicePixelRatio||1);canvas.width=Math.max(1,Math.round(r.width*state.dpr));canvas.height=Math.max(1,Math.round(r.height*state.dpr));ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
+ if(framing){
+  // Rotation / browser chrome / keyboard: keep the user's view when they have
+  // panned or zoomed; otherwise frame the village for the new orientation.
+  const cam=framing.resize({prev,next:{width:r.width,height:r.height},W,H,content:villageContent()});
+  state.fit=cam.fit;state.scale=cam.scale;state.x=cam.x;state.y=cam.y;state.adjusted=cam.adjusted;
+ }else{state.fit=Math.min((r.width-14)/W,(r.height-14)/H);resetCamera()}
+ if(workspaceFrame)framePanel(workspaceFrame.panel);
 }
-function resetCamera(){state.scale=state.fit;state.x=(state.width-W*state.scale)/2;state.y=(state.height-H*state.scale)/2}
+function resetCamera(){
+ state.adjusted=false;
+ const f=framing?.frame({width:state.width,height:state.height,W,H,content:villageContent()});
+ if(f){state.fit=f.scale;const cam=framing.place(state,f.scale,f.cx,f.cy);
+  state.scale=cam.scale;state.x=cam.x;state.y=cam.y;return}
+ state.scale=state.fit;state.x=(state.width-W*state.scale)/2;state.y=(state.height-H*state.scale)/2}
+// Keep the user's zoom; pan the village into the area a panel leaves visible
+// (beside a docked panel, or above a bottom sheet on portrait tablets).
+function framePanel(panel){
+ if(!framing){state.x=Math.max(280,state.width-Math.min(panel.width||0,state.width-280))/2-(W/2)*state.scale;
+  state.y=state.height/2-(H/2)*state.scale;return}
+ const cam=framing.frameAround({width:state.width,height:state.height,scale:state.scale,
+  content:villageContent(),W,H,panelWidth:panel.width||0,panelHeight:panel.height||0,top:56});
+ state.x=cam.x;state.y=cam.y;
+}
 function localPoint(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
 function worldPoint(p){return{x:(p.x-state.x)/state.scale,y:(p.y-state.y)/state.scale}}
 function spriteBox(d){const ratio=d.image.naturalHeight/d.image.naturalWidth||.75;const height=d.width*ratio;return{x:d.x-d.width/2,y:d.bottom-height,width:d.width,height}}
@@ -851,7 +878,7 @@ canvas.addEventListener('pointermove',e=>{
  if(Math.hypot(p.x-v.originalX,p.y-v.originalY)>7)v.dragged=true;
  if(v.dragged){
   if(placingBuildings&&v.building)movePlacement(v.building,(p.x-v.x)/state.scale,(p.y-v.y)/state.scale);
-  else{state.x+=p.x-v.x;state.y+=p.y-v.y}
+  else{state.x+=p.x-v.x;state.y+=p.y-v.y;state.adjusted=true}
  }
  v.x=p.x;v.y=p.y;
 });
@@ -872,8 +899,11 @@ canvas.addEventListener('pointercancel',()=>{
  if(placingBuildings&&state.pointer?.building&&state.pointer.dragged)saveBuildingLayout();
  state.pointer=null;
 });
-function zoom(delta){const cx=state.width/2,cy=state.height/2,worldX=(cx-state.x)/state.scale,worldY=(cy-state.y)/state.scale;state.scale=Math.max(state.fit*.7,Math.min(state.fit*3,state.scale*delta));state.x=cx-worldX*state.scale;state.y=cy-worldY*state.scale}
-document.querySelector('#plus').onclick=()=>zoom(1.2);document.querySelector('#minus').onclick=()=>zoom(1/1.2);document.querySelector('#home').onclick=resetCamera;
+function zoom(delta){state.adjusted=true;const cx=state.width/2,cy=state.height/2,worldX=(cx-state.x)/state.scale,worldY=(cy-state.y)/state.scale;state.scale=Math.max(state.fit*.7,Math.min(state.fit*3,state.scale*delta));state.x=cx-worldX*state.scale;state.y=cy-worldY*state.scale}
+document.querySelector('#plus').onclick=()=>zoom(1.2);document.querySelector('#minus').onclick=()=>zoom(1/1.2);document.querySelector('#home').onclick=()=>{resetCamera();
+ // Home re-frames the village, still leaving room for an open panel.
+ if(workspaceFrame){workspaceFrame.x=state.x;workspaceFrame.y=state.y;workspaceFrame.scale=state.scale;
+  workspaceFrame.fit=state.fit;workspaceFrame.adjusted=false;framePanel(workspaceFrame.panel)}};
 const drawer=document.querySelector('#world-drawer');
 function openWorkDesk(){
  // Workspace V2 is the primary Work surface; the classic desk remains the

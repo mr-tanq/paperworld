@@ -84,6 +84,6 @@ test('A real owner-authenticated API route and both Work Hub and Messenger actio
  assert.match(server,/\/delegate\/matt\/source-facts/);
  assert.match(browser,/V5_ONE_READ_ONLY_SOURCE_CHECK_NO_AI/);
  assert.match(ui,/runApprovedSourceFact/);
- assert.match(hub,/Έλεγχος πηγών · χωρίς AI/);
+ assert.match(hub,/Γρήγορος έλεγχος αρχείων/);
  assert.match(dialog,/runSourceFact:async item=>/);
 });

@@ -70,7 +70,7 @@ const toast=el('p','pw-ws-toast');toast.setAttribute('role','status');toast.setA
 shell.append(head,nav,body,toast);view.append(shell);
 
 const state={view:'work',project:null,raw:null,missions:[],loadedAt:0,loading:false,error:'',
- settings:{github:'unknown',suno:'unknown'}};
+ settings:{github:{state:'checking'},suno:{state:'checking'}}};
 let opener=null,handoff=null,suppressChatEvent=false,toastTimer=null;
 function say(text){
  toast.textContent=text;toast.hidden=!text;clearTimeout(toastTimer);
@@ -161,6 +161,29 @@ function goBack(){
  if(state.view==='work'&&state.project){state.project=null;render();return}
  close();
 }
+// How much of the village a panel covers: a docked panel covers the right,
+// a portrait-tablet bottom sheet covers the bottom; full-screen needs nothing.
+function panelCover(node){
+ const r=node?.getBoundingClientRect?.();
+ const vw=window.innerWidth||0,vh=window.innerHeight||0;
+ if(!r||!r.width||!vw||!vh)return null;
+ if(r.width>=vw*.9&&r.top<=vh*.12)return null;              // full screen
+ if(r.width>=vw*.9)return {panelWidth:0,panelHeight:Math.max(0,vh-r.top+8)}; // sheet
+ return {panelWidth:r.width+12,panelHeight:0};             // docked
+}
+// Portrait-tablet sheets size themselves to the visible viewport so the
+// on-screen keyboard never covers inputs.
+const vv=window.visualViewport;
+function fitViewport(){
+ if(!vv)return;
+ shell.style.setProperty('--pw-vvh',Math.round(vv.height)+'px');
+ shell.style.setProperty('--pw-vvtop',Math.round(vv.offsetTop)+'px');
+}
+if(vv){vv.addEventListener('resize',fitViewport);vv.addEventListener('scroll',fitViewport);fitViewport()}
+function frameVillage(node){
+ const cover=panelCover(node);
+ if(cover)window.PaperworldWorld?.frameForWorkspace?.({open:true,...cover});
+}
 function open(id='work',opts={}){
  if(!['team','work','settings'].includes(id))id='work';
  if(chat()?.isOpen?.()){suppressChatEvent=true;chat().close();suppressChatEvent=false}
@@ -168,8 +191,7 @@ function open(id='work',opts={}){
  shell.hidden=false;document.documentElement.classList.add('pw-workspace-open');
  go(id,opts);
  requestAnimationFrame(()=>{
-  window.PaperworldWorld?.frameForWorkspace?.({open:true,
-   panelWidth:shell.getBoundingClientRect().width+12});
+  frameVillage(shell);
   title.focus({preventScroll:true});
  });
 }
@@ -188,7 +210,8 @@ function talk(agentId,{draft='',memory=false}={}){
  else chat()?.show?.(agentId);
 }
 document.addEventListener('paperworld:chat-closed',()=>{
- if(suppressChatEvent||!handoff)return;
+ if(suppressChatEvent)return;
+ if(!handoff){window.PaperworldWorld?.frameForWorkspace?.({open:false});return}
  const back=handoff;handoff=null;
  // Defer: the same Escape keypress must not also close the reopened view.
  setTimeout(()=>open(back.view,{project:back.project}),0);
@@ -196,6 +219,8 @@ document.addEventListener('paperworld:chat-closed',()=>{
 document.addEventListener('paperworld:chat-opened',()=>{
  // Pressing M / T or tapping an agent in the village while Work is open.
  if(!shell.hidden)close({restoreFocus:false});
+ // The Messenger gets the same village framing as the Workspace.
+ requestAnimationFrame(()=>frameVillage([...document.querySelectorAll('.pw-messenger')].find(n=>!n.hidden)));
 });
 function narrow(){return window.matchMedia?.('(max-width: 760px)')?.matches===true}
 function locate(agentId){
@@ -330,7 +355,7 @@ function renderWork(){
  const needs=decisions+attention.length;
  hero.append(el('h2','pw-hero-title',!state.raw?(state.loading?'Ενημερώνομαι για την ομάδα…':
   'Δεν έχω ενημέρωση αυτή τη στιγμή.'):needs?(needs===1?'Ένα θέμα περιμένει εσένα.':needs+' θέματα περιμένουν εσένα.'):
-  active.length?'Υπάρχουν πραγματικά ενεργές εργασίες.':'Δεν υπάρχει ενεργή εκτέλεση αυτή τη στιγμή.'));
+  active.length?'Κάτι είναι σε εξέλιξη· τίποτα δεν περιμένει εσένα.':'Τίποτα σε εξέλιξη αυτή τη στιγμή.'));
  const stats=el('div','pw-stats');
  for(const [n,label,target] of [[needs,'Χρειάζονται εσένα','pw-sec-attention'],
   [active.filter(i=>!i.note).length,'Σε εξέλιξη','pw-sec-active'],[done.filter(i=>!i.note).length,'Ολοκληρώθηκαν','pw-sec-done']]){
@@ -349,13 +374,13 @@ function renderWork(){
  body.append(section('Σε εξέλιξη',null,active.length?active.slice(0,8).map(i=>itemCard(i)):
   [empty(state.raw?'Καμία ενεργή εργασία αυτή τη στιγμή.':'—')],{id:'pw-sec-active'}));
  // Plans and completed investigations must not inflate live progress.
- if(waiting.length)body.append(section('Σε αναμονή','Δεν έχει ξεκινήσει η εκτέλεση.',
+ if(waiting.length)body.append(section('Για αργότερα','Δεν έχουν ξεκινήσει ακόμη.',
   waiting.slice(0,6).map(i=>itemCard(i)),{id:'pw-sec-waiting',count:waiting.length}));
- if(reviewed.length)body.append(section('Διερευνήθηκαν / Προετοιμάστηκαν',
-  'Η διερεύνηση τελείωσε ή υπάρχει προσχέδιο — δεν σημαίνει ότι εφαρμόστηκε λύση.',
+ if(reviewed.length)body.append(section('Έτοιμα για ματιά',
+  'Ελέγχθηκαν ή ετοιμάστηκαν· τίποτα δεν έχει εφαρμοστεί.',
   reviewed.slice(0,6).map(i=>itemCard(i)),{id:'pw-sec-reviewed',count:reviewed.length}));
  // 4) Recently completed — only with honest labels/evidence.
- const doneSection=section('Ολοκληρώθηκαν πρόσφατα','Εμφανίζεται σύνδεσμος μόνο όταν υπάρχει επαληθευμένο αποτέλεσμα.',
+ const doneSection=section('Ολοκληρώθηκαν πρόσφατα','Σύνδεσμος εμφανίζεται μόνο όταν υπάρχει επαληθευμένο αποτέλεσμα.',
   done.length?done.slice(0,5).map(i=>itemCard(i)):[empty('Δεν υπάρχουν ολοκληρωμένες εργασίες ακόμη.')],{id:'pw-sec-done'});
  body.append(doneSection);
  // 5) Projects.
@@ -403,9 +428,9 @@ function renderProject(p){
  body.append(section('Σε εξέλιξη',null,active.length?active.map(i=>itemCard(i,{showProject:false})):
   [empty('Καμία ενεργή εργασία σε αυτό το project.')]));
  const waiting=list.filter(i=>i.bucket==='waiting'&&!i.note);
- if(waiting.length)body.append(section('Σε αναμονή',null,waiting.map(i=>itemCard(i,{showProject:false}))));
+ if(waiting.length)body.append(section('Για αργότερα',null,waiting.map(i=>itemCard(i,{showProject:false}))));
  const reviewed=list.filter(i=>i.bucket==='reviewed'&&!i.note);
- if(reviewed.length)body.append(section('Διερευνήθηκαν / Προετοιμάστηκαν',null,
+ if(reviewed.length)body.append(section('Έτοιμα για ματιά',null,
   reviewed.map(i=>itemCard(i,{showProject:false}))));
  const done=list.filter(i=>i.bucket==='done'&&!i.note);
  if(done.length)body.append(section('Ολοκληρώθηκαν',null,done.map(i=>itemCard(i,{showProject:false}))));
@@ -447,14 +472,18 @@ function notesSection(p){
 }
 
 // ---------- Settings ------------------------------------------------------
+// Honest service status: only a successful authenticated answer can say
+// "connected"; failures are named (unavailable / not set up / signed out)
+// and a slow server can never leave the row stuck on "checking".
 async function refreshConnections(){
- if(!signedIn())return;
- const ui=cloud();
- const [gh,suno]=await Promise.allSettled([ui.githubLinkStatus?.(),ui.sunoLinkStatus?.()]);
- state.settings.github=gh.status==='fulfilled'&&gh.value?(gh.value.connected===true||gh.value.chatConnected===true?
-  'connected':'disconnected'):'unknown';
- state.settings.suno=suno.status==='fulfilled'&&suno.value?(suno.value.oauthAuthorized===true?
-  'connected':'disconnected'):'unknown';
+ const status=window.PaperworldConnectionStatus,ui=cloud();
+ if(!status||!ui)return;
+ state.settings={github:{state:'checking'},suno:{state:'checking'}};
+ if(state.view==='settings'&&!shell.hidden)render();
+ const opts={signedIn:signedIn()};
+ const [gh,sn]=await Promise.all([status.read('github',ui.githubLinkStatus,opts),
+  status.read('suno',ui.sunoLinkStatus,opts)]);
+ state.settings={github:gh,suno:sn};
  if(state.view==='settings'&&!shell.hidden)render();
 }
 function settingRow(label,hint,trailing,{state:s}={}){
@@ -464,7 +493,6 @@ function settingRow(label,hint,trailing,{state:s}={}){
  if(s){const dot=el('span','pw-dot');dot.dataset.state=s;row.append(dot)}
  row.append(text);if(trailing)row.append(trailing);return row;
 }
-const STATE_TEXT={connected:'Συνδεδεμένο',disconnected:'Δεν έχει συνδεθεί',unknown:'Έλεγχος…'};
 function prefs(){try{return window.localStorage.getItem('paperworld-pref-reduce-motion')==='1'}catch(_){return false}}
 function applyPrefs(){document.documentElement.classList.toggle('pw-reduce-motion',prefs())}
 applyPrefs();
@@ -483,16 +511,27 @@ function renderSettings(){
  if(signedIn()){
   // Connected services — the single place for connection controls.
   const gh=state.settings.github,sn=state.settings.suno;
-  const ghAction=gh==='disconnected'?button('Σύνδεση','pw-btn-secondary',async()=>{
+  const retry=()=>button('Δοκίμασε ξανά','pw-btn-ghost',()=>void refreshConnections());
+  const ghAction=gh.state==='disconnected'?button('Σύνδεση','pw-btn-secondary',async()=>{
    try{const url=await ui.beginGithubLink();window.location.assign(url)}catch(_){say('Η σύνδεση GitHub δεν ξεκίνησε.')}
-  }):null;
-  const snAction=sn==='disconnected'?button('Σύνδεση','pw-btn-secondary',async()=>{
+  }):gh.state==='unavailable'?retry():null;
+  const snAction=sn.state==='disconnected'?button('Σύνδεση','pw-btn-secondary',async()=>{
    if(!window.confirm('Θα μεταφερθείς στη σελίδα εξουσιοδότησης του Suno. Δεν θα δημιουργηθεί τραγούδι και δεν θα καταναλωθούν credits. Συνέχεια;'))return;
    try{const url=await ui.beginSunoLink();window.location.assign(url)}catch(_){say('Η σύνδεση Suno δεν ξεκίνησε.')}
-  }):button('Music Studio','pw-btn-ghost',()=>talk('studio-director'));
+  }):sn.state==='unavailable'?retry():sn.state==='connected'?
+   button('Music Studio','pw-btn-ghost',()=>talk('studio-director')):null;
+  const ghHint=gh.state==='connected'?(gh.chat?'Οι AI συνομιλίες είναι έτοιμες.':
+    'Η σύνδεση είναι προσωρινή και χάνεται αν γίνει επανεκκίνηση του server.'):
+   gh.state==='not_configured'?'Η σύνδεση GitHub δεν έχει ρυθμιστεί στον server.':
+   gh.state==='unavailable'?'Ο server δεν απάντησε. Η κατάσταση δεν είναι γνωστή.':
+   'Για AI συνομιλίες και προετοιμασία αλλαγών κώδικα.';
+  const snHint=sn.state==='connected'?'Προσωρινή εξουσιοδότηση. Κάθε τραγούδι ελέγχεται ξανά πριν δημιουργηθεί.':
+   sn.state==='unavailable'?'Ο server δεν απάντησε. Η κατάσταση δεν είναι γνωστή.':
+   'Για δημιουργία τραγουδιών από το Music Studio του Crow.';
+  const status=window.PaperworldConnectionStatus;
   body.append(section('Συνδεδεμένες υπηρεσίες','Χρησιμοποιούνται μόνο όταν το εγκρίνεις.',[
-   settingRow('GitHub · '+STATE_TEXT[gh],'AI συνομιλίες και προετοιμασία αλλαγών κώδικα',ghAction,{state:gh}),
-   settingRow('Suno · '+STATE_TEXT[sn],'Δημιουργία τραγουδιών από το Music Studio του Crow',snAction,{state:sn})]));
+   settingRow('GitHub · '+status.label(gh.state),ghHint,ghAction,{state:gh.state}),
+   settingRow('Suno · '+status.label(sn.state),snHint,snAction,{state:sn.state})]));
   // Memory
   const memory=[];
   for(const id of ['matt','listening-director','pokemon-director','studio-director','wellbeing-director']){
@@ -516,9 +555,9 @@ function renderSettings(){
  // Advanced (clearly separated from everyday settings)
  const adv=el('details','pw-advanced');
  adv.append(el('summary','','Για προχωρημένους'));
- adv.append(settingRow('Κλασικός πίνακας εργασιών','Όλα τα παλαιότερα εργαλεία: εισαγωγή εργασιών, τεχνικός έλεγχος',
+ adv.append(settingRow('Κλασικός πίνακας εργασιών','Τα παλαιότερα εργαλεία, για συντήρηση',
   button('Άνοιγμα','pw-btn-ghost',()=>{close({restoreFocus:false});void ui?.openClassicDesk?.('town')})));
- adv.append(settingRow('Τεχνικός έλεγχος Listening Mirror','Προτάσεις κώδικα και λεπτομέρειες',
+ adv.append(settingRow('Τεχνικός έλεγχος Listening Mirror','Λεπτομέρειες προτεινόμενων αλλαγών κώδικα',
   button('Άνοιγμα','pw-btn-ghost',()=>{close({restoreFocus:false});void ui?.openClassicDesk?.('workshop')})));
  const maint=el('a','pw-link','Άνοιγμα');maint.href='?maintenance=1';
  adv.append(settingRow('Λειτουργία συντήρησης','Εργαλεία χάρτη, διαδρομών και διαγνωστικά',maint));
@@ -534,8 +573,8 @@ function paintChrome(){
  body.setAttribute('aria-labelledby','pw-ws-tab-'+state.view);
  const project=state.view==='work'&&state.project?byId(state.project):null;
  title.textContent=project?project.name:VIEW_TITLE[state.view];
- subtitle.textContent=project?'Project':state.view==='team'?'Directors και Workers':
-  state.view==='work'?(state.loading?'Ενημέρωση…':signedIn()?'Πραγματικές εργασίες και αποφάσεις':''):
+ subtitle.textContent=project?'Project':state.view==='team'?'Ποιος βοηθά σε τι':
+  state.view==='work'?(state.loading?'Ενημέρωση…':signedIn()?'Τι γίνεται και τι χρειάζεται εσένα':''):
   'Λογαριασμός, συνδέσεις και μνήμη';
  back.hidden=!project;shell.dataset.view=state.view;
  refresh.hidden=state.view==='settings'||!signedIn();

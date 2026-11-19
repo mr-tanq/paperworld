@@ -83,9 +83,13 @@
  connectGithub.setAttribute('aria-label','Κατάσταση σύνδεσης GitHub');
  function setGithubConnection(state){
   connectGithub.dataset.state=state;
+  // Shared honest vocabulary (js/connection-status.js); 'unknown' = no
+  // trustworthy answer, never shown as connected.
   connectGithub.textContent=state==='connected'?'GitHub · Συνδεδεμένο':
    state==='disconnected'?'GitHub · Σύνδεση':
-   state==='unknown'?'GitHub · Άγνωστο':'GitHub · Έλεγχος…';
+   state==='not_configured'?'GitHub · Δεν έχει ρυθμιστεί':
+   state==='signed_out'?'GitHub · Χρειάζεται σύνδεση στο Cloud':
+   state==='unknown'?'GitHub · Μη διαθέσιμο τώρα':'GitHub · Έλεγχος…';
   connectGithub.disabled=state==='connected';
   connectGithub.title=state==='connected'?'GitHub συνδεδεμένο':
    state==='disconnected'?'Σύνδεση στο GitHub':'Πάτησε για επανέλεγχο GitHub';
@@ -103,8 +107,9 @@
    return state;
   }catch(error){
    if(selectedRevision===revision&&openId==='matt'){
-    setGithubConnection('unknown');
     const reason=String(error?.message||'');
+    if(/not_configured/.test(reason))setGithubConnection('not_configured');
+    else setGithubConnection('unknown');
     status.textContent=/session expired|sign in/i.test(reason)?
      'Η σύνδεση στο PAPERWORLD Cloud έληξε. Συνδέσου ξανά στο Cloud.':
      /HTTP 401/.test(reason)?
@@ -596,28 +601,31 @@
  sunoConnect.setAttribute('aria-label','Κατάσταση σύνδεσης Suno');
  function setSunoConnection(state){
   sunoConnect.dataset.state=state;
-  sunoConnect.disabled=state==='connected'||state==='checking';
+  sunoConnect.disabled=state==='connected'||state==='checking'||
+   state==='signed_out'||state==='not_configured';
   sunoConnect.textContent=state==='connected'?'Suno · Συνδεδεμένο':
    state==='disconnected'?'Suno · Σύνδεση':
-   state==='unknown'?'Suno · Άγνωστο':'Suno · Έλεγχος…';
+   state==='not_configured'?'Suno · Δεν έχει ρυθμιστεί':
+   state==='signed_out'?'Suno · Χρειάζεται σύνδεση στο Cloud':
+   state==='unknown'?'Suno · Μη διαθέσιμο τώρα':'Suno · Έλεγχος…';
   sunoConnect.title=state==='connected'?'Suno συνδεδεμένο':
    state==='disconnected'?'Σύνδεση στον λογαριασμό Suno':
    'Πάτησε για επανέλεγχο σύνδεσης Suno';
  }
  async function refreshSunoConnection(){
-  if(openId!=='studio-director'||!cloud()?.signedIn()||
-     typeof cloud()?.sunoLinkStatus!=='function'){
-   setSunoConnection('checking');return;
-  }
+  if(openId!=='studio-director')return;
+  // Never leave the chip on "checking" when no request is made.
+  if(!cloud()?.signedIn()){setSunoConnection('signed_out');return}
+  if(typeof cloud()?.sunoLinkStatus!=='function'){setSunoConnection('unknown');return}
   const selectedRevision=revision;
   setSunoConnection('checking');
   try{
    const r=await cloud().sunoLinkStatus();
    if(selectedRevision!==revision||openId!=='studio-director')return;
    setSunoConnection(r.oauthAuthorized===true?'connected':'disconnected');
-  }catch(_){
+  }catch(error){
    if(selectedRevision===revision&&openId==='studio-director')
-    setSunoConnection('unknown');
+    setSunoConnection(/not_configured/.test(String(error?.message||''))?'not_configured':'unknown');
   }
  }
  sunoConnect.addEventListener('click',async()=>{
@@ -1522,7 +1530,7 @@
    messages.append(bubble('agent',reply.content,reply.time));
   if(!entries.length&&!(openId==='matt'?mattReplies.length:(directorReplies.get(openId)||[]).length))messages.append(system(openId==='matt'?
    'Πες μου τι έχεις στο μυαλό σου. Θα βρούμε μαζί πώς να προχωρήσουμε.':
-   'Μίλα απευθείας στον Director. Κάθε AI απάντηση χρειάζεται δική σου έγκριση.'));
+   'Γράψε '+(openId==='listening-director'?'στη ':'στον ')+heading.textContent+' ό,τι χρειάζεσαι για το project.'));
   if(pendingFailure&&pendingFailure.agentId===openId)messages.append(failureCard(pendingFailure));
   showTyping();
   scrollBottom();
