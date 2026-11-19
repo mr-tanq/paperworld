@@ -160,16 +160,20 @@ function createRenderMattServer({oauth=createGithubOAuth({
     const result=await action({headers:req.headers});
     if(action===oauth.status&&result.status===200&&
        result.body&&typeof oauth.getLinkedToken==='function'){
-     const guard=createSupabaseGuard({
-      baseUrl:'https://jrevhzvrgenucuozjowm.supabase.co',
-      publicKey:'sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL'});
-     const ready=await getChatCredential().chatStatus({
-      headers:req.headers,authenticate:async h=>{
-       const auth=String(h.authorization||'');
-       const profile=await guard.authenticate(auth.slice(7));
-       return profile.ownerId;
-      }});
-     if(ready)result.body={...result.body,chatConnected:true};
+     // Chat readiness is an optional secondary signal. Its failure must not
+     // hide a verified GitHub OAuth status behind a generic HTTP 503.
+     try{
+      const guard=createSupabaseGuard({
+       baseUrl:'https://jrevhzvrgenucuozjowm.supabase.co',
+       publicKey:'sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL'});
+      const ready=await getChatCredential().chatStatus({
+       headers:req.headers,authenticate:async h=>{
+        const auth=String(h.authorization||'');
+        const profile=await guard.authenticate(auth.slice(7));
+        return profile.ownerId;
+       }});
+      if(ready)result.body={...result.body,chatConnected:true};
+     }catch(_){/* OAuth status is already independently authenticated. */}
     }
     res.writeHead(result.status,result.headers);res.end(JSON.stringify(result.body));return;
    }catch(_){response(res,503,{error:'oauth_unavailable'});return}
