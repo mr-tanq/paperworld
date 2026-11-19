@@ -612,7 +612,24 @@
       result.toolCount>100)throw Error('Unverified Suno MCP status');
    return result;
   }
-  async function createSunoSong(brief,idempotencyKey){
+  async function listSunoVoices(){
+   await ensureAuth();
+   const thread=await getAgentThread('studio-director',true);
+   const response=await fetcher(MATT_ORIGIN+'/auth/suno/voices',{
+    method:'POST',redirect:'error',
+    headers:{Authorization:'Bearer '+session.access_token,
+     'Content-Type':'application/json'},
+    body:JSON.stringify({agentId:'studio-director',threadId:thread.id})
+   });
+   let result={};try{result=await response.json()}catch(_){}
+   if(!response.ok||result.service!=='suno_mcp'||result.canGenerate!==false||
+      !Array.isArray(result.voices)||result.voices.length>100||
+      result.voices.some(v=>typeof v?.name!=='string'||v.name.length>120||
+       typeof v.id!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(v.id)))
+    throw Error('Suno saved voices could not be verified');
+   return result.voices;
+  }
+  async function createSunoSong(brief,idempotencyKey,voiceId=null){
    await ensureAuth();
    const thread=await getAgentThread('studio-director',true);
    const response=await fetcher(MATT_ORIGIN+'/auth/suno/create-song',{
@@ -620,7 +637,7 @@
     headers:{Authorization:'Bearer '+session.access_token,
      'Content-Type':'application/json'},
     body:JSON.stringify({agentId:'studio-director',threadId:thread.id,
-     brief,idempotencyKey})
+     brief,idempotencyKey,voiceId})
    });
    let result={};try{result=await response.json()}catch(_){}
    // Known pre-provider validation/auth denials are safe to describe without
@@ -634,7 +651,9 @@
     'suno_claim_unavailable','suno_claim_storage_missing',
     'audio_create_already_submitted','audio_create_transport_unsupported',
     'audio_create_schema_unverified','audio_create_schema_mismatch',
-    'audio_create_field_too_long','audio_create_required_field_unsupported']);
+    'audio_create_field_too_long','audio_create_required_field_unsupported',
+    'audio_create_voice_invalid','audio_create_voice_unsupported',
+    'audio_create_voice_unavailable']);
    if(!response.ok&&safePreflight.has(result.error))
     return {service:'suno_mcp',accepted:false,status:'blocked_before_submission',
      reason:result.error,
@@ -858,7 +877,7 @@
    listPokemonProposals,rejectPokemonProposal,publishPokemonProposal,
    crowSunoPreview,cancelCrowSunoPreview,crowSunoConnectionStatus,
    beginSunoLink,sunoLinkStatus,inspectSunoTools,diagnoseSunoConnection,
-   createSunoSong};
+   createSunoSong,listSunoVoices};
  }
  return {BASE,KEY,TOKEN_STORAGE,createClient};
 });
