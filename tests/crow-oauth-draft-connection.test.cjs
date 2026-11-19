@@ -45,9 +45,9 @@ test('Cloud owner marker is UUID only and browser cache versions advance togethe
  assert.match(client,/return \{BASE,identity,ownerId,signedIn/);
  assert.match(wrapper,/ownerId:\(\)=>client\.ownerId\(\)/);
  for(const marker of [
-  'cloud.js?v=oauth-draft-owner-v10',
-  'cloud-ui.js?v=oauth-draft-owner-v10',
-  'world-dialogue.js?v=github-one-tap-v11',
+  'cloud.js?v=github-status-auth-v12',
+  'cloud-ui.js?v=github-status-auth-v12',
+  'world-dialogue.js?v=github-status-errors-v12',
   'style.css?v=oauth-status-chips-v1'
  ])assert.ok(html.includes(marker),marker);
 });
@@ -66,5 +66,5 @@ test('One GitHub tap verifies status then opens OAuth without a second click',()
  assert.match(script,/let githubLinkBusy=false/);
  assert.match(script,/githubLinkBusy\|\|/);
  const html=fs.readFileSync('index.html','utf8');
- assert.match(html,/world-dialogue\.js\?v=github-one-tap-v11/);
+ assert.match(html,/world-dialogue\.js\?v=github-status-errors-v12/);
 });
