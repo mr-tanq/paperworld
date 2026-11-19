@@ -78,10 +78,12 @@ function teamSummary(snapshot,question=''){
   if(!active&&!attention){
    const recent=Array.isArray(d.recent)?d.recent:[];
    const finished=recent.find(m=>m.status==='completed');
+   // A database "completed" state is not evidence of an applied external action.
+   // Never upgrade a report, CI check or AI assertion into an execution claim.
    if(finished?.result?.hasReport===true)
-    lines.push(name+' έχει ετοιμάσει ένα αποτέλεσμα για έλεγχο. Δεν έχει εφαρμοστεί κάποια αλλαγή.');
+    lines.push(name+' έχει καταχωρίσει αναφορά για έλεγχο. Δεν υπάρχει επιβεβαίωση ότι εφαρμόστηκε κάποια αλλαγή.');
    else if(finished)
-    lines.push(name+' έχει ολοκληρώσει μια εργασία, αλλά δεν έχω εδώ πλήρη στοιχεία για το αποτέλεσμα.');
+    lines.push(name+' έχει καταχωρισμένη εργασία με κατάσταση ολοκλήρωσης, αλλά δεν έχω επαληθευμένο αποτέλεσμα.');
    else lines.push(name+' δεν έχει κάποια ενεργή εργασία καταγεγραμμένη.');
   }
  }
