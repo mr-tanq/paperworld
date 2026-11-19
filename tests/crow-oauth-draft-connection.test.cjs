@@ -47,7 +47,7 @@ test('Cloud owner marker is UUID only and browser cache versions advance togethe
  for(const marker of [
   'cloud.js?v=oauth-draft-owner-v10',
   'cloud-ui.js?v=oauth-draft-owner-v10',
-  'world-dialogue.js?v=oauth-draft-chips-v10',
+  'world-dialogue.js?v=live-team-notices-v1',
   'style.css?v=oauth-status-chips-v1'
  ])assert.ok(html.includes(marker),marker);
 });
