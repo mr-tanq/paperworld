@@ -1668,7 +1668,7 @@
   // Avoid popping the phone keyboard over the conversation on open.
   if(!field.disabled&&!window.matchMedia?.('(pointer: coarse)')?.matches)field.focus();
  }
- function hide(){stopLiveMatt();clearRoutineReview();openId=null;resetMusic();setMenu(false);memorySheet.hidden=true;
+ function hide(){stopLiveMatt();openId=null;clearRoutineReview();resetMusic();setMenu(false);memorySheet.hidden=true;
   panel.classList.remove('pw-memory-open');veil.classList.remove('world-chat-journey');paint();
   (opener&&opener.isConnected&&opener!==document.body?opener:mattBtn).focus?.();opener=null}
  function nearby(){
