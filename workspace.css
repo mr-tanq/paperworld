@@ -232,3 +232,21 @@ html.pw-workspace-open .controls .settings-launch{position:relative}
 @media (prefers-reduced-motion:reduce){.pw-workspace .pw-agent-activity::before{animation:none!important}}
 /* While a panel owns the right side, hide the floating "T · Talk" shortcut. */
 html.pw-workspace-open .world-talk-actions,html.pw-chat-open .world-talk-actions{visibility:hidden}
+
+/* V2.1 — denser work feed; long job text is disclosure, not a giant card. */
+.pw-workspace .pw-item{gap:5px;padding:11px 13px;animation:none}
+.pw-workspace .pw-item-top{gap:5px}
+.pw-workspace .pw-item-project{font-size:11.5px}
+.pw-workspace .pw-item-title,.pw-workspace .pw-item-preview{font-size:13.5px;line-height:1.42;font-weight:600;color:var(--pw-text);overflow-wrap:anywhere}
+.pw-workspace .pw-item-details{margin:0;padding:0;border:0;min-width:0}
+.pw-workspace .pw-item-preview{display:list-item;list-style:none;cursor:pointer}
+.pw-workspace .pw-item-preview::-webkit-details-marker{display:none}
+.pw-workspace .pw-item-preview::after{content:'  Περισσότερα';font-size:11px;font-weight:500;color:var(--pw-accent);white-space:nowrap}
+.pw-workspace .pw-item-details[open] .pw-item-preview::after{content:'  Λιγότερα'}
+.pw-workspace .pw-item-full{margin:6px 0 2px!important;color:var(--pw-text-2)!important;font-size:12.5px!important;line-height:1.48;white-space:pre-wrap;overflow-wrap:anywhere}
+.pw-workspace .pw-item-state{font-size:12px;line-height:1.4}
+.pw-workspace .pw-item-actions{gap:8px;margin-top:2px}
+.pw-workspace .pw-item-actions .pw-chip{min-height:32px;padding:5px 10px;font-size:12px}
+.pw-workspace .pw-ws-body{gap:18px}
+.pw-workspace .pw-section{gap:8px}
+@media (prefers-reduced-motion:reduce){.pw-workspace .pw-item{animation:none}}

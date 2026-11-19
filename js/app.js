@@ -419,8 +419,30 @@ const agentJourney={mode:'following',route:[],phase:'idle',meeting:false,
  reportSince:0,reportReady:false,priorPlayerDirection:null};
 const mattReturnWaiters=[];
 function resolveMattReturn(){while(mattReturnWaiters.length)mattReturnWaiters.shift()()}
+// Workspace framing affects only the camera, never actor positions or scene scale.
+let workspaceFrame=null;
 window.PaperworldWorld=Object.freeze({
  agents:()=>actors.map(a=>({...a})),
+ frameForWorkspace:({open=false,panelWidth=0}={})=>{
+  if(open){
+   if(!Number.isFinite(panelWidth)||panelWidth<0)return false;
+   if(!workspaceFrame)workspaceFrame={x:state.x,y:state.y,scale:state.scale,
+    width:state.width,height:state.height};
+   const visible=Math.max(280,state.width-Math.min(panelWidth,state.width-280));
+   // Keep the user's zoom; pan the landscape into the unobscured left region.
+   // Using the original image's center also keeps a predictable framing.
+   state.x=visible/2-(W/2)*state.scale;
+   state.y=state.height/2-(H/2)*state.scale;
+   return true;
+  }
+  if(workspaceFrame){
+   const saved=workspaceFrame;workspaceFrame=null;
+   if(saved.width===state.width&&saved.height===state.height){
+    state.x=saved.x;state.y=saved.y;state.scale=saved.scale;
+   }else resetCamera();
+  }
+  return true;
+ },
  // T addresses a nearby Director; M talks to the always-available Matt.
  setAgentWorkflowStage,
  setAgentWorkflowFailure,
@@ -582,7 +604,15 @@ function setAgentWorkflowStage(stateName){
  return true;
 }
 
-function resize(){const r=canvas.getBoundingClientRect();state.width=r.width;state.height=r.height;state.dpr=Math.min(2,devicePixelRatio||1);canvas.width=Math.max(1,Math.round(r.width*state.dpr));canvas.height=Math.max(1,Math.round(r.height*state.dpr));ctx.setTransform(state.dpr,0,0,state.dpr,0,0);state.fit=Math.min((r.width-14)/W,(r.height-14)/H);resetCamera()}
+function resize(){const r=canvas.getBoundingClientRect();state.width=r.width;state.height=r.height;state.dpr=Math.min(2,devicePixelRatio||1);canvas.width=Math.max(1,Math.round(r.width*state.dpr));canvas.height=Math.max(1,Math.round(r.height*state.dpr));ctx.setTransform(state.dpr,0,0,state.dpr,0,0);state.fit=Math.min((r.width-14)/W,(r.height-14)/H);resetCamera();
+ if(workspaceFrame){
+  const panel=document.querySelector('.pw-workspace:not([hidden])');
+  const width=panel?.getBoundingClientRect?.().width||0;
+  const visible=Math.max(280,state.width-Math.min(width+12,state.width-280));
+  state.x=visible/2-(W/2)*state.scale;
+  state.y=state.height/2-(H/2)*state.scale;
+ }
+}
 function resetCamera(){state.scale=state.fit;state.x=(state.width-W*state.scale)/2;state.y=(state.height-H*state.scale)/2}
 function localPoint(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
 function worldPoint(p){return{x:(p.x-state.x)/state.scale,y:(p.y-state.y)/state.scale}}
