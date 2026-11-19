@@ -46,7 +46,7 @@ test('Cloud owner marker is UUID only and browser cache versions advance togethe
  assert.match(wrapper,/ownerId:\(\)=>client\.ownerId\(\)/);
  for(const marker of [
   'cloud.js?v=github-status-auth-v12',
-  'cloud-ui.js?v=github-status-auth-v12',
+  'cloud-ui.js?v=oauth-draft-owner-v10',
   'world-dialogue.js?v=github-status-errors-v12',
   'style.css?v=oauth-status-chips-v1'
  ])assert.ok(html.includes(marker),marker);
