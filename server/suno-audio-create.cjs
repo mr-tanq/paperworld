@@ -54,7 +54,7 @@ function matchesType(types,value){
 }
 // Builds tool arguments and headers from the live contract. Never throws and
 // never echoes values; failures name at most one schema field.
-function buildAudioCreateCall({brief,idempotencyKey,contract}={}){
+function buildAudioCreateCall({brief,idempotencyKey,contract,voiceId=null}={}){
  if(!validRequest(brief,idempotencyKey))
   return {ok:false,reason:'invalid_audio_create_request'};
  if(!contract||contract.valid!==true||!contract.properties||
@@ -64,6 +64,13 @@ function buildAudioCreateCall({brief,idempotencyKey,contract}={}){
  const candidates=[['title',brief.title,true],['style',brief.style,true],
   ['lyrics',brief.lyrics,true],['instrumental',false,false],
   ['idempotency_key',idempotencyKey,false]];
+ if(voiceId!==null){
+  if(typeof voiceId!=='string'||!require('./suno-voices-list.cjs').VOICE_ID.test(voiceId))
+   return {ok:false,reason:'audio_create_voice_invalid'};
+  if(!Object.hasOwn(props,'voice_id'))
+   return {ok:false,reason:'audio_create_voice_unsupported'};
+  candidates.push(['voice_id',voiceId,true]);
+ }
  const args={};
  for(const [name,value,essential] of candidates){
   const def=Object.hasOwn(props,name)?props[name]:null;
@@ -167,10 +174,10 @@ async function readRpc(response){
 }
 function makeSunoAudioCreate({fetcher=globalThis.fetch,timeoutMs=TIMEOUT_MS}={}){
  if(typeof fetcher!=='function')throw Error('fetcher_required');
- async function submit({accessToken,brief,idempotencyKey,contract}={}){
+ async function submit({accessToken,brief,idempotencyKey,contract,voiceId=null}={}){
   if(typeof accessToken!=='string'||accessToken.length<12||accessToken.length>8192)
    return {accepted:false,reason:'suno_oauth_required'};
-  const call=buildAudioCreateCall({brief,idempotencyKey,contract});
+  const call=buildAudioCreateCall({brief,idempotencyKey,contract,voiceId});
   if(!call.ok){
    const out={accepted:false,reason:call.reason,status:'blocked_before_submission'};
    if(call.field)out.field=call.field;
