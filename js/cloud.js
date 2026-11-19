@@ -304,11 +304,18 @@
   // GitHub OAuth linking uses the current Supabase user, never a browser GitHub token.
   const MATT_ORIGIN='https://paperworld-matt-test-6hmd.onrender.com';
   async function mattOAuth(path){
-   if(!session?.access_token)throw Error('Sign in to PAPERWORLD Cloud first');
-   const response=await fetcher(MATT_ORIGIN+path,{
+   await ensureAuth();
+   // The GitHub provider status is read-only; renew an expired Supabase JWT
+   // rather than silently treating an expired Cloud token as unknown GitHub.
+   const send=()=>fetcher(MATT_ORIGIN+path,{
     method:'POST',headers:{Authorization:'Bearer '+session.access_token,
      'Content-Type':'application/json'},body:'{}',redirect:'error'
    });
+   let response=await send();
+   if(response.status===401){
+    await refresh();
+    response=await send();
+   }
    let result={};
    try{result=await response.json()}catch(_){}
    if(!response.ok)throw Error((result.error||'GitHub connection unavailable')+

@@ -87,3 +87,19 @@ test('Render listener returns no AI success and provides protected OAuth routes'
   assert.equal(options.headers['access-control-allow-origin'],APP_ORIGIN);
  }finally{await app.close()}
 });
+
+test('OAuth status secondary chat readiness cannot block independently authorized status',()=>{
+ const fs=require('node:fs');
+ const source=fs.readFileSync('server/render-matt.cjs','utf8');
+ assert.match(source,/if\(action===oauth\.status&&result\.status===200/);
+ assert.match(source,/try\{\s*const guard=createSupabaseGuard/);
+ assert.match(source,/catch\(_\)\{\/\* OAuth status is already independently authenticated/);
+});
+test('GitHub status refreshes session instead of sending stale Cloud access token',()=>{
+ const fs=require('node:fs');
+ const source=fs.readFileSync('js/cloud.js','utf8');
+ const part=source.split('async function mattOAuth(path){')[1].split('async function beginGithubLink(){')[0];
+ assert.match(part,/await ensureAuth\(\)/);
+ assert.match(part,/if\(response\.status===401\)\{\s*await refresh\(\)/);
+ assert.match(part,/response=await send\(\)/);
+});

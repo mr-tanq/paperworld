@@ -65,9 +65,18 @@
     'connected':'disconnected';
    setGithubConnection(state);
    return state;
-  }catch(_){
-   if(selectedRevision===revision&&openId==='matt')
+  }catch(error){
+   if(selectedRevision===revision&&openId==='matt'){
     setGithubConnection('unknown');
+    const reason=String(error?.message||'');
+    status.textContent=/session expired|sign in/i.test(reason)?
+     'Η σύνδεση στο PAPERWORLD Cloud έληξε. Συνδέσου ξανά στο Cloud.':
+     /HTTP 401/.test(reason)?
+     'Ο έλεγχος GitHub χρειάζεται νέα σύνδεση στο PAPERWORLD Cloud.':
+     /HTTP 503|unavailable|Network/i.test(reason)?
+     'Ο server σύνδεσης GitHub δεν απαντά. Δοκίμασε ξανά αργότερα.':
+     'Δεν μπόρεσα να επαληθεύσω τη σύνδεση GitHub.';
+   }
    return 'unknown';
   }
  }
@@ -86,8 +95,7 @@
     return;
    }
    if(state!=='disconnected'){
-    status.textContent='Δεν μπόρεσα να ελέγξω τη σύνδεση GitHub. '+
-     'Πάτησε ξανά για νέο έλεγχο.';
+    // The read-only check already supplied the specific reason.
     return;
    }
    if(typeof cloud()?.beginGithubLink!=='function'){
