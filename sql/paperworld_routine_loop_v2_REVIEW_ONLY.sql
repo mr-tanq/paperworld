@@ -90,12 +90,20 @@ grant execute on function public.paperworld_v1_review_due_routines()
 -- and this routine produces none.
 create or replace function public.paperworld_v5_unified_tick()
 returns jsonb language plpgsql security invoker set search_path=public as $$
-declare ctrl jsonb;declare routine jsonb;declare wake jsonb;
+declare ctrl jsonb;declare routine jsonb;declare wake jsonb;declare notices jsonb;
 begin
  ctrl:=public.paperworld_v5_controller_tick();
  routine:=public.paperworld_v1_review_due_routines();
  wake:=public.paperworld_v5_unified_wakeup();
- return jsonb_build_object('controller',ctrl,'routines',routine,'dispatch',wake);
+ -- Preserve the existing production Matt notification stage. Isolate failures
+ -- exactly as the current V5 function does so routine staging cannot suppress it.
+ begin
+  notices:=public.paperworld_v5_notify_matt();
+ exception when others then
+  notices:='{"state":"error"}'::jsonb;
+ end;
+ return jsonb_build_object('controller',ctrl,'routines',routine,
+  'dispatch',wake,'notifications',notices);
 end $$;
 revoke all on function public.paperworld_v5_unified_tick()
  from public,anon,authenticated;

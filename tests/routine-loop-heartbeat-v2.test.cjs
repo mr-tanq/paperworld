@@ -34,6 +34,9 @@ test('existing heartbeat is extended without any new scheduling or paid executio
  assert.match(SQL,/public.paperworld_v5_controller_tick\(\)/);
  assert.match(SQL,/public.paperworld_v1_review_due_routines\(\)/);
  assert.match(SQL,/public.paperworld_v5_unified_wakeup\(\)/);
+ assert.match(SQL,/public\.paperworld_v5_notify_matt\(\)/);
+ assert.match(SQL,/'notifications',notices/);
+ assert.match(SQL,/exception when others then[\s\S]{0,120}notices:=/);
  assert.doesNotMatch(SQL,/cron\.schedule\s*\(/i);
  assert.doesNotMatch(SQL,/net\.http_post\s*\(/i);
  assert.doesNotMatch(SQL,/status\s*=\s*'queued'/i);
