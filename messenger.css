@@ -408,3 +408,56 @@ html.pw-reduce-motion :is(.pw-messenger,.pw-workspace),html.pw-reduce-motion :is
  border:1px solid var(--pw-line-2);background:var(--pw-bg);color:var(--pw-text);font:400 15px/1.4 var(--pw-font)}
 .pw-messenger .world-routine-edit button{grid-column:1/-1;justify-self:end}
 .pw-messenger .world-routine-edit p{grid-column:1/-1;margin:0;font-size:13px;color:var(--pw-text-2)}
+
+
+/* Routine list V2 — match Messenger typography, spacing and compact cards. */
+.pw-messenger .world-routine-review.world-routine-list{
+ display:flex;flex-direction:column;gap:10px;
+ background:var(--pw-surface,#1c2224);color:var(--pw-text,#f3f0e9);
+ border:1px solid var(--pw-line-2,#4c5853);
+ border-radius:var(--pw-r-card,16px);padding:12px;
+ box-shadow:0 10px 24px #0003;
+ max-height:min(52dvh,440px);overflow-y:auto;overscroll-behavior:contain;
+ min-height:0;min-width:0;
+}
+.pw-messenger .world-routine-list-heading{display:flex;align-items:center;
+ justify-content:space-between;gap:8px;min-width:0}
+.pw-messenger .world-routine-list-heading strong{font-size:14px;line-height:1.4}
+.pw-messenger .world-routine-count{font-size:11px;color:var(--pw-text-2,#aeb7b2);white-space:nowrap}
+.pw-messenger .world-routine-entry{display:flex;flex-direction:column;gap:6px;
+ padding:12px;border:1px solid var(--pw-line-2,#4c5853);
+ border-radius:12px;background:var(--pw-bg,#171b1e);min-width:0}
+.pw-messenger .world-routine-entry-head{display:flex;align-items:center;
+ justify-content:space-between;gap:10px;min-width:0}
+.pw-messenger .world-routine-name{font-size:13px;line-height:1.4;min-width:0;overflow-wrap:anywhere}
+.pw-messenger .world-routine-state{font-size:10px;font-weight:650;
+ line-height:1.2;padding:5px 8px;border-radius:999px;white-space:nowrap;
+ color:var(--pw-text-2,#bec8c2);background:#50545130}
+.pw-messenger .world-routine-state.is-active{color:#b3dfc3;background:#2d614533}
+.pw-messenger .world-routine-state.is-paused{color:#ddd1b3;background:#725d3638}
+.pw-messenger .world-routine-entry p{font-size:12px;line-height:1.45;
+ overflow-wrap:anywhere;white-space:normal}
+.pw-messenger .world-routine-entry .world-routine-schedule{color:var(--pw-text,#f3f0e9)}
+.pw-messenger .world-routine-entry .world-routine-next{color:var(--pw-text-2,#aeb7b2)}
+.pw-messenger .world-routine-entry .world-routine-goal{color:var(--pw-text-2,#aeb7b2);
+ display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+ line-clamp:2;overflow:hidden}
+.pw-messenger .world-routine-entry-actions{display:flex;flex-direction:row;
+ align-items:center;flex-wrap:wrap;gap:8px;margin-top:5px}
+.pw-messenger .world-routine-entry-actions button,
+.pw-messenger .world-routine-list-footer button{font-size:12px;line-height:1.2;
+ min-height:36px;padding:8px 12px;border-radius:10px;align-self:auto;
+ background:transparent;border:1px solid var(--pw-line-2,#6a7770);
+ color:var(--pw-text,#f3f0e9);cursor:pointer}
+.pw-messenger .world-routine-entry-actions button[hidden],
+.pw-messenger .world-routine-entry p[hidden]{display:none!important}
+.pw-messenger .world-routine-list-footer{display:flex;justify-content:flex-end}
+.pw-messenger .world-routine-list-footer button{min-height:32px;border-color:transparent;
+ color:var(--pw-text-2,#bdc6c0)}
+.pw-messenger .world-routine-edit{width:100%;min-width:0}
+@media(max-width:480px){
+ .pw-messenger .world-routine-review.world-routine-list{padding:10px;gap:8px;
+  max-height:min(50dvh,410px)}
+ .pw-messenger .world-routine-entry{padding:11px}
+ .pw-messenger .world-routine-entry-actions button{min-height:40px}
+}
