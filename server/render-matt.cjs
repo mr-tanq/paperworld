@@ -17,6 +17,7 @@ const {makePokemonWorkerDelegation}=require('./pokemon-worker-delegation.cjs');
 const {makePokemonProposalStore}=require('./v5-pokemon-proposal-store.cjs');
 const {makePokemonProposalApi}=require('./v5-pokemon-proposal-api.cjs');
 const {makeAutonomousMissionApi}=require('./v5-autonomous-mission-api.cjs');
+const {makeRoutineOwnerApi}=require('./routine-owner-api.cjs');
 const {makeSourceFactWorker}=require('./v5-source-fact-worker.cjs');
 const {makeJobHistoryApi}=require('./agent-job-history-api.cjs');
 const {makeTeamHandoffLedger}=require('./team-handoff-ledger-v5.cjs');
@@ -52,7 +53,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
  let sourceFactWorker;
  let proposalMemory,approvalStore;
  let pokemonProposalStore,pokemonProposalApi;
- let autonomousMissionApi;
+ let autonomousMissionApi,routineOwnerApi;
  let chatCredential;
  const getChatCredential=()=>{
   if(!chatCredential)chatCredential=typeof oauth?.getLinkedToken==='function'?
@@ -69,6 +70,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
   try{approvalStore=createDurableApprovalStore()}catch(_){approvalStore=null}
   return approvalStore;
  }
+ function getRoutineOwnerApi(){if(!routineOwnerApi)routineOwnerApi=makeRoutineOwnerApi();return routineOwnerApi}
  function getAutonomousMissionApi(){
   if(!autonomousMissionApi)autonomousMissionApi=makeAutonomousMissionApi();
   return autonomousMissionApi;
@@ -265,6 +267,35 @@ function createRenderMattServer({oauth=createGithubOAuth({
      'X-Content-Type-Options':'nosniff','Vary':'Origin'});
     res.end(JSON.stringify(result.body));return;
    }catch(_){return response(res,503,{error:'pokemon_proposal_api_unavailable'})}
+  }
+  const routineAction={
+   '/routines/preview':'preview','/routines/create':'create',
+   '/routines/list':'list','/routines/enable':'enable',
+   '/routines/pause':'pause'
+  }[req.url];
+  if(routineAction){
+   if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
+    res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
+     'Access-Control-Allow-Methods':'POST, OPTIONS',
+     'Access-Control-Allow-Headers':'authorization,content-type',
+     'Vary':'Origin','Access-Control-Max-Age':'600'});res.end();return;
+   }
+   if(req.method!=='POST')return response(res,405,{error:'method_not_allowed'});
+   if(req.headers.origin!==APP_ORIGIN)return response(res,403,{error:'origin_denied'});
+   try{
+    const parts=[];let size=0;
+    for await(const chunk of req){
+     size+=chunk.length;
+     if(size>1800)return response(res,413,{error:'request_too_large'});
+     parts.push(chunk);
+    }
+    const result=await getRoutineOwnerApi().handle({headers:req.headers,
+     body:Buffer.concat(parts).toString('utf8'),action:routineAction});
+    res.writeHead(result.status,{'Content-Type':'application/json; charset=utf-8',
+     'Access-Control-Allow-Origin':APP_ORIGIN,'Cache-Control':'no-store',
+     'Vary':'Origin','X-Content-Type-Options':'nosniff'});
+    res.end(JSON.stringify(result.body));return;
+   }catch(_){return response(res,503,{error:'routine_api_unavailable'})}
   }
   const missionAction={'/autonomous/missions/create':'create',
    '/autonomous/missions/list':'list',
