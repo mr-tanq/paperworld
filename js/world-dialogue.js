@@ -806,6 +806,55 @@
   routineReview.append(heading,note,cancel);
   routineReview.hidden=false;
  }
+ async function listMattRoutines(){
+  if(openId!=='matt'||routinePending||typeof cloud()?.listRoutines!=='function')return;
+  routinePending=true;
+  try{
+   const entries=await cloud().listRoutines();
+   if(openId!=='matt')return;
+   routineReview.replaceChildren();
+   const heading=make('strong','','Matt · Τα εβδομαδιαία προγράμματά σου');
+   routineReview.append(heading);
+   if(!entries.length)routineReview.append(make('p','','Δεν υπάρχουν αποθηκευμένα προγράμματα.'));
+   for(const r of entries){
+    const line=make('div','world-routine-entry');
+    const day=['Κυριακή','Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο'][r.dayOfWeek]||'';
+    const time=String(r.hourUtc).padStart(2,'0')+':'+String(r.minuteUtc).padStart(2,'0');
+    const name={listening:'Listening Mirror',pokemon:'Pokémon',studio:'Lost Wanderer',
+     wellbeing:'Wellbeing'}[r.projectId]||r.projectId;
+    line.append(make('p','',name+' · '+day+' '+time+' UTC · '+(r.enabled?'Ενεργό μόνο για drafts':'Ανενεργό')));
+    line.append(make('p','',r.goal.slice(0,170)));
+    if(r.enabled){
+     const pause=make('button','','Παύση');
+     pause.type='button';
+     const result=make('p','','');
+     result.setAttribute('role','status');
+     pause.addEventListener('click',async()=>{
+      if(routinePending||openId!=='matt')return;
+      // The named routine is visible; the actual pause is a separate, owner click.
+      routinePending=true;pause.disabled=true;
+      try{
+       const changed=await cloud().changeRoutine(r.id,false);
+       if(openId!=='matt')return;
+       if(changed.enabled!==false)throw Error('Unverified pause');
+       result.textContent='Η παύση επιβεβαιώθηκε. Δεν θα δημιουργούνται νέα σχέδια.';
+       pause.hidden=true;
+      }catch(_){
+       result.textContent='Η παύση δεν επιβεβαιώθηκε. Έλεγξε την κατάσταση πριν ξαναδοκιμάσεις.';
+       pause.disabled=false;
+      }finally{routinePending=false}
+     });
+     line.append(pause,result);
+    }
+    routineReview.append(line);
+   }
+   const close=make('button','','Κλείσιμο');
+   close.type='button';close.addEventListener('click',clearRoutineReview);
+   routineReview.append(close);routineReview.hidden=false;
+  }catch(_){
+   if(openId==='matt')showRoutineMessage('Δεν μπόρεσα να φορτώσω τα προγράμματα. Δεν έγινε καμία αλλαγή.');
+  }finally{routinePending=false}
+ }
  async function previewMattRoutine(intent){
   if(routinePending||openId!=='matt')return;
   if(intent.kind==='clarify'){
@@ -1293,7 +1342,8 @@
   if(id==='matt'){
    const routineIntent=window.PaperworldRoutineIntent?.classify?.(text);
    if(routineIntent){
-    await previewMattRoutine(routineIntent);
+    if(routineIntent.kind==='list_routines')await listMattRoutines();
+    else await previewMattRoutine(routineIntent);
     return;
    }
    clearRoutineReview();
