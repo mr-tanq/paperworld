@@ -256,33 +256,44 @@
  musicCopy.setAttribute('aria-label','Αντιγραφή του ελεγμένου αιτήματος για Suno MCP');
  const sunoGenerate=make('button','crow-music-save','Δημιουργία στο Suno');
  sunoGenerate.type='button';
+ const sunoCreateStatus=make('p','crow-suno-create-status','');
+ sunoCreateStatus.setAttribute('role','status');
+ sunoCreateStatus.setAttribute('aria-live','polite');
+ function showSunoCreateStatus(text,state='notice'){
+  sunoCreateStatus.dataset.state=state;
+  sunoCreateStatus.textContent=text;
+  // Keep action feedback immediately beside the button, below long lyrics.
+  sunoCreateStatus.hidden=!text;
+ }
+ sunoCreateStatus.hidden=true;
  let lastSunoSubmission=null;
  sunoGenerate.addEventListener('click',async()=>{
   if(openId!=='studio-director')return;
+  showSunoCreateStatus('Έλεγχος του τραγουδιού…','pending');
   if(musicBusy){
-   musicResult.textContent='Υπάρχει ήδη υποβολή σε εξέλιξη. Δεν στέλνω δεύτερο αίτημα.';
+   showSunoCreateStatus('Υπάρχει ήδη υποβολή σε εξέλιξη. Δεν στέλνω δεύτερο αίτημα.','pending');
    return;
   }
   if(lastSunoSubmission){
-   musicResult.textContent='Έχει ήδη επιχειρηθεί υποβολή σε αυτή τη συνεδρία. '+
-    'Έλεγξε πρώτα τη Suno Library πριν δημιουργήσεις ξανά.';
+   showSunoCreateStatus('Έχει ήδη επιχειρηθεί υποβολή σε αυτή τη συνεδρία. '+
+    'Έλεγξε πρώτα τη Suno Library πριν δημιουργήσεις ξανά.','error');
    return;
   }
   if(!cloud()?.signedIn()){
-   musicResult.textContent='Χρειάζεται σύνδεση στο Paperworld Cloud για δημιουργία στο Suno.';
+   showSunoCreateStatus('Χρειάζεται σύνδεση στο Paperworld Cloud για δημιουργία στο Suno.','error');
    return;
   }
   if(typeof cloud()?.createSunoSong!=='function'){
-   musicResult.textContent='Η λειτουργία δημιουργίας Suno δεν έχει φορτωθεί. '+
-    'Κάνε ανανέωση της σελίδας για να φορτωθεί η νέα έκδοση.';
+   showSunoCreateStatus('Η λειτουργία δημιουργίας Suno δεν έχει φορτωθεί. '+
+    'Κάνε ανανέωση της σελίδας για να φορτωθεί η νέα έκδοση.','error');
    return;
   }
   const brief={title:musicTitle.value.trim(),style:musicStyle.value.trim(),
    lyrics:musicLyrics.value};
   if(!brief.title||brief.title.length>120||!brief.style||brief.style.length>1000||
      !window.PaperworldCrowStudioDraft?.validLyrics(brief.lyrics)){
-   musicResult.textContent='Το τραγούδι δεν είναι έτοιμο: έλεγξε τίτλο, ύφος και '+
-    'τις αγκύλες στους στίχους. Οι μισογραμμένες οδηγίες δεν στέλνονται στη Suno.';
+   showSunoCreateStatus('Το τραγούδι δεν είναι έτοιμο: έλεγξε τίτλο, ύφος και '+
+    'τις αγκύλες στους στίχους. Οι μισογραμμένες οδηγίες δεν στέλνονται στη Suno.','error');
    return;
   }
   if(!window.confirm('Να στείλω αυτό το τραγούδι στο Suno; Μπορεί να χρησιμοποιηθούν Suno credits.')){
@@ -290,27 +301,29 @@
   }
   const key=window.crypto?.randomUUID?.();
   if(!key){
-   musicResult.textContent='Δεν υποστηρίζεται ασφαλές μοναδικό κλειδί υποβολής.';
+   showSunoCreateStatus('Δεν υποστηρίζεται ασφαλές μοναδικό κλειδί υποβολής.','error');
    return;
   }
   rememberSongDraft();
   lastSunoSubmission=key;
   musicBusy=true;sunoGenerate.disabled=true;
-  musicResult.textContent='Υποβολή στο Suno… Μην επαναλάβεις το αίτημα.';
+  sunoGenerate.textContent='Αποστολή…';
+  showSunoCreateStatus('Υποβολή στο Suno… Μην επαναλάβεις το αίτημα.','pending');
   try{
    const result=await cloud().createSunoSong(brief,key);
    if(result.accepted===true){
-    musicResult.textContent='Η Suno επιβεβαίωσε τη λήψη του αιτήματος. '+
+    showSunoCreateStatus('Η Suno επιβεβαίωσε τη λήψη του αιτήματος. '+
      'Η ολοκλήρωση του τραγουδιού δεν έχει ακόμη επαληθευτεί. '+
-     'Έλεγξε τη Suno Library.';
+     'Έλεγξε τη Suno Library.','success');
    }else{
-    musicResult.textContent='Δεν επιβεβαιώθηκε η δημιουργία ('+
-     result.reason+'). Μην επαναλάβεις το αίτημα πριν ελέγξεις τη Suno Library.';
+    showSunoCreateStatus('Δεν επιβεβαιώθηκε η δημιουργία ('+
+     result.reason+'). Μην επαναλάβεις το αίτημα πριν ελέγξεις τη Suno Library.','error');
    }
   }catch(_){
-   musicResult.textContent='Η απάντηση της Suno δεν επιβεβαιώθηκε. '+
-    'Έλεγξε τη Suno Library πριν προσπαθήσεις ξανά.';
-  }finally{musicBusy=false;sunoGenerate.disabled=false}
+   showSunoCreateStatus('Η απάντηση της Suno δεν επιβεβαιώθηκε. '+
+    'Έλεγξε τη Suno Library πριν προσπαθήσεις ξανά.','error');
+  }finally{musicBusy=false;sunoGenerate.disabled=false;
+   sunoGenerate.textContent='Δημιουργία στο Suno'}
  });
  const musicCancel=make('button','crow-music-cancel','Ακύρωση πρότασης');
  musicCancel.type='button';musicCancel.hidden=true;
@@ -482,7 +495,7 @@
   crowTechnical.append(make('summary','','Έλεγχοι σύνδεσης για συντήρηση'),
    sunoCheck,sunoLinkStatus,sunoTools,sunoInstructions);
   musicPanel.append(sunoConnect,musicHelp,musicResult,musicFromCrow,
-   musicForm,sunoGenerate,musicCopy,musicCancel,crowTechnical);
+   musicForm,sunoGenerate,sunoCreateStatus,musicCopy,musicCancel,crowTechnical);
  let musicBusy=false;
  const openStudio=make('button','crow-music-toggle','♫ Συνέχεια στο Music Studio');
  openStudio.type='button';openStudio.hidden=true;
