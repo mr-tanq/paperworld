@@ -221,7 +221,7 @@ test('Finished investigations and unstarted notes do not inflate active work',as
  assert.match(t.text(),/Διερευνήθηκαν \/ Προετοιμάστηκαν/);
  const cards=t.shell.querySelectorAll('.pw-item-details');
  assert.ok(cards.length>0,'long archived descriptions should start folded');
- assert.equal(cards[0].open,false);
+ assert.ok(!cards[0].open);
  assert.equal(cards[0].querySelector('.pw-item-full').textContent,long);
  assert.ok(all.some(i=>i.bucket==='waiting'&&i.note===true));
 });
