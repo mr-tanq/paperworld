@@ -4,7 +4,7 @@ BEGIN;
 CREATE SCHEMA auth;
 -- PostgreSQL roles are cluster-wide. Another CI database already initialized
 -- anon/authenticated in this same throwaway service instance.
-DO $
+DO $routine_roles$
 BEGIN
  IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='authenticated')
  THEN CREATE ROLE authenticated NOLOGIN; END IF;
@@ -12,7 +12,7 @@ BEGIN
  THEN CREATE ROLE anon NOLOGIN; END IF;
  IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='service_role')
  THEN CREATE ROLE service_role NOLOGIN BYPASSRLS; END IF;
-END $;
+END $routine_roles$;
 ALTER ROLE service_role BYPASSRLS;
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
  SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid
