@@ -71,3 +71,17 @@ test('Matt-only status history does not change Director context; notifications s
   {role:'agent',content:existing}]);
  assert.equal(old.activeDirector,'studio-director');
 });
+
+test('completed status without evidence never claims implementation or verified success',()=>{
+ const snapshot={directors:[{projectId:'studio',active:0,attention:0,recent:[
+  {status:'completed',result:{hasReport:false,existingTestsPassed:false,applied:false}}
+ ]}]};
+ const unverified=teamSummary(snapshot);
+ assert.match(unverified,/δεν έχω επαληθευμένο αποτέλεσμα/);
+ assert.doesNotMatch(unverified,/έχει ολοκληρώσει μια εργασία|εφαρμόστηκε αλλαγή/);
+ snapshot.directors[0].recent[0].result={hasReport:true,existingTestsPassed:true,applied:false};
+ const report=teamSummary(snapshot);
+ assert.match(report,/αναφορά για έλεγχο/);
+ assert.match(report,/Δεν υπάρχει επιβεβαίωση/);
+ assert.doesNotMatch(report,/η αλλαγή εφαρμόστηκε|το έργο ολοκληρώθηκε/);
+});
