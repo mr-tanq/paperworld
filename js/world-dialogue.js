@@ -1514,12 +1514,24 @@
  let opener=null;
  document.addEventListener('focusin',e=>{if(!panel.contains(e.target))opener=e.target});
  function show(id){stopLiveMatt();openId=id;paint();startLiveMatt();fitViewport();autoGrow();
+  document.dispatchEvent(new CustomEvent('paperworld:chat-opened',{detail:{id}}));
   // Avoid popping the phone keyboard over the conversation on open.
   if(!field.disabled&&!window.matchMedia?.('(pointer: coarse)')?.matches)field.focus();
  }
- function hide(){stopLiveMatt();openId=null;resetMusic();setMenu(false);memorySheet.hidden=true;
+ function hide(){stopLiveMatt();openId=null;const closed=panel.hidden?null:panel.dataset.agent||null;resetMusic();setMenu(false);memorySheet.hidden=true;
   panel.classList.remove('pw-memory-open');veil.classList.remove('world-chat-journey');paint();
-  (opener&&opener.isConnected&&opener!==document.body?opener:mattBtn).focus?.();opener=null}
+  (opener&&opener.isConnected&&opener!==document.body?opener:mattBtn).focus?.();opener=null;
+  // Lets the Workspace return the user to where they came from (Team/Work).
+  if(closed)document.dispatchEvent(new CustomEvent('paperworld:chat-closed',{detail:{id:closed}}))}
+ // Optional draft from Work ("Ζήτα κάτι από την ομάδα"): prefilled only,
+ // never sent automatically — the owner still presses Send.
+ function open(id,{draft=''}={}){
+  show(id);
+  if(typeof draft==='string'&&draft.trim()&&!field.disabled){
+   field.value=draft.trim().slice(0,1500);autoGrow();field.focus();
+  }
+ }
+ function showMemory(id){if(!AGENT_PROJECT[id])return;show(id);void openMemory()}
  function nearby(){
   const target=world()?.nearestAgent(100);
   if(!target){showNotice('Δεν υπάρχει agent κοντά σου. Πλησίασε έναν χαρακτήρα.');return}
@@ -1625,5 +1637,6 @@
  document.addEventListener('visibilitychange',()=>{
   if(openId==='matt'&&document.visibilityState==='visible')void refreshLiveMatt();
  });
- window.PaperworldWorldDialogue=Object.freeze({show,close:hide,nearby});
+ window.PaperworldWorldDialogue=Object.freeze({show,close:hide,nearby,open,showMemory,
+  isOpen:()=>!!openId});
 })();

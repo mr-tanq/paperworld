@@ -427,6 +427,15 @@ window.PaperworldWorld=Object.freeze({
  startMattDirectorJourney,
  completeMattDirectorJourney,
  waitMattDirectorReturn,
+ // Pan the camera to a real actor (Team "Δες στο χωριό"). Purely visual:
+ // it never moves the agent, starts work or implies availability.
+ focusAgent:(id,{panelWidth=0}={})=>{
+  const a=actors.find(x=>x.id===id);
+  if(!a||!Number.isFinite(a.x)||!Number.isFinite(a.y))return false;
+  const visible=Math.max(state.width-Math.max(0,panelWidth),state.width*.4);
+  state.x=visible/2-a.x*state.scale;state.y=state.height/2-a.y*state.scale;
+  return true;
+ },
  nearestAgent:(radius=100)=>actors.filter(a=>a.id!=='matt')
    .map(a=>({...a,distance:Math.hypot(a.x-state.walker.x,a.y-state.walker.y)}))
    .filter(a=>a.distance<=radius).sort((a,b)=>a.distance-b.distance)[0]||null
@@ -837,6 +846,9 @@ function zoom(delta){const cx=state.width/2,cy=state.height/2,worldX=(cx-state.x
 document.querySelector('#plus').onclick=()=>zoom(1.2);document.querySelector('#minus').onclick=()=>zoom(1/1.2);document.querySelector('#home').onclick=resetCamera;
 const drawer=document.querySelector('#world-drawer');
 function openWorkDesk(){
+ // Workspace V2 is the primary Work surface; the classic desk remains the
+ // fallback (and is reachable from Settings → Για προχωρημένους).
+ if(window.PaperworldWorkspace?.open){window.PaperworldWorkspace.open('work');return}
  drawer.hidden=false;
  // Cloud sign-in / task data is preserved off the main game canvas.
  window.PaperworldCloudUI?.openChief();
@@ -869,7 +881,8 @@ document.querySelector('#call-visual-meeting')?.addEventListener('click',()=>{
    load:()=>window.PaperworldCloudUI.loadHumanWork(),
    chat:id=>window.PaperworldWorldDialogue?.show(id),
    askAI:(id,prompt)=>window.PaperworldCloudUI.askDirector(id,prompt,{saveNote:false}),
-   openWork:()=>{drawer.hidden=false;window.PaperworldCloudUI.openHumanWork()}
+   openWork:()=>{if(window.PaperworldWorkspace?.open){window.PaperworldWorkspace.open('work');return}
+    drawer.hidden=false;window.PaperworldCloudUI.openHumanWork()}
   });
   void townHallBriefing.show();
  }

@@ -31,7 +31,9 @@ test('learning client submits only references and metadata, not a forged message
 });
 test('browser loads matching reviewed JS and CSS assets',()=>{
  assert.ok(html.includes('js/cloud.js?v=learning-loop-v3-integrated'));
- for(const file of ['style.css','js/cloud-ui.js','messenger.css','js/messenger-format.js'])
+ for(const file of ['style.css','js/messenger-format.js'])
   assert.ok(html.includes(file+'?v=messenger-v2-1'),file);
- assert.ok(html.includes('js/world-dialogue.js?v=messenger-v2-1'));
+ for(const file of ['js/cloud-ui.js','messenger.css','workspace.css','js/workspace.js'])
+  assert.ok(html.includes(file+'?v=workspace-v2-1'),file);
+ assert.ok(html.includes('js/world-dialogue.js?v=workspace-v2-1'));
 });

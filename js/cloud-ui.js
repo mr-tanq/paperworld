@@ -460,6 +460,25 @@ window.PaperworldCloudUI={
  githubLinkStatus:()=>client.githubLinkStatus(),
  beginGithubLink:()=>client.beginGithubLink(),
  // Display-only hook for future trusted proposals. Never implies user consent.
+ // Workspace V2 (Team · Work · Settings) uses the same owner-scoped client.
+ // Every call is RLS-scoped; nothing here grants new permissions.
+ identity:()=>client.identity(),
+ signIn:async(email,password)=>{await client.login(email,password);if(active)await reload()},
+ signUp:(email,password)=>client.signup(email,password),
+ signOut:async()=>{await client.signout();tasks=[];allTasks=[];edit=null},
+ listTasks:()=>client.list(),
+ addTask:(room,title,notes)=>client.add(room,title,notes),
+ updateTask:(id,patch)=>client.update(id,patch),
+ removeTask:(id)=>client.remove(id),
+ // The classic desk keeps every advanced tool (memory desk, history import,
+ // Listening technical review, local task import) reachable from Settings.
+ openClassicDesk:async(view='town')=>{const d=document.querySelector('#world-drawer');if(d)d.hidden=false;
+  open(view==='memory'?'town':view);
+  if(view==='memory'&&client.signedIn()){
+   // Wait for the reload that open() started; the desk refuses while busy.
+   for(let i=0;i<50&&busy;i++)await new Promise(r=>setTimeout(r,200));
+   openDirectorMemory();
+  }},
  previewListeningChange:(plan,evidence)=>{
   if(!window.PaperworldListeningReview)throw Error('Listening review unavailable');
   const snapshot=window.PaperworldListeningReview.summarize(plan,evidence);

@@ -106,7 +106,7 @@ test('Design system: tokens, responsive layouts, reduced motion and safe-area',(
  assert.match(css,/font:400 16px|font-size:16px\} \/\* no iOS zoom \*\//);
  for(const agent of ['studio-director','listening-director','pokemon-director','wellbeing-director'])
   assert.ok(css.includes('[data-agent="'+agent+'"]'),agent);
- assert.match(html,/messenger\.css\?v=messenger-v2-1/);
+ assert.match(html,/messenger\.css\?v=workspace-v2-1/);
  assert.ok(html.indexOf('messenger-format.js')<html.indexOf('world-dialogue.js'));
  const legacy=fs.readFileSync('style.css','utf8');
  assert.doesNotMatch(legacy,/\.world-chat-mode-picker|\.world-dialogue-private|width:min\(310px,72vw\)/);

@@ -42,6 +42,10 @@ on:
       - 'js/cloud-ui.js'
       - 'js/director-memory-review.js'
       - 'js/messenger-format.js'
+      - 'js/workspace.js'
+      - 'js/team-panel.js'
+      - 'js/human-first-hub.js'
+      - 'workspace.css'
       - 'messenger.css'
       - 'server/crow-reference-dossier.cjs'
       - 'server/director-direct-chat.cjs'
@@ -91,6 +95,8 @@ jobs:
           node --check js/app.js
           node --check js/world-dialogue.js
           node --check js/messenger-format.js
+          node --check js/workspace.js
+          node --check js/team-panel.js
           node --check js/human-first-hub.js
           node --check js/town-hall-briefing.js
           node --check js/cloud-ui.js
@@ -115,6 +121,7 @@ jobs:
             tests/agent-cloud-integration.test.cjs \
             tests/world-dialogue.test.cjs \
             tests/messenger-v2.test.cjs \
+            tests/workspace-v2.test.cjs \
             tests/director-memory-retrieval.test.cjs \
             tests/visual-agent-workflow.test.cjs \
             tests/village-first.test.cjs \

@@ -350,8 +350,8 @@
      j.requestId===item.requestId);
     if(!matches||used||raw?.workerHistoryUnavailable===true||
      raw?.teamUnavailable===true)throw Error('Δεν επιβεβαιώθηκε η εργασία.');
-    if(!window.confirm('Να ελέγξει ο Worker μόνο τα επιτρεπόμενα αρχεία GitHub;\\n\\n'+
-     item.summary+'\\n\\nΜηδέν κλήσεις AI, μηδέν αλλαγές κώδικα, '+
+    if(!window.confirm('Να ελέγξει ο Worker μόνο τα επιτρεπόμενα αρχεία GitHub;\n\n'+
+     item.summary+'\n\nΜηδέν κλήσεις AI, μηδέν αλλαγές κώδικα, '+
      'μηδέν PR ή deployment. Η εργασία δεν επαναλαμβάνεται αυτόματα.'))return;
     const result=await runSourceFact(item);
     if(result?.modelCalls!==0||result?.changedFiles!==0||
@@ -385,9 +385,9 @@
      'Θα διαβαστεί μόνο το ιδιωτικό project.godot και έως τρία προκαθορισμένα '+
      'GDScript αρχεία, ανάλογα με την εργασία (κίνηση, διάλογοι, μάχες ή χάρτες).':
      'Θα διαβαστούν μόνο τα επιτρεπόμενα αρχεία του Listening Mirror.';
-    if(!window.confirm('Εγκρίνεις ΜΙΑ εκτέλεση του Worker για την εργασία;\\n\\n'+
-     item.summary+'\\n\\n'+scope+
-     '\\n\\nΈως 5 AI κλήσεις με επαληθευμένο όριο επιπλέον χρέωσης $0. '+
+    if(!window.confirm('Εγκρίνεις ΜΙΑ εκτέλεση του Worker για την εργασία;\n\n'+
+     item.summary+'\n\n'+scope+
+     '\n\nΈως 5 AI κλήσεις με επαληθευμένο όριο επιπλέον χρέωσης $0. '+
      'Μόνο ανάγνωση, χωρίς αλλαγές αρχείων, PR ή deployment. '+
      'Αν διακοπεί, δεν γίνεται αυτόματη επανάληψη.'))return;
     await runWorker(item);
@@ -417,9 +417,9 @@
       p.files[0]?.after===item.files[0]?.after):null;
     if(!fresh)throw Error('Η πρόταση άλλαξε ή έχει ήδη εξεταστεί.');
     const question=action==='publish'?
-     'Να δημιουργηθεί ΜΟΝΟ Draft PR στο ιδιωτικό Pokémon Echoes;\\n\\n'+
-     item.summary+'\\nΑρχείο: '+item.files[0].path+
-     '\\n\\nΗ αλλαγή ΔΕΝ έχει δοκιμαστεί. Δες πρώτα την πλήρη '+ 
+     'Να δημιουργηθεί ΜΟΝΟ Draft PR στο ιδιωτικό Pokémon Echoes;\n\n'+
+     item.summary+'\nΑρχείο: '+item.files[0].path+
+     '\n\nΗ αλλαγή ΔΕΝ έχει δοκιμαστεί. Δες πρώτα την πλήρη '+ 
      'αντικατάσταση του αρχείου. Δεν θα γίνει merge ή deployment. '+
      'Χρειάζεται εγκεκριμένη σύνδεση GitHub για private repositories.':
      'Να απορριφθεί οριστικά αυτή η προτεινόμενη αλλαγή;';

@@ -92,7 +92,7 @@ test('Matt journey is driven by the verified streamed Director, not a completed 
  // The journey stays visible: docked Messenger, click-through veil, and a
  // phone bottom-sheet while Matt walks.
  const css=read('messenger.css');
- assert.match(css,/inset:12px 12px 12px auto/);
+ assert.match(css,/inset:64px 12px 12px auto/);
  assert.match(css,/\.world-chat-veil,\.world-chat-veil\.world-chat-journey\{/);
  assert.match(css,/\.pw-messenger\.pw-journey\{/);
  assert.match(ui,/panel\.classList\.toggle\('pw-journey'/);

@@ -26,5 +26,8 @@ test('chat and team reuse the single portrait registry, loaded before UI scripts
  assert.match(chat,/profile\?\.name/);
  const team=read('js/team-panel.js');
  assert.match(team,/profiles\.paintAvatar\(avatar,p\.id\)/);
- assert.match(team,/PaperworldWorldDialogue\?\.show\(responsible\)/);
+ // Workers route to their responsible Director through the Workspace handoff
+ // (which opens the Messenger and returns to Team afterwards).
+ assert.match(team,/ctx\.chat\(responsible\)/);
+ assert.match(read('js/workspace.js'),/chat\(\)\.open\(agentId,\{draft\}\)/);
 });
