@@ -72,9 +72,14 @@ function makeSunoAudioCreate({fetcher=globalThis.fetch}={}){
     signal:AbortSignal.timeout(20000),headers:{
      Authorization:'Bearer '+accessToken,'Content-Type':'application/json',
      Accept:'application/json, text/event-stream',
-     'MCP-Protocol-Version':'2026-07-28','Mcp-Method':'tools/call'},
+     'MCP-Protocol-Version':'2026-07-28','Mcp-Method':'tools/call',
+     'Mcp-Name':'audio-create'},
     body:JSON.stringify({jsonrpc:'2.0',id:2,method:'tools/call',
-     params:{name:'audio-create',arguments:args}})});
+     params:{name:'audio-create',arguments:args,_meta:{
+      'io.modelcontextprotocol/protocolVersion':'2026-07-28',
+      'io.modelcontextprotocol/clientInfo':{name:'Paperworld Crow',version:'1.0.0'},
+      'io.modelcontextprotocol/clientCapabilities':{}
+     }}})});
    // Return only finite, non-sensitive failure classes. Never return the
    // provider's body, RPC message, title, lyrics or bearer credentials.
    if(response.status===401||response.status===403)
