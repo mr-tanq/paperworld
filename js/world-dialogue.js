@@ -1014,6 +1014,156 @@
  const studioItem=make('button','pw-menu-item','Music Studio');
  studioItem.type='button';studioItem.setAttribute('role','menuitem');
  studioItem.addEventListener('click',()=>{if(musicPanel.hidden)musicToggle.click()});
+ // One optional inline review: a routine is never created by model text.
+ const routineReview=make('section','world-routine-review');
+ routineReview.hidden=true;
+ routineReview.setAttribute('aria-label','Έλεγχος εβδομαδιαίου προγράμματος');
+ let routineRequest=null,routinePending=false;
+ function clearRoutineReview(){
+  routineReview.hidden=true;routineReview.replaceChildren();routineRequest=null;
+ }
+ function showRoutineMessage(message){
+  routineReview.replaceChildren();
+  const heading=make('strong','','Matt · Εβδομαδιαίο πρόγραμμα');
+  const note=make('p','',message);
+  const cancel=make('button','','Κλείσιμο');
+  cancel.type='button';
+  cancel.addEventListener('click',clearRoutineReview);
+  routineReview.append(heading,note,cancel);
+  routineReview.hidden=false;
+ }
+ async function listMattRoutines(){
+  if(openId!=='matt'||routinePending||typeof cloud()?.listRoutines!=='function')return;
+  routinePending=true;
+  try{
+   const entries=await cloud().listRoutines();
+   if(openId!=='matt')return;
+   routineReview.replaceChildren();
+   const heading=make('strong','','Matt · Τα εβδομαδιαία προγράμματά σου');
+   routineReview.append(heading);
+   if(!entries.length)routineReview.append(make('p','','Δεν υπάρχουν αποθηκευμένα προγράμματα.'));
+   for(const r of entries){
+    const line=make('div','world-routine-entry');
+    const day=['Κυριακή','Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο'][r.dayOfWeek]||'';
+    const time=String(r.hourUtc).padStart(2,'0')+':'+String(r.minuteUtc).padStart(2,'0');
+    const name={listening:'Listening Mirror',pokemon:'Pokémon',studio:'Lost Wanderer',
+     wellbeing:'Wellbeing'}[r.projectId]||r.projectId;
+    line.append(make('p','',name+' · '+day+' '+time+' UTC · '+(r.enabled?'Ενεργό μόνο για drafts':'Ανενεργό')));
+    line.append(make('p','',r.goal.slice(0,170)));
+    if(r.enabled){
+     const pause=make('button','','Παύση');
+     pause.type='button';
+     const result=make('p','','');
+     result.setAttribute('role','status');
+     pause.addEventListener('click',async()=>{
+      if(routinePending||openId!=='matt')return;
+      // The named routine is visible; the actual pause is a separate, owner click.
+      routinePending=true;pause.disabled=true;
+      try{
+       const changed=await cloud().changeRoutine(r.id,false);
+       if(openId!=='matt')return;
+       if(changed.enabled!==false)throw Error('Unverified pause');
+       result.textContent='Η παύση επιβεβαιώθηκε. Δεν θα δημιουργούνται νέα σχέδια.';
+       pause.hidden=true;
+      }catch(_){
+       result.textContent='Η παύση δεν επιβεβαιώθηκε. Έλεγξε την κατάσταση πριν ξαναδοκιμάσεις.';
+       pause.disabled=false;
+      }finally{routinePending=false}
+     });
+     line.append(pause,result);
+    }
+    routineReview.append(line);
+   }
+   const close=make('button','','Κλείσιμο');
+   close.type='button';close.addEventListener('click',clearRoutineReview);
+   routineReview.append(close);routineReview.hidden=false;
+  }catch(_){
+   if(openId==='matt')showRoutineMessage('Δεν μπόρεσα να φορτώσω τα προγράμματα. Δεν έγινε καμία αλλαγή.');
+  }finally{routinePending=false}
+ }
+ async function previewMattRoutine(intent){
+  if(routinePending||openId!=='matt')return;
+  if(intent.kind==='clarify'){
+   showRoutineMessage(intent.reason==='timezone'?
+    'Για να μην αλλάζει απρόβλεπτα η ώρα, αυτή η έκδοση χρειάζεται UTC. '+
+    'Π.χ. «Κάθε Δευτέρα στις 09:00 UTC έλεγχε το Listening Mirror». '+
+    'Η ώρα παραμένει UTC και μετά την αλλαγή θερινής ώρας.':
+    'Πες μου project, ημέρα και ώρα UTC. Π.χ. «Κάθε Δευτέρα στις 09:00 UTC έλεγχε το Listening Mirror».');
+   return;
+  }
+  const cloudClient=cloud();
+  if(typeof cloudClient?.previewRoutine!=='function'){
+   showRoutineMessage('Η λειτουργία προγραμμάτων δεν είναι διαθέσιμη αυτή τη στιγμή.');
+   return;
+  }
+  routinePending=true;
+  const plan={projectId:intent.projectId,dayOfWeek:intent.dayOfWeek,
+   hourUtc:intent.hourUtc,minuteUtc:intent.minuteUtc,goal:intent.goal};
+  const token=revision;
+  try{
+   const preview=await cloudClient.previewRoutine(plan);
+   if(openId!=='matt'||token!==revision)return;
+   routineRequest=plan;
+   routineReview.replaceChildren();
+   const heading=make('strong','','Matt · Να το κρατήσω ως πρόγραμμα;');
+   const day=['Κυριακή','Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο'][plan.dayOfWeek];
+   const time=String(plan.hourUtc).padStart(2,'0')+':'+
+    String(plan.minuteUtc).padStart(2,'0');
+   const name={listening:'Listening Mirror',pokemon:'Pokémon',
+    studio:'Lost Wanderer',wellbeing:'Wellbeing'}[plan.projectId];
+   const description=make('p','',name+' · κάθε '+day+' '+time+' UTC');
+   const next=new Date(preview.nextReviewAt).toLocaleString('el-GR',{
+    dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Amsterdam'});
+   const detail=make('p','', 'Πρώτη προγραμματισμένη ημερομηνία: '+next+
+    ' (ώρα Ολλανδίας). Το εβδομαδιαίο πρόγραμμα ακολουθεί UTC, όχι αυτόματα τη θερινή ώρα.');
+   const safety=make('p','','Δημιουργώ μόνο ανενεργό σχέδιο, με 0 AI κλήσεις και 0 € επιπλέον κόστος.');
+   const controls=make('div','world-routine-actions');
+   const cancel=make('button','','Ακύρωση');
+   const confirm=make('button','','Αποθήκευση σχεδίου');
+   cancel.type=confirm.type='button';
+   const feedback=make('p','','');
+   feedback.setAttribute('role','status');
+   cancel.addEventListener('click',clearRoutineReview);
+   confirm.addEventListener('click',async()=>{
+    if(routinePending||openId!=='matt'||!routineRequest)return;
+    routinePending=true;confirm.disabled=true;cancel.disabled=true;
+    feedback.textContent='Αποθήκευση…';
+    try{
+     const saved=await cloudClient.createRoutine(routineRequest);
+     if(openId!=='matt')return;
+     routineRequest=null;
+     feedback.textContent='Αποθηκεύτηκε ανενεργό σχέδιο. Δεν ξεκίνησε εργασία.';
+     confirm.hidden=true;cancel.disabled=false;cancel.textContent='Κλείσιμο';
+     // Separate user click is needed to enable draft-only recurring checks.
+     const enable=make('button','','Ενεργοποίηση ελέγχου σχεδίων');
+     enable.type='button';
+     enable.addEventListener('click',async()=>{
+      enable.disabled=true;cancel.disabled=true;
+      feedback.textContent='Έλεγχος ενεργοποίησης…';
+      try{
+       const changed=await cloudClient.changeRoutine(saved.routineId,true);
+       if(openId!=='matt')return;
+       if(changed.enabled!==true)throw Error('Not verified');
+       feedback.textContent='Ενεργοποιήθηκε μόνο η δημιουργία σχεδίων για έγκριση. Δεν εκτελείται AI εργασία.';
+       enable.hidden=true;cancel.disabled=false;
+      }catch(_){
+       feedback.textContent='Η ενεργοποίηση δεν επιβεβαιώθηκε. Το σχέδιο παραμένει χωρίς επιβεβαιωμένο ενεργό πρόγραμμα.';
+       cancel.disabled=false;enable.disabled=false;
+      }
+     });
+     controls.insertBefore(enable,cancel);
+    }catch(_){
+     feedback.textContent='Δεν αποθηκεύτηκε επιβεβαιωμένο πρόγραμμα. Η υπηρεσία ή η βάση μπορεί να μην είναι έτοιμη.';
+     cancel.disabled=false;confirm.disabled=false;
+    }finally{routinePending=false}
+   });
+   controls.append(cancel,confirm);
+   routineReview.append(heading,description,detail,safety,feedback,controls);
+   routineReview.hidden=false;
+  }catch(_){
+   if(openId==='matt')showRoutineMessage('Δεν μπόρεσα να επαληθεύσω πρόγραμμα. Δεν δημιουργήθηκε καμία ρουτίνα.');
+  }finally{routinePending=false}
+ }
  const composer=make('footer','world-chat-composer');
  memoryReview.classList.add('village-maintenance-only');
  memoryReview.setAttribute('role','menuitem');memoryReview.classList.add('pw-menu-item');
@@ -1025,7 +1175,7 @@
  openStudio.classList.add('pw-chip','pw-chip-accent');
  openStudio.textContent='♫ Άνοιγμα στο Music Studio';
  contextRow.append(openStudio);
- composer.append(contextRow,form);
+ composer.append(contextRow,routineReview,form);
  const chat=make('div','pw-chat');
  chat.append(top,status,messages,decisions,composer);
  panel.append(chat,musicPanel,memorySheet);view.append(panel);
@@ -1517,7 +1667,7 @@
   // Avoid popping the phone keyboard over the conversation on open.
   if(!field.disabled&&!window.matchMedia?.('(pointer: coarse)')?.matches)field.focus();
  }
- function hide(){stopLiveMatt();openId=null;resetMusic();setMenu(false);memorySheet.hidden=true;
+ function hide(){stopLiveMatt();clearRoutineReview();openId=null;resetMusic();setMenu(false);memorySheet.hidden=true;
   panel.classList.remove('pw-memory-open');veil.classList.remove('world-chat-journey');paint();
   (opener&&opener.isConnected&&opener!==document.body?opener:mattBtn).focus?.();opener=null}
  function nearby(){
@@ -1537,6 +1687,13 @@
   const id=openId,text=field.value.trim();
   if(!text)return;
   if(id==='matt'){
+   const routineIntent=window.PaperworldRoutineIntent?.classify?.(text);
+   if(routineIntent){
+    if(routineIntent.kind==='list_routines')await listMattRoutines();
+    else await previewMattRoutine(routineIntent);
+    return;
+   }
+   clearRoutineReview();
    await runMattWorkflow(text);
    return;
   }
