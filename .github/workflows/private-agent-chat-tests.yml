@@ -60,6 +60,8 @@ on:
       - 'js/town-hall-briefing.js'
       - 'js/team-panel.js'
       - 'js/agents.js'
+      - 'sql/paperworld_routine_loop_v1_REVIEW_ONLY.sql'
+      - 'sql/paperworld_routine_loop_v2_REVIEW_ONLY.sql'
       - 'sql/paperworld_v5_dispatch_v1.sql'
       - 'sql/paperworld_v5_dispatch_v1_live_alignment.sql'
       - 'tests/**'
@@ -202,6 +204,14 @@ jobs:
           psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
             -h 127.0.0.1 -p 5432 -U postgres -d memory_test \
             -f tests/sql/director-memory-review-rls.sql
+      - name: Verify Routine Loop V1/V2 RLS, zero budget, idempotence and retained Matt notifications
+        env:
+          PGPASSWORD: synthetic-only
+        run: |
+          createdb -h 127.0.0.1 -p 5432 -U postgres routine_synthetic
+          psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
+            -h 127.0.0.1 -p 5432 -U postgres -d routine_synthetic \
+            -f tests/sql/paperworld-routine-loop-integration.sql
       - name: Execute V5 Dispatch lifecycle, budget and crash integration on PostgreSQL 17
         env:
           PGPASSWORD: synthetic-only
