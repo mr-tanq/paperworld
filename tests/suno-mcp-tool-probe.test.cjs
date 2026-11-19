@@ -80,6 +80,7 @@ test('OAuth owner must be linked before MCP tool discovery; never enables genera
  assert.equal(doctor.body.toolsListed,true);
  assert.equal(doctor.body.nextStep,'generation_not_enabled');
  assert.equal(doctor.body.toolCount,1);
+ assert.equal(doctor.body.toolTransport,'unverified'); // Mock does not declare modern/legacy provenance.
  assert.equal((await client.inspectTools({headers:{...headers,origin:'https://evil.example'},
   body})).status,403);
  assert.equal(inspections,2);
