@@ -351,8 +351,11 @@
      authorization_rejected:'Η Suno απέρριψε την εξουσιοδότηση.',
      provider_rate_limited:'Η Suno επέστρεψε προσωρινό περιορισμό αιτημάτων.'
     };
+    const providerCode=result.reason==='provider_http_unverified'&&
+      Number.isInteger(result.httpStatus)&&result.httpStatus>=300&&
+      result.httpStatus<=599?' (HTTP '+result.httpStatus+')':'';
     showSunoCreateStatus((diagnostic[result.reason]||
-     'Δεν επιβεβαιώθηκε η υποβολή.')+' Κωδικός: '+
+     'Δεν επιβεβαιώθηκε η υποβολή.')+providerCode+' Κωδικός: '+
      String(result.reason||'unknown').slice(0,80)+
      '. Έλεγξε τη Suno Library και τα credits πριν νέα προσπάθεια.','error');
    }
@@ -361,6 +364,27 @@
     'Έλεγξε τη Suno Library πριν προσπαθήσεις ξανά.','error');
   }finally{musicBusy=false;sunoGenerate.disabled=false;
    sunoGenerate.textContent='Δημιουργία στο Suno'}
+ });
+ const sunoTransportCheck=make('button','crow-music-check',
+  'Έλεγχος MCP (χωρίς credits)');
+ sunoTransportCheck.type='button';
+ sunoTransportCheck.addEventListener('click',async()=>{
+  if(openId!=='studio-director'||musicBusy||!cloud()?.signedIn()||
+     typeof cloud()?.diagnoseSunoConnection!=='function')return;
+  sunoTransportCheck.disabled=true;
+  showSunoCreateStatus('Έλεγχος σύνδεσης MCP χωρίς παραγωγή μουσικής…','pending');
+  try{
+   const result=await cloud().diagnoseSunoConnection();
+   const mode=result.toolTransport==='modern'?'Νεότερο MCP (2026-07-28)':
+    result.toolTransport==='legacy'?'Παλαιότερο MCP (handshake)':
+    'Μη επαληθευμένη έκδοση MCP';
+   showSunoCreateStatus('Suno: '+mode+'. Εργαλεία: '+
+    (result.toolsListed?result.toolCount:'μη επαληθευμένα')+
+    '. Δεν έγινε δημιουργία ή χρήση credits.','notice');
+  }catch(_){
+   showSunoCreateStatus('Δεν ολοκληρώθηκε ο read-only έλεγχος MCP. '+
+    'Δεν στάλθηκε τραγούδι.','error');
+  }finally{sunoTransportCheck.disabled=false}
  });
  const musicCancel=make('button','crow-music-cancel','Ακύρωση πρότασης');
  musicCancel.type='button';musicCancel.hidden=true;
@@ -532,7 +556,7 @@
   crowTechnical.append(make('summary','','Έλεγχοι σύνδεσης για συντήρηση'),
    sunoCheck,sunoLinkStatus,sunoTools,sunoInstructions);
   musicPanel.append(sunoConnect,musicHelp,musicResult,musicFromCrow,
-   musicForm,sunoGenerate,sunoCreateStatus,musicCopy,musicCancel,crowTechnical);
+   musicForm,sunoGenerate,sunoCreateStatus,sunoTransportCheck,musicCopy,musicCancel,crowTechnical);
  let musicBusy=false;
  const openStudio=make('button','crow-music-toggle','♫ Συνέχεια στο Music Studio');
  openStudio.type='button';openStudio.hidden=true;
