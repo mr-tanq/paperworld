@@ -56,30 +56,55 @@
  }
  async function refreshGithubConnection(selectedRevision=revision){
   if(openId!=='matt'||!cloud()?.signedIn()||
-     typeof cloud()?.githubLinkStatus!=='function')return;
+     typeof cloud()?.githubLinkStatus!=='function')return 'unknown';
   setGithubConnection('checking');
   try{
    const link=await cloud().githubLinkStatus();
-   if(selectedRevision!==revision||openId!=='matt')return;
-   setGithubConnection(link.connected===true||link.chatConnected===true?
-    'connected':'disconnected');
+   if(selectedRevision!==revision||openId!=='matt')return 'unknown';
+   const state=link.connected===true||link.chatConnected===true?
+    'connected':'disconnected';
+   setGithubConnection(state);
+   return state;
   }catch(_){
    if(selectedRevision===revision&&openId==='matt')
     setGithubConnection('unknown');
+   return 'unknown';
   }
  }
+ let githubLinkBusy=false;
  connectGithub.addEventListener('click',async()=>{
-  if(openId!=='matt'||!cloud()?.signedIn())return;
-  if(['checking','unknown'].includes(connectGithub.dataset.state)){
-   await refreshGithubConnection();return;
+  if(openId!=='matt'||!cloud()?.signedIn()||githubLinkBusy||
+     connectGithub.dataset.state==='connected')return;
+  githubLinkBusy=true;connectGithub.disabled=true;
+  try{
+   // One tap must complete the read-only verification and, if disconnected,
+   // continue directly to OAuth. Never require a second identical click.
+   const state=await refreshGithubConnection();
+   if(openId!=='matt')return;
+   if(state==='connected'){
+    status.textContent='Το GitHub είναι ήδη συνδεδεμένο.';
+    return;
+   }
+   if(state!=='disconnected'){
+    status.textContent='Δεν μπόρεσα να ελέγξω τη σύνδεση GitHub. '+
+     'Πάτησε ξανά για νέο έλεγχο.';
+    return;
+   }
+   if(typeof cloud()?.beginGithubLink!=='function'){
+    status.textContent='Η σύνδεση GitHub δεν φορτώθηκε. Κάνε ανανέωση της σελίδας.';
+    return;
+   }
+   connectGithub.textContent='GitHub · Σύνδεση…';
+   status.textContent='Μεταφορά στο GitHub για εξουσιοδότηση…';
+   const url=await cloud().beginGithubLink();
+   window.location.assign(url);
+  }catch(_){
+   status.textContent='Η σύνδεση GitHub δεν ξεκίνησε. Δοκίμασε ξανά.';
+   if(openId==='matt')setGithubConnection('unknown');
+  }finally{
+   githubLinkBusy=false;
+   connectGithub.disabled=connectGithub.dataset.state==='connected';
   }
-  if(connectGithub.dataset.state!=='disconnected')return;
-  connectGithub.disabled=true;
-  try{const url=await cloud().beginGithubLink();window.location.assign(url)}
-  catch(_){
-   status.textContent='Η σύνδεση GitHub δεν ξεκίνησε.';
-   void refreshGithubConnection();
-  }finally{connectGithub.disabled=false}
  });
  top.append(avatar,identity,connectGithub,close);
  const form=make('form','world-dialogue-form');
