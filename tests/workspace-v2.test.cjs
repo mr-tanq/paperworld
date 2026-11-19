@@ -198,7 +198,7 @@ test('Static guarantees: no innerHTML, no fabricated presence, shared design tok
  assert.match(app,/if\(window\.PaperworldWorkspace\?\.open\)\{window\.PaperworldWorkspace\.open\('work'\);return\}/);
  assert.ok(html.indexOf('js/workspace.js')>html.indexOf('js/world-dialogue.js'));
  assert.ok(html.indexOf('js/workspace.js')>html.indexOf('js/human-first-hub.js'));
- assert.match(html,/workspace\.css\?v=workspace-v2-1/);
+ assert.match(html,/workspace\.css\?v=workspace-progress-v2-2/);
 });
 
 test('Finished investigations and unstarted notes do not inflate active work',async()=>{
