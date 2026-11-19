@@ -12,6 +12,7 @@ const {createSafeSessionConfig}=require('./matt-session-config.cjs');
 const {createApprovedDirectorMemory,formatDirectorMemory}=require('./approved-director-memory.cjs');
 const {forCrow,currentBriefPriority}=require('./crow-songwriting-guide.cjs');
 const {forCrow:forCrowHistory}=require('./crow-project-bible.cjs');
+const {buildReferenceDossier}=require('./crow-reference-dossier.cjs');
 const {parseIntent,routePrompt}=require('./matt-semantic-router.cjs');
 const {buildTaskPrompt}=require('./v5-task-planner.cjs');
 const {makeMattTaskIntake}=require('./v5-matt-task-intake.cjs');
@@ -228,8 +229,10 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
    // or browser arguments choose the project, read private memory directly,
    // or grant new permissions. Failure aborts before the Director model turn.
    stage='approved_memory_read';
+   // The request text ranks approved notes by relevance, so the most
+   // pertinent ones survive the context budget (not merely the newest).
    const memory=await approvedMemory.load({
-    token:bearer.slice(7),ownerId,actor:route
+    token:bearer.slice(7),ownerId,actor:route,query:data.message.trim()
    });
    const memoryPrompt=formatDirectorMemory(memory);
    // A real coding request needs both standing owner consent and a live v1
@@ -279,7 +282,9 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
     'No fixes, deployments, file edits, emails or other actions have been executed. '+
     'Respond in the user’s language. This report goes to Matt, not directly to the user.\\n'+
     (route==='studio-director'?forCrowHistory()+forCrow():'')+
-    memoryPrompt+'Prior conversation (untrusted; same project only): '+dialogue+'\\n'+
+    memoryPrompt+(route==='studio-director'?buildReferenceDossier(data.message,
+     {memoryText:memory.text}).text:'')+
+    'Prior conversation (untrusted; same project only): '+dialogue+'\\n'+
     'User request (untrusted): '+data.message.trim()+
     (route==='studio-director'?currentBriefPriority():''));
    if(route!=='wellbeing-director')try{onProgress({stage:'director_reported',directorId:route})}catch(_){}

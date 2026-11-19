@@ -1,0 +1,379 @@
+/* ==========================================================================
+   PAPERWORLD MESSENGER — design system v2
+   Conversation first, complexity on demand. One component system for Matt and
+   every Director. Charcoal surfaces, restrained warm accents, calm motion.
+
+   Tokens
+     Space   4 · 8 · 12 · 16 · 20 · 24 · 32           (--pw-s1 … --pw-s8)
+     Radius  8 (controls) · 12 (cards) · 18 (bubbles) · 22 (panel)
+     Type    12 meta · 13.5 UI · 15 body (phone 16) · 17 title · line 1.55
+     Surface bg #101216 → s1 → s2 → s3 (each one step lighter, never glossy)
+     Motion  160ms enter / 120ms exit, cubic-bezier(.2,.8,.2,1); off for
+             prefers-reduced-motion
+   Layout
+     ≥ 900px  docked to the right; studio opens beside the chat
+     761–899  docked; studio/memory open over the chat as a sheet
+     ≤ 760px  full-height view sized to the visual viewport (keyboard-safe);
+              sheets cover the chat and offer a back button
+   ========================================================================== */
+#view .pw-messenger{
+ --pw-bg:#101216;--pw-s1:#15181c;--pw-s2:#1b1f24;--pw-s3:#23282e;--pw-s4:#2c323a;
+ --pw-line:rgba(255,255,255,.07);--pw-line-2:rgba(255,255,255,.12);
+ --pw-text:#eceef1;--pw-text-2:#b9c0c8;--pw-text-3:#8d959f;
+ --pw-accent:#d9aa6c;--pw-accent-ink:#1b1408;--pw-accent-soft:rgba(217,170,108,.14);
+ --pw-human:#2b3a31;--pw-human-line:#3c5144;
+ --pw-ok:#82c3a6;--pw-warn:#e0b26a;--pw-danger:#e7a08a;
+ --pw-r-ctl:10px;--pw-r-card:12px;--pw-r-bubble:18px;--pw-r-panel:22px;
+ --pw-ease:cubic-bezier(.2,.8,.2,1);--pw-fast:120ms;--pw-mid:180ms;
+ --pw-font:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans","Helvetica Neue",Arial,sans-serif;
+ --pw-chat-w:420px;
+ position:absolute;z-index:17;inset:12px 12px 12px auto;
+ width:min(var(--pw-chat-w),calc(100% - 24px));height:auto;max-height:none;min-height:0;
+ display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"chat";
+ margin:0;padding:0;overflow:hidden;transform:none;
+ color:var(--pw-text);background:var(--pw-bg);
+ border:1px solid var(--pw-line-2);border-radius:var(--pw-r-panel);
+ box-shadow:0 24px 70px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.35);
+ font:400 13.5px/1.55 var(--pw-font);-webkit-font-smoothing:antialiased;
+ animation:pw-in var(--pw-mid) var(--pw-ease);
+}
+#view .pw-messenger[hidden],#view .pw-messenger [hidden]{display:none!important}
+#view .world-chat-veil{z-index:16}
+.world-chat-veil[hidden]{display:none!important}
+/* The village stays visible and interactive around the docked Messenger. */
+.world-chat-veil,.world-chat-veil.world-chat-journey{position:absolute;inset:0;
+ pointer-events:none!important;background:transparent!important;
+ backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+/* Per-agent accents: same system, distinct personality. */
+#view .pw-messenger[data-agent="studio-director"]{--pw-accent:#c4a3e6;--pw-accent-ink:#1a1224;--pw-accent-soft:rgba(196,163,230,.13)}
+#view .pw-messenger[data-agent="listening-director"]{--pw-accent:#97bce8;--pw-accent-ink:#0e1825;--pw-accent-soft:rgba(151,188,232,.13)}
+#view .pw-messenger[data-agent="pokemon-director"]{--pw-accent:#ea9a86;--pw-accent-ink:#250f0a;--pw-accent-soft:rgba(234,154,134,.13)}
+#view .pw-messenger[data-agent="wellbeing-director"]{--pw-accent:#93c9a4;--pw-accent-ink:#0d1e13;--pw-accent-soft:rgba(147,201,164,.13)}
+
+/* Isolate the Messenger from legacy global element rules (header/section). */
+.pw-messenger header,.pw-messenger section{margin:0;padding:0;border-radius:0;background:none;box-shadow:none;
+ font-size:inherit;color:inherit;flex-wrap:nowrap;backdrop-filter:none;position:static}
+.pw-messenger header strong,.pw-messenger header span,.pw-messenger header small{letter-spacing:normal;color:inherit;font-size:inherit}
+.pw-messenger section p{color:inherit;font-size:inherit}
+
+/* ---- Chat column -------------------------------------------------------- */
+.pw-messenger .pw-chat{grid-area:chat;display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--pw-bg)}
+.pw-messenger .world-dialogue-head{flex:none;display:flex;align-items:center;gap:12px;
+ min-height:68px;padding:12px 12px 12px 16px;background:var(--pw-s1);border-bottom:1px solid var(--pw-line)}
+.pw-messenger .world-chat-avatar,.pw-messenger .agent-profile-avatar{width:44px;height:44px;flex:none;
+ border-radius:14px;overflow:hidden;display:grid;place-items:center;background:var(--pw-s3);
+ border:1px solid var(--pw-line-2);box-shadow:0 0 0 2px var(--pw-accent-soft);color:var(--pw-accent);font-weight:700}
+.pw-messenger .world-chat-identity{display:flex;flex:1;min-width:0;flex-direction:column;gap:1px}
+.pw-messenger .world-chat-identity strong{font-size:17px;line-height:1.25;font-weight:650;letter-spacing:.005em;
+ color:var(--pw-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pw-messenger .world-chat-presence{display:flex;align-items:center;gap:6px;color:var(--pw-text-3);font-size:12px;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pw-messenger .world-chat-presence::before{content:'';width:7px;height:7px;border-radius:50%;flex:none;background:#6b727b}
+.pw-messenger .world-chat-presence[data-state="online"]::before{background:var(--pw-ok);box-shadow:0 0 0 3px rgba(130,195,166,.15)}
+.pw-messenger .pw-head-tools{position:relative;display:flex;align-items:center;gap:4px}
+.pw-messenger .pw-icon-btn,.pw-messenger .world-chat-close,.pw-messenger .pw-studio-btn{
+ display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:40px;height:40px;
+ padding:0 10px;border:1px solid transparent;border-radius:var(--pw-r-ctl);background:transparent;
+ color:var(--pw-text-2);font:600 13px/1 var(--pw-font);cursor:pointer;
+ transition:background var(--pw-fast) var(--pw-ease),color var(--pw-fast) var(--pw-ease)}
+.pw-messenger .pw-icon-btn:hover,.pw-messenger .world-chat-close:hover,.pw-messenger .pw-studio-btn:hover{background:var(--pw-s3);color:var(--pw-text)}
+.pw-messenger .pw-menu-btn{font-size:20px;letter-spacing:.04em}
+.pw-messenger .world-chat-close{font-size:22px;font-weight:400}
+.pw-messenger .pw-ico-back{display:none;font-size:30px;line-height:.8;margin-top:-3px}
+.pw-messenger .pw-studio-btn{border-color:var(--pw-line-2);color:var(--pw-accent)}
+.pw-messenger .pw-studio-btn[aria-expanded="true"]{background:var(--pw-accent-soft);border-color:transparent}
+.pw-messenger .pw-studio-glyph{font-size:15px}
+/* Focus is always visible for keyboard users, never for mouse taps. */
+.pw-messenger :focus{outline:none}
+.pw-messenger :focus-visible{outline:2px solid var(--pw-accent);outline-offset:2px;border-radius:var(--pw-r-ctl)}
+
+/* Overflow menu */
+.pw-messenger .pw-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:5;min-width:236px;padding:6px;
+ display:flex;flex-direction:column;gap:2px;background:var(--pw-s2);border:1px solid var(--pw-line-2);
+ border-radius:14px;box-shadow:0 18px 44px rgba(0,0,0,.5);animation:pw-pop var(--pw-fast) var(--pw-ease)}
+.pw-messenger .pw-menu-item,.pw-messenger .pw-menu .world-connection-chip{
+ display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:9px;
+ background:transparent;color:var(--pw-text);font:500 14px/1.3 var(--pw-font);text-align:left;cursor:pointer;
+ white-space:nowrap;box-shadow:none}
+.pw-messenger .pw-menu-item:hover,.pw-messenger .pw-menu-item:focus-visible{background:var(--pw-s4);outline:none}
+.pw-messenger .pw-menu .world-connection-chip::before{content:'';width:8px;height:8px;border-radius:50%;background:#7b828c;flex:none}
+.pw-messenger .pw-menu .world-connection-chip[data-state="connected"]::before{background:var(--pw-ok)}
+.pw-messenger .pw-menu .world-connection-chip[data-state="disconnected"]::before{background:var(--pw-warn)}
+.pw-messenger .pw-menu .world-connection-chip:disabled{cursor:default;color:var(--pw-text-2);opacity:1}
+
+/* Quiet status line: empty → collapsed, never a banner. */
+.pw-messenger .world-dialogue-status{flex:none;margin:0;padding:8px 16px;color:var(--pw-text-3);
+ background:transparent;border:0;font-size:12px;line-height:1.4;text-align:center}
+.pw-messenger .world-dialogue-status:empty{display:none}
+
+/* ---- Timeline ------------------------------------------------------------ */
+.pw-messenger .world-dialogue-messages{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+ display:flex;flex-direction:column;gap:6px;padding:16px 16px 20px;scroll-padding-bottom:20px;
+ background:var(--pw-bg);scrollbar-width:thin;scrollbar-color:var(--pw-s4) transparent;
+ overflow-anchor:auto;contain:content}
+.pw-messenger .world-chat-message{position:relative;display:flex;flex-direction:column;gap:6px;
+ max-width:min(88%,560px);min-width:0;align-self:flex-start;margin-top:6px;padding:11px 14px 9px;
+ border-radius:var(--pw-r-bubble) var(--pw-r-bubble) var(--pw-r-bubble) 6px;
+ background:var(--pw-s2);border:1px solid var(--pw-line);box-shadow:none;
+ animation:pw-rise var(--pw-mid) var(--pw-ease)}
+.pw-messenger .world-chat-message.world-dialogue-human{align-self:flex-end;background:var(--pw-human);
+ border-color:var(--pw-human-line);border-radius:var(--pw-r-bubble) var(--pw-r-bubble) 6px var(--pw-r-bubble)}
+.pw-messenger .world-chat-message.pw-pending{opacity:.72}
+.pw-messenger .world-dialogue-agent+.world-dialogue-agent,
+.pw-messenger .world-dialogue-human+.world-dialogue-human{margin-top:0}
+.pw-messenger .world-chat-message p,.pw-messenger .pw-md li,.pw-messenger .pw-md blockquote{
+ margin:0;padding:0;font-size:15px;line-height:1.55;color:var(--pw-text);overflow-wrap:anywhere;background:none;border-radius:0}
+.pw-messenger .pw-human-text{white-space:pre-wrap}
+.pw-messenger .pw-md{display:flex;flex-direction:column;gap:10px;min-width:0}
+.pw-messenger .pw-md p{white-space:pre-line}
+.pw-messenger .pw-md ul,.pw-messenger .pw-md ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.pw-messenger .pw-md li::marker{color:var(--pw-accent)}
+.pw-messenger .pw-md strong{font-weight:650;color:#fff}
+.pw-messenger .pw-md em{color:var(--pw-text)}
+.pw-messenger .pw-md .pw-md-heading{font-weight:650;font-size:15px;color:#fff}
+.pw-messenger .pw-md a{color:var(--pw-accent);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
+.pw-messenger .pw-md code{font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+ background:var(--pw-s4);padding:1px 5px;border-radius:5px}
+.pw-messenger .pw-md pre{margin:0;max-height:320px;overflow:auto;padding:10px 12px;background:#0b0d10;
+ border:1px solid var(--pw-line);border-radius:10px}
+.pw-messenger .pw-md pre code{background:none;padding:0;white-space:pre}
+.pw-messenger .pw-md blockquote{padding-left:12px;border-left:2px solid var(--pw-accent);color:var(--pw-text-2)}
+.pw-messenger .pw-msg-footer{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.pw-messenger .world-chat-time{font-size:11px;color:var(--pw-text-3);font-variant-numeric:tabular-nums}
+.pw-messenger .world-dialogue-note{margin:auto;max-width:300px;padding:24px 8px;text-align:center;
+ color:var(--pw-text-3);font-size:14px;line-height:1.6;background:none}
+/* Long reports: summary first, full answer in place. */
+.pw-messenger .world-chat-brief{font-size:15px;line-height:1.55;white-space:pre-line}
+.pw-messenger .world-chat-full-report{margin:0;font-size:14px;color:var(--pw-text-2)}
+.pw-messenger .world-chat-full-report>summary{display:inline-flex;align-items:center;gap:6px;min-height:36px;
+ padding:0 12px;border:1px solid var(--pw-line-2);border-radius:999px;color:var(--pw-text);cursor:pointer;
+ list-style:none;font-weight:550;font-size:13px;user-select:none}
+.pw-messenger .world-chat-full-report>summary::-webkit-details-marker{display:none}
+.pw-messenger .world-chat-full-report>summary::after{content:'⌄';font-size:14px;color:var(--pw-text-3);transition:transform var(--pw-fast)}
+.pw-messenger .world-chat-full-report[open]>summary::after{transform:rotate(180deg)}
+.pw-messenger .world-chat-full-report[open]>summary{margin-bottom:12px}
+.pw-messenger .world-chat-unabridged{max-height:none;overflow:visible;white-space:normal;font-size:15px}
+/* Typing indicator */
+.pw-messenger .pw-typing{align-self:flex-start;display:flex;gap:5px;margin-top:6px;padding:14px 16px;
+ background:var(--pw-s2);border:1px solid var(--pw-line);border-radius:var(--pw-r-bubble) var(--pw-r-bubble) var(--pw-r-bubble) 6px}
+.pw-messenger .pw-typing span{width:6px;height:6px;border-radius:50%;background:var(--pw-text-3);animation:pw-dot 1.2s infinite ease-in-out}
+.pw-messenger .pw-typing span:nth-child(2){animation-delay:.15s}.pw-messenger .pw-typing span:nth-child(3){animation-delay:.3s}
+/* Failure + retry — calm, specific, recoverable */
+.pw-messenger .pw-failure{align-self:stretch;display:flex;flex-direction:column;gap:8px;margin-top:8px;padding:12px 14px;
+ border:1px solid rgba(231,160,138,.28);background:rgba(231,160,138,.07);border-radius:var(--pw-r-card)}
+.pw-messenger .pw-failure-text{margin:0;color:#f4d6cc;font-size:14px}
+.pw-messenger .pw-failure-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pw-messenger .pw-failure-detail{color:var(--pw-text-3);font-size:12px}
+.pw-messenger .pw-failure-detail summary{cursor:pointer}
+.pw-messenger .pw-failure-detail p{margin:6px 0 0;font-size:12px;color:var(--pw-text-3);overflow-wrap:anywhere}
+
+/* Chips: contextual, never aggressive */
+.pw-messenger .pw-chip{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 12px;
+ border:1px solid var(--pw-line-2);border-radius:999px;background:var(--pw-s3);color:var(--pw-text);
+ font:550 13px/1 var(--pw-font);cursor:pointer;white-space:nowrap;
+ transition:background var(--pw-fast) var(--pw-ease),border-color var(--pw-fast) var(--pw-ease)}
+.pw-messenger .pw-chip:hover{background:var(--pw-s4)}
+.pw-messenger .pw-chip-accent{background:var(--pw-accent-soft);border-color:transparent;color:var(--pw-accent)}
+.pw-messenger .pw-chip-accent:hover{background:var(--pw-accent);color:var(--pw-accent-ink)}
+/* Learning loop: a discreet "Remember this?" */
+.pw-messenger .world-chat-remember{align-self:flex-end;min-height:30px;padding:0 4px;border:0;background:none;
+ color:var(--pw-text-2);font:500 12px/1 var(--pw-font);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.pw-messenger .world-chat-remember[disabled]{text-decoration:none;opacity:.7;cursor:default}
+.pw-messenger .world-chat-memory-preview{display:flex;flex-direction:column;gap:8px;margin-top:4px;padding-top:10px;border-top:1px solid var(--pw-line-2)}
+.pw-messenger .world-chat-memory-preview p{font-size:13px}
+.pw-messenger .world-chat-memory-excerpt{max-height:110px;overflow-y:auto;white-space:pre-wrap;color:var(--pw-text-2)}
+.pw-messenger .world-chat-memory-preview label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--pw-text-2)}
+.pw-messenger .world-chat-memory-controls{display:flex;justify-content:flex-end;gap:8px}
+.pw-messenger .world-chat-memory-controls button{min-height:36px;padding:0 14px;border-radius:var(--pw-r-ctl);
+ border:1px solid var(--pw-line-2);background:var(--pw-s3);color:var(--pw-text);font:550 13px var(--pw-font);cursor:pointer}
+
+/* Matt's decision tray stays compact and scrolls on its own only if long. */
+.pw-messenger .world-chat-decisions{flex:none;max-height:34%;overflow-y:auto;overscroll-behavior:contain;
+ margin:0;padding:10px 14px;background:var(--pw-s1);border-top:1px solid var(--pw-line);color:var(--pw-text)}
+
+/* Song proposal card (Crow) */
+.pw-messenger .pw-song-card{display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:var(--pw-r-card);
+ background:var(--pw-bg);border:1px solid var(--pw-line-2)}
+.pw-messenger .pw-song-kicker{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--pw-accent)}
+.pw-messenger .pw-song-title{font-size:17px;font-weight:650;color:#fff;line-height:1.3}
+.pw-messenger .pw-song-style{font-size:14px!important;color:var(--pw-text-2)!important;display:-webkit-box;-webkit-line-clamp:3;
+ -webkit-box-orient:vertical;overflow:hidden}
+.pw-messenger .pw-song-lyrics-text{white-space:pre-wrap;font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace!important;
+ color:var(--pw-text-2)!important;max-height:320px;overflow-y:auto}
+
+/* ---- Composer ------------------------------------------------------------ */
+.pw-messenger .world-chat-composer{flex:none;display:flex;flex-direction:column;gap:8px;
+ padding:10px 12px calc(12px + env(safe-area-inset-bottom));background:var(--pw-s1);border-top:1px solid var(--pw-line)}
+.pw-messenger .pw-context-row{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.pw-messenger .world-dialogue-form{margin:0;display:flex;align-items:flex-end;gap:8px;padding:6px 6px 6px 14px;
+ background:var(--pw-s3);border:1px solid var(--pw-line-2);border-radius:20px;
+ transition:border-color var(--pw-fast) var(--pw-ease),box-shadow var(--pw-fast) var(--pw-ease)}
+.pw-messenger .world-dialogue-form:focus-within{border-color:color-mix(in srgb,var(--pw-accent) 55%,transparent);
+ box-shadow:0 0 0 3px var(--pw-accent-soft)}
+.pw-messenger .world-dialogue-form .world-chat-input{flex:1;min-width:0;min-height:40px;max-height:160px;
+ padding:9px 0;border:0!important;outline:0;background:transparent;box-shadow:none!important;resize:none;
+ color:var(--pw-text);font:400 15px/1.45 var(--pw-font);overflow-y:auto}
+.pw-messenger .world-dialogue-form .world-chat-input::placeholder{color:var(--pw-text-3);opacity:1}
+.pw-messenger .world-dialogue-form .world-chat-send{flex:none;display:grid;place-items:center;width:40px;height:40px;
+ min-height:40px;padding:0;border:0;border-radius:14px;background:var(--pw-accent);color:var(--pw-accent-ink);
+ font-size:18px;font-weight:700;cursor:pointer;transition:transform var(--pw-fast) var(--pw-ease),opacity var(--pw-fast)}
+.pw-messenger .world-dialogue-form .world-chat-send:active{transform:scale(.94)}
+.pw-messenger .world-dialogue-form :disabled{opacity:.45;cursor:not-allowed}
+
+/* ---- Buttons (shared) ---------------------------------------------------- */
+.pw-messenger .pw-btn-primary,.pw-messenger .pw-btn-secondary,.pw-messenger .pw-btn-ghost,.pw-messenger .crow-music-check{
+ display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;
+ border-radius:12px;border:1px solid var(--pw-line-2);background:var(--pw-s3);color:var(--pw-text);
+ font:600 14px/1.2 var(--pw-font);cursor:pointer;width:auto;text-align:center;
+ transition:background var(--pw-fast) var(--pw-ease),transform var(--pw-fast) var(--pw-ease)}
+.pw-messenger .pw-btn-primary{background:var(--pw-accent);color:var(--pw-accent-ink);border-color:transparent}
+.pw-messenger .pw-btn-primary:hover{filter:brightness(1.06)}
+.pw-messenger .pw-btn-secondary:hover,.pw-messenger .crow-music-check:hover{background:var(--pw-s4)}
+.pw-messenger .pw-btn-ghost{background:transparent;border-color:transparent;color:var(--pw-text-2)}
+.pw-messenger .pw-btn-ghost:hover{color:var(--pw-text);background:var(--pw-s3)}
+.pw-messenger button:active:not(:disabled){transform:translateY(1px)}
+.pw-messenger button:disabled{opacity:.5;cursor:not-allowed}
+
+/* ---- Workspaces: Music Studio & Memory ---------------------------------- */
+.pw-messenger .pw-studio,.pw-messenger .pw-sheet{grid-area:studio;display:flex;flex-direction:column;min-width:0;min-height:0;
+ background:var(--pw-s1);border-right:1px solid var(--pw-line);animation:pw-slide var(--pw-mid) var(--pw-ease)}
+.pw-messenger .pw-sheet{grid-area:chat;z-index:3;border-right:0}
+.pw-messenger .pw-studio-head{flex:none;display:flex;align-items:center;gap:10px;min-height:68px;padding:10px 14px;
+ border-bottom:1px solid var(--pw-line);background:var(--pw-s1)}
+.pw-messenger .pw-studio-title{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.pw-messenger .pw-studio-title strong{font-size:17px;font-weight:650;color:var(--pw-text)}
+.pw-messenger .crow-music-help,.pw-messenger .pw-studio-hint{margin:0;color:var(--pw-text-3);font-size:12.5px;line-height:1.45}
+.pw-messenger .pw-studio-back{font-size:24px;padding:0 10px 0 6px}
+.pw-messenger .pw-studio-back-label{font-size:13px;font-weight:600}
+.pw-messenger .pw-studio .world-connection-chip{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 10px;
+ border:1px solid var(--pw-line-2);border-radius:999px;background:transparent;color:var(--pw-text-2);
+ font:550 12px/1 var(--pw-font);white-space:nowrap;cursor:pointer}
+.pw-messenger .pw-studio .world-connection-chip::before{content:'';width:7px;height:7px;border-radius:50%;background:#7b828c}
+.pw-messenger .pw-studio .world-connection-chip[data-state="connected"]::before{background:var(--pw-ok)}
+.pw-messenger .pw-studio .world-connection-chip[data-state="disconnected"]::before{background:var(--pw-warn)}
+.pw-messenger .pw-studio .world-connection-chip:disabled{opacity:1;cursor:default}
+.pw-messenger .pw-studio-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+ display:flex;flex-direction:column;gap:16px;padding:16px 16px 0}
+.pw-messenger .pw-studio-source{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:var(--pw-r-card);
+ background:var(--pw-accent-soft)}
+.pw-messenger .pw-studio-source .pw-btn-secondary{justify-content:flex-start;background:transparent;border-color:transparent;
+ color:var(--pw-accent);padding:0;min-height:36px}
+.pw-messenger .crow-music-result{margin:0;color:var(--pw-text-2);font-size:13px;line-height:1.45}
+.pw-messenger .crow-music-result:empty{display:none}
+.pw-messenger .crow-music-form{display:flex;flex-direction:column;gap:16px;margin:0}
+.pw-messenger .pw-studio-group{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;border:0;min-width:0}
+.pw-messenger .pw-studio-legend{padding:0;margin:0 0 2px;font-size:12px;font-weight:700;letter-spacing:.08em;
+ color:var(--pw-text-3)}
+.pw-messenger .pw-studio-label{font-size:13px;font-weight:600;color:var(--pw-text-2)}
+.pw-messenger .crow-music-form input,.pw-messenger .crow-music-form textarea,.pw-messenger .crow-music-form select{
+ width:100%;min-height:44px;padding:11px 12px;border:1px solid var(--pw-line-2);border-radius:var(--pw-r-ctl);
+ background:var(--pw-bg);color:var(--pw-text);font:400 15px/1.5 var(--pw-font);resize:vertical;
+ transition:border-color var(--pw-fast) var(--pw-ease),box-shadow var(--pw-fast) var(--pw-ease)}
+.pw-messenger .crow-music-form textarea#pw-studio-lyrics{min-height:260px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;line-height:1.6}
+.pw-messenger .crow-music-form input:focus,.pw-messenger .crow-music-form textarea:focus,.pw-messenger .crow-music-form select:focus{
+ border-color:var(--pw-accent);box-shadow:0 0 0 3px var(--pw-accent-soft);outline:none}
+.pw-messenger .crow-music-form input::placeholder,.pw-messenger .crow-music-form textarea::placeholder{color:#6d757f}
+.pw-messenger .pw-studio-count{align-self:flex-end;font-size:11.5px;color:var(--pw-text-3);font-variant-numeric:tabular-nums}
+.pw-messenger .pw-studio-count[data-state="near"]{color:var(--pw-warn)}
+.pw-messenger .pw-studio-tags{display:flex;flex-wrap:wrap;gap:6px}
+.pw-messenger .pw-studio-tags .pw-chip{min-height:32px;font:500 12.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+.pw-messenger .pw-studio-voice-row{display:flex;align-items:flex-end;gap:8px}
+.pw-messenger .crow-music-voice-label{flex:1;display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--pw-text-2)}
+.pw-messenger .pw-studio-voice-row .crow-music-check{flex:none;width:auto}
+.pw-messenger .pw-studio-actions{position:sticky;bottom:0;z-index:1;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;
+ margin:0 -16px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+ background:linear-gradient(to top,var(--pw-s1) 78%,rgba(21,24,28,0));}
+.pw-messenger .pw-studio-actions .pw-btn-primary{flex:1 1 100%;min-height:48px;font-size:15px}
+@media (max-width:760px){
+ .pw-messenger .pw-studio-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding-top:10px}
+ .pw-messenger .pw-studio-actions .pw-btn-secondary,.pw-messenger .pw-studio-actions .pw-btn-ghost{min-height:40px;padding:0 6px;font-size:13px}
+ .pw-messenger .pw-studio-actions .pw-btn-primary{grid-column:1/-1}
+ .pw-messenger .pw-studio-title .crow-music-help{display:none}
+}
+.pw-messenger .crow-suno-create-status{margin:0;padding:12px 14px;border-radius:var(--pw-r-card);border:1px solid var(--pw-line-2);
+ background:var(--pw-s2);color:var(--pw-text);font-size:13.5px;line-height:1.5;overflow-wrap:anywhere}
+.pw-messenger .crow-suno-create-status[data-state="error"]{border-color:rgba(231,160,138,.35);background:rgba(231,160,138,.08);color:#f6dad0}
+.pw-messenger .crow-suno-create-status[data-state="success"]{border-color:rgba(130,195,166,.35);background:rgba(130,195,166,.08);color:#d9f1e5}
+.pw-messenger .crow-suno-create-status[data-state="pending"]{border-color:rgba(224,178,106,.35);background:rgba(224,178,106,.07);color:#f4e5c9}
+.pw-messenger .pw-studio-tools{margin:0 0 20px;padding:0;color:var(--pw-text-2);font-size:13px}
+.pw-messenger .pw-studio-tools>summary,.pw-messenger .crow-technical-tools>summary{min-height:40px;display:flex;align-items:center;
+ cursor:pointer;color:var(--pw-text-3);font-weight:550}
+.pw-messenger .pw-studio-tools[open]{display:flex;flex-direction:column;gap:8px}
+.pw-messenger .crow-technical-tools{display:flex;flex-direction:column;gap:8px}
+.pw-messenger .crow-technical-tools[open]{gap:8px}
+.pw-messenger .crow-music-instructions{color:var(--pw-accent);font-size:13px}
+/* Memory sheet */
+.pw-messenger .pw-memory-body{padding-bottom:20px}
+.pw-messenger .pw-memory-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pw-messenger .pw-memory-stat{display:flex;flex-direction:column;padding:12px 14px;border-radius:var(--pw-r-card);background:var(--pw-s2);border:1px solid var(--pw-line)}
+.pw-messenger .pw-memory-stat strong{font-size:22px;font-weight:650;color:var(--pw-text)}
+.pw-messenger .pw-memory-stat span{font-size:12px;color:var(--pw-text-3)}
+.pw-messenger .pw-memory-section{display:flex;flex-direction:column;gap:8px}
+.pw-messenger .pw-memory-section h3{margin:4px 0 0;font-size:12px;font-weight:700;letter-spacing:.08em;color:var(--pw-text-3)}
+.pw-messenger .pw-memory-card{border:1px solid var(--pw-line);border-radius:var(--pw-r-card);background:var(--pw-s2)}
+.pw-messenger .pw-memory-card[data-status="proposed"]{border-style:dashed;background:transparent}
+.pw-messenger .pw-memory-card>summary{display:flex;flex-direction:column;gap:2px;padding:11px 14px;cursor:pointer;list-style:none}
+.pw-messenger .pw-memory-card>summary::-webkit-details-marker{display:none}
+.pw-messenger .pw-memory-title{font-size:14.5px;font-weight:600;color:var(--pw-text)}
+.pw-messenger .pw-memory-meta{font-size:12px;color:var(--pw-text-3)}
+.pw-messenger .pw-memory-card[data-status="proposed"] .pw-memory-meta::before{content:'Πρόταση · ';color:var(--pw-warn)}
+.pw-messenger .pw-memory-text,.pw-messenger .pw-memory-source{margin:0;padding:0 14px 10px;font-size:14px;color:var(--pw-text-2);white-space:pre-wrap}
+.pw-messenger .pw-memory-source{font-size:12px;color:var(--pw-text-3)}
+.pw-messenger .pw-memory-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;padding:0 12px 12px}
+.pw-messenger .pw-memory-error{width:100%;margin:0;font-size:12px;color:var(--pw-danger)}
+.pw-messenger .pw-empty{margin:0;padding:12px 2px;color:var(--pw-text-3);font-size:14px}
+
+/* ---- Responsive layout --------------------------------------------------- */
+/* Desktop & landscape tablet: studio opens beside the chat, chat stays right. */
+@media (min-width:900px){
+ #view .pw-messenger.pw-studio-open{width:min(calc(var(--pw-chat-w) + 560px),calc(100% - 24px));
+  grid-template-columns:minmax(0,1fr) min(var(--pw-chat-w),46%);grid-template-areas:"studio chat"}
+}
+@media (min-width:900px) and (max-width:1099px){#view .pw-messenger{--pw-chat-w:380px}}
+/* Mid widths: the studio is a sheet over the docked chat. */
+@media (min-width:761px) and (max-width:899px){
+ #view .pw-messenger{--pw-chat-w:440px}
+ .pw-messenger .pw-studio{grid-area:chat;z-index:3;border-right:0}
+}
+/* Phones: full-height view sized to the visible viewport (keyboard-safe). */
+@media (max-width:760px){
+ #view .pw-messenger{position:fixed;inset:auto 0 auto 0;top:var(--pw-vvtop,0px);width:100%;
+  height:var(--pw-vvh,100dvh);border-radius:0;border:0;box-shadow:none}
+ .pw-messenger .world-dialogue-head{min-height:60px;padding:8px 8px 8px 4px;gap:8px;
+  padding-top:max(8px,env(safe-area-inset-top))}
+ .pw-messenger .world-chat-close{order:-1;min-width:44px}
+ .pw-messenger .world-chat-close .pw-ico-close{display:none}
+ .pw-messenger .world-chat-close .pw-ico-back{display:inline}
+ .pw-messenger .world-chat-avatar,.pw-messenger .agent-profile-avatar{width:40px;height:40px;border-radius:12px}
+ .pw-messenger .pw-studio-label{font-size:13px}
+ .pw-messenger .pw-studio-btn .pw-studio-label{display:none}
+ .pw-messenger .world-dialogue-messages{padding:12px 12px 16px}
+ .pw-messenger .world-chat-message{max-width:90%}
+ .pw-messenger .world-chat-message p,.pw-messenger .pw-md li,.pw-messenger .world-chat-brief{font-size:16px}
+ .pw-messenger .world-dialogue-form .world-chat-input{font-size:16px} /* no iOS zoom */
+ .pw-messenger .crow-music-form input,.pw-messenger .crow-music-form textarea,.pw-messenger .crow-music-form select{font-size:16px}
+ .pw-messenger .pw-studio{grid-area:chat;z-index:3;border-right:0}
+ .pw-messenger .pw-studio-head{padding-top:max(10px,env(safe-area-inset-top))}
+ /* While Matt walks to a Director, collapse to a bottom sheet so the
+    journey across the village stays visible. */
+ #view .pw-messenger.pw-journey{top:auto;bottom:0;height:min(46%,var(--pw-vvh,100dvh));
+  border-radius:22px 22px 0 0;border-top:1px solid var(--pw-line-2)}
+}
+@media (max-width:760px){
+ /* The full-height chat owns the screen: tuck the village chrome away. */
+ html.pw-chat-open body>header,html.pw-chat-open #view .controls,html.pw-chat-open .hint{visibility:hidden}
+}
+@media (max-width:760px) and (orientation:landscape){
+ .pw-messenger .world-dialogue-head{min-height:52px}
+}
+
+/* ---- Motion -------------------------------------------------------------- */
+@keyframes pw-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pw-rise{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes pw-pop{from{opacity:0;transform:translateY(-4px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes pw-slide{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+@keyframes pw-dot{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){
+ #view .pw-messenger,.pw-messenger *,.pw-messenger *::before,.pw-messenger *::after{
+  animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}

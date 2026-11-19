@@ -4,8 +4,9 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const read=file=>fs.readFileSync(path.join(__dirname,'..',file),'utf8');
 test('Crow diagnostics remain available for maintenance but do not interrupt songwriting',()=>{
  const dialog=read('js/world-dialogue.js');
- const append=dialog.match(/musicPanel\.append\(([\s\S]*?)\);/)?.[1];
- assert.ok(append,'music panel append must exist');
+ // Diagnostics live in the studio's collapsed "Σύνδεση & έλεγχοι" section.
+ const append=dialog.match(/studioTools\.append\(([\s\S]*?)\);/)?.[1];
+ assert.ok(append,'studio tools append must exist');
  assert.ok(append.includes('crowTechnical'),'technical controls have a separate home');
  assert.ok(!append.includes('sunoCheck')&&!append.includes('sunoTools'),
   'raw diagnostics should not be front-and-center');
@@ -18,10 +19,10 @@ test('Crow diagnostics remain available for maintenance but do not interrupt son
 });
 test('GitHub Pages invalidates stale cached Messenger and Suno cloud API',()=>{
  const html=read('index.html');
- assert.match(html,/world-dialogue\.js\?v=suno-voice-mounted-v20/);
+ assert.match(html,/world-dialogue\.js\?v=messenger-v2-1/);
  assert.match(html,/cloud\.js\?v=learning-loop-v3-integrated/);
- assert.match(html,/cloud-ui\.js\?v=learning-loop-v3-integrated/);
- assert.match(html,/style\.css\?v=learning-loop-v3-integrated/);
+ assert.match(html,/cloud-ui\.js\?v=messenger-v2-1/);
+ assert.match(html,/style\.css\?v=messenger-v2-1/);
  assert.doesNotMatch(html,/world-dialogue\.js\?v=crow-transfer-v1/);
 });
 

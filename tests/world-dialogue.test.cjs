@@ -6,8 +6,9 @@ const cloud=fs.readFileSync('js/cloud-ui.js','utf8');
 test('Messenger is one unified in-world conversation with Matt, not a technical task selector',()=>{
  for(const x of ['world-chat-veil','world-dialogue-messages','world-chat-avatar',
   'world-chat-composer','role\x27,\x27dialog','function bubble(','messages.replaceChildren(',
-  "top.append(avatar,identity,connectGithub,close)",
-  "composer.append(memoryReview,openStudio,musicToggle,musicPanel,form)"])
+  "top.append(avatar,identity,headTools,close)",
+  "menu.append(memoryItem,studioItem,connectGithub,memoryReview)",
+  "composer.append(contextRow,form)","panel.append(chat,musicPanel,memorySheet)"])
   assert.ok(source.includes(x),x);
  assert.match(source,/musicToggle\.hidden=openId!=='studio-director'/);
  assert.match(source,/musicPanel\.hidden=true/);
@@ -59,8 +60,8 @@ test('Directors, existing keyboard shortcuts, private notes and OAuth reconnect 
  assert.match(cloud,/delegateMatt:\(text,opts\)/);
 });
 test('Dark responsive Messenger remains styled',()=>{
- const css=fs.readFileSync('style.css','utf8');
- assert.match(css,/background:#101216/);
+ const css=fs.readFileSync('style.css','utf8')+fs.readFileSync('messenger.css','utf8');
+ assert.match(css,/--pw-bg:#101216/);
  assert.match(css,/world-chat-composer/);
  assert.match(css,/world-chat-message/);
  assert.match(css,/@media\(max-width:640px\)/);
@@ -107,9 +108,10 @@ test('Natural language Matt handoff streams progress and holds answer for return
  assert.match(source,/waitMattDirectorReturn\?\.\(\)/);
  assert.ok(source.indexOf('await Promise.race(')<
   source.indexOf('mattReplies.push({id:result.persisted===true'));
- const css=fs.readFileSync('style.css','utf8');
- assert.match(css,/right:12px!important/);
- assert.match(css,/transform:none!important/);
+ // Docked beside the village, never centred over it.
+ const css=fs.readFileSync('messenger.css','utf8');
+ assert.match(css,/inset:12px 12px 12px auto/);
+ assert.match(css,/transform:none;/);
 });
 
 test('Maintenance-only controls are absent from the ordinary village, but remain repairable',()=>{

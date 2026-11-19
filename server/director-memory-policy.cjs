@@ -81,29 +81,45 @@ function memoryTerms(value){
  return [...new Set((normalizeSearch(value).match(/[\p{L}\p{N}]{3,}/gu)||[])
   .filter(x=>x.length<=48&&!SEARCH_STOP_WORDS.has(x)))].slice(0,40);
 }
+// Bounded single-edit typo tolerance ("smokey" ~ "smoky") for longer terms.
+function nearWord(term,word){
+ if(term.length<5||word.length<4||Math.abs(term.length-word.length)>1)return false;
+ let i=0,j=0,edits=0;
+ while(i<term.length&&j<word.length){
+  if(term[i]===word[j]){i++;j++;continue}
+  if(++edits>1)return false;
+  if(term.length>word.length)i++;else if(word.length>term.length)j++;else{i++;j++}
+ }
+ return edits+(term.length-i)+(word.length-j)<=1;
+}
+function scoreMemory(entry,terms){
+ const title=normalizeSearch(entry.title);
+ const body=normalizeSearch(entry.body);
+ const titleWords=title.match(/[\p{L}\p{N}]{3,}/gu)||[];
+ const bodyWords=body.match(/[\p{L}\p{N}]{3,}/gu)||[];
+ let score=0;
+ for(const term of terms){
+  if(titleWords.includes(term))score+=12;
+  else if(title.includes(term))score+=8;
+  else if(titleWords.some(word=>nearWord(term,word)))score+=7;
+  else if(term.length>=5&&titleWords.some(word=>word.startsWith(term.slice(0,5))))
+   score+=4;
+  if(bodyWords.includes(term))score+=4;
+  else if(body.includes(term))score+=2;
+  else if(bodyWords.some(word=>nearWord(term,word)))score+=3;
+  else if(term.length>=5&&bodyWords.some(word=>word.startsWith(term.slice(0,5))))
+   score+=1;
+ }
+ const phrase=terms.join(' ');
+ if(terms.length>1&&title.includes(phrase))score+=10;
+ return score;
+}
 function rankMemories(records,query){
  const terms=memoryTerms(query);
  if(!terms.length)return records;
  return records.map((entry,index)=>{
-  const title=normalizeSearch(entry.title);
-  const body=normalizeSearch(entry.body);
-  const titleWords=title.match(/[\p{L}\p{N}]{3,}/gu)||[];
-  const bodyWords=body.match(/[\p{L}\p{N}]{3,}/gu)||[];
-  let score=0;
-  for(const term of terms){
-   if(titleWords.includes(term))score+=12;
-   else if(title.includes(term))score+=8;
-   else if(term.length>=5&&titleWords.some(word=>word.startsWith(term.slice(0,5))))
-    score+=4;
-   if(bodyWords.includes(term))score+=4;
-   else if(body.includes(term))score+=2;
-   else if(term.length>=5&&bodyWords.some(word=>word.startsWith(term.slice(0,5))))
-    score+=1;
-  }
-  // A full phrase in an entry's title is stronger than scattered keyword hits.
-  const phrase=terms.join(' ');
-  if(terms.length>1&&title.includes(phrase))score+=10;
-  if(entry.kind==='project_bible')score+=1;
+  let score=scoreMemory(entry,terms);
+  if(entry.kind==='project_bible'&&score>0)score+=1;
   return {entry,index,score};
  }).sort((a,b)=>b.score-a.score||a.index-b.index).map(x=>x.entry);
 }
@@ -119,6 +135,10 @@ function projectContext(entries,{actor,projectId,explicitHandoff=false,
  if(!['human','chief','director','worker'].includes(role))fail('memory_access_denied');
  const usable=rankMemories(entries.map(validateEntry).filter(e=>e.status==='approved'&&
   (e.sensitivity==='standard'||role==='human'||role==='director')),query);
+ const terms=memoryTerms(query);
+ // Titles of approved notes that actually match this request (not merely recent).
+ const relevant=terms.length?usable.filter(e=>scoreMemory(e,terms)>=7)
+  .slice(0,6).map(e=>e.title):[];
  const chunks=[];let used=0;
  for(const item of usable){
   const value='['+item.kind+' | '+item.title+' | '+item.sourceType+': '+
@@ -128,9 +148,11 @@ function projectContext(entries,{actor,projectId,explicitHandoff=false,
  }
  return Object.freeze({projectId,actor,untrustedContent:true,
   text:chunks.join('\n\n'),included:chunks.length,
-  truncated:chunks.length<usable.length,capabilitiesGranted:[]});
+  truncated:chunks.length<usable.length,relevant:Object.freeze(relevant),
+  capabilitiesGranted:[]});
 }
 module.exports=Object.freeze({
  PROJECT_IDS,DIRECTORS,KINDS,SOURCE_TYPES,STATUS,SENSITIVITY,
- projectForActor,authorizedProject,validateEntry,prepareProposal,projectContext
+ projectForActor,authorizedProject,validateEntry,prepareProposal,projectContext,
+ memoryTerms,nearWord
 });

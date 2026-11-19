@@ -337,7 +337,8 @@ test('tablet orientation retains an independent scrollable village Work Desk and
  assert.match(html,/@media\(max-width:640px\)/);
  assert.match(css,/@media\(max-width:640px\)/);
  assert.match(css,/\.human-hub-item/);
- assert.match(css,/\.world-dialogue\{/);
+ assert.match(read('messenger.css'),/#view \.pw-messenger\{/);
+ assert.match(html,/messenger\.css\?v=[^"]+/);
  assert.match(html,/style\.css\?v=[^\"]+/);
 });
 

@@ -19,5 +19,5 @@ test('Owner can use read-only MCP transport check without invoking tools/call',(
  assert.match(click,/result.toolTransport==='modern'/);
  assert.match(click,/result.toolTransport==='legacy'/);
  assert.doesNotMatch(click,/createSunoSong|audio-create|window\.confirm/);
- assert.match(ui,/sunoGenerate,sunoCreateStatus,sunoTransportCheck,musicCopy/);
+ assert.match(ui,/studioTools\.append\(make\('summary','','Σύνδεση & έλεγχοι Suno'\),sunoTransportCheck,crowTechnical\)/);
 });

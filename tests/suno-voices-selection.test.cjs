@@ -85,6 +85,9 @@ test('Crow uses Wanderer as fail-closed default and random only by explicit sele
 
 test('Suno voice selector and refresh are actually mounted in Crow Music Studio',()=>{
  const ui=fs.readFileSync('js/world-dialogue.js','utf8');
- assert.match(ui,/musicForm\.append\(musicTitle,musicStyle,musicLyrics,\s*voiceLabel,voiceRefresh,voiceHint,musicSave\)/);
- assert.match(ui,/musicPanel\.append\(sunoConnect,musicHelp,musicResult,musicFromCrow,\s*musicForm,/);
+ // Voice is its own labelled studio group (selector + refresh + hint).
+ assert.match(ui,/const voiceRow=make\('div','pw-studio-voice-row'\);voiceRow\.append\(voiceLabel,voiceRefresh\)/);
+ assert.match(ui,/studioGroup\('Φωνή','Αποθηκευμένη φωνή Suno\. Προεπιλογή: The Wanderer\.',voiceRow,voiceHint\)/);
+ assert.match(ui,/studioActions\.append\(musicCancel,musicCopy,musicSave,sunoGenerate\)/);
+ assert.match(ui,/studioBody\.append\(studioSource,musicForm,sunoCreateStatus,studioTools\)/);
 });
