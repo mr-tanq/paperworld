@@ -35,7 +35,7 @@ test('diagnosis shows provider metadata and registration without pretending user
  const x=setup(),result=await x.client.diagnose({headers,body});
  assert.deepEqual(result.body,{service:'suno_mcp',resourceAvailable:true,
   clientRegistrationSupported:true,oauthAuthorized:false,
-  toolsListed:false,toolCount:0,toolReason:'not_authorized',
+  toolsListed:false,toolCount:0,toolTransport:'unverified',toolReason:'not_authorized',
   canGenerate:false,nextStep:'owner_oauth_required'});
  assert.equal(x.toolCalls(),0);
  assert.ok(x.reads()>0);
@@ -50,7 +50,7 @@ test('after simulated OAuth diagnosis verifies tool list but never enables gener
  const response=await x.client.diagnose({headers,body});
  assert.deepEqual(response.body,{service:'suno_mcp',resourceAvailable:true,
   clientRegistrationSupported:true,oauthAuthorized:true,
-  toolsListed:true,toolCount:2,toolReason:'read_only_tools_verified',
+  toolsListed:true,toolCount:2,toolTransport:'unverified',toolReason:'read_only_tools_verified',
   canGenerate:false,nextStep:'generation_not_enabled'});
  assert.equal(x.toolCalls(),1);
  assert.doesNotMatch(JSON.stringify(response),/super-secret/);
