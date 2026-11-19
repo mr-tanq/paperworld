@@ -167,11 +167,16 @@ function open(id='work',opts={}){
  if(shell.hidden)opener=document.activeElement;
  shell.hidden=false;document.documentElement.classList.add('pw-workspace-open');
  go(id,opts);
- requestAnimationFrame(()=>title.focus({preventScroll:true}));
+ requestAnimationFrame(()=>{
+  window.PaperworldWorld?.frameForWorkspace?.({open:true,
+   panelWidth:shell.getBoundingClientRect().width+12});
+  title.focus({preventScroll:true});
+ });
 }
 function close({restoreFocus=true}={}){
  if(shell.hidden)return;
  shell.hidden=true;document.documentElement.classList.remove('pw-workspace-open');
+ window.PaperworldWorld?.frameForWorkspace?.({open:false});
  if(restoreFocus&&opener?.isConnected&&opener!==document.body)opener.focus?.();
 }
 // Workspace → Messenger, and back again when the chat closes.
