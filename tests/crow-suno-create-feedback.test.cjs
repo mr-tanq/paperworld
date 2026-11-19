@@ -4,7 +4,7 @@ const script=()=>fs.readFileSync('js/world-dialogue.js','utf8');
 test('Suno create feedback appears directly below Create button in scrollable mobile Studio',()=>{
  const source=script();
  assert.match(source,/const sunoCreateStatus=make\('p','crow-suno-create-status'/);
- assert.match(source,/sunoGenerate,sunoCreateStatus,musicCopy/);
+ assert.match(source,/sunoGenerate,sunoCreateStatus,sunoTransportCheck,musicCopy/);
  assert.match(source,/sunoCreateStatus\.scrollIntoView\?\.\(\{block:'nearest'\}\)/);
  const style=fs.readFileSync('style.css','utf8');
  assert.match(style,/\.crow-suno-create-status\[data-state="error"\]/);
