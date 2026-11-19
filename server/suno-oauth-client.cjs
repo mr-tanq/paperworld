@@ -8,6 +8,7 @@ const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {createSunoOAuthDiscovery}=require('./suno-oauth-discovery.cjs');
 const {makeSunoMcpToolProbe}=require('./suno-mcp-tool-probe.cjs');
 const {makeSunoAudioCreate,validRequest}=require('./suno-audio-create.cjs');
+const {makeSunoClaim}=require('./suno-durable-claim.cjs');
 const APP='https://mr-tanq.github.io';
 const HOST='https://paperworld-matt-test-6hmd.onrender.com';
 const CLIENT_ID=HOST+'/auth/suno/client-metadata';
@@ -71,14 +72,15 @@ function validServerMeta(m,origin){
  return result;
 }
 function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.fetch,
- clock=Date.now}={}){
+ clock=Date.now,sunoClaim}={}){
  if(typeof fetcher!=='function')throw Error('fetcher_required');
  const guard=identity||createSupabaseGuard({
   baseUrl:'https://jrevhzvrgenucuozjowm.supabase.co',
   publicKey:'sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL',fetcher});
  const provider=discovery||createSunoOAuthDiscovery({fetcher});
  const tools=toolProbe||makeSunoMcpToolProbe({fetcher});
- const pending=new Map(),linked=new Map(),submittedKeys=new Map();
+ const pending=new Map(),linked=new Map();
+ const durableClaim=sunoClaim||makeSunoClaim({fetcher});
  const audioCreate=makeSunoAudioCreate({fetcher});
  const answer=(status,body)=>({status,body,headers});
  const denied=(status,error)=>answer(status,{error});
@@ -235,15 +237,17 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
   cleanup();
   const linkedToken=linked.get(who.ownerId);
   if(!linkedToken)return denied(409,'suno_oauth_required');
-  const keys=submittedKeys.get(who.ownerId)||new Set();
-  if(keys.has(data.idempotencyKey))return denied(409,'audio_create_already_submitted');
-  if(keys.size>=20)return denied(429,'audio_create_session_limit');
   const toolVerdict=await tools.inspect({accessToken:linkedToken.accessToken});
   if(toolVerdict?.available!==true||!toolVerdict.tools?.includes('audio-create'))
    return denied(409,'audio_create_not_verified');
-  // Claim before first network effect: no double submissions even on timeouts.
-  keys.add(data.idempotencyKey);
-  submittedKeys.set(who.ownerId,keys);
+  // An atomic DB claim survives process restarts and concurrent Render instances.
+  // Never invoke credit-spending audio-create when storage fails or the key exists.
+  let claimed;
+  try{
+   claimed=await durableClaim.reserve({ownerId:who.ownerId,
+    threadId:data.threadId,idempotencyKey:data.idempotencyKey,brief:data.brief});
+  }catch(_){return denied(503,'suno_claim_unavailable')}
+  if(claimed!==true)return denied(409,'audio_create_already_submitted');
   const result=await audioCreate.submit({accessToken:linkedToken.accessToken,
    brief:data.brief,idempotencyKey:data.idempotencyKey});
   // Unknown replies remain claimed. Never automatically retry a credit event.
