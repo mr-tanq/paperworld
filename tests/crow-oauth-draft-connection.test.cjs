@@ -48,7 +48,7 @@ test('Cloud owner marker is UUID only and browser cache versions advance togethe
   'cloud.js?v=suno-create-preflight-v13',
   'cloud-ui.js?v=suno-create-exposed-v14',
   'world-dialogue.js?v=suno-mcp-diagnostic-v15',
-  'style.css?v=suno-mcp-diagnostic-v15'
+  'style.css?v=suno-create-feedback-v13'
  ])assert.ok(html.includes(marker),marker);
 });
 
