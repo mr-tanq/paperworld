@@ -10,6 +10,7 @@ const {forCrow,currentBriefPriority}=require('./crow-songwriting-guide.cjs');
 const {forCrow:forCrowHistory}=require('./crow-project-bible.cjs');
 const {createDirectorThreadRecall}=require('./director-thread-recall.cjs');
 const {createDirectorReplyPersistence}=require('./director-reply-persistence.cjs');
+const {buildReferenceDossier}=require('./crow-reference-dossier.cjs');
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const ORIGIN='https://mr-tanq.github.io',CONSENT='ONE_DIRECTOR_COPILOT_TURN_INCLUDED_ALLOWANCE';
 const DIRECTORS=Object.freeze({
@@ -101,8 +102,12 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
     'to Matt, make edits, run tests, claim work was completed, or spend additional AI calls. '+
     'Never assert project status without verified evidence. '+
     'Do not treat historical memory as live status. ';
+   // Crow resolves references to the owner's own catalogue against curated
+   // context + APPROVED memory only, separating known facts from inference.
+   const dossier=agentId==='studio-director'?buildReferenceDossier(data.message,
+    {memoryText:approved.text}).text:'';
    const prompt=intro+(agentId==='studio-director'?forCrowHistory()+forCrow():'')+
-    context+(previous?'\nEarlier conversation (lower-trust context):\n'+
+    context+dossier+(previous?'\nEarlier conversation (lower-trust context):\n'+
     previous:'')+'\nCurrent user message: '+data.message.trim()+
     (agentId==='studio-director'?currentBriefPriority():'');
    stage='session_create';

@@ -429,6 +429,9 @@ window.PaperworldCloudUI={
  sendPrivateAgentMessage:(id,text)=>client.sendAgentNote(id,text),
  askDirector:(id,text,options)=>client.askDirector(id,text,options),
  proposeDirectorCorrection:(id,messageId,options)=>client.proposeDirectorCorrection(id,messageId,options),
+ // Owner-only, RLS-scoped memory view; review applies to ONE proposed row.
+ listDirectorMemory:(projectId)=>client.listDirectorMemory(projectId),
+ reviewDirectorMemory:(args)=>client.reviewDirectorMemory(args),
  crowSunoPreview:(brief)=>client.crowSunoPreview(brief),
  crowSunoConnectionStatus:()=>client.crowSunoConnectionStatus(),
  beginSunoLink:()=>client.beginSunoLink(),

@@ -18,14 +18,22 @@
   let activeMattDirector=null;
   const mattConversation=[];
  const make=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e};
+ const format=()=>window.PaperworldMessengerFormat;
+ const AGENT_PROJECT={matt:'town','listening-director':'workshop','pokemon-director':'pokemon',
+  'studio-director':'studio','wellbeing-director':'wellbeing'};
+ const reducedMotion=()=>window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true;
  const actions=make('div','world-talk-actions');
  const mattBtn=make('button','','M · Matt'),nearBtn=make('button','','T · Talk');
  for(const b of [mattBtn,nearBtn]){b.type='button';actions.append(b)}
  view.append(actions);
 
  const veil=make('div','world-chat-veil');veil.hidden=true;view.append(veil);
- const panel=make('section','world-dialogue');panel.hidden=true;
- panel.setAttribute('aria-label','Agent conversation');panel.setAttribute('role','dialog');
+ const panel=make('section','world-dialogue pw-messenger');panel.hidden=true;
+ // On phones the Messenger collapses to a bottom sheet while Matt walks to a
+ // Director, so the real village journey stays visible.
+ new MutationObserver(()=>panel.classList.toggle('pw-journey',
+  veil.classList.contains('world-chat-journey'))).observe(veil,{attributes:true,attributeFilter:['class']});
+ panel.setAttribute('aria-label','Agent conversation');panel.lang='el';panel.setAttribute('role','dialog');
  panel.setAttribute('aria-modal','true');
  const top=make('header','world-dialogue-head');
  const avatar=make('span','world-chat-avatar','M');
@@ -34,8 +42,35 @@
  const heading=make('strong','','Matt');
  const activity=make('small','world-chat-presence','Chief of Staff · AI offline');
  identity.append(heading,activity);
- const close=make('button','world-chat-close','×');
- close.type='button';close.setAttribute('aria-label','Close conversation');
+ const close=make('button','world-chat-close');
+ close.append(make('span','pw-ico-close','×'),make('span','pw-ico-back','‹'));
+ close.type='button';close.setAttribute('aria-label','Κλείσιμο συνομιλίας');
+ close.title='Κλείσιμο (Esc)';
+ // Secondary actions live in one compact overflow menu, not in the chat.
+ const menuBtn=make('button','pw-icon-btn pw-menu-btn');
+ menuBtn.type='button';menuBtn.setAttribute('aria-label','Περισσότερες επιλογές');
+ menuBtn.setAttribute('aria-haspopup','menu');menuBtn.setAttribute('aria-expanded','false');
+ menuBtn.append(make('span','','⋯'));
+ const menu=make('div','pw-menu');menu.setAttribute('role','menu');menu.hidden=true;
+ menu.setAttribute('aria-label','Επιλογές συνομιλίας');
+ const memoryItem=make('button','pw-menu-item','Τι γνωρίζει');
+ memoryItem.type='button';memoryItem.setAttribute('role','menuitem');
+ function menuItems(){return [...menu.querySelectorAll('button')].filter(b=>!b.hidden&&!b.disabled)}
+ function setMenu(open){
+  menu.hidden=!open;menuBtn.setAttribute('aria-expanded',String(open));
+  if(open)menuItems()[0]?.focus();
+ }
+ menuBtn.addEventListener('click',e=>{e.stopPropagation();setMenu(menu.hidden)});
+ menu.addEventListener('keydown',e=>{
+  const items=menuItems(),at=items.indexOf(document.activeElement);
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+   e.preventDefault();
+   items[(at+(e.key==='ArrowDown'?1:-1)+items.length)%items.length]?.focus();
+  }else if(e.key==='Escape'){e.preventDefault();e.stopPropagation();setMenu(false);menuBtn.focus()}
+  else if(e.key==='Tab')setMenu(false);
+ });
+ menu.addEventListener('click',e=>{if(e.target.closest('button'))setMenu(false)});
+ document.addEventListener('click',e=>{if(!menu.hidden&&!menu.contains(e.target)&&e.target!==menuBtn)setMenu(false)});
 
  const status=make('p','world-dialogue-status');
  status.setAttribute('role','status');
@@ -115,7 +150,9 @@
    connectGithub.disabled=connectGithub.dataset.state==='connected';
   }
  });
- top.append(avatar,identity,connectGithub,close);
+ connectGithub.setAttribute('role','menuitem');
+ const headTools=make('div','pw-head-tools');
+ top.append(avatar,identity,headTools,close);
  const form=make('form','world-dialogue-form');
  const field=make('textarea','world-chat-input');
  const send=make('button','world-chat-send','➤');
@@ -166,23 +203,32 @@
  }
  // Crow's optional Suno preview is a separate, owner-triggered action.
  // Owner permits Suno credit use; a capability grant does not itself run tools.
- const musicToggle=make('button','crow-music-toggle','♫ Προετοιμασία τραγουδιού');
+ const musicToggle=make('button','crow-music-toggle pw-studio-btn');
+ musicToggle.append(make('span','pw-studio-glyph','♫'),make('span','pw-studio-label','Studio'));
  musicToggle.type='button';musicToggle.hidden=true;
  musicToggle.setAttribute('aria-expanded','false');
- const musicPanel=make('section','crow-music-panel');musicPanel.hidden=true;
- musicPanel.setAttribute('aria-label','Προεπισκόπηση τραγουδιού');
+ musicToggle.setAttribute('aria-label','Άνοιγμα Music Studio');
+ musicToggle.title='Music Studio';
+ // The Music Studio is a dedicated creative workspace beside (desktop/tablet)
+ // or over (phone) the conversation — never squeezed into the composer.
+ const musicPanel=make('section','crow-music-panel pw-studio');musicPanel.hidden=true;
+ musicPanel.setAttribute('aria-label','Music Studio');
+ musicPanel.setAttribute('role','region');
  const musicHelp=make('p','crow-music-help',
-  'Ετοίμασε την περιγραφή και τους στίχους για τον Crow.');
+  'Τίτλος, ήχος, στίχοι και φωνή — έτοιμα για το Suno.');
  const musicForm=make('form','crow-music-form');
  const musicTitle=make('input','crow-music-title');
  musicTitle.type='text';musicTitle.maxLength=120;musicTitle.required=true;
- musicTitle.placeholder='Τίτλος τραγουδιού';musicTitle.setAttribute('aria-label','Τίτλος τραγουδιού');
+ musicTitle.placeholder='π.χ. Ash on the Windowsill';musicTitle.setAttribute('aria-label','Τίτλος τραγουδιού');
+ musicTitle.id='pw-studio-title';
  const musicStyle=make('textarea','crow-music-style');
- musicStyle.rows=2;musicStyle.maxLength=1000;musicStyle.required=true;
- musicStyle.placeholder='Ύφος, όργανα, φωνή…';musicStyle.setAttribute('aria-label','Μουσική κατεύθυνση');
+ musicStyle.rows=4;musicStyle.maxLength=1000;musicStyle.required=true;
+ musicStyle.placeholder='Είδος, tempo, όργανα, φωνή, ατμόσφαιρα…';musicStyle.setAttribute('aria-label','Suno style prompt');
+ musicStyle.id='pw-studio-style';
  const musicLyrics=make('textarea','crow-music-lyrics');
- musicLyrics.rows=3;musicLyrics.maxLength=8000;
- musicLyrics.placeholder='Πρωτότυποι στίχοι (προαιρετικό)';
+ musicLyrics.rows=10;musicLyrics.maxLength=8000;
+ musicLyrics.placeholder='[Verse 1]\nΠρωτότυποι στίχοι…\n\n[Chorus]\n…\n\n[End]';
+ musicLyrics.id='pw-studio-lyrics';
  musicLyrics.setAttribute('aria-label','Πρωτότυποι στίχοι');
  const voiceLabel=make('label','crow-music-voice-label','Φωνή Suno');
  const voiceSelect=make('select','crow-music-voice');
@@ -250,7 +296,8 @@
  voiceRefresh.addEventListener('click',()=>{void refreshSunoVoices()});
  voiceLabel.append(voiceSelect);
  const musicSave=make('button','crow-music-save','Ετοίμασε draft');
- musicSave.type='submit';
+ musicSave.type='submit';musicSave.classList.add('pw-btn-secondary');
+ musicSave.textContent='Αποθήκευση';
  // An OAuth redirect reloads this page. Keep the editable song in this tab
  // across that redirect, bound to the authenticated Cloud owner and a short TTL.
  // This never stores Suno/GitHub credentials or triggers generation.
@@ -314,13 +361,13 @@
  }else if(sunoReturn.get('suno_link')==='connected'){
   musicResult.textContent='Η εξουσιοδότηση Suno ολοκληρώθηκε. Έλεγξε τα διαθέσιμα εργαλεία πριν συνεχίσεις.';
  }
- const musicFromCrow=make('button','crow-music-from-reply','Χρήση τελευταίας πρότασης Crow');
+ const musicFromCrow=make('button','crow-music-from-reply pw-btn-secondary','Φόρτωση τελευταίας πρότασης του Crow');
  musicFromCrow.type='button';
- const musicCopy=make('button','crow-music-copy','Αντιγραφή για Suno');
+ const musicCopy=make('button','crow-music-copy pw-btn-secondary','Αντιγραφή');
  musicCopy.type='button';
  musicCopy.hidden=true;
  musicCopy.setAttribute('aria-label','Αντιγραφή του ελεγμένου αιτήματος για Suno MCP');
- const sunoGenerate=make('button','crow-music-save','Δημιουργία στο Suno');
+ const sunoGenerate=make('button','crow-music-save pw-btn-primary','Δημιουργία στο Suno');
  sunoGenerate.type='button';
  const sunoCreateStatus=make('p','crow-suno-create-status','');
  sunoCreateStatus.setAttribute('role','status');
@@ -502,10 +549,47 @@
     'Δεν στάλθηκε τραγούδι.','error');
   }finally{sunoTransportCheck.disabled=false}
  });
- const musicCancel=make('button','crow-music-cancel','Ακύρωση πρότασης');
+ const musicCancel=make('button','crow-music-cancel pw-btn-ghost','Καθαρισμός');
  musicCancel.type='button';musicCancel.hidden=true;
- musicForm.append(musicTitle,musicStyle,musicLyrics,
-  voiceLabel,voiceRefresh,voiceHint,musicSave);
+ // Grouped, labelled creative sections instead of a flat settings form.
+ function studioGroup(title,hint,...children){
+  const group=make('fieldset','pw-studio-group');
+  const legend=make('legend','pw-studio-legend',title);group.append(legend);
+  if(hint)group.append(make('p','pw-studio-hint',hint));
+  group.append(...children);return group;
+ }
+ function counter(input,max){
+  const c=make('span','pw-studio-count','0 / '+max);c.setAttribute('aria-live','off');
+  const update=()=>{const n=input.value.length;c.textContent=n+' / '+max;
+   c.dataset.state=n>max*.92?'near':'ok'};
+  input.addEventListener('input',update);c.update=update;return c;
+ }
+ const styleCount=counter(musicStyle,1000),lyricsCount=counter(musicLyrics,8000);
+ const refreshCounters=()=>{styleCount.update();lyricsCount.update()};
+ const lyricTags=make('div','pw-studio-tags');lyricTags.setAttribute('aria-label','Γρήγορη εισαγωγή ενότητας');
+ for(const tag of ['[Intro]','[Verse]','[Pre-Chorus]','[Chorus]','[Bridge]','[Outro]','[End]']){
+  const chip=make('button','pw-chip',tag);chip.type='button';
+  chip.addEventListener('click',()=>{
+   const at=musicLyrics.selectionStart??musicLyrics.value.length;
+   const before=musicLyrics.value.slice(0,at),after=musicLyrics.value.slice(at);
+   const insert=(before&&!before.endsWith('\n')?'\n':'')+tag+'\n';
+   musicLyrics.value=before+insert+after;
+   musicLyrics.focus();musicLyrics.selectionStart=musicLyrics.selectionEnd=at+insert.length;
+   musicLyrics.dispatchEvent(new Event('input'));
+  });
+  lyricTags.append(chip);
+ }
+ const label=(text,input)=>{const l=make('label','pw-studio-label',text);l.htmlFor=input.id;return l};
+ voiceSelect.id='pw-studio-voice';
+ const voiceRow=make('div','pw-studio-voice-row');voiceRow.append(voiceLabel,voiceRefresh);
+ const studioActions=make('div','pw-studio-actions');
+ musicForm.append(
+  studioGroup('Τραγούδι',null,label('Τίτλος',musicTitle),musicTitle),
+  studioGroup('Ήχος','Το πλήρες Suno style prompt.',label('Style prompt',musicStyle),musicStyle,styleCount),
+  studioGroup('Στίχοι','Πρωτότυποι στίχοι με οδηγίες σε [αγκύλες].',lyricTags,
+   label('Στίχοι',musicLyrics),musicLyrics,lyricsCount),
+  studioGroup('Φωνή','Αποθηκευμένη φωνή Suno. Προεπιλογή: The Wanderer.',voiceRow,voiceHint),
+  studioActions);
  const sunoConnect=make('button','world-connection-chip','Suno · Έλεγχος…');
  sunoConnect.type='button';
  sunoConnect.dataset.state='checking';
@@ -672,8 +756,24 @@
  const crowTechnical=make('details','crow-technical-tools');
   crowTechnical.append(make('summary','','Έλεγχοι σύνδεσης για συντήρηση'),
    sunoCheck,sunoLinkStatus,sunoTools,sunoInstructions);
-  musicPanel.append(sunoConnect,musicHelp,musicResult,musicFromCrow,
-   musicForm,sunoGenerate,sunoCreateStatus,sunoTransportCheck,musicCopy,musicCancel,crowTechnical);
+  // Studio layout: header · source · grouped form · sticky actions · tools.
+  const studioHead=make('header','pw-studio-head');
+  const studioBack=make('button','pw-icon-btn pw-studio-back');
+  studioBack.type='button';studioBack.append(make('span','','‹'),make('span','pw-studio-back-label','Συνομιλία'));
+  studioBack.setAttribute('aria-label','Επιστροφή στη συνομιλία');
+  const studioTitle=make('div','pw-studio-title');
+  studioTitle.append(make('strong','','Music Studio'),musicHelp);
+  studioHead.append(studioBack,studioTitle,sunoConnect);
+  studioBack.addEventListener('click',()=>{if(!musicPanel.hidden)musicToggle.click()});
+  const studioSource=make('div','pw-studio-source');
+  studioSource.append(musicFromCrow,musicResult);
+  musicResult.setAttribute('aria-live','polite');
+  studioActions.append(musicCancel,musicCopy,musicSave,sunoGenerate);
+  const studioTools=make('details','pw-studio-tools');
+  studioTools.append(make('summary','','Σύνδεση & έλεγχοι Suno'),sunoTransportCheck,crowTechnical);
+  const studioBody=make('div','pw-studio-body');
+  studioBody.append(studioSource,musicForm,sunoCreateStatus,studioTools);
+  musicPanel.append(studioHead,studioBody);
  let musicBusy=false;
  const openStudio=make('button','crow-music-toggle','♫ Συνέχεια στο Music Studio');
  openStudio.type='button';openStudio.hidden=true;
@@ -684,12 +784,22 @@
   show('studio-director');
   musicPanel.hidden=false;musicToggle.setAttribute('aria-expanded','true');
   musicTitle.value=draft.title;musicStyle.value=draft.style;musicLyrics.value=draft.lyrics;
+  syncStudio();void refreshSunoVoices();
   musicResult.textContent='Μεταφέρθηκε η πραγματική αναφορά του Crow. '+
    'Διόρθωσε τίτλο, μουσική κατεύθυνση και στίχους.';
   musicCopy.hidden=false;musicCancel.hidden=false;rememberSongDraft();musicTitle.focus();
  });
+ // One source of truth for the studio's open state and responsive layout.
+ function syncStudio(){
+  const open=!musicPanel.hidden;
+  panel.classList.toggle('pw-studio-open',open);
+  musicToggle.setAttribute('aria-expanded',String(open));
+  musicToggle.setAttribute('aria-label',open?'Κλείσιμο Music Studio':'Άνοιγμα Music Studio');
+  refreshCounters();
+ }
  function resetMusic(){
   musicPanel.hidden=true;musicToggle.setAttribute('aria-expanded','false');
+  panel.classList.remove('pw-studio-open');
   musicForm.reset();musicResult.textContent='';musicCancel.hidden=true;
   musicCopy.hidden=true;
  }
@@ -697,12 +807,14 @@
   if(musicBusy)return;
   musicPanel.hidden=!musicPanel.hidden;
   musicToggle.setAttribute('aria-expanded',String(!musicPanel.hidden));
+  syncStudio();
+  if(musicPanel.hidden){field.focus({preventScroll:true});return}
   if(!musicPanel.hidden){
    const restored=restoreSongDraft();
    if(restored)musicResult.textContent='Το τραγούδι σου επανήλθε μετά τη σύνδεση.';
    void refreshSunoConnection();
    void refreshSunoVoices();
-   musicTitle.focus();
+   if(!musicTitle.value)musicTitle.focus();else studioBack.focus();
   }
  });
  musicFromCrow.addEventListener('click',()=>{
@@ -728,6 +840,7 @@
   musicTitle.value=song.title;
   musicStyle.value=song.style;
   musicLyrics.value=song.lyrics;
+  refreshCounters();
   musicCopy.hidden=false;musicCancel.hidden=false;
   rememberSongDraft();
   musicResult.textContent='Μεταφέρθηκαν μόνο ο τίτλος, το Suno style prompt και οι στίχοι. '+
@@ -788,16 +901,143 @@
    if(selection===openId)status.textContent='Η μαζική έγκριση δεν ολοκληρώθηκε: '+error.message;
   }finally{memoryReview.disabled=false}
  });
+ // ---- "What does this agent know?" — owner-only, RLS-scoped, read first.
+ // Approved, proposed and private notes are labelled distinctly; a proposed
+ // note is never presented as knowledge until the owner explicitly approves.
+ const memorySheet=make('section','pw-sheet pw-memory');memorySheet.hidden=true;
+ memorySheet.setAttribute('role','region');memorySheet.setAttribute('aria-label','Μνήμη agent');
+ const memoryHead=make('header','pw-studio-head');
+ const memoryBack=make('button','pw-icon-btn pw-studio-back');memoryBack.type='button';
+ memoryBack.append(make('span','','‹'),make('span','pw-studio-back-label','Συνομιλία'));
+ memoryBack.setAttribute('aria-label','Επιστροφή στη συνομιλία');
+ const memoryTitle=make('div','pw-studio-title');
+ const memoryName=make('strong','','Τι γνωρίζει');
+ memoryTitle.append(memoryName,make('p','crow-music-help',
+  'Μόνο οι επιβεβαιωμένες σημειώσεις χρησιμοποιούνται στις απαντήσεις.'));
+ memoryHead.append(memoryBack,memoryTitle);
+ const memoryBody=make('div','pw-studio-body pw-memory-body');memoryBody.setAttribute('aria-live','polite');
+ memorySheet.append(memoryHead,memoryBody);
+ const KIND_LABEL={project_bible:'Ταυτότητα',decision:'Απόφαση',preference:'Προτίμηση',
+  current_state:'Τρέχουσα κατάσταση',work_history:'Ιστορικό'};
+ let memoryOwner=null,memoryBusy=false;
+ function closeMemory(){
+  memorySheet.hidden=true;panel.classList.remove('pw-memory-open');
+  if(openId)field.focus({preventScroll:true});
+ }
+ memoryBack.addEventListener('click',closeMemory);
+ function memoryCard(row,projectId){
+  const card=make('details','pw-memory-card');card.dataset.status=row.status;
+  const summary=make('summary','');
+  const meta=make('span','pw-memory-meta',(KIND_LABEL[row.kind]||'Σημείωση')+
+   (row.sensitivity==='private'?' · Ιδιωτικό':'')+
+   (Number.isFinite(Date.parse(row.observed_at))?' · '+
+    new Date(row.observed_at).toLocaleDateString('el-GR',{day:'numeric',month:'short',year:'numeric'}):''));
+  summary.append(make('span','pw-memory-title',row.title),meta);
+  card.append(summary,make('p','pw-memory-text',row.body));
+  card.append(make('p','pw-memory-source','Πηγή: '+(row.source_type==='conversation'?'συνομιλία':
+   row.source_type==='project_file'?'αρχείο project':row.source_type==='owner_note'?'σημείωσή σου':
+   'επαληθευμένο αποτέλεσμα')));
+  if(row.status==='proposed'&&typeof cloud()?.reviewDirectorMemory==='function'){
+   const actions=make('div','pw-memory-actions');
+   const approve=make('button','pw-btn-secondary','Έγκριση'),reject=make('button','pw-btn-ghost','Απόρριψη');
+   approve.type=reject.type='button';
+   const decide=async decision=>{
+    if(!window.confirm(decision==='approved'?
+     'Να γίνει αυτή η σημείωση επιβεβαιωμένη γνώση για αυτόν τον agent;\n\n«'+row.title+'»':
+     'Να απορριφθεί η πρόταση «'+row.title+'»;'))return;
+    approve.disabled=reject.disabled=true;
+    try{
+     const result=await cloud().reviewDirectorMemory({projectId,entryId:row.id,decision});
+     if(result?.status!==decision)throw Error('unverified');
+     await openMemory(true);
+    }catch(_){
+     approve.disabled=reject.disabled=false;
+     actions.append(make('p','pw-memory-error','Η αλλαγή δεν επιβεβαιώθηκε. Δοκίμασε ξανά.'));
+    }
+   };
+   approve.addEventListener('click',()=>decide('approved'));
+   reject.addEventListener('click',()=>decide('rejected'));
+   actions.append(reject,approve);card.append(actions);
+  }
+  return card;
+ }
+ async function openMemory(keepOpen=false){
+  const owner=openId,projectId=AGENT_PROJECT[owner];
+  if(!owner||!projectId||memoryBusy)return;
+  if(!musicPanel.hidden)resetMusic();
+  memorySheet.hidden=false;panel.classList.add('pw-memory-open');
+  const who=window.PaperworldProfiles?.get(owner)?.name||heading.textContent;
+  memoryName.textContent='Τι γνωρίζει '+(owner==='matt'?'ο Matt':who==='Luna'?'η Luna':'ο '+who);
+  if(!keepOpen)memoryBack.focus();
+  if(!cloud()?.signedIn()||typeof cloud()?.listDirectorMemory!=='function'){
+   memoryBody.replaceChildren(make('p','pw-empty','Συνδέσου στο PAPERWORLD Cloud για να δεις τη μνήμη.'));return;
+  }
+  memoryBusy=true;memoryOwner=owner;
+  memoryBody.replaceChildren(make('p','pw-empty pw-loading','Φόρτωση μνήμης…'));
+  try{
+   const rows=await cloud().listDirectorMemory(projectId);
+   if(memoryOwner!==owner||openId!==owner)return;
+   const valid=Array.isArray(rows)?rows.filter(r=>r&&r.project_id===projectId&&
+    typeof r.title==='string'&&typeof r.body==='string'):[];
+   const approved=valid.filter(r=>r.status==='approved');
+   const proposed=valid.filter(r=>r.status==='proposed');
+   const stats=make('div','pw-memory-stats');
+   for(const [n,label] of [[approved.length,'επιβεβαιωμένες'],[proposed.length,'προς έγκριση']]){
+    const stat=make('div','pw-memory-stat');stat.append(make('strong','',String(n)),make('span','',label));
+    stats.append(stat);
+   }
+   const body=[stats];
+   const section=(title,hint,list,empty)=>{
+    const wrap=make('section','pw-memory-section');
+    wrap.append(make('h3','',title));if(hint)wrap.append(make('p','pw-studio-hint',hint));
+    if(!list.length)wrap.append(make('p','pw-empty',empty));
+    for(const row of list)wrap.append(memoryCard(row,projectId));
+    return wrap;
+   };
+   body.push(section('Επιβεβαιωμένα','Αυτά διαβάζει ο agent πριν απαντήσει.',approved,
+    'Δεν υπάρχουν ακόμη επιβεβαιωμένες σημειώσεις.'));
+   body.push(section('Προτάσεις προς έγκριση','Δεν χρησιμοποιούνται μέχρι να τις εγκρίνεις.',proposed,
+    'Καμία πρόταση σε αναμονή.'));
+   const missing=make('section','pw-memory-section pw-memory-missing');
+   missing.append(make('h3','','Τι δεν γνωρίζει'),make('p','pw-studio-hint',
+    'Ήχος, πλήρεις στίχοι και αρχεία που δεν έχουν καταγραφεί δεν είναι διαθέσιμα. '+
+    'Όταν λείπει κάτι σημαντικό, ο agent το λέει αντί να το μαντέψει. '+
+    'Πρόσθεσε μια διόρθωση με «Να το θυμάται;» κάτω από το μήνυμά σου.'));
+   body.push(missing);
+   memoryBody.replaceChildren(...body);
+  }catch(_){
+   if(memoryOwner===owner)memoryBody.replaceChildren(make('p','pw-empty',
+    'Η μνήμη δεν φορτώθηκε. Δοκίμασε ξανά σε λίγο.'));
+  }finally{memoryBusy=false}
+ }
+ memoryItem.addEventListener('click',()=>{void openMemory()});
+ const studioItem=make('button','pw-menu-item','Music Studio');
+ studioItem.type='button';studioItem.setAttribute('role','menuitem');
+ studioItem.addEventListener('click',()=>{if(musicPanel.hidden)musicToggle.click()});
  const composer=make('footer','world-chat-composer');
  memoryReview.classList.add('village-maintenance-only');
- composer.append(memoryReview,openStudio,musicToggle,musicPanel,form);
- panel.append(top,status,messages,decisions,composer);view.append(panel);
+ memoryReview.setAttribute('role','menuitem');memoryReview.classList.add('pw-menu-item');
+ connectGithub.classList.add('pw-menu-item');
+ menu.append(memoryItem,studioItem,connectGithub,memoryReview);
+ headTools.append(musicToggle,menuBtn,menu);
+ // Contextual next steps sit just above the composer, only when relevant.
+ const contextRow=make('div','pw-context-row');
+ openStudio.classList.add('pw-chip','pw-chip-accent');
+ openStudio.textContent='♫ Άνοιγμα στο Music Studio';
+ contextRow.append(openStudio);
+ composer.append(contextRow,form);
+ const chat=make('div','pw-chat');
+ chat.append(top,status,messages,decisions,composer);
+ panel.append(chat,musicPanel,memorySheet);view.append(panel);
  // Matt owns the conversation; internal agent and worker routing stays invisible.
  async function runMattWorkflow(text){
   if(openId!=='matt'||!cloud()?.signedIn()||busy||!text.trim())return;
   busy=true;field.disabled=true;send.disabled=true;
   veil.classList.remove('world-chat-journey');mattJourneyCaption='';
   status.textContent='Ο Matt το σκέφτεται…';
+  pendingFailure=null;
+  {const sent=bubble('human',text,new Date().toISOString());sent.classList.add('pw-pending');
+   messages.querySelector('.world-dialogue-note')?.remove();messages.append(sent);showTyping()}
   let failure=null,requestId=null,watcher=null,polling=false;
   const poll=async()=>{
    if(!requestId||polling)return;
@@ -864,7 +1104,7 @@
     window.PaperworldCrowStudioDraft?.parseSong(result.directorReport):null;
    latestStudioHandoff=crowDraft?{delegated:true,directorId:result.directorId,
     requestId:result.requestId,request:text,directorReport:result.directorReport}:null;
-   field.value='';
+   field.value='';autoGrow();
    if(openId==='matt')paint();
    const plan=result.delegated?result.workProposal:null;
    const permitted=plan?.requiresSeparateConsent===true&&
@@ -941,14 +1181,15 @@
    }
    if(requestId)world()?.setAgentWorkflowFailure?.();
    if(openId==='matt')status.textContent='Δεν ολοκληρώθηκε: '+error.message;
-   showNotice('⚠ Η εργασία απέτυχε ή η συνομιλία δεν ολοκληρώθηκε: '+error.message);
+   if(openId!=='matt')showNotice('⚠ Η εργασία απέτυχε ή η συνομιλία δεν ολοκληρώθηκε. Άνοιξε τη συνομιλία με τον Matt για επανάληψη.');
+   pendingFailure={agentId:'matt',text,noteSaved:error?.noteSaved===true,error};
    if(error.noteSaved)field.value='';
   }finally{
    if(watcher!==null)clearInterval(watcher);
    busy=false;field.disabled=false;send.disabled=false;
    if(openId==='matt'){
     paint();
-    if(failure)status.textContent='Δεν ολοκληρώθηκε: '+failure.message;
+    if(failure)status.textContent=friendlyError(failure);
    }else if(!failure)showNotice('Ο Matt απάντησε. Πάτησε M για να δεις τη συνομιλία.');
   }
  }
@@ -1009,32 +1250,114 @@
   });
   item.append(button,review);
  }
+ // Rich, safe formatting for AI replies; human text stays verbatim.
+ function richText(host,text){
+  const fmt=format();
+  if(fmt?.render)host.append(fmt.render(document,text));
+  else host.append(make('p','',String(text||'')));
+ }
+ // Load a specific Crow song reply into the studio (explicit user action).
+ function openSongInStudio(text){
+  const song=window.PaperworldCrowStudioDraft?.parseSong(text);
+  if(!song){status.textContent='Η πρόταση δεν περιέχει ολοκληρωμένο τραγούδι για το Studio.';return}
+  if(musicPanel.hidden)musicToggle.click();
+  musicTitle.value=song.title;musicStyle.value=song.style;musicLyrics.value=song.lyrics;
+  refreshCounters();rememberSongDraft();musicCopy.hidden=false;musicCancel.hidden=false;
+  musicResult.textContent='Μεταφέρθηκε η πρόταση του Crow. Έλεγξε τα πεδία πριν τη δημιουργία.';
+ }
  function bubble(role,text,when,message=null){
   const item=make('article','world-chat-message '+(role==='human'?'world-dialogue-human':'world-dialogue-agent'));
-  // Some Copilot responses contain literal escaped newlines. Render them
-  // as plain text with line breaks, never as HTML or executable markup.
+  // Human text is rendered verbatim. AI replies use the safe Markdown subset
+  // (DOM nodes only, never HTML) so lists, links and code stay readable.
   const normalized=role==='human'?text:String(text||'').replace(/\\n/g,'\n');
-  // AI analyses can be long. Lead with the useful opening and keep the full
-  // unaltered source text behind a disclosure instead of filling the screen.
-  if(role!=='human'&&normalized.length>850){
-   const intro=normalized.slice(0,650);
-   const cut=Math.max(intro.lastIndexOf('\n'),intro.lastIndexOf('. '));
-   const brief=intro.slice(0,cut>350?cut:intro.length);
-   item.append(make('p','world-chat-brief',brief));
+  const fmt=format();
+  if(role==='human')item.append(make('p','pw-human-text',normalized));
+  else if(fmt?.looksLikeSong(normalized)&&window.PaperworldCrowStudioDraft?.parseSong(normalized)){
+   // A song package becomes a compact card; lyrics stay one tap away and the
+   // full text is preserved for the Studio import.
+   const song=window.PaperworldCrowStudioDraft.parseSong(normalized);
+   const lead=normalized.split(/\n\s*\**\s*TITLE\s*\**\s*:/i)[0].trim();
+   if(lead){const body=make('div','pw-md');richText(body,fmt.isLong(lead)?fmt.summary(lead):lead);item.append(body)}
+   const card=make('div','pw-song-card');
+   card.append(make('span','pw-song-kicker','Πρόταση τραγουδιού'),make('strong','pw-song-title',song.title),
+    make('p','pw-song-style',song.style));
+   const lyrics=make('details','world-chat-full-report pw-song-lyrics');
+   lyrics.append(make('summary','','Στίχοι'),make('p','pw-song-lyrics-text',song.lyrics));
+   card.append(lyrics);item.append(card);
+  }
+  else if(fmt?.isLong(normalized)){
+   // Long reports lead with a readable summary; the complete, unaltered
+   // answer stays one tap away and opens in place without moving the view.
+   item.classList.add('pw-long');
+   item.append(make('p','world-chat-brief',fmt.summary(normalized)));
    const details=make('details','world-chat-full-report');
-   details.append(make('summary','','Ολόκληρη αναφορά · προαιρετικά'),
-    make('p','world-chat-unabridged',normalized));
+   const full=make('div','world-chat-unabridged pw-md');
+   details.append(make('summary','','Ολόκληρη απάντηση'),full);
+   details.addEventListener('toggle',()=>{
+    if(details.open&&!full.childNodes.length)richText(full,normalized);
+   },{once:false});
    item.append(details);
-  }else item.append(make('p','',normalized));
+  }else{
+   const body=make('div','pw-md');richText(body,normalized);item.append(body);
+  }
+  const footer=make('div','pw-msg-footer');
   if(when&&Number.isFinite(Date.parse(when))){
    const time=make('time','world-chat-time',new Date(when).toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'}));
-   time.dateTime=when;item.append(time);
+   time.dateTime=when;footer.append(time);
   }
+  if(role!=='human'&&openId==='studio-director'&&fmt?.looksLikeSong(normalized)){
+   const action=make('button','pw-chip pw-chip-accent','♫ Άνοιγμα στο Music Studio');
+   action.type='button';action.addEventListener('click',()=>openSongInStudio(normalized));
+   footer.prepend(action);
+  }
+  if(footer.childNodes.length)item.append(footer);
   if(role==='human'&&message?.rememberable===true)rememberAction(item,message);
   return item;
  }
+ // Friendly, non-technical failure copy. Technical detail stays collapsed.
+ function friendlyError(error){
+  const raw=String(error?.message||error||'');
+  if(/github_reconnect_required/.test(raw))return 'Χρειάζεται επανασύνδεση του GitHub για τις AI απαντήσεις.';
+  if(/verify_github_zero_overage_budget|no_verified_price_model/.test(raw))return 'Η AI σύνδεση δεν είναι ενεργή αυτή τη στιγμή.';
+  if(/another_request_active|429/.test(raw))return 'Ολοκληρώνεται ήδη ένα άλλο αίτημα. Δοκίμασε σε λίγο.';
+  if(/session expired|sign in|unauthorized|401/i.test(raw))return 'Η σύνδεση στο PAPERWORLD Cloud χρειάζεται ανανέωση.';
+  if(/503|unavailable|network|failed to fetch|timeout/i.test(raw))return 'Ο server δεν απάντησε. Δοκίμασε ξανά σε λίγο.';
+  return 'Η απάντηση δεν ολοκληρώθηκε.';
+ }
+ let pendingFailure=null; // {agentId,text,noteSaved,error}
+ function failureCard(failure){
+  const card=make('div','pw-failure');card.setAttribute('role','alert');
+  card.append(make('p','pw-failure-text',friendlyError(failure.error)));
+  const row=make('div','pw-failure-actions');
+  const retry=make('button','pw-chip pw-chip-accent','Ξαναδοκίμασε');retry.type='button';
+  retry.addEventListener('click',()=>retryFailure(failure));
+  const detail=make('details','pw-failure-detail');
+  detail.append(make('summary','','Λεπτομέρειες'),
+   make('p','',String(failure.error?.message||'').slice(0,240)));
+  row.append(retry,detail);card.append(row);
+  return card;
+ }
+ function retryFailure(failure){
+  if(busy||openId!==failure.agentId)return;
+  pendingFailure=null;
+  if(failure.agentId!=='matt'&&failure.noteSaved){
+   // The message is already saved: ask again without saving a duplicate.
+   void submitDirector(failure.agentId,failure.text,{saveNote:false});
+   return;
+  }
+  field.value=failure.text;autoGrow();field.focus();
+  if(failure.agentId!=='matt')form.requestSubmit();
+  else paint();
+ }
+ const typing=make('div','pw-typing');typing.setAttribute('aria-label','Γράφει…');
+ typing.append(make('span'),make('span'),make('span'));
+ function showTyping(){
+  if(!busy){typing.remove();return}
+  messages.append(typing);scrollBottom();
+ }
  function system(text){return make('p','world-dialogue-note',text)}
- function scrollBottom(){messages.scrollTop=messages.scrollHeight}
+ function scrollBottom(){messages.scrollTo?.({top:messages.scrollHeight,behavior:'auto'});
+  messages.scrollTop=messages.scrollHeight}
  function appendEntries(entries){
   messages.replaceChildren();
   const eligible=entries.map((m,i)=>m.role==='human'&&m.id?i:-1)
@@ -1049,6 +1372,8 @@
   if(!entries.length&&!(openId==='matt'?mattReplies.length:(directorReplies.get(openId)||[]).length))messages.append(system(openId==='matt'?
    'Πες μου τι έχεις στο μυαλό σου. Θα βρούμε μαζί πώς να προχωρήσουμε.':
    'Μίλα απευθείας στον Director. Κάθε AI απάντηση χρειάζεται δική σου έγκριση.'));
+  if(pendingFailure&&pendingFailure.agentId===openId)messages.append(failureCard(pendingFailure));
+  showTyping();
   scrollBottom();
  }
  // Matt's authenticated history includes spontaneous village notifications.
@@ -1103,15 +1428,20 @@
  }
  function paint(){
   const token=++revision;
+  document.documentElement.classList.toggle('pw-chat-open',!!openId);
   if(!openId){panel.hidden=true;veil.hidden=true;return}
   panel.hidden=false;veil.hidden=false;
   const isMatt=openId==='matt';
+  if(panel.dataset.agent!==openId){setMenu(false);
+   if(pendingFailure&&pendingFailure.agentId!==openId)pendingFailure=null}
+  panel.dataset.agent=openId;
+  if(memorySheet.hidden===false&&memoryOwner!==openId)closeMemory();
   const agent=world()?.agents()?.find(a=>a.id===openId);
   const profile=window.PaperworldProfiles?.get(openId);
   heading.textContent=profile?.name||(isMatt?'Matt':agent?.name||'Director');
   if(window.PaperworldProfiles)window.PaperworldProfiles.paintAvatar(avatar,openId);
   else avatar.textContent=heading.textContent.charAt(0).toUpperCase();
-  activity.textContent=isMatt?'Εδώ για ό,τι χρειαστείς':(profile?.project||'Η ομάδα σου');
+  activity.textContent=(isMatt?'Chief of Staff':(profile?.project||'Η ομάδα σου'));
   const active=cloud()?.signedIn()===true;
   const available=active&&typeof cloud()?.privateAgentMessages==='function'&&!busy;
   status.textContent=!active?'Συνδέσου στο PAPERWORLD Cloud για να στείλεις μηνύματα.':
@@ -1136,6 +1466,12 @@
    decisions.hidden=!isMatt||!active;
   memoryReview.hidden=!isMatt||!active;
   musicToggle.hidden=openId!=='studio-director'||!active;
+  studioItem.hidden=musicToggle.hidden;
+  memoryItem.hidden=!active||!AGENT_PROJECT[openId];
+  memoryItem.textContent=isMatt?'Τι γνωρίζει ο Matt':'Τι γνωρίζει '+
+   (heading.textContent==='Luna'?'η ':'ο ')+heading.textContent;
+  activity.dataset.state=active?'online':'offline';
+  activity.title=active?'Συνδεδεμένο στο PAPERWORLD Cloud':'Εκτός σύνδεσης';
   openStudio.hidden=!isMatt||!active||!latestStudioHandoff||busy;
   if(musicToggle.hidden)resetMusic();
   if(isMatt&&active){setupDecisions();void refreshDecisions()}
@@ -1169,10 +1505,21 @@
    });
   }
   field.disabled=!available;send.disabled=!available;
-  field.placeholder=available?'Γράψε μήνυμα…':'Συνδέσου για να στείλεις μήνυμα';
+  field.placeholder=available?'Μήνυμα προς '+heading.textContent+'…':
+   busy?'Περιμένω απάντηση…':'Συνδέσου για να στείλεις μήνυμα';
+  field.setAttribute('aria-label','Μήνυμα προς '+heading.textContent);
+  contextRow.hidden=openStudio.hidden;
  }
- function show(id){stopLiveMatt();openId=id;paint();startLiveMatt();if(!field.disabled)field.focus()}
- function hide(){stopLiveMatt();openId=null;resetMusic();veil.classList.remove('world-chat-journey');paint();mattBtn.focus()}
+ // Return focus to whatever opened the Messenger (village control, shortcut).
+ let opener=null;
+ document.addEventListener('focusin',e=>{if(!panel.contains(e.target))opener=e.target});
+ function show(id){stopLiveMatt();openId=id;paint();startLiveMatt();fitViewport();autoGrow();
+  // Avoid popping the phone keyboard over the conversation on open.
+  if(!field.disabled&&!window.matchMedia?.('(pointer: coarse)')?.matches)field.focus();
+ }
+ function hide(){stopLiveMatt();openId=null;resetMusic();setMenu(false);memorySheet.hidden=true;
+  panel.classList.remove('pw-memory-open');veil.classList.remove('world-chat-journey');paint();
+  (opener&&opener.isConnected&&opener!==document.body?opener:mattBtn).focus?.();opener=null}
  function nearby(){
   const target=world()?.nearestAgent(100);
   if(!target){showNotice('Δεν υπάρχει agent κοντά σου. Πλησίασε έναν χαρακτήρα.');return}
@@ -1193,33 +1540,66 @@
    await runMattWorkflow(text);
    return;
   }
+  const isDirector=['listening-director','pokemon-director',
+   'studio-director','wellbeing-director'].includes(id);
+  if(isDirector){await submitDirector(id,text);return}
   busy=true;field.disabled=true;send.disabled=true;
   try{
-   const isDirector=['listening-director','pokemon-director',
-    'studio-director','wellbeing-director'].includes(id);
-   if(isDirector){
-    const result=await cloud().askDirector(id,text);
-    const existing=directorReplies.get(id)||[];
-    directorReplies.set(id,[...existing,{id:result.persisted===true?result.requestId:null,
-     content:result.content,time:new Date().toISOString()}].slice(-12));
-    field.value='';
-   }else{
-    await cloud().sendPrivateAgentMessage(id,text);
-    field.value='';
-   }
+   await cloud().sendPrivateAgentMessage(id,text);
+   field.value='';autoGrow();
   }catch(error){
    status.textContent='Η συνομιλία δεν ολοκληρώθηκε: '+error.message;
    if(error.noteSaved)field.value='';
   }
   finally{busy=false;if(openId===id)paint()}
  });
+ // Optimistic send: the message appears at once, a typing indicator follows,
+ // and a failure offers one-tap retry without duplicating a saved note.
+ async function submitDirector(id,text,{saveNote=true}={}){
+  if(busy||!cloud()?.signedIn())return;
+  busy=true;field.disabled=true;send.disabled=true;pendingFailure=null;
+  const optimistic=bubble('human',text,new Date().toISOString());
+  optimistic.classList.add('pw-pending');
+  if(saveNote&&openId===id){messages.querySelector('.world-dialogue-note')?.remove();messages.append(optimistic)}
+  field.value='';autoGrow();showTyping();scrollBottom();
+  try{
+   const result=saveNote?await cloud().askDirector(id,text):
+    await cloud().askDirector(id,text,{saveNote:false});
+   const existing=directorReplies.get(id)||[];
+   directorReplies.set(id,[...existing,{id:result.persisted===true?result.requestId:null,
+    content:result.content,time:new Date().toISOString()}].slice(-12));
+  }catch(error){
+   pendingFailure={agentId:id,text,noteSaved:error?.noteSaved===true||!saveNote,error};
+   if(!pendingFailure.noteSaved&&openId===id){field.value=text;autoGrow()}
+  }
+  finally{busy=false;typing.remove();if(openId===id)paint()}
+ }
+ // Composer grows with its content up to a comfortable maximum.
+ function autoGrow(){
+  field.style.height='auto';
+  field.style.height=Math.min(field.scrollHeight,160)+'px';
+ }
+ field.addEventListener('input',autoGrow);
+ // Keep the composer above the on-screen keyboard on phones and tablets.
+ const vv=window.visualViewport;
+ function fitViewport(){
+  if(!vv)return;
+  panel.style.setProperty('--pw-vvh',Math.round(vv.height)+'px');
+  panel.style.setProperty('--pw-vvtop',Math.round(vv.offsetTop)+'px');
+ }
+ if(vv){vv.addEventListener('resize',fitViewport);vv.addEventListener('scroll',fitViewport);fitViewport()}
  field.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();if(!field.disabled&&field.value.trim())form.requestSubmit()}
  });
  document.addEventListener('keydown',e=>{
   if(e.defaultPrevented||e.altKey||e.ctrlKey||e.metaKey||e.repeat)return;
   const t=e.target;
-  if(e.key==='Escape'&&openId){hide();return}
+  if(e.key==='Escape'&&openId){
+   if(!menu.hidden){setMenu(false);menuBtn.focus();return}
+   if(!memorySheet.hidden){closeMemory();return}
+   if(!musicPanel.hidden&&panel.classList.contains('pw-studio-open')&&
+      window.matchMedia?.('(max-width: 899px)')?.matches){musicToggle.click();return}
+   hide();return}
   if(t?.closest?.('input,textarea,select,[contenteditable="true"]'))return;
   if(e.key.toLowerCase()==='m'){e.preventDefault();show('matt')}
   if(e.key.toLowerCase()==='t'){e.preventDefault();nearby()}
@@ -1232,6 +1612,7 @@
   show('studio-director');
   musicPanel.hidden=false;
   musicToggle.setAttribute('aria-expanded','true');
+  syncStudio();
   if(restoreSongDraft()){
    musicResult.textContent='Το τραγούδι σου διατηρήθηκε. Έλεγξε τη σύνδεση Suno και συνέχισε.';
    musicCopy.hidden=false;musicCancel.hidden=false;

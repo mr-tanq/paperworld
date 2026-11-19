@@ -52,8 +52,10 @@ test('Diagnostic HTTP route and browser client do not dispatch chat prompts',()=
  assert.match(frontend,/\/diagnostic\/matt-session/);
  const messenger=fs.readFileSync(path.join(__dirname,'../js/world-dialogue.js'),'utf8');
  assert.doesNotMatch(messenger,/Έλεγχος Copilot · χωρίς AI μήνυμα/);
- assert.match(messenger,/top\.append\(avatar,identity,connectGithub,close\)/);
- assert.match(messenger,/composer\.append\(memoryReview,openStudio,musicToggle,musicPanel,form\)/);
+ assert.match(messenger,/menu\.append\(memoryItem,studioItem,connectGithub,memoryReview\)/);
+ // Secondary actions moved to the overflow menu; composer keeps only context + input.
+ assert.match(messenger,/composer\.append\(contextRow,form\)/);
+ assert.match(messenger,/menu\.append\(memoryItem,studioItem,connectGithub,memoryReview\)/);
  assert.match(messenger,/memoryReview\.hidden=!isMatt\|\|!active/);
  assert.match(messenger,/musicToggle\.hidden=openId!=='studio-director'/);
 });

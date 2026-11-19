@@ -21,7 +21,9 @@ test('Crow Messenger offers a functional local draft without Suno generation',()
  assert.doesNotMatch(client,/\/suno\/crow\/execute/);
 });
 test('Suno preview panel is bounded and hides when not in Crow chat',()=>{
- const css=read('style.css');
- assert.match(css,/\.crow-music-panel\[hidden\]/);
- assert.match(css,/max-height:min\(36vh,270px\)/);
+ // The studio is its own workspace: hidden attribute always wins and it
+ // scrolls internally instead of squeezing the composer.
+ const css=read('messenger.css');
+ assert.match(css,/#view \.pw-messenger \[hidden\]\{display:none!important\}/);
+ assert.match(css,/\.pw-studio-body\{flex:1;min-height:0;overflow-y:auto/);
 });

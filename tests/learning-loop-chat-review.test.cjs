@@ -30,7 +30,8 @@ test('learning client submits only references and metadata, not a forged message
  assert.match(shell,/proposeDirectorCorrection:\(id,messageId,options\)/);
 });
 test('browser loads matching reviewed JS and CSS assets',()=>{
- for(const file of ['style.css','js/cloud.js','js/cloud-ui.js'])
-  assert.ok(html.includes(file+'?v=learning-loop-v3-integrated'));
- assert.ok(html.includes('js/world-dialogue.js?v=suno-voice-mounted-v20'));
+ assert.ok(html.includes('js/cloud.js?v=learning-loop-v3-integrated'));
+ for(const file of ['style.css','js/cloud-ui.js','messenger.css','js/messenger-format.js'])
+  assert.ok(html.includes(file+'?v=messenger-v2-1'),file);
+ assert.ok(html.includes('js/world-dialogue.js?v=messenger-v2-1'));
 });

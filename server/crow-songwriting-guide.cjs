@@ -18,6 +18,8 @@ const GUIDE=[
  'Historical albums and eras are optional context ONLY when the current user has not provided a sonic reference.',
  'If the current request names an unfamiliar or ambiguous artist, album or track, ask for one clarifying',
  'detail or a concrete sonic trait. Do NOT pretend to know the sound or silently substitute acoustic folk.',
+ 'This does NOT apply to the owner\'s own Lost Wanderer catalogue resolved in a REFERENCE DOSSIER: there,',
+ 'propose first from the known facts, label interpretation, and name at most one specific missing detail.',
  'Before writing SUNO STYLE PROMPT, privately check that every major style/instrument choice matches this',
  'specific request, and remove nostalgic defaults not requested. Never explain this internal check.',
  'When asked to WRITE, CREATE, FINISH or REVISE a song, give the usable song rather than only concept notes.',

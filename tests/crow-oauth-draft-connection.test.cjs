@@ -25,17 +25,19 @@ test('Suno callback restores same owner draft and does not treat URL parameter a
 });
 test('Matt and Crow render compact authenticated connection chips, never persistent connect prompts',()=>{
  const script=src(),style=fs.readFileSync('style.css','utf8');
- assert.match(script,/top\.append\(avatar,identity,connectGithub,close\)/);
+ assert.match(script,/menu\.append\(memoryItem,studioItem,connectGithub,memoryReview\)/);
  assert.doesNotMatch(script,/composer\.append\(connectGithub/);
- assert.match(script,/musicPanel\.append\(sunoConnect,musicHelp/);
+ // Suno connection state lives quietly in the Music Studio header.
+ assert.match(script,/studioHead\.append\(studioBack,studioTitle,sunoConnect\)/);
  assert.match(script,/GitHub · Συνδεδεμένο/);
  assert.match(script,/Suno · Συνδεδεμένο/);
  assert.match(script,/await cloud\(\)\.githubLinkStatus\(\)/);
  assert.match(script,/link\.connected===true\|\|link\.chatConnected===true/);
  assert.match(script,/setGithubConnection\('unknown'\)/);
  assert.match(script,/setSunoConnection\('unknown'\)/);
- assert.match(style,/\.world-dialogue-head \.world-connection-chip/);
- assert.match(style,/\.crow-music-panel \.world-connection-chip/);
+ const messenger=fs.readFileSync('messenger.css','utf8');
+ assert.match(messenger,/\.pw-menu \.world-connection-chip\[data-state="connected"\]/);
+ assert.match(messenger,/\.pw-studio \.world-connection-chip\[data-state="connected"\]/);
 });
 test('Cloud owner marker is UUID only and browser cache versions advance together',()=>{
  const client=fs.readFileSync('js/cloud.js','utf8');
@@ -46,9 +48,9 @@ test('Cloud owner marker is UUID only and browser cache versions advance togethe
  assert.match(wrapper,/ownerId:\(\)=>client\.ownerId\(\)/);
  for(const marker of [
   'cloud.js?v=learning-loop-v3-integrated',
-  'cloud-ui.js?v=learning-loop-v3-integrated',
-  'world-dialogue.js?v=suno-voice-mounted-v20',
-  'style.css?v=learning-loop-v3-integrated'
+  'cloud-ui.js?v=messenger-v2-1',
+  'world-dialogue.js?v=messenger-v2-1',
+  'style.css?v=messenger-v2-1'
  ])assert.ok(html.includes(marker),marker);
 });
 
@@ -66,5 +68,5 @@ test('One GitHub tap verifies status then opens OAuth without a second click',()
  assert.match(script,/let githubLinkBusy=false/);
  assert.match(script,/githubLinkBusy\|\|/);
  const html=fs.readFileSync('index.html','utf8');
- assert.match(html,/world-dialogue\.js\?v=suno-voice-mounted-v20/);
+ assert.match(html,/world-dialogue\.js\?v=messenger-v2-1/);
 });

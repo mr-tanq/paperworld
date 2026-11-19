@@ -89,7 +89,11 @@ test('Matt journey is driven by the verified streamed Director, not a completed 
  const after=ui.indexOf('await Promise.race(');
  const reply=ui.indexOf('mattReplies.push({id:result.persisted===true');
  assert.ok(after>=0&&reply>after,'reply bubble must appear after Matt returns');
- const css=read('style.css');
- assert.match(css,/\.world-dialogue\{\s*left:auto!important;right:12px!important/);
+ // The journey stays visible: docked Messenger, click-through veil, and a
+ // phone bottom-sheet while Matt walks.
+ const css=read('messenger.css');
+ assert.match(css,/inset:12px 12px 12px auto/);
  assert.match(css,/\.world-chat-veil,\.world-chat-veil\.world-chat-journey\{/);
+ assert.match(css,/\.pw-messenger\.pw-journey\{/);
+ assert.match(ui,/panel\.classList\.toggle\('pw-journey'/);
 });
