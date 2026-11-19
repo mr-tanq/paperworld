@@ -437,6 +437,15 @@
     throw Error('Unverified routine preview');
    return result;
   }
+  async function listRoutines(){
+   const result=await routineAction('list');
+   if(!Array.isArray(result.routines)||result.routines.length>30||
+    result.routines.some(r=>typeof r.goal!=='string'||r.goal.length>1200||
+     typeof r.enabled!=='boolean'||!['listening','pokemon','studio','wellbeing'].includes(r.projectId)||
+     !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(r.id||'')))
+    throw Error('Unverified routine list');
+   return result.routines;
+  }
   async function createRoutine(details){
    const result=await routineAction('create',{...details,confirmed:true});
    if(result.enabled!==false||result.requiresActivation!==true||
@@ -936,7 +945,7 @@
   return {BASE,identity,ownerId,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
    createAutonomousMission,listAutonomousMissions,autonomousControllerStatus,simulateAutonomousMission,launchCopilotPilot,
-   previewRoutine,createRoutine,changeRoutine,
+   previewRoutine,listRoutines,createRoutine,changeRoutine,
    listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,previewImportedDirectorMemory,approveImportedDirectorMemory,agentMessages,sendAgentNote,askDirector,proposeDirectorCorrection,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,sourceFactWorker,mattJobHistory,teamHandoffHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
    listPokemonProposals,rejectPokemonProposal,publishPokemonProposal,
