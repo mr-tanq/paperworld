@@ -9,6 +9,7 @@ const {createSunoOAuthDiscovery}=require('./suno-oauth-discovery.cjs');
 const {makeSunoMcpToolProbe}=require('./suno-mcp-tool-probe.cjs');
 const {makeSunoAudioCreate,validRequest,buildAudioCreateCall}=require('./suno-audio-create.cjs');
 const {makeSunoClaim}=require('./suno-durable-claim.cjs');
+const {makeSunoVoicesList,VOICE_ID}=require('./suno-voices-list.cjs');
 const APP='https://mr-tanq.github.io';
 const HOST='https://paperworld-matt-test-6hmd.onrender.com';
 const CLIENT_ID=HOST+'/auth/suno/client-metadata';
@@ -104,6 +105,7 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
  const pending=new Map(),linked=new Map();
  const durableClaim=sunoClaim||makeSunoClaim({fetcher});
  const audioCreate=makeSunoAudioCreate({fetcher});
+ const voiceCatalog=makeSunoVoicesList({fetcher});
  const answer=(status,body)=>({status,body,headers});
  const denied=(status,error)=>answer(status,{error});
  function cleanup(){
@@ -262,14 +264,35 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
     !audioCreate.compatible?'audio_create_contract_unverified':
     !claim.ready?'create_claim_storage_not_ready':'ready_for_owner_approved_create'});
  }
+ async function listVoices(req={}){
+  const who=await identify(req);if(who.error)return who.error;
+  cleanup();
+  const linkedToken=linked.get(who.ownerId);
+  if(!linkedToken)return denied(409,'suno_oauth_required');
+  const verdict=await tools.inspect({accessToken:linkedToken.accessToken});
+  if(verdict?.available!==true||
+     verdict.reason!=='read_only_tools_verified'||
+     !verdict.tools?.includes('voices-list'))
+   return denied(409,'voices_list_not_verified');
+  const result=await voiceCatalog.list({accessToken:linkedToken.accessToken});
+  if(!result.available)return denied(502,result.reason);
+  return answer(200,{service:'suno_mcp',voices:result.voices,
+   defaultVoiceName:'The Wanderer',canGenerate:false});
+ }
  async function createSong(req={}){
-  if(typeof req.body!=='string'||Buffer.byteLength(req.body,'utf8')>11000)
+  if(typeof req.body!=='string'||Buffer.byteLength(req.body,'utf8')>11200)
    return denied(413,'invalid_body');
   let data;try{data=JSON.parse(req.body)}catch(_){return denied(400,'invalid_json')}
   if(!data||typeof data!=='object'||Array.isArray(data)||
-     Object.keys(data).sort().join(',')!=='agentId,brief,idempotencyKey,threadId'||
+     !['agentId,brief,idempotencyKey,threadId',
+       'agentId,brief,idempotencyKey,threadId,voiceId'].includes(
+        Object.keys(data).sort().join(','))||
      !validRequest(data.brief,data.idempotencyKey))
    return denied(400,'invalid_audio_create_request');
+  const selectedVoice=data.voiceId===undefined?null:data.voiceId;
+  if(selectedVoice!==null&&
+     (typeof selectedVoice!=='string'||!VOICE_ID.test(selectedVoice)))
+   return denied(400,'audio_create_voice_invalid');
   const who=await identify({headers:req.headers,body:JSON.stringify({
    agentId:data.agentId,threadId:data.threadId})});
   if(who.error)return who.error;
@@ -284,10 +307,20 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
   // reachable through the legacy session handshake cannot accept it.
   if(toolVerdict.reason!=='read_only_tools_verified')
    return denied(409,'audio_create_transport_unsupported');
+  // A selected voice is owner-scoped. Verify it exists in the live
+  // account catalog BEFORE the durable claim or any credit-spending request.
+  if(selectedVoice!==null){
+   if(!toolVerdict.tools.includes('voices-list'))
+    return denied(409,'audio_create_voice_unavailable');
+   const voices=await voiceCatalog.list({accessToken:linkedToken.accessToken});
+   if(!voices.available||!voices.voices.some(v=>v.id===selectedVoice))
+    return denied(409,'audio_create_voice_unavailable');
+  }
   // Validate the exact arguments and Mcp-Param headers against the live
   // inputSchema BEFORE claiming or spending anything.
   const call=buildAudioCreateCall({brief:data.brief,
-   idempotencyKey:data.idempotencyKey,contract:toolVerdict.toolContract});
+   idempotencyKey:data.idempotencyKey,contract:toolVerdict.toolContract,
+   voiceId:selectedVoice});
   if(!call.ok)return answer(409,{error:CREATE_REASONS.has(call.reason)?
    call.reason:'audio_create_schema_unverified',
    ...(typeof call.field==='string'?{field:call.field}:{}),
@@ -371,7 +404,7 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
    grant_types:['authorization_code'],response_types:['code'],
    token_endpoint_auth_method:'none'};
  }
- return Object.freeze({start,status,inspectTools,diagnose,createSong,callback,clientMetadata});
+ return Object.freeze({start,status,inspectTools,diagnose,listVoices,createSong,callback,clientMetadata});
 }
 module.exports=Object.freeze({createSunoOAuthClient,validServerMeta,isSunoOrigin,
  serverMetadataUrls,CLIENT_ID,CALLBACK});
