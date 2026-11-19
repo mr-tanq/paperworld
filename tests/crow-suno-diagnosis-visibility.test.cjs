@@ -34,7 +34,7 @@ test('Create song button never exits silently or offers a duplicate submission',
  assert.match(click,/Χρειάζεται σύνδεση στο Paperworld Cloud/);
  assert.match(click,/Έχει ήδη επιχειρηθεί υποβολή/);
  assert.match(click,/Υπάρχει ήδη υποβολή σε εξέλιξη/);
- assert.match(click,/cloud\(\)\.createSunoSong\(brief,key\)/);
+ assert.match(click,/cloud\(\)\.createSunoSong\(brief,key,selectedVoiceId\)/);
  assert.match(click,/sunoGenerate\.disabled=false/);
  assert.doesNotMatch(click,/lastSunoSubmission\|\|\s*!cloud\(\)\?\.signedIn\(\).*return/);
 });
