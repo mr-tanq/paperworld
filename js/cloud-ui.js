@@ -428,6 +428,10 @@ window.PaperworldCloudUI={
  privateAgentMessages:(id)=>client.agentMessages(id),
  sendPrivateAgentMessage:(id,text)=>client.sendAgentNote(id,text),
  askDirector:(id,text,options)=>client.askDirector(id,text,options),
+ previewRoutine:plan=>client.previewRoutine(plan),
+ listRoutines:()=>client.listRoutines(),
+ createRoutine:plan=>client.createRoutine(plan),
+ changeRoutine:(routineId,enabled)=>client.changeRoutine(routineId,enabled),
  proposeDirectorCorrection:(id,messageId,options)=>client.proposeDirectorCorrection(id,messageId,options),
  // Owner-only, RLS-scoped memory view; review applies to ONE proposed row.
  listDirectorMemory:(projectId)=>client.listDirectorMemory(projectId),

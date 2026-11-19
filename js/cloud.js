@@ -411,6 +411,55 @@
     throw Error('Unverified team handoff history');
    return result;
   }
+  // Matt Routine Loop: owner-authorized preview and explicit zero-spend controls.
+  async function routineAction(action,details={}){
+   if(!['preview','create','list','enable','pause'].includes(action))
+    throw Error('Unknown routine action');
+   await ensureAuth();
+   const thread=await getAgentThread('matt',false);
+   if(!thread)throw Error('Open a private Matt conversation first');
+   const response=await fetcher(MATT_ORIGIN+'/routines/'+action,{
+    method:'POST',redirect:'error',
+    headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},
+    body:JSON.stringify({threadId:thread.id,...details})
+   });
+   let data={};try{data=await response.json()}catch(_){}
+   if(!response.ok)throw Error((data.error||'Routine unavailable')+
+    ' (HTTP '+response.status+')');
+   return data;
+  }
+  async function previewRoutine(details){
+   const result=await routineAction('preview',details);
+   if(result.reviewOnly!==true||result.enabled!==false||
+    result.aiCalls!==0||result.additionalSpendUsd!==0||
+    result.projectId!==details.projectId||result.goal!==details.goal||
+    !Number.isFinite(Date.parse(result.nextReviewAt||'')))
+    throw Error('Unverified routine preview');
+   return result;
+  }
+  async function listRoutines(){
+   const result=await routineAction('list');
+   if(!Array.isArray(result.routines)||result.routines.length>30||
+    result.routines.some(r=>typeof r.goal!=='string'||r.goal.length>1200||
+     typeof r.enabled!=='boolean'||!['listening','pokemon','studio','wellbeing'].includes(r.projectId)||
+     !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(r.id||'')))
+    throw Error('Unverified routine list');
+   return result.routines;
+  }
+  async function createRoutine(details){
+   const result=await routineAction('create',{...details,confirmed:true});
+   if(result.enabled!==false||result.requiresActivation!==true||
+    !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(result.routineId||''))
+    throw Error('Routine not verified as disabled');
+   return result;
+  }
+  async function changeRoutine(routineId,enable){
+   const result=await routineAction(enable?'enable':'pause',{routineId,confirmed:true});
+   if(result.routineId!==routineId||result.enabled!==enable||
+    result.aiCalls!==0||result.execution!=='review_drafts_only')
+    throw Error('Routine state not verified');
+   return result;
+  }
   async function autonomousMissionAction(action,details={}){
    if(!['create','list','status','simulate','pilot'].includes(action))throw Error('Invalid mission action');
    await ensureAuth();
@@ -896,6 +945,7 @@
   return {BASE,identity,ownerId,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
    createAutonomousMission,listAutonomousMissions,autonomousControllerStatus,simulateAutonomousMission,launchCopilotPilot,
+   previewRoutine,listRoutines,createRoutine,changeRoutine,
    listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,previewImportedDirectorMemory,approveImportedDirectorMemory,agentMessages,sendAgentNote,askDirector,proposeDirectorCorrection,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,sourceFactWorker,mattJobHistory,teamHandoffHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
    listPokemonProposals,rejectPokemonProposal,publishPokemonProposal,
