@@ -264,6 +264,11 @@
   sunoCreateStatus.textContent=text;
   // Keep action feedback immediately beside the button, below long lyrics.
   sunoCreateStatus.hidden=!text;
+  if(text&&!musicPanel.hidden){
+   // Music Studio is a 270px inner scroller on mobile. Keep this result in
+   // sight rather than writing an error above a long lyrics textarea.
+   sunoCreateStatus.scrollIntoView?.({block:'nearest'});
+  }
  }
  sunoCreateStatus.hidden=true;
  let lastSunoSubmission=null;
@@ -297,6 +302,7 @@
    return;
   }
   if(!window.confirm('Να στείλω αυτό το τραγούδι στο Suno; Μπορεί να χρησιμοποιηθούν Suno credits.')){
+   showSunoCreateStatus('Η δημιουργία ακυρώθηκε. Δεν στάλθηκε αίτημα στη Suno.','notice');
    return;
   }
   const key=window.crypto?.randomUUID?.();
