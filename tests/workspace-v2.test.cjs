@@ -20,7 +20,7 @@ const MISSIONS=[
   report:{headStillCurrent:true,requiredTests:['npm test'],prUrl:'https://github.com/mr-tanq/concerts/pull/42'}},
  {id:U(4),projectId:'studio',status:'completed',goal:'Καταγεγραμμένο χωρίς απόδειξη'}];
 
-function boot({signedIn=true,fail=false,github='connected',suno='disconnected',confirm=()=>false}={}){
+function boot({signedIn=true,fail=false,github='connected',suno='disconnected',confirm=()=>false,extraRaw=null}={}){
  const doc=createDocument(),calls=[];
  const view=doc.createElement('div');view.id='view';doc.body.append(view);
  const controls=doc.createElement('div');controls.className='controls';view.append(controls);
@@ -28,6 +28,9 @@ function boot({signedIn=true,fail=false,github='connected',suno='disconnected',c
  const hall=doc.createElement('button');hall.id='call-visual-meeting';doc.body.append(hall);
  hall.addEventListener('click',()=>calls.push(['townHall']));
  const raw=rawData();
+ if(extraRaw)for(const [k,v] of Object.entries(extraRaw)){
+  if(Array.isArray(raw[k])&&Array.isArray(v))raw[k].push(...v);
+ }
  const spy=(name,ret)=>async(...a)=>{calls.push([name,...a]);return typeof ret==='function'?ret(...a):ret};
  const cloud={signedIn:()=>signedIn,identity:()=>'owner@example.test',
   loadHumanWork:async()=>{calls.push(['loadHumanWork']);if(fail)throw Error('offline');return JSON.parse(JSON.stringify(raw))},
@@ -196,4 +199,39 @@ test('Static guarantees: no innerHTML, no fabricated presence, shared design tok
  assert.ok(html.indexOf('js/workspace.js')>html.indexOf('js/world-dialogue.js'));
  assert.ok(html.indexOf('js/workspace.js')>html.indexOf('js/human-first-hub.js'));
  assert.match(html,/workspace\.css\?v=workspace-v2-1/);
+});
+
+test('Finished investigations and unstarted notes do not inflate active work',async()=>{
+ const long='Έλεγχος ήδη ολοκληρωμένος: '+('προηγούμενες πληροφορίες '.repeat(8));
+ const t=boot({extraRaw:{
+  jobs:[{id:U(40),project:'Listening Mirror',summary:long,
+   createdAt:new Date().toISOString(),
+   events:[{state:'reported',actor:'studio-director',createdAt:new Date().toISOString()}]}],
+  workerRuns:[{id:U(41),requestId:U(42),project:'listening',
+   directorId:'listening-director',workerId:'listening-developer',
+   status:'reported',summary:'Διερεύνηση τελείωσε',
+   createdAt:new Date().toISOString()}]
+ }});
+ t.ws.open('work');await flush();
+ const all=t.ws.items();
+ const old=all.filter(i=>i.bucket==='reviewed');
+ assert.equal(old.length,2);
+ assert.ok(old.every(i=>i.bucket!=='active'));
+ assert.deepEqual(t.shell.querySelectorAll('.pw-stat strong').map(x=>x.textContent),['2','1','2']);
+ assert.match(t.text(),/Διερευνήθηκαν \/ Προετοιμάστηκαν/);
+ const cards=t.shell.querySelectorAll('.pw-item-details');
+ assert.ok(cards.length>0,'long archived descriptions should start folded');
+ assert.equal(cards[0].open,false);
+ assert.equal(cards[0].querySelector('.pw-item-full').textContent,long);
+ assert.ok(all.some(i=>i.bucket==='waiting'&&i.note===true));
+});
+test('Workspace opens camera framing and restores it on close without modifying data',async()=>{
+ const t=boot();t.win.PaperworldWorld.frameForWorkspace=payload=>{t.calls.push(['frame',payload])};
+ t.ws.open('work');await flush();
+ assert.ok(t.calls.some(x=>x[0]==='frame'&&x[1].open===true));
+ t.ws.close();
+ assert.ok(t.calls.some(x=>x[0]==='frame'&&x[1].open===false));
+ const app=fs.readFileSync('js/app.js','utf8');
+ assert.match(app,/frameForWorkspace:\(\{open=false,panelWidth=0\}/);
+ assert.match(app,/state\.x=visible\/2-\(W\/2\)\*state\.scale/);
 });
