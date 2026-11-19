@@ -51,3 +51,20 @@ test('Cloud owner marker is UUID only and browser cache versions advance togethe
   'style.css?v=oauth-status-chips-v1'
  ])assert.ok(html.includes(marker),marker);
 });
+
+test('One GitHub tap verifies status then opens OAuth without a second click',()=>{
+ const script=src();
+ const click=script.split("connectGithub.addEventListener('click',async()=>{")[1]
+  ?.split("top.append(avatar,identity,connectGithub,close)")[0];
+ assert.ok(click,'GitHub click handler exists');
+ assert.match(click,/const state=await refreshGithubConnection\(\)/);
+ assert.match(click,/if\(state==='connected'\)/);
+ assert.match(click,/if\(state!=='disconnected'\)/);
+ assert.match(click,/const url=await cloud\(\)\.beginGithubLink\(\)/);
+ assert.match(click,/window\.location\.assign\(url\)/);
+ assert.doesNotMatch(click,/await refreshGithubConnection\(\);return;/);
+ assert.match(script,/let githubLinkBusy=false/);
+ assert.match(script,/githubLinkBusy\|\|/);
+ const html=fs.readFileSync('index.html','utf8');
+ assert.match(html,/world-dialogue\.js\?v=github-one-tap-v11/);
+});
