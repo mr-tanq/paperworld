@@ -18,7 +18,7 @@ test('Crow diagnostics remain available for maintenance but do not interrupt son
 });
 test('GitHub Pages invalidates stale cached Messenger and Suno cloud API',()=>{
  const html=read('index.html');
- assert.match(html,/world-dialogue\.js\?v=learning-loop-v3-integrated/);
+ assert.match(html,/world-dialogue\.js\?v=suno-voice-mounted-v20/);
  assert.match(html,/cloud\.js\?v=learning-loop-v3-integrated/);
  assert.match(html,/cloud-ui\.js\?v=learning-loop-v3-integrated/);
  assert.match(html,/style\.css\?v=learning-loop-v3-integrated/);

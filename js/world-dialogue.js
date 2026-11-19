@@ -504,7 +504,8 @@
  });
  const musicCancel=make('button','crow-music-cancel','Ακύρωση πρότασης');
  musicCancel.type='button';musicCancel.hidden=true;
- musicForm.append(musicTitle,musicStyle,musicLyrics,musicSave);
+ musicForm.append(musicTitle,musicStyle,musicLyrics,
+  voiceLabel,voiceRefresh,voiceHint,musicSave);
  const sunoConnect=make('button','world-connection-chip','Suno · Έλεγχος…');
  sunoConnect.type='button';
  sunoConnect.dataset.state='checking';
