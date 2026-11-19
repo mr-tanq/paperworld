@@ -131,3 +131,18 @@ test('Provider timeout remains uncertain and never automatically retries',async(
  assert.equal(verdict.reason,'provider_timeout_unverified');
  assert.equal(calls,1);
 });
+
+test('Unexpected Suno HTTP statuses retain exact numeric status without leaking response',async()=>{
+ for(const httpStatus of [301,302,400,402,404,406,409,415,422]){
+  const transport=makeSunoAudioCreate({fetcher:async()=>({
+   status:httpStatus,headers:{get:()=>null},
+   text:async()=>'{ "account_secret":"DO_NOT_EXPOSE" }'
+  })});
+  const result=await transport.submit({accessToken:'secret-token-123456',
+   brief,idempotencyKey:key});
+  assert.equal(result.accepted,false);
+  assert.equal(result.reason,'provider_http_unverified');
+  assert.equal(result.httpStatus,httpStatus);
+  assert.doesNotMatch(JSON.stringify(result),/DO_NOT_EXPOSE|secret-token/);
+ }
+});

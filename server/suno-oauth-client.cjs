@@ -199,7 +199,7 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
     clientRegistrationSupported=!!endpoints;
    }
   }catch(_){/* Provider availability is not permission to guess. */}
-  let toolsListed=false,toolCount=0,toolReason='not_authorized';
+  let toolsListed=false,toolCount=0,toolReason='not_authorized',toolTransport='unverified';
   if(session){
    try{
     const verdict=await tools.inspect({accessToken:session.accessToken});
@@ -211,12 +211,15 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
        verdict.tools.every(x=>typeof x==='string'&&
         /^[a-zA-Z0-9_.\/-]{1,100}$/.test(x))){
       toolsListed=true;toolCount=verdict.toolCount;
+      toolTransport=verdict.reason==='read_only_legacy_tools_verified'?
+       'legacy':verdict.reason==='read_only_tools_verified'?'modern':'unverified';
     }
    }catch(_){toolReason='mcp_probe_unavailable'}
   }
   return answer(200,{service:'suno_mcp',resourceAvailable,
    clientRegistrationSupported,oauthAuthorized:!!session,
-   toolsListed,toolCount,toolReason:toolsListed?'read_only_tools_verified':toolReason,
+   toolsListed,toolCount,toolTransport,
+   toolReason:toolsListed?'read_only_tools_verified':toolReason,
    canGenerate:false,
    nextStep:!resourceAvailable?'provider_resource_unavailable':
     !clientRegistrationSupported?'client_registration_unverified':
@@ -253,7 +256,10 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
   // Unknown replies remain claimed. Never automatically retry a credit event.
   return answer(result.accepted?202:result.reason==='provider_rejected'?422:502,{
    service:'suno_mcp',accepted:result.accepted,status:result.status||'unknown',
-   reason:result.reason,canGenerate:true,idempotencyKey:data.idempotencyKey});
+   reason:result.reason,canGenerate:true,idempotencyKey:data.idempotencyKey,
+   ...(result.reason==='provider_http_unverified'&&
+      Number.isInteger(result.httpStatus)&&result.httpStatus>=300&&
+      result.httpStatus<=599?{httpStatus:result.httpStatus}:{})});
  }
  async function callback({url}={}){
   // Only fixed, non-sensitive failure categories may reach the browser.

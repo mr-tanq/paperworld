@@ -18,7 +18,7 @@ test('Crow diagnostics remain available for maintenance but do not interrupt son
 });
 test('GitHub Pages invalidates stale cached Messenger and Suno cloud API',()=>{
  const html=read('index.html');
- assert.match(html,/world-dialogue\.js\?v=suno-mcp-diagnostic-v15/);
+ assert.match(html,/world-dialogue\.js\?v=suno-http-transport-v16/);
  assert.match(html,/cloud\.js\?v=suno-create-preflight-v13/);
  assert.match(html,/cloud-ui\.js\?v=suno-create-exposed-v14/);
  assert.match(html,/style\.css\?v=suno-create-feedback-v13/);
