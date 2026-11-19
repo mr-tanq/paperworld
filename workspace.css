@@ -219,7 +219,8 @@ html.pw-workspace-open .controls .settings-launch{position:relative}
  .pw-workspace .pw-ws-tab{flex-direction:column;gap:4px;min-height:52px;font-size:12px}
  .pw-workspace .pw-ws-tab[aria-selected="true"]{background:transparent;color:var(--pw-accent);box-shadow:none}
  .pw-workspace .pw-ws-tab-icon{font-size:18px}
- .pw-workspace .pw-ws-close{display:none}
+ /* Keep an explicit exit visible on every mobile Workspace tab. */
+ .pw-workspace .pw-ws-close{display:inline-flex;align-items:center;justify-content:center;flex:none;min-width:44px;min-height:44px}
  .pw-workspace .pw-ws-title{font-size:18px}
  .pw-workspace .pw-hero-title{font-size:20px}
  .pw-workspace .pw-agent-grid,.pw-workspace .pw-project-grid{grid-template-columns:1fr}
