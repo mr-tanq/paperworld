@@ -381,3 +381,21 @@ html.pw-reduce-motion :is(.pw-messenger,.pw-workspace),html.pw-reduce-motion :is
  #view .pw-messenger,#view .pw-workspace,.pw-workspace *,.pw-messenger *,.pw-messenger *::before,.pw-messenger *::after{
   animation:none!important;transition:none!important;scroll-behavior:auto!important}
 }
+
+/* Matt Routine Loop — unobtrusive in-chat confirmation, not a technical menu. */
+.world-routine-review{display:flex;flex-direction:column;gap:8px;padding:11px 13px;
+ background:#25302c;border:1px solid #5b7468;border-radius:13px;
+ box-shadow:0 7px 22px #0003;color:#eff5f0;max-height:42vh;overflow-y:auto}
+.world-routine-review[hidden]{display:none!important}
+.world-routine-review strong{font-size:13px;line-height:1.35}
+.world-routine-review p{margin:0;font-size:11px;line-height:1.5;color:#dce7df;white-space:pre-wrap}
+.world-routine-actions{display:flex;gap:8px;flex-wrap:wrap}
+.world-routine-review button{align-self:flex-start;border:1px solid #7c9b89;
+ border-radius:9px;background:#3c5345;color:#fff;padding:8px 11px;
+ font:inherit;font-size:11px;cursor:pointer}
+.world-routine-review button[disabled]{opacity:.5;cursor:default}
+
+
+.world-routine-entry{display:flex;flex-direction:column;gap:6px;padding:9px 0;
+ border-top:1px solid rgba(255,255,255,.15)}
+.world-routine-entry p{overflow-wrap:anywhere}
