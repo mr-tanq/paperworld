@@ -13,7 +13,7 @@ const payload={threadId,requestId,message:'Investigate missing concert pictures 
 function fake({route='listening-director',category='artwork',
  owns=true,linked=true,budget=true,badEvidence=false,tamperPath=false,failTurn=0,
  failHistoryCreate=false,failHistoryEvent=false,memoryFails=false,
- workerReply=null,proposalMemory=null}={}){
+ workerReply=null,proposalMemory=null,sharedMemory=false}={}){
  const seen={calls:0,models:0,configs:[],prompts:[],stages:[],read:[],jobs:[],events:[]};
  const gateway=makeWorkerDelegation({
   oauth:{getLinkedToken:()=>linked?'gho_VALID_FAKE_ONLY':null},
@@ -25,7 +25,12 @@ function fake({route='listening-director',category='artwork',
    if(memoryFails)throw Error('PRIVATE_MEMORY_FAILURE');
    return {projectId:'workshop',actor:'listening-director',untrustedContent:true,
     included:1,text:'FESTIVAL_APPROVED_RULE_ONLY',capabilitiesGranted:[]};
-  }},
+  },...(sharedMemory?{loadWorker:async params=>{
+   seen.sharedParams=params;
+   return {projectId:'workshop',actor:'listening-developer',
+    untrustedContent:true,included:1,text:'SAFE_PUBLIC_WORKER_RULE',
+    capabilitiesGranted:[]};
+  }}:{})},
   jobMemory:{
    create:async args=>{seen.jobs.push(args);if(failHistoryCreate)throw Error('storage_down')},
    append:async args=>{seen.events.push(args);if(failHistoryEvent)throw Error('event_down')}
@@ -344,4 +349,18 @@ test('Storage exception yields a safe diagnostic without pretending success',asy
  assert.match(response.body.content,/η αποθήκευση απέτυχε/);
  assert.ok(seen.stages.includes('proposal_storage_unavailable'));
  assert.doesNotMatch(JSON.stringify(response.body),/SENSITIVE_STORAGE_SECRET/);
+});
+
+test('Listening Worker gets scoped approved standard knowledge in same existing AI turn',async()=>{
+ const {gateway,seen}=fake({sharedMemory:true});
+ const result=await gateway.handle({headers,body:body(payload)});
+ assert.equal(result.status,200);
+ assert.equal(seen.calls,5);
+ assert.match(seen.prompts[2],/SAFE_PUBLIC_WORKER_RULE/);
+ assert.match(seen.prompts[2],/NOT CURRENT CODE/);
+ assert.equal(seen.sharedParams.actor,'listening-developer');
+ assert.equal(seen.sharedParams.taskGrant.requestId,requestId);
+ assert.equal(seen.sharedParams.taskGrant.projectId,'workshop');
+ assert.equal(seen.sharedParams.taskGrant.ownerId,owner);
+ assert.doesNotMatch(JSON.stringify(result.body),/SAFE_PUBLIC_WORKER_RULE/);
 });

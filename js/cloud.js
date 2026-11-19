@@ -411,9 +411,19 @@
     throw Error('Unverified team handoff history');
    return result;
   }
+  // Owner-only, read-only system health. No AI calls, no writes.
+  async function systemHealth(){
+   await ensureAuth();
+   const response=await fetcher(MATT_ORIGIN+'/health/system',{method:'POST',redirect:'error',
+    headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:'{}'});
+   let data={};try{data=await response.json()}catch(_){}
+   if(!response.ok)throw Error((data.error||'Health unavailable')+' (HTTP '+response.status+')');
+   if(data.aiCalls!==0||!['ok','attention','problem'].includes(data.overall))throw Error('Unverified health report');
+   return data;
+  }
   // Matt Routine Loop: owner-authorized preview and explicit zero-spend controls.
   async function routineAction(action,details={}){
-   if(!['preview','create','list','enable','pause'].includes(action))
+   if(!['preview','create','list','enable','pause','update'].includes(action))
     throw Error('Unknown routine action');
    await ensureAuth();
    const thread=await getAgentThread('matt',false);
@@ -458,6 +468,16 @@
    if(result.routineId!==routineId||result.enabled!==enable||
     result.aiCalls!==0||result.execution!=='review_drafts_only')
     throw Error('Routine state not verified');
+   return result;
+  }
+  // Edit goal/day/time of one routine; the database recomputes the next slot.
+  async function updateRoutine(routineId,changes){
+   const allowed=['goal','dayOfWeek','hour','minute'];
+   const patch=Object.fromEntries(Object.entries(changes||{}).filter(([k])=>allowed.includes(k)));
+   if(!Object.keys(patch).length)throw Error('Nothing to update');
+   const result=await routineAction('update',{routineId,confirmed:true,...patch});
+   if(result.routineId!==routineId||result.aiCalls!==0||result.execution!=='review_drafts_only')
+    throw Error('Routine update not verified');
    return result;
   }
   async function autonomousMissionAction(action,details={}){
@@ -945,7 +965,7 @@
   return {BASE,identity,ownerId,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
    createAutonomousMission,listAutonomousMissions,autonomousControllerStatus,simulateAutonomousMission,launchCopilotPilot,
-   previewRoutine,listRoutines,createRoutine,changeRoutine,
+   previewRoutine,listRoutines,createRoutine,changeRoutine,updateRoutine,systemHealth,
    listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,previewImportedDirectorMemory,approveImportedDirectorMemory,agentMessages,sendAgentNote,askDirector,proposeDirectorCorrection,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,sourceFactWorker,mattJobHistory,teamHandoffHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
    listPokemonProposals,rejectPokemonProposal,publishPokemonProposal,

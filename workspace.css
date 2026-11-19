@@ -279,3 +279,10 @@ html.pw-workspace-open .world-talk-actions,html.pw-chat-open .world-talk-actions
  .controls{gap:4px!important;right:8px!important}
  .controls button{width:38px!important;min-width:38px!important;height:38px!important;min-height:38px!important}
 }
+/* System health lines (Settings → Για προχωρημένους). */
+.pw-workspace .pw-health{display:flex;flex-direction:column;gap:6px;padding:0 4px}
+.pw-workspace .pw-health-line{display:flex;gap:8px;align-items:baseline;font-size:13.5px;color:var(--pw-text-2)}
+.pw-workspace .pw-health-line::before{content:'';flex:none;width:8px;height:8px;border-radius:50%;background:#6b727b;transform:translateY(-1px)}
+.pw-workspace .pw-health-line[data-state="ok"]::before{background:var(--pw-ok)}
+.pw-workspace .pw-health-line[data-state="attention"]::before{background:var(--pw-warn)}
+.pw-workspace .pw-health-line[data-state="problem"]::before{background:var(--pw-danger)}
