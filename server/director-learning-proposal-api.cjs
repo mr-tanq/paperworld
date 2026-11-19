@@ -65,7 +65,7 @@ function makeLearningProposalApi({fetcher=globalThis.fetch,identity,
   try{
    proposal=ownerCorrectionProposal({actor:data.actor,ownerConfirmed:true,
     threadId:data.threadId,messageId:data.messageId,entryId:data.messageId,
-    title:data.title,correction:saved.content,
+    title:data.title,correction:saved.content.replace(/\s+/g,' ').trim(),
     kind:data.kind,sensitivity:data.sensitivity,
     observedAt:saved.created_at});
   }catch(_){return answer(400,{error:'invalid_learning_correction'})}
