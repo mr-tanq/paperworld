@@ -301,6 +301,30 @@
     return result;
    }catch(e){e.noteSaved=saveNote;throw e}
   }
+  // Owner explicitly selects a saved human Director message for private memory review.
+  // The server reloads the original message and never accepts its text from the browser.
+  async function proposeDirectorCorrection(agentId,messageId,{title}={}){
+   if(!DIRECTOR_CHATS.has(agentId))throw Error('Unsupported Director');
+   if(!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(messageId||''))
+    throw Error('Invalid saved message');
+   if(typeof title!=='string'||!title.trim()||title.length>140)
+    throw Error('A short memory title is required');
+   await ensureAuth();
+   const thread=await getAgentThread(agentId,false);
+   if(!thread)throw Error('Director conversation not found');
+   const payload={actor:agentId,threadId:thread.id,messageId,
+    title:title.trim(),kind:'preference',sensitivity:'private'};
+   const response=await fetcher(MATT_ORIGIN+'/director/memory/propose-correction',{
+    method:'POST',redirect:'error',headers:{
+     Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},
+    body:JSON.stringify(payload)});
+   let result={};try{result=await response.json()}catch(_){}
+   if(!response.ok)throw Error((result.error||'Memory proposal not saved')+
+    ' (HTTP '+response.status+')');
+   if(result.id!==messageId||result.status!=='proposed'||
+    result.approved!==false)throw Error('Memory proposal not verified');
+   return result;
+  }
   // GitHub OAuth linking uses the current Supabase user, never a browser GitHub token.
   const MATT_ORIGIN='https://paperworld-matt-test-6hmd.onrender.com';
   async function mattOAuth(path){
@@ -872,7 +896,7 @@
   return {BASE,identity,ownerId,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
    createAutonomousMission,listAutonomousMissions,autonomousControllerStatus,simulateAutonomousMission,launchCopilotPilot,
-   listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,previewImportedDirectorMemory,approveImportedDirectorMemory,agentMessages,sendAgentNote,askDirector,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,sourceFactWorker,mattJobHistory,teamHandoffHistory,diagnoseMattSession,
+   listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,previewImportedDirectorMemory,approveImportedDirectorMemory,agentMessages,sendAgentNote,askDirector,proposeDirectorCorrection,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,sourceFactWorker,mattJobHistory,teamHandoffHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,
    listPokemonProposals,rejectPokemonProposal,publishPokemonProposal,
    crowSunoPreview,cancelCrowSunoPreview,crowSunoConnectionStatus,
