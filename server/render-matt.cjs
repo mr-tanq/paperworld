@@ -122,6 +122,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
   const sunoAuthAction={'/auth/suno/start':'start',
    '/auth/suno/status':'status',
    '/auth/suno/inspect-tools':'inspectTools',
+   '/auth/suno/voices':'listVoices',
    '/auth/suno/diagnose':'diagnose',
    '/auth/suno/create-song':'createSong'}[req.url];
   if(sunoAuthAction){

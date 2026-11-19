@@ -183,6 +183,71 @@
  musicLyrics.rows=3;musicLyrics.maxLength=8000;
  musicLyrics.placeholder='Πρωτότυποι στίχοι (προαιρετικό)';
  musicLyrics.setAttribute('aria-label','Πρωτότυποι στίχοι');
+ const voiceLabel=make('label','crow-music-voice-label','Φωνή Suno');
+ const voiceSelect=make('select','crow-music-voice');
+ voiceSelect.setAttribute('aria-label','Επιλογή φωνής για δημιουργία στο Suno');
+ const voiceRefresh=make('button','crow-music-check','Ανανέωση φωνών');
+ voiceRefresh.type='button';
+ const voiceHint=make('p','crow-music-help',
+  'Προεπιλογή: The Wanderer. Αν δεν επαληθευτεί, δεν θα χρησιμοποιηθεί τυχαία φωνή.');
+ let verifiedVoices=[],voicesLoaded=false,voicesLoading=false;
+ const voiceChoiceKey=()=>validSongOwner(songOwner())?
+  'paperworld-suno-voice-choice-v1-'+songOwner():null;
+ function storedVoiceChoice(){
+  try{const key=voiceChoiceKey();return key?window.localStorage.getItem(key):null}
+  catch(_){return null}
+ }
+ function saveVoiceChoice(){
+  try{const key=voiceChoiceKey();if(key)window.localStorage.setItem(key,voiceSelect.value)}
+  catch(_){}
+ }
+ function drawVoiceOptions(){
+  const preferred=storedVoiceChoice();
+  const random=make('option','','Τυχαία φωνή (χωρίς επιλογή)');
+  random.value='random';
+  const choice=preferred||'wanderer';
+  voiceSelect.replaceChildren(random);
+  for(const voice of verifiedVoices){
+   const option=make('option','',voice.name);
+   option.value='voice:'+voice.id;voiceSelect.append(option);
+  }
+  const matched=verifiedVoices.find(v=>v.name.trim().toLowerCase()==='the wanderer');
+  const canRestore=preferred&&Array.from(voiceSelect.options).some(o=>o.value===preferred);
+  if(canRestore)voiceSelect.value=preferred;
+  else if(matched)voiceSelect.value='voice:'+matched.id;
+  else{
+   const missing=make('option','','The Wanderer — δεν βρέθηκε');
+   missing.value='wanderer';voiceSelect.append(missing);voiceSelect.value='wanderer';
+  }
+  voiceHint.textContent=voiceSelect.value==='random'?
+   'Θα δημιουργηθεί τραγούδι χωρίς συγκεκριμένη φωνή.':
+   voiceSelect.value==='wanderer'?
+   'Η φωνή The Wanderer δεν έχει επαληθευτεί. Η δημιουργία θα μπλοκαριστεί.':
+   'Η επιλεγμένη φωνή θα επαληθευτεί ξανά πριν χρησιμοποιηθούν credits.';
+ }
+ async function refreshSunoVoices(){
+  if(voicesLoading||openId!=='studio-director'||!cloud()?.signedIn()||
+     typeof cloud()?.listSunoVoices!=='function')return;
+  voicesLoading=true;voiceRefresh.disabled=true;
+  voiceHint.textContent='Ανάκτηση αποθηκευμένων φωνών από το Suno (χωρίς credits)…';
+  try{
+   const voices=await cloud().listSunoVoices();
+   if(openId!=='studio-director')return;
+   verifiedVoices=voices;voicesLoaded=true;drawVoiceOptions();
+  }catch(_){
+   voicesLoaded=false;verifiedVoices=[];
+   voiceSelect.replaceChildren();
+   const missing=make('option','','The Wanderer — δεν έχει επαληθευτεί');
+   missing.value='wanderer';voiceSelect.append(missing);
+   const random=make('option','','Τυχαία φωνή (χωρίς επιλογή)');
+   random.value='random';voiceSelect.append(random);
+   voiceSelect.value='wanderer';
+   voiceHint.textContent='Δεν φορτώθηκαν οι φωνές Suno. Επανέλεγξε τη σύνδεση ή πάτησε Ανανέωση.';
+  }finally{voicesLoading=false;voiceRefresh.disabled=false}
+ }
+ voiceSelect.addEventListener('change',()=>{saveVoiceChoice();drawVoiceOptions()});
+ voiceRefresh.addEventListener('click',()=>{void refreshSunoVoices()});
+ voiceLabel.append(voiceSelect);
  const musicSave=make('button','crow-music-save','Ετοίμασε draft');
  musicSave.type='submit';
  // An OAuth redirect reloads this page. Keep the editable song in this tab
@@ -293,6 +358,16 @@
     'Κάνε ανανέωση της σελίδας για να φορτωθεί η νέα έκδοση.','error');
    return;
   }
+  if(voiceSelect.value!=='random'&&
+     (!voicesLoaded||!voiceSelect.value.startsWith('voice:')||
+      !verifiedVoices.some(v=>'voice:'+v.id===voiceSelect.value))){
+   showSunoCreateStatus('Η φωνή The Wanderer δεν έχει επαληθευτεί. '+
+    'Πάτησε «Ανανέωση φωνών» ή διάλεξε ρητά «Τυχαία». Δεν στάλθηκε αίτημα.','error');
+   return;
+  }
+  const selectedVoiceId=voiceSelect.value==='random'?null:voiceSelect.value.slice(6);
+  const selectedVoiceName=selectedVoiceId?
+   verifiedVoices.find(v=>v.id===selectedVoiceId)?.name:'Τυχαία';
   const brief={title:musicTitle.value.trim(),style:musicStyle.value.trim(),
    lyrics:musicLyrics.value};
   if(!brief.title||brief.title.length>120||!brief.style||brief.style.length>1000||
@@ -301,7 +376,8 @@
     'τις αγκύλες στους στίχους. Οι μισογραμμένες οδηγίες δεν στέλνονται στη Suno.','error');
    return;
   }
-  if(!window.confirm('Να στείλω αυτό το τραγούδι στο Suno; Μπορεί να χρησιμοποιηθούν Suno credits.')){
+  if(!window.confirm('Να στείλω το τραγούδι στο Suno με φωνή «'+
+   selectedVoiceName+'»; Μπορεί να χρησιμοποιηθούν Suno credits.')){
    showSunoCreateStatus('Η δημιουργία ακυρώθηκε. Δεν στάλθηκε αίτημα στη Suno.','notice');
    return;
   }
@@ -316,7 +392,7 @@
   sunoGenerate.textContent='Αποστολή…';
   showSunoCreateStatus('Υποβολή στο Suno… Μην επαναλάβεις το αίτημα.','pending');
   try{
-   const result=await cloud().createSunoSong(brief,key);
+   const result=await cloud().createSunoSong(brief,key,selectedVoiceId);
    if(result.accepted===true){
     showSunoCreateStatus('Η Suno επιβεβαίωσε τη λήψη του αιτήματος. '+
      'Η ολοκλήρωση του τραγουδιού δεν έχει ακόμη επαληθευτεί. '+
@@ -325,6 +401,9 @@
     const hints={
      suno_oauth_required:'Η σύνδεση Suno έληξε. Σύνδεσε ξανά τον λογαριασμό.',
      audio_create_not_verified:'Το εργαλείο δημιουργίας Suno δεν επαληθεύτηκε.',
+     audio_create_voice_invalid:'Η επιλεγμένη φωνή έχει μη έγκυρο αναγνωριστικό.',
+     audio_create_voice_unsupported:'Το Suno δεν δέχεται voice_id στο audio-create.',
+     audio_create_voice_unavailable:'Η επιλεγμένη φωνή δεν βρέθηκε ή δεν επαληθεύτηκε στον λογαριασμό.',
      invalid_audio_create_request:'Το τραγούδι απορρίφθηκε πριν σταλεί στη Suno. Έλεγξε τίτλο και στίχους.',
      invalid_body:'Το τραγούδι έχει υπερβολικό μέγεθος.',
      request_too_large:'Το αίτημα είναι υπερβολικά μεγάλο για τον server.',
@@ -620,6 +699,7 @@
    const restored=restoreSongDraft();
    if(restored)musicResult.textContent='Το τραγούδι σου επανήλθε μετά τη σύνδεση.';
    void refreshSunoConnection();
+   void refreshSunoVoices();
    musicTitle.focus();
   }
  });
