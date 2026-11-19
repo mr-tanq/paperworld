@@ -20,7 +20,7 @@ create or replace function public.paperworld_suno_claim_create(
  p_owner uuid, p_thread uuid, p_key uuid, p_digest text)
 returns boolean language plpgsql security invoker set search_path = ''
 as $$
-declare did_insert boolean;
+declare inserted_count bigint;
 begin
  if p_owner is null or p_thread is null or p_key is null
     or p_digest is null or p_digest !~ '^[0-9a-f]{64}$' then
@@ -30,8 +30,8 @@ begin
   (owner_id,crow_thread_id,idempotency_key,brief_sha256)
  values (p_owner,p_thread,p_key,p_digest)
  on conflict (owner_id,idempotency_key) do nothing;
- get diagnostics did_insert = row_count;
- return did_insert;
+ get diagnostics inserted_count = row_count;
+ return inserted_count = 1;
 end;
 $$;
 revoke all on function public.paperworld_suno_claim_create(uuid,uuid,uuid,text)
