@@ -338,7 +338,7 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
   if(claimed!==true)return denied(409,'audio_create_already_submitted');
   const result=await audioCreate.submit({accessToken:linkedToken.accessToken,
    brief:data.brief,idempotencyKey:data.idempotencyKey,
-   contract:toolVerdict.toolContract});
+   contract:toolVerdict.toolContract,voiceId:selectedVoice});
   // Unknown replies remain claimed. Never automatically retry a credit event.
   const safeList=(list,re)=>Array.isArray(list)?
    list.filter(v=>typeof v==='string'&&re.test(v)).slice(0,5):undefined;
