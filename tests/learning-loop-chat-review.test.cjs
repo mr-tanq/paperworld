@@ -11,7 +11,7 @@ test('Director learning UI is explicit and limited to saved human messages',()=>
  assert.match(js,/i===eligible&&openId!=='matt'/);
  assert.match(js,/id:m\.id,text:m\.content,time:m\.created_at/);
  assert.match(js,/message\.id/);
- assert.match(js,/Να το θυμάται\?/);
+ assert.match(js,/Να το θυμάται;/);
  assert.match(js,/cancel\.addEventListener\('click'/);
  assert.match(js,/confirm\.addEventListener\('click'/);
  assert.match(js,/status!=='proposed'\|\|result\.approved!==false/);
