@@ -75,3 +75,15 @@ test('show routines intent and pause stay model-free and owner-click-only',()=>{
  assert.match(cloud,/async function listRoutines\(\)/);
  assert.match(cloud,/result\.routines\.length>30/);
 });
+
+test('recognized Matt routine requests clear composer only after verified preview',()=>{
+ const s=fs.readFileSync(require.resolve('../js/world-dialogue.js'),'utf8');
+ assert.match(s,/return true; \/\/ Preview verified/);
+ assert.match(s,/const accepted=routineIntent\.kind==='list_routines'\?/);
+ assert.match(s,/if\(accepted===true&&openId==='matt'\)/);
+ assert.match(s,/if\(field\.value\.trim\(\)===text\)\{field\.value='';autoGrow\(\)\}/);
+ assert.match(s,/bubble\('human',text,new Date\(\)\.toISOString\(\)\)/);
+ assert.match(s,/submitted\.classList\.add\('pw-routine-request'\)/);
+ assert.match(s,/messages\.append\(submitted\)/);
+ assert.doesNotMatch(s,/if\(routineIntent\)\{[\s\S]{0,100}field\.value=''/);
+});
