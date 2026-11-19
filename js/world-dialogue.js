@@ -336,8 +336,25 @@
      ' Δεν στάλθηκε νέο αίτημα παραγωγής.','error');
     lastSunoSubmission=null;
    }else{
-    showSunoCreateStatus('Δεν επιβεβαιώθηκε η δημιουργία ('+
-     result.reason+'). Μην επαναλάβεις το αίτημα πριν ελέγξεις τη Suno Library.','error');
+    const diagnostic={
+     provider_async_http_unverified:'Η Suno επέστρεψε ασύγχρονη HTTP απάντηση χωρίς επιβεβαιωμένο αποτέλεσμα.',
+     provider_server_error_unverified:'Η Suno επέστρεψε σφάλμα server.',
+     provider_http_unverified:'Η Suno επέστρεψε μη αναμενόμενη HTTP κατάσταση.',
+     provider_unexpected_content_type:'Η Suno επέστρεψε μη υποστηριζόμενο τύπο απάντησης.',
+     provider_response_oversized:'Η απάντηση της Suno ξεπέρασε το ασφαλές όριο.',
+     provider_mcp_reply_unverified:'Η απάντηση MCP δεν είχε επαληθεύσιμη μορφή.',
+     provider_invalid_tool_arguments:'Η Suno απέρριψε τη μορφή των παραμέτρων δημιουργίας.',
+     provider_rpc_rejected:'Η Suno επέστρεψε σφάλμα MCP.',
+     provider_tool_rejected:'Το εργαλείο δημιουργίας της Suno επέστρεψε αποτυχία.',
+     provider_timeout_unverified:'Η επικοινωνία με τη Suno έληξε χωρίς επιβεβαίωση.',
+     provider_network_unverified:'Η σύνδεση διακόπηκε χωρίς επιβεβαίωση.',
+     authorization_rejected:'Η Suno απέρριψε την εξουσιοδότηση.',
+     provider_rate_limited:'Η Suno επέστρεψε προσωρινό περιορισμό αιτημάτων.'
+    };
+    showSunoCreateStatus((diagnostic[result.reason]||
+     'Δεν επιβεβαιώθηκε η υποβολή.')+' Κωδικός: '+
+     String(result.reason||'unknown').slice(0,80)+
+     '. Έλεγξε τη Suno Library και τα credits πριν νέα προσπάθεια.','error');
    }
   }catch(_){
    showSunoCreateStatus('Η απάντηση της Suno δεν επιβεβαιώθηκε. '+
