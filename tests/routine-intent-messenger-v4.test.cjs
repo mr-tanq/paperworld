@@ -57,7 +57,7 @@ test('Messenger only requests preview until explicit owner confirmation',()=>{
  assert.match(cloud,/result\.enabled!==false/);
  assert.match(shell,/previewRoutine:plan=>client\.previewRoutine\(plan\)/);
  assert.match(html,/routine-intent\.js\?v=4/);
- assert.match(html,/world-dialogue\.js\?v=[^"]+&routine=v4/);
+ assert.match(html,/world-dialogue\.js\?v=[^"]*routine-v4/);
 });
 
 test('show routines intent and pause stay model-free and owner-click-only',()=>{
