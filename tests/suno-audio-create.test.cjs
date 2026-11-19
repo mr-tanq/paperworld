@@ -35,6 +35,14 @@ test('Uses exactly one credit-spending tool call and never returns private text'
  assert.equal(request.params.arguments.style,brief.style);
  assert.equal(request.params.arguments.lyrics,brief.lyrics);
  assert.equal(request.params.arguments.instrumental,false);
+ assert.equal(calls[0].opts.headers['MCP-Protocol-Version'],'2026-07-28');
+ assert.equal(calls[0].opts.headers['Mcp-Method'],'tools/call');
+ assert.equal(calls[0].opts.headers['Mcp-Name'],'audio-create');
+ assert.deepEqual(request.params._meta,{
+  'io.modelcontextprotocol/protocolVersion':'2026-07-28',
+  'io.modelcontextprotocol/clientInfo':{name:'Paperworld Crow',version:'1.0.0'},
+  'io.modelcontextprotocol/clientCapabilities':{}
+ });
  assert.doesNotMatch(JSON.stringify(r),/private provider lyrics|secret-token|original line/);
 });
 test('Invalid briefs do not invoke Suno and failed provider responses remain unconfirmed',async()=>{
