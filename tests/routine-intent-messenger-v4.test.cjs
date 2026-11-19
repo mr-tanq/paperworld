@@ -59,3 +59,17 @@ test('Messenger only requests preview until explicit owner confirmation',()=>{
  assert.match(html,/routine-intent\.js\?v=4/);
  assert.match(html,/world-dialogue\.js\?v=[^"]+&routine=v4/);
 });
+
+test('show routines intent and pause stay model-free and owner-click-only',()=>{
+ const intent=classify('Δείξε μου τις ρουτίνες');
+ assert.equal(intent.kind,'list_routines');
+ assert.equal(classify('Σταμάτα τα προγράμματα μου').kind,'list_routines');
+ const js=fs.readFileSync(require.resolve('../js/world-dialogue.js'),'utf8');
+ const cloud=fs.readFileSync(require.resolve('../js/cloud.js'),'utf8');
+ assert.match(js,/if\(routineIntent\.kind==='list_routines'\)await listMattRoutines\(\)/);
+ assert.match(js,/await cloud\(\)\.listRoutines\(\)/);
+ assert.match(js,/pause\.addEventListener\('click',async\(\)=>/);
+ assert.match(js,/await cloud\(\)\.changeRoutine\(r\.id,false\)/);
+ assert.match(cloud,/async function listRoutines\(\)/);
+ assert.match(cloud,/result\.routines\.length>30/);
+});
