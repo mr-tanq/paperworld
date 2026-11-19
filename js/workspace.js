@@ -103,8 +103,11 @@ function items(){
    if(row.stage==='decision'||(row.kind==='handoff'&&row.status==='awaiting_consent')||
       row.stage==='rejected')continue;
    const project=byHub(row.project)||byId('town');
+   // Finished investigations and planned tasks must never look like live work.
    const bucket=['review_required','needs_attention'].includes(row.stage)?'attention':
-    ['prepared','completed','checked'].includes(row.stage)?'done':'active';
+    row.stage==='in_progress'?'active':row.stage==='planned'?'waiting':
+    ['diagnosed','prepared'].includes(row.stage)?'reviewed':
+    ['completed','checked'].includes(row.stage)?'done':'reviewed';
    out.push({key:row.kind+':'+row.id,project:project.id,title:row.kind==='proposal'&&row.request?
      row.request:row.summary,label:hub.stateLabel(row.stage),bucket,note:row.kind==='manual',
     link:row.draftUrl||row.issueUrl||null,linkLabel:row.draftUrl?'Δες την προετοιμασμένη αλλαγή':
@@ -115,7 +118,8 @@ function items(){
   for(const m of activity.summary(state.missions).items){
    const project=byMission(m.projectId);if(!project)continue;
    out.push({key:'mission:'+m.id,project:project.id,title:m.title,label:m.message,
-    bucket:m.stage==='attention'?'attention':m.stage==='finished'?'done':'active',
+    bucket:m.stage==='attention'?'attention':m.stage==='finished'?'done':
+     m.stage==='active'?'active':'waiting',
     link:m.resultLink,linkLabel:m.resultLabel,note:false,at:0});
   }
  }
@@ -141,6 +145,7 @@ function stats(projectId,all=false){
  return {attention:list.filter(i=>i.bucket==='attention').length+
    (all?decisionsCount():decisionsFor(projectId)),
   active:list.filter(i=>i.bucket==='active'&&!i.note).length,
+  waiting:list.filter(i=>i.bucket==='waiting'&&!i.note).length,
   done:list.filter(i=>i.bucket==='done'&&!i.note).length};
 }
 
@@ -243,7 +248,16 @@ function itemCard(item,{showProject=true}={}){
   top.append(chip);
  }
  if(item.note)top.append(el('span','pw-item-tag','Δική σου σημείωση'));
- card.append(top,el('h3','pw-item-title',item.title),el('p','pw-item-state',item.label));
+ // Older long requests expand on demand instead of filling the timeline.
+ const titleText=String(item.title||'').trim();
+ if(titleText.length>110){
+  const details=el('details','pw-item-details');
+  const excerpt=titleText.slice(0,110).replace(/\s+\S*$/,'')+'…';
+  details.append(el('summary','pw-item-preview',excerpt),
+   el('p','pw-item-full',titleText));
+  card.append(top,details);
+ }else card.append(top,el('h3','pw-item-title',titleText));
+ card.append(el('p','pw-item-state',item.label));
  const actions=el('div','pw-item-actions');
  if(item.link&&/^https:\/\/github\.com\//.test(item.link)){
   const a=el('a','pw-link',item.linkLabel||'Λεπτομέρειες');a.href=item.link;a.target='_blank';a.rel='noopener noreferrer';
@@ -302,6 +316,8 @@ function renderWork(){
  const list=items(),decisions=decisionsCount();
  const attention=list.filter(i=>i.bucket==='attention');
  const active=list.filter(i=>i.bucket==='active');
+ const waiting=list.filter(i=>i.bucket==='waiting');
+ const reviewed=list.filter(i=>i.bucket==='reviewed');
  const done=list.filter(i=>i.bucket==='done');
  // 1) Three-second summary.
  const hero=el('section','pw-hero');
@@ -309,7 +325,7 @@ function renderWork(){
  const needs=decisions+attention.length;
  hero.append(el('h2','pw-hero-title',!state.raw?(state.loading?'Ενημερώνομαι για την ομάδα…':
   'Δεν έχω ενημέρωση αυτή τη στιγμή.'):needs?(needs===1?'Ένα θέμα περιμένει εσένα.':needs+' θέματα περιμένουν εσένα.'):
-  active.length?'Η ομάδα δουλεύει· τίποτα δεν περιμένει εσένα.':'Όλα ήσυχα. Τίποτα δεν περιμένει εσένα.'));
+  active.length?'Υπάρχουν πραγματικά ενεργές εργασίες.':'Δεν υπάρχει ενεργή εκτέλεση αυτή τη στιγμή.'));
  const stats=el('div','pw-stats');
  for(const [n,label,target] of [[needs,'Χρειάζονται εσένα','pw-sec-attention'],
   [active.filter(i=>!i.note).length,'Σε εξέλιξη','pw-sec-active'],[done.filter(i=>!i.note).length,'Ολοκληρώθηκαν','pw-sec-done']]){
@@ -327,6 +343,12 @@ function renderWork(){
  // 3) In progress.
  body.append(section('Σε εξέλιξη',null,active.length?active.slice(0,8).map(i=>itemCard(i)):
   [empty(state.raw?'Καμία ενεργή εργασία αυτή τη στιγμή.':'—')],{id:'pw-sec-active'}));
+ // Plans and completed investigations must not inflate live progress.
+ if(waiting.length)body.append(section('Σε αναμονή','Δεν έχει ξεκινήσει η εκτέλεση.',
+  waiting.slice(0,6).map(i=>itemCard(i)),{id:'pw-sec-waiting',count:waiting.length}));
+ if(reviewed.length)body.append(section('Διερευνήθηκαν / Προετοιμάστηκαν',
+  'Η διερεύνηση τελείωσε ή υπάρχει προσχέδιο — δεν σημαίνει ότι εφαρμόστηκε λύση.',
+  reviewed.slice(0,6).map(i=>itemCard(i)),{id:'pw-sec-reviewed',count:reviewed.length}));
  // 4) Recently completed — only with honest labels/evidence.
  const doneSection=section('Ολοκληρώθηκαν πρόσφατα','Εμφανίζεται σύνδεσμος μόνο όταν υπάρχει επαληθευμένο αποτέλεσμα.',
   done.length?done.slice(0,5).map(i=>itemCard(i)):[empty('Δεν υπάρχουν ολοκληρωμένες εργασίες ακόμη.')],{id:'pw-sec-done'});
@@ -334,7 +356,8 @@ function renderWork(){
  // 5) Projects.
  const grid=el('div','pw-project-grid');
  for(const p of PROJECTS){
-  const open=list.filter(i=>i.project===p.id&&i.bucket!=='done').length+decisionsFor(p.id);
+  const open=list.filter(i=>i.project===p.id&&
+   ['attention','active','waiting'].includes(i.bucket)).length+decisionsFor(p.id);
   const tile=el('button','pw-project-tile');tile.type='button';tile.dataset.project=p.id;
   const meta=el('span','pw-project-meta');
   meta.append(el('strong','',p.name),el('span','',p.blurb));
@@ -374,6 +397,11 @@ function renderProject(p){
  const active=list.filter(i=>i.bucket==='active'&&!i.note);
  body.append(section('Σε εξέλιξη',null,active.length?active.map(i=>itemCard(i,{showProject:false})):
   [empty('Καμία ενεργή εργασία σε αυτό το project.')]));
+ const waiting=list.filter(i=>i.bucket==='waiting'&&!i.note);
+ if(waiting.length)body.append(section('Σε αναμονή',null,waiting.map(i=>itemCard(i,{showProject:false}))));
+ const reviewed=list.filter(i=>i.bucket==='reviewed'&&!i.note);
+ if(reviewed.length)body.append(section('Διερευνήθηκαν / Προετοιμάστηκαν',null,
+  reviewed.map(i=>itemCard(i,{showProject:false}))));
  const done=list.filter(i=>i.bucket==='done'&&!i.note);
  if(done.length)body.append(section('Ολοκληρώθηκαν',null,done.map(i=>itemCard(i,{showProject:false}))));
  body.append(notesSection(p));
