@@ -18,5 +18,5 @@ test('Suno create stays behind real user consent, and Cloud UI script cache is b
  assert.ok(click);
  assert.match(click,/window\.confirm\('Να στείλω το τραγούδι στο Suno με φωνή/);
  assert.ok(click.indexOf('window.confirm(')<click.indexOf('cloud().createSunoSong('));
- assert.match(html,/cloud-ui\.js\?v=suno-voice-choice-v15/);
+ assert.match(html,/cloud-ui\.js\?v=learning-loop-v3-integrated/);
 });
