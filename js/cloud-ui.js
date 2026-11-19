@@ -432,6 +432,8 @@ window.PaperworldCloudUI={
  listRoutines:()=>client.listRoutines(),
  createRoutine:plan=>client.createRoutine(plan),
  changeRoutine:(routineId,enabled)=>client.changeRoutine(routineId,enabled),
+ updateRoutine:(routineId,changes)=>client.updateRoutine(routineId,changes),
+ systemHealth:()=>client.systemHealth(),
  proposeDirectorCorrection:(id,messageId,options)=>client.proposeDirectorCorrection(id,messageId,options),
  // Owner-only, RLS-scoped memory view; review applies to ONE proposed row.
  listDirectorMemory:(projectId)=>client.listDirectorMemory(projectId),

@@ -496,6 +496,30 @@ function settingRow(label,hint,trailing,{state:s}={}){
 function prefs(){try{return window.localStorage.getItem('paperworld-pref-reduce-motion')==='1'}catch(_){return false}}
 function applyPrefs(){document.documentElement.classList.toggle('pw-reduce-motion',prefs())}
 applyPrefs();
+// Plain-language health lines; only facts the server confirmed.
+function healthLines(h){
+ const line=(state,text)=>{const p=el('p','pw-health-line',text);p.dataset.state=state;return p};
+ const out=[];
+ const hb=h.heartbeat||{};
+ out.push(line(hb.state==='ok'?'ok':hb.state==='late'?'attention':'problem',
+  hb.state==='ok'?'Ο αυτόματος έλεγχος εργασιών τρέχει κανονικά.':
+  hb.state==='late'?'Ο αυτόματος έλεγχος καθυστερεί ('+hb.minutes+' λεπτά).':
+  hb.state==='stopped'?'Ο αυτόματος έλεγχος έχει σταματήσει.':'Η κατάσταση του αυτόματου ελέγχου δεν είναι γνωστή.'));
+ if(hb.hasError)out.push(line('problem','Ο τελευταίος αυτόματος έλεγχος ανέφερε σφάλμα.'));
+ const w=h.work||{};
+ if(w.state==='ok')out.push(line('ok','Καμία εργασία δεν έχει κολλήσει.'));
+ else if(w.state==='attention')out.push(line('attention',
+  (w.stalled?w.stalled+' εργασίες χωρίς νέα πάνω από 2 ώρες. ':'')+
+  (w.uncertain?w.uncertain+' ενέργειες με αβέβαιο αποτέλεσμα — δεν επαναλαμβάνονται αυτόματα.':'')));
+ const r=h.routines||{};
+ out.push(line(r.state==='ok'?'ok':'attention',r.state==='ok'?
+  'Εβδομαδιαία προγράμματα: '+(r.enabled||0)+' ενεργά από '+(r.total||0)+'.':
+  r.state==='not_installed'?'Τα εβδομαδιαία προγράμματα δεν έχουν εγκατασταθεί ακόμη στη βάση.':
+  'Η κατάσταση των προγραμμάτων δεν είναι γνωστή.'));
+ if(h.config&&!h.config.aiBudgetVerified)out.push(line('attention','Οι AI συνομιλίες είναι κλειδωμένες μέχρι να επιβεβαιωθεί το όριο κόστους.'));
+ if(h.config&&!h.config.database)out.push(line('problem','Ο server δεν έχει πρόσβαση στη βάση.'));
+ return out;
+}
 function renderSettings(){
  const ui=cloud();
  // Account
@@ -559,6 +583,16 @@ function renderSettings(){
   button('Άνοιγμα','pw-btn-ghost',()=>{close({restoreFocus:false});void ui?.openClassicDesk?.('town')})));
  adv.append(settingRow('Τεχνικός έλεγχος Listening Mirror','Λεπτομέρειες προτεινόμενων αλλαγών κώδικα',
   button('Άνοιγμα','pw-btn-ghost',()=>{close({restoreFocus:false});void ui?.openClassicDesk?.('workshop')})));
+ // Low-cost, read-only health report (owner only, no AI).
+ const healthOut=el('div','pw-health');healthOut.setAttribute('aria-live','polite');
+ const healthBtn=button('Έλεγχος','pw-btn-ghost',async()=>{
+  if(typeof ui?.systemHealth!=='function'){healthOut.replaceChildren(el('p','pw-section-hint','Δεν είναι διαθέσιμο.'));return}
+  healthBtn.disabled=true;healthOut.replaceChildren(el('p','pw-section-hint','Έλεγχος…'));
+  try{healthOut.replaceChildren(...healthLines(await ui.systemHealth()))}
+  catch(_){healthOut.replaceChildren(el('p','pw-section-hint','Ο server δεν απάντησε. Δοκίμασε ξανά σε λίγο.'))}
+  finally{healthBtn.disabled=false}
+ });
+ adv.append(settingRow('Κατάσταση συστήματος','Γρήγορος έλεγχος χωρίς AI και χωρίς κόστος',healthBtn),healthOut);
  const maint=el('a','pw-link','Άνοιγμα');maint.href='?maintenance=1';
  adv.append(settingRow('Λειτουργία συντήρησης','Εργαλεία χάρτη, διαδρομών και διαγνωστικά',maint));
  body.append(adv);

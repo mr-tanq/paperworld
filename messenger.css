@@ -399,3 +399,12 @@ html.pw-reduce-motion :is(.pw-messenger,.pw-workspace),html.pw-reduce-motion :is
 .world-routine-entry{display:flex;flex-direction:column;gap:6px;padding:9px 0;
  border-top:1px solid rgba(255,255,255,.15)}
 .world-routine-entry p{overflow-wrap:anywhere}
+/* Routine Loop: inline edit (day, time, goal) inside the routine list card. */
+.pw-messenger .world-routine-edit{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 10px}
+.pw-messenger .world-routine-edit[hidden]{display:none}
+.pw-messenger .world-routine-edit textarea{grid-column:1/-1;min-height:64px;resize:vertical}
+.pw-messenger .world-routine-edit select,.pw-messenger .world-routine-edit input,
+.pw-messenger .world-routine-edit textarea{width:100%;min-height:44px;padding:8px 10px;border-radius:var(--pw-r-ctl);
+ border:1px solid var(--pw-line-2);background:var(--pw-bg);color:var(--pw-text);font:400 15px/1.4 var(--pw-font)}
+.pw-messenger .world-routine-edit button{grid-column:1/-1;justify-self:end}
+.pw-messenger .world-routine-edit p{grid-column:1/-1;margin:0;font-size:13px;color:var(--pw-text-2)}

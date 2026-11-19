@@ -1,16 +1,16 @@
 'use strict';
+// Owner-only routine API: preview, create (disabled), list, enable, pause, update.
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {makeRoutineOwnerApi,nextUtcSlot}=require('../server/routine-owner-api.cjs');
+const {makeRoutineOwnerApi}=require('../server/routine-owner-api.cjs');
 const owner='11111111-1111-4111-8111-111111111111';
 const thread='22222222-2222-4222-8222-222222222222';
 const headers={origin:'https://mr-tanq.github.io',authorization:'Bearer '+('a'.repeat(24))};
 const schedule={threadId:thread,projectId:'listening',goal:'Weekly new gig review',
- dayOfWeek:1,hourUtc:9,minuteUtc:30};
-const saved={id:'33333333-3333-4333-8333-333333333333',owner_id:owner,
- thread_id:thread,project_id:'listening',goal:schedule.goal,enabled:false,
- day_of_week:1,hour_utc:9,minute_utc:30,max_ai_calls:0,
- additional_spend_usd:0,next_review_at:'2026-11-23T09:30:00.000Z'};
+ dayOfWeek:1,hour:9,minute:30};
+const saved={id:'33333333-3333-4333-8333-333333333333',owner_id:owner,thread_id:thread,
+ project_id:'listening',goal:schedule.goal,enabled:false,day_of_week:1,local_hour:9,local_minute:30,
+ timezone:'Europe/Amsterdam',max_ai_calls:0,additional_spend_usd:0,next_review_at:null};
 const today=new Date('2026-11-19T10:00:00.000Z');
 function fixture({owns=true,rows=[saved],dbDown=false,secret='sb_secret_synthetic_no_real_credentials'}={}){
  const calls=[];
@@ -19,95 +19,81 @@ function fixture({owns=true,rows=[saved],dbDown=false,secret='sb_secret_syntheti
   fetcher:async(url,opts)=>{
    calls.push({url,opts});
    if(dbDown)throw Error('storage inaccessible');
-   if(opts.method==='POST'){
-    const p=JSON.parse(opts.body);
-    return {ok:true,json:async()=>[{...p,id:p.id,enabled:false}]};
-   }
+   if(opts.method==='POST'){const p=JSON.parse(opts.body);return {ok:true,json:async()=>[{...p,next_review_at:null}]}}
    if(opts.method==='PATCH'){
     const p=JSON.parse(opts.body);
-    return {ok:true,json:async()=>[{id:saved.id,...p}]};
+    // Simulates the database trigger: enabling computes the slot, pausing clears it.
+    const enabled=p.enabled??rows[0].enabled;
+    return {ok:true,json:async()=>[{...rows[0],...p,next_review_at:enabled?'2026-11-23T08:30:00.000Z':null}]};
    }
    return {ok:true,json:async()=>rows};
   }});
  const call=(action,data)=>api.handle({action,headers,body:JSON.stringify(data)});
  return {api,calls,call};
 }
-test('time calculation is future-facing, UTC and handles week boundaries',()=>{
- assert.equal(nextUtcSlot(1,9,30,today),'2026-11-23T09:30:00.000Z');
- assert.equal(nextUtcSlot(4,10,0,today),'2026-11-26T10:00:00.000Z');
- assert.equal(nextUtcSlot(4,10,5,today),'2026-11-19T10:05:00.000Z');
+test('preview shows the local schedule and first date, with zero storage calls',async()=>{
+ const f=fixture();
+ const r=await f.call('preview',schedule);
+ assert.equal(r.status,200);
+ assert.equal(r.body.timezone,'Europe/Amsterdam');
+ // Monday 23 Nov 09:30 Amsterdam (CET) = 08:30Z.
+ assert.equal(r.body.nextReviewAt,'2026-11-23T08:30:00.000Z');
+ assert.equal(r.body.enabled,false);assert.equal(r.body.aiCalls,0);assert.equal(r.body.additionalSpendUsd,0);
+ assert.equal(f.calls.length,0);
+ const utc=await f.call('preview',{...schedule,timezone:'UTC'});
+ assert.equal(utc.body.nextReviewAt,'2026-11-23T09:30:00.000Z');
 });
-test('preview is a verified-owner read-only plan with zero storage calls',async()=>{
- const {call,calls}=fixture();
- const result=await call('preview',schedule);
- assert.equal(result.status,200);
- assert.equal(result.body.nextReviewAt,'2026-11-23T09:30:00.000Z');
- assert.equal(result.body.enabled,false);
- assert.equal(result.body.aiCalls,0);
- assert.equal(result.body.additionalSpendUsd,0);
- assert.equal(calls.length,0);
+test('explicit create stores a disabled, zero-spend routine with local fields only',async()=>{
+ const f=fixture();
+ assert.equal((await f.call('create',schedule)).body.error,'invalid_routine_fields');
+ assert.equal((await f.call('create',{...schedule,confirmed:false})).body.error,'explicit_confirmation_required');
+ const r=await f.call('create',{...schedule,confirmed:true});
+ assert.equal(r.status,201);assert.equal(r.body.enabled,false);assert.equal(r.body.requiresActivation,true);
+ const body=JSON.parse(f.calls[0].opts.body);
+ assert.deepEqual([body.enabled,body.max_ai_calls,body.additional_spend_usd,body.local_hour,body.local_minute,body.timezone],
+  [false,0,0,9,30,'Europe/Amsterdam']);
+ assert.equal(body.owner_id,owner);
+ assert.ok(!('next_review_at' in body),'the database computes the schedule');
+ assert.ok(!('hour_utc' in body));
 });
-test('explicit create stores disabled draft only with zero spend',async()=>{
- const {call,calls}=fixture();
- assert.equal((await call('create',schedule)).status,400);
- assert.equal(calls.length,0);
- const result=await call('create',{...schedule,confirmed:true});
- assert.equal(result.status,201);
- assert.equal(result.body.enabled,false);
- assert.equal(result.body.requiresActivation,true);
- const write=JSON.parse(calls[0].opts.body);
- assert.equal(write.enabled,false);
- assert.equal(write.max_ai_calls,0);
- assert.equal(write.additional_spend_usd,0);
- assert.equal(write.owner_id,owner);
- assert.equal(write.thread_id,thread);
- assert.ok(!('status' in write));
+test('enable/pause/update need confirmation, are owner-scoped and keep budget at zero',async()=>{
+ const f=fixture();
+ assert.equal((await f.call('enable',{threadId:thread,routineId:saved.id})).body.error,'explicit_confirmation_required');
+ const on=await f.call('enable',{threadId:thread,routineId:saved.id,confirmed:true});
+ assert.equal(on.status,200);assert.equal(on.body.enabled,true);
+ assert.equal(on.body.nextReviewAt,'2026-11-23T08:30:00.000Z','returned from the database, not the client');
+ const patch=f.calls.find(c=>c.opts.method==='PATCH');
+ for(const scoped of ['owner_id=eq.'+owner,'thread_id=eq.'+thread,'max_ai_calls=eq.0','additional_spend_usd=eq.0','enabled=eq.false'])
+  assert.ok(patch.url.includes(scoped),scoped);
+ assert.deepEqual(JSON.parse(patch.opts.body),{enabled:true});
+ const edit=await f.call('update',{threadId:thread,routineId:saved.id,confirmed:true,hour:18,goal:'Νέος στόχος'});
+ assert.equal(edit.status,200);assert.equal(edit.body.hour,18);assert.equal(edit.body.goal,'Νέος στόχος');
+ assert.deepEqual(JSON.parse(f.calls.at(-1).opts.body),{goal:'Νέος στόχος',local_hour:18});
+ for(const bad of [{hour:24},{minute:-1},{goal:''},{max_ai_calls:5},{enabled:true}])
+  assert.equal((await f.call('update',{threadId:thread,routineId:saved.id,confirmed:true,...bad})).status,400,JSON.stringify(bad));
+ assert.equal((await f.call('update',{threadId:thread,routineId:saved.id,confirmed:true})).body.error,'invalid_routine_fields');
 });
-test('explicit pause/enable require owner record and zero-cost policy',async()=>{
- const {call,calls}=fixture();
- const p={threadId:thread,routineId:saved.id,confirmed:true};
- const enable=await call('enable',p);
- assert.equal(enable.status,200);
- assert.equal(enable.body.enabled,true);
- assert.equal(enable.body.execution,'review_drafts_only');
- assert.equal(JSON.parse(calls[1].opts.body).enabled,true);
- const pause=await call('pause',p);
- assert.equal(pause.status,200);
- assert.equal(pause.body.enabled,false);
- assert.equal(JSON.parse(calls[3].opts.body).next_review_at,null);
- assert.match(calls[3].url,/owner_id=eq\./);
-});
-test('no arbitrary owner, paid budget, or cross-thread activity',async()=>{
- for(const bad of [
-  {...schedule,ownerId:owner},{...schedule,dayOfWeek:9},
-  {...schedule,hourUtc:24},{...schedule,maxAiCalls:1},
-  {...schedule,projectId:'matt'},{...schedule,goal:''}]){
-  const {call,calls}=fixture();
-  assert.notEqual((await call('preview',bad)).status,200);
-  assert.equal(calls.length,0);
- }
- const notOwned=fixture({owns:false});
- assert.equal((await notOwned.call('create',{...schedule,confirmed:true})).status,404);
- assert.equal(notOwned.calls.length,0);
+test('a paid or foreign routine is never changed',async()=>{
  const paid=fixture({rows:[{...saved,max_ai_calls:2}]});
  assert.equal((await paid.call('enable',{threadId:thread,routineId:saved.id,confirmed:true})).status,409);
- assert.equal(paid.calls.length,1);
- const forged=fixture();
- assert.equal((await forged.call('enable',{threadId:thread,routineId:saved.id,confirmed:false})).status,400);
- assert.equal(forged.calls.length,0);
+ assert.ok(!paid.calls.some(c=>c.opts.method==='PATCH'));
+ const foreign=fixture({rows:[{...saved,owner_id:'99999999-9999-4999-8999-999999999999'}]});
+ assert.equal((await foreign.call('pause',{threadId:thread,routineId:saved.id,confirmed:true})).status,404);
 });
-test('missing schema, database failure or secret fails closed',async()=>{
- const down=fixture({dbDown:true});
- const r=await down.call('create',{...schedule,confirmed:true});
- assert.equal(r.status,503);
- const missing=fixture({secret:''});
- const fail=await missing.call('list',{threadId:thread});
- assert.equal(fail.status,503);
+test('list returns local fields for the owner only',async()=>{
+ const f=fixture({rows:[{...saved,enabled:true,next_review_at:'2026-11-23T08:30:00.000Z'}]});
+ const r=await f.call('list',{threadId:thread});
+ assert.deepEqual(r.body.routines[0],{id:saved.id,projectId:'listening',goal:schedule.goal,enabled:true,
+  dayOfWeek:1,hour:9,minute:30,timezone:'Europe/Amsterdam',nextReviewAt:'2026-11-23T08:30:00.000Z'});
+ assert.ok(f.calls[0].url.includes('owner_id=eq.'+owner));
 });
-test('server route cannot be called from cross-origin and never exposes service key',async()=>{
- const {api,calls}=fixture();
- const r=await api.handle({action:'create',headers:{...headers,origin:'https://evil.test'},
-  body:JSON.stringify({...schedule,confirmed:true})});
- assert.equal(r.status,403);
- assert.equal(calls.length,0);
+test('missing schema, database failure, wrong thread or secret fails closed',async()=>{
+ assert.equal((await fixture({dbDown:true}).call('create',{...schedule,confirmed:true})).status,503);
+ assert.equal((await fixture({secret:''}).call('list',{threadId:thread})).status,503);
+ assert.equal((await fixture({owns:false}).call('preview',schedule)).status,404);
+ const f=fixture();
+ assert.equal((await f.api.handle({action:'preview',headers:{...headers,origin:'https://evil.example'},
+  body:JSON.stringify(schedule)})).status,403);
+ assert.equal((await f.call('delete',{threadId:thread})).status,400);
+ assert.equal(f.calls.length,0);
 });

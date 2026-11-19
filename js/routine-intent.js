@@ -1,5 +1,7 @@
 /* PAPERWORLD Matt routine intent — deterministic, zero-model parse only.
- * Fails closed: no implicit local timezone/DST guesses or paid instructions.
+ * Times are local wall-clock time in Europe/Amsterdam unless the owner
+ * explicitly says UTC. The database applies daylight saving correctly.
+ * Nothing is saved from text alone: the owner confirms a preview card.
  */
 (function(root,factory){
  'use strict';
@@ -16,28 +18,34 @@
   {id:'studio',match:/lost\s*wanderer|crow|μουσικ|τραγουδι|studio/i},
   {id:'wellbeing',match:/wellbeing|ευεξι|υγεια|ασκησ|φυσιοθεραπ/i}
  ];
- function fold(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()}
+ const DEFAULT_TIMEZONE='Europe/Amsterdam';
+ function fold(v){return String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase()}
+ function parseTime(t){
+  const hm=t.match(/(?:^|[^\d])([01]?\d|2[0-3])[:.]([0-5]\d)(?!\d)/);
+  if(hm)return {hour:Number(hm[1]),minute:Number(hm[2])};
+  // "στις 9", "at 9" (whole hour). Afternoon words shift 1–11 by 12.
+  const h=t.match(/(?:στις|at)\s+([01]?\d|2[0-3])(?![\d:.])/);
+  if(!h)return null;
+  let hour=Number(h[1]);
+  if(hour<12&&/(?:(?:^|[^α-ω])μ\.?\s?μ\.?|απογευμα|βραδυ|\bpm\b)/.test(t))hour+=12;
+  return {hour,minute:0};
+ }
  function classify(message){
   const raw=String(message||'').trim();
   if(!raw||raw.length>1200)return null;
   const t=fold(raw);
-  if(/(?:ρουτιν|προγραμματ|routines?)/i.test(t)&&
-   /(?:δειξε|δειξ|ποιες|ποια|σταματ|παυσ|απενεργοποι|list|show)/i.test(t))
+  if(/(?:ρουτιν|προγραμμα|routines?)/i.test(t)&&
+   /(?:δειξε|δειξ|ποιες|ποια|σταματ|παυσ|απενεργοποι|αλλαξ|αλλαγ|επεξεργ|list|show|edit|change)/i.test(t))
    return {kind:'list_routines'};
   if(!/(?:\b(?:every|weekly|schedule)\b|καθε|εβδομαδ|προγραμματι)/i.test(t))return null;
   const dayNames=Object.keys(weekdays).filter(k=>new RegExp('(^|[^a-zα-ω])'+k+'(?:ς)?(?=$|[^a-zα-ω])','i').test(t));
-  const time=t.match(/(?:^|[^\d])([01]?\d|2[0-3]):([0-5]\d)(?!\d)/);
+  const time=parseTime(t);
   const matched=projects.filter(p=>p.match.test(t));
-  const utc=/(?:\butc\b|ωρα\s+utc)/i.test(t);
-  if(dayNames.length!==1||!time||matched.length!==1||!utc)
-   return {kind:'clarify',reason:!utc?'timezone':'missing',
-    message:raw};
-  const selected=matched[0];
-  const dayOfWeek=weekdays[dayNames[0]];
-  const hourUtc=Number(time[1]),minuteUtc=Number(time[2]);
-  if(!Number.isInteger(dayOfWeek))return {kind:'clarify',reason:'missing',message:raw};
-  return {kind:'weekly_preview',projectId:selected.id,dayOfWeek,
-   hourUtc,minuteUtc,goal:raw};
+  if(dayNames.length!==1||!time||matched.length!==1)
+   return {kind:'clarify',reason:'missing',message:raw};
+  const timezone=/(?:\butc\b|ωρα\s+utc)/i.test(t)?'UTC':DEFAULT_TIMEZONE;
+  return {kind:'weekly_preview',projectId:matched[0].id,dayOfWeek:weekdays[dayNames[0]],
+   hour:time.hour,minute:time.minute,timezone,goal:raw};
  }
- return Object.freeze({classify});
+ return Object.freeze({classify,DEFAULT_TIMEZONE});
 });

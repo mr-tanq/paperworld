@@ -519,3 +519,13 @@ The integration suite proves the state machine against real PostgreSQL 17 and te
 - Make Matt respond in short, human language, preserving privacy, budgets, approvals and truthful execution status.
 - PR #205 is the implementation; no automatic merge, paid session, database migration, production deployment or additional agent credentials until verification.
 - Full source-level decisions and unfinished validation: `docs/VILLAGE_HUMAN_FIRST_AUDIT_V2.md`.
+
+## 2026-11-19 — Release readiness v1: Routine Loop release, shared Worker knowledge, system health
+- Full audit (code + read-only live Supabase): V5 heartbeat healthy (single cron `paperworld-v5-safe-controller` → `paperworld_v5_unified_tick`), RLS on all public tables, real Copilot executions recorded; Routine Loop tables/functions absent in production. Details: `docs/RELEASE_READINESS_V1.md`.
+- Decision: the never-applied Routine V1/V2 SQL drafts are **replaced** by one owner-applied migration `sql/paperworld_routine_loop_release_v1.sql` — local time + IANA zone (default Europe/Amsterdam, DST via PostgreSQL), DB trigger owns `next_review_at`, exactly-once per slot, idempotent Matt `routine_due` message, missed/invalid slots fast-forward, routine stage **isolated** inside the existing tick (live tick body preserved verbatim; no new cron).
+- Decision: routines stay **review-only drafts** (0 AI calls, 0 spend). Auto-queueing paid work from a routine needs a separate per-routine budget/consent design.
+- Owner API gains `update` (edit goal/day/time); Matt understands natural local times ("Κάθε Δευτέρα στις 09:00 …", "στις 8 μ.μ.").
+- PR #236 (approved non-private knowledge for Workers, per-task grant, no extra AI turn) and PR #247 (PostgreSQL integration; `$`→`$$` fix, rewritten for the release migration) are folded into this release.
+- New owner-only, read-only `/health/system` + Settings → Κατάσταση συστήματος (no AI, no secrets, owner-scoped counts).
+- Known: `credit_snapshot` never recorded → `credit_stop_at` inert; session caps are the effective budget guard (owner decision pending).
+- Owner launch order: apply SQL → merge → deploy Render manually → check system health.

@@ -13,7 +13,7 @@ const mockSource={
  lines:'L1 config_version=5\nL2 [application]\nL3 config/name="Pokemon Echoes"'
 };
 function fixture({owns=true,budget=true,linked=true,failTurn=0,source=mockSource,
- memoryFail=false,readFail=false}={}){
+ memoryFail=false,readFail=false,sharedMemory=false}={}){
  const seen={prompts:[],turns:0,reads:0,configs:[],stopped:0,identities:[]};
  const gateway=makePokemonWorkerDelegation({
   oauth:{getLinkedToken:()=>linked?'gho_SYNTHETIC_TOKEN_ONLY':null},
@@ -30,7 +30,12 @@ function fixture({owns=true,budget=true,linked=true,failTurn=0,source=mockSource
    if(memoryFail)throw Error('SENSITIVE_OTHER_PROJECT');
    return {actor:'pokemon-director',projectId:'pokemon',included:1,
     text:'OWNER_APPROVED_POKEMON_NOTE',capabilitiesGranted:[],untrustedContent:true};
-  }},
+  },...(sharedMemory?{loadWorker:async args=>{
+   seen.sharedParams=args;
+   return {actor:'pokemon-developer',projectId:'pokemon',included:1,
+    text:'POKEMON_STANDARD_WORKER_CONTEXT',capabilitiesGranted:[],
+    untrustedContent:true};
+  }}:{})},
   clientFactory:async args=>{
    seen.options=args;
    return {
@@ -131,4 +136,18 @@ test('Replay and origin checks, no automatic second charge',async()=>{
  assert.equal(seen.turns,5);
  const wrong=await gateway.handle({headers:{...headers,origin:'https://evil.example'},body:body(payload)});
  assert.equal(wrong.status,403);
+});
+
+test('Pokémon Worker receives standard approved notes in existing AI turn only',async()=>{
+ const {gateway,seen}=fixture({sharedMemory:true});
+ const response=await gateway.handle({headers,body:body(payload)});
+ assert.equal(response.status,200);
+ assert.equal(seen.turns,5);
+ assert.match(seen.prompts[2],/POKEMON_STANDARD_WORKER_CONTEXT/);
+ assert.match(seen.prompts[2],/NOT CURRENT CODE/);
+ assert.equal(seen.sharedParams.actor,'pokemon-developer');
+ assert.equal(seen.sharedParams.taskGrant.projectId,'pokemon');
+ assert.equal(seen.sharedParams.taskGrant.requestId,requestId);
+ assert.equal(seen.sharedParams.taskGrant.ownerId,owner);
+ assert.doesNotMatch(JSON.stringify(response.body),/POKEMON_STANDARD_WORKER_CONTEXT/);
 });
