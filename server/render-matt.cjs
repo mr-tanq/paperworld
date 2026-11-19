@@ -20,6 +20,7 @@ const {makeAutonomousMissionApi}=require('./v5-autonomous-mission-api.cjs');
 const {makeSourceFactWorker}=require('./v5-source-fact-worker.cjs');
 const {makeJobHistoryApi}=require('./agent-job-history-api.cjs');
 const {makeTeamHandoffLedger}=require('./team-handoff-ledger-v5.cjs');
+const {makeLearningProposalApi}=require('./director-learning-proposal-api.cjs');
 const {createProposalMemory}=require('./listening-proposal-memory.cjs');
 const {createDurableApprovalStore}=require('./listening-approval-store.cjs');
 const {createListeningProposalApi}=require('./listening-proposal-api.cjs');
@@ -47,7 +48,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
  sunoOAuthFactory=()=>createSunoOAuthClient(),
  proposalApiFactory=({oauth,memory,store})=>createListeningProposalApi({oauth,memory,store})}={}){
  let live,directorChat,delegation,worker,pokemonWorker,history,proposalApi,crowSunoPreview,sunoStatus,sunoOAuth;
- let teamLedger;
+ let teamLedger,learningProposalApi;
  let sourceFactWorker;
  let proposalMemory,approvalStore;
  let pokemonProposalStore,pokemonProposalApi;
@@ -95,6 +96,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
  function getPokemonWorker(){if(!pokemonWorker)pokemonWorker=pokemonWorkerFactory({oauth,pokemonProposalStore:getPokemonProposalStore()});return pokemonWorker}
  function getHistory(){if(!history)history=historyFactory();return history}
  function getTeamLedger(){if(!teamLedger)teamLedger=makeTeamHandoffLedger();return teamLedger}
+ function getLearningProposalApi(){if(!learningProposalApi)learningProposalApi=makeLearningProposalApi();return learningProposalApi}
  function getSourceFactWorker(){if(!sourceFactWorker)sourceFactWorker=makeSourceFactWorker({oauth});return sourceFactWorker}
  function getCrowSunoPreview(){if(!crowSunoPreview)crowSunoPreview=crowSunoPreviewFactory();return crowSunoPreview}
  function getSunoStatus(){if(!sunoStatus)sunoStatus=sunoStatusFactory();return sunoStatus}
@@ -177,6 +179,32 @@ function createRenderMattServer({oauth=createGithubOAuth({
     }
     res.writeHead(result.status,result.headers);res.end(JSON.stringify(result.body));return;
    }catch(_){response(res,503,{error:'oauth_unavailable'});return}
+  }
+  // Explicit owner-selected correction from a saved human message.
+  // Never triggered by AI messages; proposes memory, never approves it.
+  if(req.url==='/director/memory/propose-correction'){
+   if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
+    res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,
+     'Access-Control-Allow-Methods':'POST, OPTIONS',
+     'Access-Control-Allow-Headers':'authorization,content-type',
+     'Vary':'Origin','Access-Control-Max-Age':'600'});res.end();return;
+   }
+   if(req.method!=='POST')return response(res,405,{error:'method_not_allowed'});
+   if(req.headers.origin!==APP_ORIGIN)return response(res,403,{error:'origin_denied'});
+   try{
+    const parts=[];let size=0;
+    for await(const chunk of req){
+     size+=chunk.length;
+     if(size>1200)return response(res,413,{error:'request_too_large'});
+     parts.push(chunk);
+    }
+    const result=await getLearningProposalApi().handle({
+     headers:req.headers,body:Buffer.concat(parts).toString('utf8')});
+    res.writeHead(result.status,{'Content-Type':'application/json; charset=utf-8',
+     'Access-Control-Allow-Origin':APP_ORIGIN,'Cache-Control':'no-store',
+     'X-Content-Type-Options':'nosniff','Vary':'Origin'});
+    res.end(JSON.stringify(result.body));return;
+   }catch(_){return response(res,503,{error:'learning_api_unavailable'})}
   }
   const proposalAction={
    '/listening/proposals/list':'list',
