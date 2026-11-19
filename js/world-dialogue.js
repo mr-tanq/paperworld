@@ -1029,8 +1029,10 @@
  let routineRequest=null,routinePending=false;
  function clearRoutineReview(){
   routineReview.hidden=true;routineReview.replaceChildren();routineRequest=null;
+  routineReview.classList.remove('world-routine-list');
  }
  function showRoutineMessage(message){
+  routineReview.classList.remove('world-routine-list');
   routineReview.replaceChildren();
   const heading=make('strong','','Matt · Εβδομαδιαίο πρόγραμμα');
   const note=make('p','',message);
@@ -1047,21 +1049,34 @@
    const entries=await cloud().listRoutines();
    if(openId!=='matt')return;
    routineReview.replaceChildren();
-   const heading=make('strong','','Matt · Τα εβδομαδιαία προγράμματά σου');
-   routineReview.append(heading);
+   routineReview.classList.add('world-routine-list');
+   const header=make('div','world-routine-list-heading');
+   const heading=make('strong','','Οι ρουτίνες σου');
+   const count=make('span','world-routine-count',entries.length===1?'1 πρόγραμμα':entries.length+' προγράμματα');
+   header.append(heading,count);
+   routineReview.append(header);
    if(!entries.length)routineReview.append(make('p','','Δεν υπάρχουν αποθηκευμένα προγράμματα.'));
    for(const r of entries){
-    const line=make('div','world-routine-entry');
+    const line=make('section','world-routine-entry');
+    line.setAttribute('aria-label','Ρουτίνα '+(r.projectId||''));
     const day=['Κυριακή','Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο'][r.dayOfWeek]||'';
     const time=String(r.hour).padStart(2,'0')+':'+String(r.minute).padStart(2,'0');
     const name={listening:'Listening Mirror',pokemon:'Pokémon',studio:'Lost Wanderer',
      wellbeing:'Wellbeing'}[r.projectId]||r.projectId;
     const zone=r.timezone==='UTC'?' UTC':'';
     const nextText=r.enabled&&Number.isFinite(Date.parse(r.nextReviewAt||''))?
-     ' · επόμενη φορά '+new Date(r.nextReviewAt).toLocaleString('el-GR',{weekday:'short',day:'numeric',
+     'Επόμενη: '+new Date(r.nextReviewAt).toLocaleString('el-GR',{weekday:'short',day:'numeric',
       month:'short',hour:'2-digit',minute:'2-digit',timeZone:r.timezone||'Europe/Amsterdam',hourCycle:'h23'}):'';
-    line.append(make('p','',name+' · κάθε '+day+' '+time+zone+' · '+(r.enabled?'Ενεργό':'Σε παύση')+nextText));
-    line.append(make('p','',r.goal.slice(0,170)));
+    const head=make('div','world-routine-entry-head');
+    const label=make('strong','world-routine-name',name);
+    const state=make('span','world-routine-state'+(r.enabled?' is-active':' is-paused'),r.enabled?'Ενεργή':'Σε παύση');
+    head.append(label,state);
+    const schedule=make('p','world-routine-schedule','Κάθε '+day+' · '+time+zone);
+    const next=make('p','world-routine-next',nextText);
+    next.hidden=!nextText;
+    const goal=make('p','world-routine-goal',r.goal);
+    const actions=make('div','world-routine-entry-actions');
+    line.append(head,schedule,next,goal,actions);
     // Edit goal/day/time: inline, explicit save. The database recalculates
     // the next date (incl. daylight saving).
     if(typeof cloud()?.updateRoutine==='function'){
@@ -1097,7 +1112,8 @@
       finally{routinePending=false;save.disabled=false}
      });
      editor.append(daySel,timeIn,goalIn,save,editResult);
-     line.append(editBtn,editor);
+     actions.append(editBtn);
+     line.append(editor);
     }
     if(!r.enabled&&typeof cloud()?.changeRoutine==='function'){
      const resume=make('button','','Ενεργοποίηση');resume.type='button';
@@ -1110,10 +1126,13 @@
        if(changed.enabled!==true)throw Error('Unverified');
        resumeResult.textContent='Ενεργοποιήθηκε. Θα σου ετοιμάζω την εργασία για έλεγχο τη σωστή μέρα και ώρα.';
        resume.hidden=true;
+       r.enabled=true;state.textContent='Ενεργή';state.classList.remove('is-paused');state.classList.add('is-active');
+       schedule.textContent='Κάθε '+day+' · '+time+zone;
       }catch(_){resumeResult.textContent='Η ενεργοποίηση δεν επιβεβαιώθηκε.';resume.disabled=false}
       finally{routinePending=false}
      });
-     line.append(resume,resumeResult);
+     actions.append(resume);
+     line.append(resumeResult);
     }
     if(r.enabled){
      const pause=make('button','','Παύση');
@@ -1130,18 +1149,23 @@
        if(changed.enabled!==false)throw Error('Unverified pause');
        result.textContent='Σε παύση. Δεν θα ετοιμάζεται νέα εργασία μέχρι να το ενεργοποιήσεις.';
        pause.hidden=true;
+       r.enabled=false;state.textContent='Σε παύση';state.classList.remove('is-active');state.classList.add('is-paused');
+       next.hidden=true;
       }catch(_){
        result.textContent='Η παύση δεν επιβεβαιώθηκε. Έλεγξε την κατάσταση πριν ξαναδοκιμάσεις.';
        pause.disabled=false;
       }finally{routinePending=false}
      });
-     line.append(pause,result);
+     actions.append(pause);
+     line.append(result);
     }
     routineReview.append(line);
    }
-   const close=make('button','','Κλείσιμο');
+   const footer=make('div','world-routine-list-footer');
+   const close=make('button','world-routine-close','Κλείσιμο');
    close.type='button';close.addEventListener('click',clearRoutineReview);
-   routineReview.append(close);routineReview.hidden=false;
+   footer.append(close);
+   routineReview.append(footer);routineReview.hidden=false;
    return true;
   }catch(_){
    if(openId==='matt')showRoutineMessage('Δεν μπόρεσα να φορτώσω τα προγράμματα. Δεν έγινε καμία αλλαγή.');
@@ -1168,6 +1192,7 @@
    const preview=await cloudClient.previewRoutine(plan);
    if(openId!=='matt'||token!==revision)return;
    routineRequest=plan;
+   routineReview.classList.remove('world-routine-list');
    routineReview.replaceChildren();
    const heading=make('strong','','Matt · Να το κρατήσω ως πρόγραμμα;');
    const day=['Κυριακή','Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο'][plan.dayOfWeek];
