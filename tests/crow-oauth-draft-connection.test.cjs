@@ -46,7 +46,7 @@ test('Cloud owner marker is UUID only and browser cache versions advance togethe
  assert.match(wrapper,/ownerId:\(\)=>client\.ownerId\(\)/);
  for(const marker of [
   'cloud.js?v=suno-create-preflight-v13',
-  'cloud-ui.js?v=oauth-draft-owner-v10',
+  'cloud-ui.js?v=suno-create-exposed-v14',
   'world-dialogue.js?v=suno-create-feedback-v13',
   'style.css?v=suno-create-feedback-v13'
  ])assert.ok(html.includes(marker),marker);
