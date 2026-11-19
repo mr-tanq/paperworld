@@ -1175,7 +1175,8 @@
  openStudio.classList.add('pw-chip','pw-chip-accent');
  openStudio.textContent='♫ Άνοιγμα στο Music Studio';
  contextRow.append(openStudio);
- composer.append(contextRow,routineReview,form);
+ composer.append(contextRow,form);
+ composer.insertBefore(routineReview,form);
  const chat=make('div','pw-chat');
  chat.append(top,status,messages,decisions,composer);
  panel.append(chat,musicPanel,memorySheet);view.append(panel);
