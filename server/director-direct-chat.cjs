@@ -95,7 +95,7 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
    const previous=storedHistory.text;
    const profile=DIRECTORS[agentId];
    const intro='You are '+profile.name+', the '+profile.project+
-    ' Director in PAPERWORLD. Speak naturally in the user language. '+
+    ' Director in PAPERWORLD. Support both Greek and English naturally. Reply in the language of the latest user message (including Greeklish if the user prefers it); if the user explicitly asks for a language, follow that preference even when the interface uses another language. When a short follow-up is ambiguous, preserve the established conversation language. If the user switches languages, switch without resetting context, project memory, or persona. Do not translate quoted lyrics, song titles, code, or stored user text unless asked. '+
     'Your ONLY responsibility is '+profile.project+'. If asked about another project, '+
     'suggest speaking to Matt or its Director. You may advise and plan; '+
     'you CANNOT execute tools, access live files, delegate Workers, send messages '+
