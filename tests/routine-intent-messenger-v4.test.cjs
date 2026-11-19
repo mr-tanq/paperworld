@@ -47,7 +47,7 @@ test('Messenger only requests preview until explicit owner confirmation',()=>{
  const shell=fs.readFileSync(require.resolve('../js/cloud-ui.js'),'utf8');
  const html=fs.readFileSync(require.resolve('../index.html'),'utf8');
  assert.match(s,/const routineIntent=window\.PaperworldRoutineIntent\?\.classify\?\.\(text\)/);
- assert.match(s,/if\(routineIntent\)\{[\s\S]{0,90}await previewMattRoutine\(routineIntent\)/);
+ assert.match(s,/const accepted=routineIntent\.kind==='list_routines'\?[\s\S]{0,90}await previewMattRoutine\(routineIntent\)/);
  assert.match(s,/await cloudClient\.previewRoutine\(plan\)/);
  assert.match(s,/confirm\.addEventListener\('click',async\(\)=>\{/);
  assert.match(s,/await cloudClient\.createRoutine\(routineRequest\)/);
@@ -68,7 +68,7 @@ test('show routines intent and pause stay model-free and owner-click-only',()=>{
  assert.equal(classify('Σταμάτα τα προγράμματα μου').kind,'list_routines');
  const js=fs.readFileSync(require.resolve('../js/world-dialogue.js'),'utf8');
  const cloud=fs.readFileSync(require.resolve('../js/cloud.js'),'utf8');
- assert.match(js,/if\(routineIntent\.kind==='list_routines'\)await listMattRoutines\(\)/);
+ assert.match(js,/routineIntent\.kind==='list_routines'\?[\s\S]{0,70}await listMattRoutines\(\)/);
  assert.match(js,/await cloud\(\)\.listRoutines\(\)/);
  assert.match(js,/pause\.addEventListener\('click',async\(\)=>/);
  assert.match(js,/await cloud\(\)\.changeRoutine\(r\.id,false\)/);
