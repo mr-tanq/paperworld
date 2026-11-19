@@ -623,6 +623,15 @@
      brief,idempotencyKey})
    });
    let result={};try{result=await response.json()}catch(_){}
+   // Known pre-provider validation/auth denials are safe to describe without
+   // implying a credit-spending audio-create happened.
+   const safePreflight=new Set(['invalid_body','invalid_json',
+    'invalid_audio_create_request','unauthorized','origin_denied',
+    'suno_oauth_required','audio_create_not_verified',
+    'audio_create_session_limit','request_too_large']);
+   if(!response.ok&&safePreflight.has(result.error))
+    return {service:'suno_mcp',accepted:false,status:'blocked_before_submission',
+     reason:result.error};
    if(result.service!=='suno_mcp'||typeof result.accepted!=='boolean')
     throw Error('Suno submission unconfirmed');
    return result;
