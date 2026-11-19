@@ -86,7 +86,9 @@ function makeSunoAudioCreate({fetcher=globalThis.fetch}={}){
    if(response.status>=500&&response.status<=599)
     return {accepted:false,reason:'provider_server_error_unverified'};
    if(response.status!==200)
-    return {accepted:false,reason:'provider_http_unverified'};
+    return {accepted:false,reason:'provider_http_unverified',
+     httpStatus:Number.isInteger(response.status)&&response.status>=300&&
+      response.status<=599?response.status:null};
    const type=response.headers?.get?.('content-type')||'';
    const isJson=/^application\/json\b/i.test(type);
    const isSse=/^text\/event-stream\b/i.test(type);
