@@ -686,3 +686,17 @@ body>header span{font-size:10px;color:#a3afa6;letter-spacing:.04em}
 .world-chat-memory-controls button{padding:7px 10px;border:1px solid #799084;border-radius:8px;
  background:#283c31;color:#f0f5f0;font-size:11px;cursor:pointer}
 .world-chat-memory-controls button[disabled]{opacity:.55;cursor:default}
+
+
+/* Matt Routine Loop — unobtrusive in-chat confirmation, not a technical menu. */
+.world-routine-review{display:flex;flex-direction:column;gap:8px;padding:11px 13px;
+ background:#25302c;border:1px solid #5b7468;border-radius:13px;
+ box-shadow:0 7px 22px #0003;color:#eff5f0;max-height:42vh;overflow-y:auto}
+.world-routine-review[hidden]{display:none!important}
+.world-routine-review strong{font-size:13px;line-height:1.35}
+.world-routine-review p{margin:0;font-size:11px;line-height:1.5;color:#dce7df;white-space:pre-wrap}
+.world-routine-actions{display:flex;gap:8px;flex-wrap:wrap}
+.world-routine-review button{align-self:flex-start;border:1px solid #7c9b89;
+ border-radius:9px;background:#3c5345;color:#fff;padding:8px 11px;
+ font:inherit;font-size:11px;cursor:pointer}
+.world-routine-review button[disabled]{opacity:.5;cursor:default}
