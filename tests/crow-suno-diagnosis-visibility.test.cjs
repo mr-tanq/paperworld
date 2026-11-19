@@ -21,7 +21,7 @@ test('GitHub Pages invalidates stale cached Messenger and Suno cloud API',()=>{
  assert.match(html,/world-dialogue\.js\?v=suno-mcp-diagnostic-v15/);
  assert.match(html,/cloud\.js\?v=suno-create-preflight-v13/);
  assert.match(html,/cloud-ui\.js\?v=suno-create-exposed-v14/);
- assert.match(html,/style\.css\?v=suno-mcp-diagnostic-v15/);
+ assert.match(html,/style\.css\?v=suno-create-feedback-v13/);
  assert.doesNotMatch(html,/world-dialogue\.js\?v=crow-transfer-v1/);
 });
 
