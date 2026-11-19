@@ -7,7 +7,7 @@ const {randomBytes,createHash}=require('node:crypto');
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {createSunoOAuthDiscovery}=require('./suno-oauth-discovery.cjs');
 const {makeSunoMcpToolProbe}=require('./suno-mcp-tool-probe.cjs');
-const {makeSunoAudioCreate,validRequest}=require('./suno-audio-create.cjs');
+const {makeSunoAudioCreate,validRequest,buildAudioCreateCall}=require('./suno-audio-create.cjs');
 const {makeSunoClaim}=require('./suno-durable-claim.cjs');
 const APP='https://mr-tanq.github.io';
 const HOST='https://paperworld-matt-test-6hmd.onrender.com';
@@ -27,6 +27,28 @@ const SAFE_TOOL_REASONS=Object.freeze(new Set([
  'mcp_tool_limit_exceeded','mcp_invalid_tool_definition','mcp_response_oversized',
  'mcp_invalid_json','mcp_invalid_sse'
 ]));
+// Placeholder used ONLY by the read-only diagnostic to check that Crow's
+// argument set matches Suno's live audio-create inputSchema. Never sent.
+const PROBE_BRIEF=Object.freeze({title:'Paperworld compatibility check',
+ style:'acoustic folk',lyrics:'[Verse]\nCompatibility check line'});
+const PROBE_KEY='00000000-0000-4000-8000-000000000000';
+const CREATE_REASONS=Object.freeze(new Set(['audio_create_schema_unverified',
+ 'audio_create_schema_mismatch','audio_create_field_too_long',
+ 'audio_create_required_field_unsupported','invalid_audio_create_request']));
+function audioCreateReadiness(verdict){
+ if(verdict?.available!==true||!verdict.tools?.includes('audio-create'))
+  return {compatible:false,reason:'audio_create_not_listed',paramHeaders:[]};
+ if(verdict.reason!=='read_only_tools_verified')
+  return {compatible:false,reason:'audio_create_transport_unsupported',paramHeaders:[]};
+ const call=buildAudioCreateCall({brief:PROBE_BRIEF,idempotencyKey:PROBE_KEY,
+  contract:verdict.toolContract});
+ if(!call.ok)return {compatible:false,
+  reason:CREATE_REASONS.has(call.reason)?call.reason:'audio_create_schema_unverified',
+  ...(typeof call.field==='string'?{field:call.field}:{}),paramHeaders:[]};
+ // Header and argument NAMES only (schema metadata), never values.
+ return {compatible:true,reason:'audio_create_contract_compatible',
+  arguments:Object.keys(call.args),paramHeaders:Object.keys(call.paramHeaders)};
+}
 function safeToolReason(verdict){
  if(verdict?.available===true)return 'mcp_capability_unverified';
  const reason=verdict?.reason;
@@ -200,10 +222,13 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
    }
   }catch(_){/* Provider availability is not permission to guess. */}
   let toolsListed=false,toolCount=0,toolReason='not_authorized',toolTransport='unverified';
+  let audioCreate={compatible:false,reason:'not_authorized',paramHeaders:[]};
   if(session){
    try{
-    const verdict=await tools.inspect({accessToken:session.accessToken});
+    const verdict=await tools.inspect({accessToken:session.accessToken,
+     contractFor:'audio-create'});
     toolReason=safeToolReason(verdict);
+    audioCreate=audioCreateReadiness(verdict);
     if(verdict?.available===true&&
        Number.isSafeInteger(verdict.toolCount)&&verdict.toolCount>=0&&
        verdict.toolCount<=100&&Array.isArray(verdict.tools)&&
@@ -216,15 +241,26 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
     }
    }catch(_){toolReason='mcp_probe_unavailable'}
   }
+  // The paid call is gated on a durable claim; check its storage read-only.
+  let claim={ready:false,reason:'claim_storage_unavailable'};
+  try{
+   if(typeof durableClaim.ready==='function'){
+    const r=await durableClaim.ready();
+    if(r&&typeof r.ready==='boolean'&&typeof r.reason==='string')claim=r;
+   }
+  }catch(_){}
   return answer(200,{service:'suno_mcp',resourceAvailable,
    clientRegistrationSupported,oauthAuthorized:!!session,
    toolsListed,toolCount,toolTransport,
    toolReason:toolsListed?'read_only_tools_verified':toolReason,
+   audioCreate,createClaimReady:claim.ready,createClaimReason:claim.reason,
    canGenerate:false,
    nextStep:!resourceAvailable?'provider_resource_unavailable':
     !clientRegistrationSupported?'client_registration_unverified':
     !session?'owner_oauth_required':
-    !toolsListed?'mcp_tools_unverified':'generation_not_enabled'});
+    !toolsListed?'mcp_tools_unverified':
+    !audioCreate.compatible?'audio_create_contract_unverified':
+    !claim.ready?'create_claim_storage_not_ready':'ready_for_owner_approved_create'});
  }
  async function createSong(req={}){
   if(typeof req.body!=='string'||Buffer.byteLength(req.body,'utf8')>11000)
@@ -240,26 +276,51 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
   cleanup();
   const linkedToken=linked.get(who.ownerId);
   if(!linkedToken)return denied(409,'suno_oauth_required');
-  const toolVerdict=await tools.inspect({accessToken:linkedToken.accessToken});
+  const toolVerdict=await tools.inspect({accessToken:linkedToken.accessToken,
+   contractFor:'audio-create'});
   if(toolVerdict?.available!==true||!toolVerdict.tools?.includes('audio-create'))
    return denied(409,'audio_create_not_verified');
+  // The request below is a modern 2026-07-28 stateless call; a server only
+  // reachable through the legacy session handshake cannot accept it.
+  if(toolVerdict.reason!=='read_only_tools_verified')
+   return denied(409,'audio_create_transport_unsupported');
+  // Validate the exact arguments and Mcp-Param headers against the live
+  // inputSchema BEFORE claiming or spending anything.
+  const call=buildAudioCreateCall({brief:data.brief,
+   idempotencyKey:data.idempotencyKey,contract:toolVerdict.toolContract});
+  if(!call.ok)return answer(409,{error:CREATE_REASONS.has(call.reason)?
+   call.reason:'audio_create_schema_unverified',
+   ...(typeof call.field==='string'?{field:call.field}:{}),
+   ...(Number.isSafeInteger(call.limit)?{limit:call.limit}:{})});
   // An atomic DB claim survives process restarts and concurrent Render instances.
   // Never invoke credit-spending audio-create when storage fails or the key exists.
   let claimed;
   try{
    claimed=await durableClaim.reserve({ownerId:who.ownerId,
     threadId:data.threadId,idempotencyKey:data.idempotencyKey,brief:data.brief});
-  }catch(_){return denied(503,'suno_claim_unavailable')}
+  }catch(error){
+   return denied(503,error?.message==='suno_claim_storage_missing'?
+    'suno_claim_storage_missing':'suno_claim_unavailable');
+  }
   if(claimed!==true)return denied(409,'audio_create_already_submitted');
   const result=await audioCreate.submit({accessToken:linkedToken.accessToken,
-   brief:data.brief,idempotencyKey:data.idempotencyKey});
+   brief:data.brief,idempotencyKey:data.idempotencyKey,
+   contract:toolVerdict.toolContract});
   // Unknown replies remain claimed. Never automatically retry a credit event.
-  return answer(result.accepted?202:result.reason==='provider_rejected'?422:502,{
+  const safeList=(list,re)=>Array.isArray(list)?
+   list.filter(v=>typeof v==='string'&&re.test(v)).slice(0,5):undefined;
+  const capabilities=safeList(result.requiredCapabilities,/^[a-z]{1,20}$/);
+  const inputKinds=safeList(result.inputKinds,/^[a-z]{1,20}\/[a-zA-Z]{1,20}$/);
+  return answer(result.accepted?202:
+   result.status==='blocked_before_submission'?409:502,{
    service:'suno_mcp',accepted:result.accepted,status:result.status||'unknown',
    reason:result.reason,canGenerate:true,idempotencyKey:data.idempotencyKey,
-   ...(result.reason==='provider_http_unverified'&&
-      Number.isInteger(result.httpStatus)&&result.httpStatus>=300&&
-      result.httpStatus<=599?{httpStatus:result.httpStatus}:{})});
+   ...(Number.isInteger(result.httpStatus)&&result.httpStatus>=300&&
+      result.httpStatus<=599?{httpStatus:result.httpStatus}:{}),
+   ...(Number.isInteger(result.rpcCode)&&result.rpcCode>=-32768&&
+      result.rpcCode<=-32000?{rpcCode:result.rpcCode}:{}),
+   ...(capabilities?{requiredCapabilities:capabilities}:{}),
+   ...(inputKinds?{inputKinds}:{})});
  }
  async function callback({url}={}){
   // Only fixed, non-sensitive failure categories may reach the browser.

@@ -625,13 +625,22 @@
    let result={};try{result=await response.json()}catch(_){}
    // Known pre-provider validation/auth denials are safe to describe without
    // implying a credit-spending audio-create happened.
+   // These are all decided on the Paperworld server BEFORE any request is
+   // sent to Suno, so no credits can have been used.
    const safePreflight=new Set(['invalid_body','invalid_json',
     'invalid_audio_create_request','unauthorized','origin_denied',
     'suno_oauth_required','audio_create_not_verified',
-    'audio_create_session_limit','request_too_large']);
+    'audio_create_session_limit','request_too_large',
+    'suno_claim_unavailable','suno_claim_storage_missing',
+    'audio_create_already_submitted','audio_create_transport_unsupported',
+    'audio_create_schema_unverified','audio_create_schema_mismatch',
+    'audio_create_field_too_long','audio_create_required_field_unsupported']);
    if(!response.ok&&safePreflight.has(result.error))
     return {service:'suno_mcp',accepted:false,status:'blocked_before_submission',
-     reason:result.error};
+     reason:result.error,
+     ...(typeof result.field==='string'&&/^[a-z_]{1,40}$/.test(result.field)?
+      {field:result.field}:{}),
+     ...(Number.isSafeInteger(result.limit)?{limit:result.limit}:{})};
    if(result.service!=='suno_mcp'||typeof result.accepted!=='boolean')
     throw Error('Suno submission unconfirmed');
    return result;

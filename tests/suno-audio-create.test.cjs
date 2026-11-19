@@ -7,6 +7,15 @@ const ownerId='22222222-2222-4222-8222-222222222222';
 const threadId='33333333-3333-4333-8333-333333333333';
 const brief={title:'The Lost Wanderer test',style:'soft dark acoustic folk',lyrics:'[Verse]\nAn original line'};
 const headers={origin:'https://mr-tanq.github.io',authorization:'Bearer abcdefghijklmnop'};
+const {toolContract}=require('../server/suno-mcp-tool-probe.cjs');
+// Mirrors the field set PR #201 observed on Suno's live audio-create schema.
+const listed=(extra={})=>({jsonrpc:'2.0',id:1,result:{tools:[{name:'audio-create',
+ inputSchema:{type:'object',properties:{title:{type:'string'},style:{type:'string'},
+  lyrics:{type:'string'},instrumental:{type:'boolean'},
+  idempotency_key:{type:'string'},...extra.properties},
+  ...(extra.required?{required:extra.required}:{}),
+  ...(extra.additionalProperties===false?{additionalProperties:false}:{})}}]}});
+const contract=toolContract(listed(),'audio-create');
 const identity={authenticate:async()=>({ownerId}),
  ownsThread:async x=>x.ownerId===ownerId&&x.threadId===threadId&&x.agentId==='studio-director'};
 const issuer='https://accounts.suno.com';
@@ -22,7 +31,7 @@ test('Uses exactly one credit-spending tool call and never returns private text'
    text:async()=>JSON.stringify({jsonrpc:'2.0',id:2,result:{
     content:[{type:'text',text:'private provider lyrics'}]}})};
  }});
- const r=await transport.submit({accessToken:'secret-token-123456',brief,idempotencyKey:key});
+ const r=await transport.submit({accessToken:'secret-token-123456',brief,idempotencyKey:key,contract});
  assert.equal(r.accepted,true);
  assert.equal(r.status,'submitted_unverified');
  assert.equal(calls.length,1);
@@ -56,7 +65,7 @@ test('Invalid briefs do not invoke Suno and failed provider responses remain unc
   brief:{...brief,model:'x'},idempotencyKey:key})).reason,'invalid_audio_create_request');
  assert.equal(calls,0);
  assert.equal((await transport.submit({accessToken:'secret-token-123456',
-  brief,idempotencyKey:key})).reason,'provider_server_error_unverified');
+  brief,idempotencyKey:key,contract})).reason,'provider_server_error_unverified');
  assert.equal(calls,1);
 });
 test('Authenticated Crow create-song claims key before effects and refuses repeats',async()=>{
@@ -80,7 +89,8 @@ test('Authenticated Crow create-song claims key before effects and refuses repea
    if(claimed.has(bound))return false;
    claimed.add(bound);return true;
   }},
-  toolProbe:{inspect:async()=>({available:true,toolCount:1,tools:['audio-create']})}});
+  toolProbe:{inspect:async()=>({available:true,reason:'read_only_tools_verified',
+   toolCount:1,tools:['audio-create'],toolContract:contract})}});
  const start=await client.start({headers,body:JSON.stringify({agentId:'studio-director',threadId})});
  const state=new URL(start.body.authorizationUrl).searchParams.get('state');
  assert.equal((await client.callback({url:'/auth/suno/callback?state='+state+
@@ -122,7 +132,7 @@ test('Safe Suno diagnostics classify provider failure without returning raw payl
    text:async()=>scenario.body||''
   })});
   const verdict=await transport.submit({
-   accessToken:'secret-token-123456',brief,idempotencyKey:key});
+   accessToken:'secret-token-123456',brief,idempotencyKey:key,contract});
   assert.equal(verdict.accepted,false);
   assert.equal(verdict.reason,scenario.reason);
   assert.doesNotMatch(JSON.stringify(verdict),
@@ -135,7 +145,7 @@ test('Provider timeout remains uncertain and never automatically retries',async(
   calls++;const e=new Error('request timed out');e.name='TimeoutError';throw e;
  }});
  const verdict=await transport.submit({
-  accessToken:'secret-token-123456',brief,idempotencyKey:key});
+  accessToken:'secret-token-123456',brief,idempotencyKey:key,contract});
  assert.equal(verdict.reason,'provider_timeout_unverified');
  assert.equal(calls,1);
 });
@@ -147,7 +157,7 @@ test('Unexpected Suno HTTP statuses retain exact numeric status without leaking 
    text:async()=>'{ "account_secret":"DO_NOT_EXPOSE" }'
   })});
   const result=await transport.submit({accessToken:'secret-token-123456',
-   brief,idempotencyKey:key});
+   brief,idempotencyKey:key,contract});
   assert.equal(result.accepted,false);
   assert.equal(result.reason,'provider_http_unverified');
   assert.equal(result.httpStatus,httpStatus);

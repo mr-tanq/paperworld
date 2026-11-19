@@ -10,7 +10,24 @@ function makeSunoClaim({fetcher=globalThis.fetch,
  secret=process.env.PAPERWORLD_SUPABASE_SERVICE_ROLE_KEY}={}){
  const configured=typeof secret==='string'&&
   (secret.startsWith('sb_secret_')||secret.startsWith('eyJ'));
- return Object.freeze({async reserve({ownerId,threadId,idempotencyKey,brief}={}){
+ // Read-only readiness check for the diagnostic: does the claim table exist
+ // and accept the service credential? Selects zero rows; never inserts.
+ async function ready(){
+  if(!configured||typeof fetcher!=='function')return {ready:false,reason:'claim_secret_missing'};
+  try{
+   const response=await fetcher(BASE+'/rest/v1/paperworld_suno_create_claims?select=owner_id&limit=0',{
+    method:'GET',redirect:'error',signal:AbortSignal.timeout(5000),
+    headers:{apikey:secret,...(secret.startsWith('eyJ')?{Authorization:'Bearer '+secret}:{}),
+     Accept:'application/json','Cache-Control':'no-store'}});
+   if(response?.ok)return {ready:true,reason:'claim_storage_ready'};
+   // PostgREST answers 404 when the migration has not been applied.
+   if(response?.status===404)return {ready:false,reason:'claim_storage_missing'};
+   if(response?.status===401||response?.status===403)
+    return {ready:false,reason:'claim_secret_rejected'};
+   return {ready:false,reason:'claim_storage_unavailable'};
+  }catch(_){return {ready:false,reason:'claim_storage_unavailable'}}
+ }
+ return Object.freeze({ready,async reserve({ownerId,threadId,idempotencyKey,brief}={}){
   if(!UUID.test(ownerId||'')||!UUID.test(threadId||'')||
    !UUID.test(idempotencyKey||'')||!brief||
    typeof brief.title!=='string'||typeof brief.style!=='string'||
@@ -25,6 +42,8 @@ function makeSunoClaim({fetcher=globalThis.fetch,
    body:JSON.stringify({p_owner:ownerId,p_thread:threadId,
     p_key:idempotencyKey,p_digest:digest})
   });
+  // 404 = migration sql/paperworld_suno_durable_claim_v1.sql not applied.
+  if(response?.status===404)throw Error('suno_claim_storage_missing');
   if(!response?.ok)throw Error('suno_claim_unavailable');
   const result=await response.json();
   if(result!==true&&result!==false)throw Error('suno_claim_invalid_reply');
