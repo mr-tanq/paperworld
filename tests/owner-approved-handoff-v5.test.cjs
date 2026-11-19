@@ -32,7 +32,7 @@ test('owner can resume a persisted pending Worker proposal from compact Matt inb
    runWorker:async x=>{calls++;assert.equal(x.requestId,requestId)}});
   view.setData(fixture());
   assert.equal(host.hidden,false);
-  const action=host.findAll(x=>x.textContent==='Έγκριση ελέγχου από Worker')[0];
+  const action=host.findAll(x=>x.textContent==='Έγκριση ελέγχου')[0];
   assert.ok(action);
   await action.listeners.click();
   assert.equal(calls,1);
@@ -46,7 +46,7 @@ test('owner refusal never starts Copilot Worker request',async()=>{
   const host=new FakeElement('section');
   const view=hub.create(host,{load:async()=>fixture(),runWorker:async()=>{calls++}});
   view.setData(fixture());
-  const action=host.findAll(x=>x.textContent==='Έγκριση ελέγχου από Worker')[0];
+  const action=host.findAll(x=>x.textContent==='Έγκριση ελέγχου')[0];
   await action.listeners.click();
   assert.equal(calls,0);
  });
@@ -65,7 +65,7 @@ test('stale, replaced, used and unverifiable handoffs fail before any consent or
    global.window.confirm=()=>{asks++;return true};
    const view=hub.create(host,{load:async()=>variant,runWorker:async()=>{calls++}});
    view.setData(fixture());
-   const action=host.findAll(x=>x.textContent==='Έγκριση ελέγχου από Worker')[0];
+   const action=host.findAll(x=>x.textContent==='Έγκριση ελέγχου')[0];
    await action.listeners.click();
    assert.equal(calls,0);
    assert.equal(asks,0);

@@ -189,16 +189,20 @@
  }
  function stateLabel(s){return ({
   checked:'Ο αυτόματος έλεγχος ολοκληρώθηκε',
-  decision:'Χρειάζεται η απόφασή σου',
-  review_required:'Χρειάζεται επανέλεγχος',
-  needs_attention:'Η διερεύνηση δεν ολοκληρώθηκε',
+  decision:'Χρειάζεται την απόφασή σου',
+  review_required:'Χρειάζεται νέο έλεγχο',
+  needs_attention:'Σταμάτησε · χρειάζεται συζήτηση',
   in_progress:'Σε εξέλιξη',
-  diagnosed:'Η διερεύνηση ολοκληρώθηκε · χωρίς έτοιμη λύση',
-  planned:'Στη λίστα εργασιών',
-  prepared:'Προετοιμάστηκε · δεν εφαρμόστηκε',
-  completed:'Ολοκληρώθηκε (χειροκίνητη εργασία)',
+  diagnosed:'Ελέγχθηκε · χωρίς έτοιμη λύση',
+  planned:'Για αργότερα',
+  prepared:'Έτοιμη πρόταση · δεν εφαρμόστηκε',
+  completed:'Ολοκληρώθηκε (δική σου σημείωση)',
   rejected:'Απορρίφθηκε'
  })[s]||'Εργασία'}
+ // Plain-language names for recorded steps (no internal state IDs).
+ const STEP=Object.freeze({created:'Καταγράφηκε',routed:'Ανατέθηκε',scoped:'Ορίστηκε τι θα ελεγχθεί',
+  evidence_read:'Διαβάστηκαν τα σχετικά αρχεία',worker_reported:'Ο βοηθός ανέφερε τα ευρήματα',
+  director_reviewed:'Ο υπεύθυνος του project τα εξέτασε',reported:'Ετοιμάστηκε η αναφορά',failed:'Σταμάτησε'});
  const e=(tag,cls,text)=>{
   const node=document.createElement(tag);
   if(cls)node.className=cls;
@@ -229,7 +233,8 @@
    const card=e('article','human-hub-item human-hub-'+item.stage);
    const top=e('div','human-hub-item-top');
    top.append(e('span','human-hub-project',item.project||'Listening Mirror'),
-    e('span','human-hub-status',stateLabel(item.stage)));
+    e('span','human-hub-status',item.kind==='handoff'&&item.status==='awaiting_consent'?
+     'Περιμένει την έγκρισή σου':stateLabel(item.stage)));
    card.append(top,e('h4','',item.kind==='proposal'&&item.request?
      human(item.request,170):item.summary));
    if(item.kind==='proposal'){
@@ -247,7 +252,7 @@
      card.append(a);
     }
     const details=e('details','human-hub-technical');
-    details.append(e('summary','','Τεχνικά στοιχεία (προαιρετικά)'));
+    details.append(e('summary','','Τεχνικές λεπτομέρειες'));
     for(const file of item.files){
      const f=e('details','human-hub-file');
      f.append(e('summary','',file.path),e('pre','',file.before),e('pre','',file.after));
@@ -298,8 +303,7 @@
      'Η εργασία έχει καταγραφεί. Δεν θεωρείται ολοκληρωμένη μέχρι να υπάρχει επαληθευμένο αποτέλεσμα.'));
     const details=e('details','human-hub-technical');
     details.append(e('summary','','Τι έκανε η ομάδα'));
-    for(const event of item.events)details.append(e('p','',human(event.state,35)+
-     ' · '+human(event.actor,35)));
+    for(const event of item.events)details.append(e('p','',STEP[event.state]||'Ενημέρωση'));
     card.append(details);
    }else if(item.kind==='worker-run'){
     card.append(e('p','human-hub-summary',item.status==='reported'?
@@ -312,20 +316,20 @@
      'δεν ξεκινά ξανά μόνη της και χρειάζεται νέο εγκεκριμένο αίτημα.'));
    }else if(item.kind==='handoff'){
     card.append(e('p','human-hub-summary',item.status==='awaiting_consent'?
-     'Ο Matt συμβουλεύτηκε τον Director και πρότεινε διερεύνηση από Worker. '+
-     'Η ανάθεση καταγράφηκε, αλλά δεν άρχισε εκτέλεση. Η πρόσθετη έγκριση '+
-     'ζητείται στη συνομιλία με τον Matt.':
-     'Ο Director απάντησε στον Matt. Αυτή είναι καταγραφή συμβουλής, '+
-     'όχι εκτελεσμένη αλλαγή ή ολοκληρωμένη εργασία.'));
+     'Προτείνεται να ελέγξει ο βοηθός ανάπτυξης τα αρχεία του project. '+
+     'Δεν έχει ξεκινήσει· ξεκινά μόνο αν το εγκρίνεις.':
+     'Ο υπεύθυνος του project έδωσε τη γνώμη του στον Matt. '+
+     'Είναι συμβουλή, όχι αλλαγή.'));
     if(item.status==='awaiting_consent'&&
      ['listening-developer','pokemon-developer'].includes(item.workerId)&&
      typeof runWorker==='function'){
      const actions=e('div','human-hub-item-actions');
-     const start=button('Έγκριση ελέγχου από Worker',()=>executeWorker(item),'human-hub-yes');
+     const start=button('Έγκριση ελέγχου',()=>executeWorker(item),'human-hub-yes');
      start.disabled=opBusy||loading;
      actions.append(start);
      if(typeof runSourceFact==='function'){
-      const check=button('Έλεγχος πηγών · χωρίς AI',()=>executeSourceFact(item),'human-hub-no');
+      // Read-only file check: no AI calls, no changes (explained in the confirm).
+      const check=button('Γρήγορος έλεγχος αρχείων',()=>executeSourceFact(item),'human-hub-no');
       check.disabled=opBusy||loading;
       actions.append(check);
      }
