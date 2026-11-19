@@ -788,9 +788,110 @@
    if(selection===openId)status.textContent='Η μαζική έγκριση δεν ολοκληρώθηκε: '+error.message;
   }finally{memoryReview.disabled=false}
  });
+ // One optional inline review: a routine is never created by model text.
+ const routineReview=make('section','world-routine-review');
+ routineReview.hidden=true;
+ routineReview.setAttribute('aria-label','Έλεγχος εβδομαδιαίου προγράμματος');
+ let routineRequest=null,routinePending=false;
+ function clearRoutineReview(){
+  routineReview.hidden=true;routineReview.replaceChildren();routineRequest=null;
+ }
+ function showRoutineMessage(message){
+  routineReview.replaceChildren();
+  const heading=make('strong','','Matt · Εβδομαδιαίο πρόγραμμα');
+  const note=make('p','',message);
+  const cancel=make('button','','Κλείσιμο');
+  cancel.type='button';
+  cancel.addEventListener('click',clearRoutineReview);
+  routineReview.append(heading,note,cancel);
+  routineReview.hidden=false;
+ }
+ async function previewMattRoutine(intent){
+  if(routinePending||openId!=='matt')return;
+  if(intent.kind==='clarify'){
+   showRoutineMessage(intent.reason==='timezone'?
+    'Για να μην αλλάζει απρόβλεπτα η ώρα, αυτή η έκδοση χρειάζεται UTC. '+
+    'Π.χ. «Κάθε Δευτέρα στις 09:00 UTC έλεγχε το Listening Mirror». '+
+    'Η ώρα παραμένει UTC και μετά την αλλαγή θερινής ώρας.':
+    'Πες μου project, ημέρα και ώρα UTC. Π.χ. «Κάθε Δευτέρα στις 09:00 UTC έλεγχε το Listening Mirror».');
+   return;
+  }
+  const cloudClient=cloud();
+  if(typeof cloudClient?.previewRoutine!=='function'){
+   showRoutineMessage('Η λειτουργία προγραμμάτων δεν είναι διαθέσιμη αυτή τη στιγμή.');
+   return;
+  }
+  routinePending=true;
+  const plan={projectId:intent.projectId,dayOfWeek:intent.dayOfWeek,
+   hourUtc:intent.hourUtc,minuteUtc:intent.minuteUtc,goal:intent.goal};
+  const token=revision;
+  try{
+   const preview=await cloudClient.previewRoutine(plan);
+   if(openId!=='matt'||token!==revision)return;
+   routineRequest=plan;
+   routineReview.replaceChildren();
+   const heading=make('strong','','Matt · Να το κρατήσω ως πρόγραμμα;');
+   const day=['Κυριακή','Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο'][plan.dayOfWeek];
+   const time=String(plan.hourUtc).padStart(2,'0')+':'+
+    String(plan.minuteUtc).padStart(2,'0');
+   const name={listening:'Listening Mirror',pokemon:'Pokémon',
+    studio:'Lost Wanderer',wellbeing:'Wellbeing'}[plan.projectId];
+   const description=make('p','',name+' · κάθε '+day+' '+time+' UTC');
+   const next=new Date(preview.nextReviewAt).toLocaleString('el-GR',{
+    dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Amsterdam'});
+   const detail=make('p','', 'Πρώτη προγραμματισμένη ημερομηνία: '+next+
+    ' (ώρα Ολλανδίας). Το εβδομαδιαίο πρόγραμμα ακολουθεί UTC, όχι αυτόματα τη θερινή ώρα.');
+   const safety=make('p','','Δημιουργώ μόνο ανενεργό σχέδιο, με 0 AI κλήσεις και 0 € επιπλέον κόστος.');
+   const controls=make('div','world-routine-actions');
+   const cancel=make('button','','Ακύρωση');
+   const confirm=make('button','','Αποθήκευση σχεδίου');
+   cancel.type=confirm.type='button';
+   const feedback=make('p','','');
+   feedback.setAttribute('role','status');
+   cancel.addEventListener('click',clearRoutineReview);
+   confirm.addEventListener('click',async()=>{
+    if(routinePending||openId!=='matt'||!routineRequest)return;
+    routinePending=true;confirm.disabled=true;cancel.disabled=true;
+    feedback.textContent='Αποθήκευση…';
+    try{
+     const saved=await cloudClient.createRoutine(routineRequest);
+     if(openId!=='matt')return;
+     routineRequest=null;
+     feedback.textContent='Αποθηκεύτηκε ανενεργό σχέδιο. Δεν ξεκίνησε εργασία.';
+     confirm.hidden=true;cancel.disabled=false;cancel.textContent='Κλείσιμο';
+     // Separate user click is needed to enable draft-only recurring checks.
+     const enable=make('button','','Ενεργοποίηση ελέγχου σχεδίων');
+     enable.type='button';
+     enable.addEventListener('click',async()=>{
+      enable.disabled=true;cancel.disabled=true;
+      feedback.textContent='Έλεγχος ενεργοποίησης…';
+      try{
+       const changed=await cloudClient.changeRoutine(saved.routineId,true);
+       if(openId!=='matt')return;
+       if(changed.enabled!==true)throw Error('Not verified');
+       feedback.textContent='Ενεργοποιήθηκε μόνο η δημιουργία σχεδίων για έγκριση. Δεν εκτελείται AI εργασία.';
+       enable.hidden=true;cancel.disabled=false;
+      }catch(_){
+       feedback.textContent='Η ενεργοποίηση δεν επιβεβαιώθηκε. Το σχέδιο παραμένει χωρίς επιβεβαιωμένο ενεργό πρόγραμμα.';
+       cancel.disabled=false;enable.disabled=false;
+      }
+     });
+     controls.insertBefore(enable,cancel);
+    }catch(_){
+     feedback.textContent='Δεν αποθηκεύτηκε επιβεβαιωμένο πρόγραμμα. Η υπηρεσία ή η βάση μπορεί να μην είναι έτοιμη.';
+     cancel.disabled=false;confirm.disabled=false;
+    }finally{routinePending=false}
+   });
+   controls.append(cancel,confirm);
+   routineReview.append(heading,description,detail,safety,feedback,controls);
+   routineReview.hidden=false;
+  }catch(_){
+   if(openId==='matt')showRoutineMessage('Δεν μπόρεσα να επαληθεύσω πρόγραμμα. Δεν δημιουργήθηκε καμία ρουτίνα.');
+  }finally{routinePending=false}
+ }
  const composer=make('footer','world-chat-composer');
  memoryReview.classList.add('village-maintenance-only');
- composer.append(memoryReview,openStudio,musicToggle,musicPanel,form);
+ composer.append(memoryReview,openStudio,musicToggle,musicPanel,routineReview,form);
  panel.append(top,status,messages,decisions,composer);view.append(panel);
  // Matt owns the conversation; internal agent and worker routing stays invisible.
  async function runMattWorkflow(text){
@@ -1172,7 +1273,7 @@
   field.placeholder=available?'Γράψε μήνυμα…':'Συνδέσου για να στείλεις μήνυμα';
  }
  function show(id){stopLiveMatt();openId=id;paint();startLiveMatt();if(!field.disabled)field.focus()}
- function hide(){stopLiveMatt();openId=null;resetMusic();veil.classList.remove('world-chat-journey');paint();mattBtn.focus()}
+ function hide(){stopLiveMatt();clearRoutineReview();openId=null;resetMusic();veil.classList.remove('world-chat-journey');paint();mattBtn.focus()}
  function nearby(){
   const target=world()?.nearestAgent(100);
   if(!target){showNotice('Δεν υπάρχει agent κοντά σου. Πλησίασε έναν χαρακτήρα.');return}
@@ -1190,6 +1291,12 @@
   const id=openId,text=field.value.trim();
   if(!text)return;
   if(id==='matt'){
+   const routineIntent=window.PaperworldRoutineIntent?.classify?.(text);
+   if(routineIntent){
+    await previewMattRoutine(routineIntent);
+    return;
+   }
+   clearRoutineReview();
    await runMattWorkflow(text);
    return;
   }
