@@ -429,6 +429,7 @@ window.PaperworldCloudUI={
  sendPrivateAgentMessage:(id,text)=>client.sendAgentNote(id,text),
  askDirector:(id,text,options)=>client.askDirector(id,text,options),
  previewRoutine:plan=>client.previewRoutine(plan),
+ listRoutines:()=>client.listRoutines(),
  createRoutine:plan=>client.createRoutine(plan),
  changeRoutine:(routineId,enabled)=>client.changeRoutine(routineId,enabled),
  proposeDirectorCorrection:(id,messageId,options)=>client.proposeDirectorCorrection(id,messageId,options),
