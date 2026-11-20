@@ -59,7 +59,9 @@ test('one natural Messenger request routes Matt, plans once and queues a durable
  assert.equal(f.calls[0].directorId,'listening-director');
  assert.match(f.prompts[1],/festival_revisit/);
  assert.match(f.prompts[1],/PROJECT_ONLY/);
- assert.match(r.body.content,/Δεν θα δημοσιεύσω αλλαγές χωρίς εσένα/);
+ // Owner decision 2026-11-20: autonomous fixes, no per-task approval wording.
+ assert.match(r.body.content,/Θα βρουν τι φταίει, θα το διορθώσουν και θα το ελέγξουν/);
+ assert.doesNotMatch(r.body.content,/μπήκε|δημοσιεύτηκε|ολοκληρώθηκε/,'no claim of finished work at queue time');
 });
 test('when engine is not enabled Matt keeps normal 3-turn advice, no task write',async()=>{
  const f=create({enabled:false});

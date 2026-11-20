@@ -46,6 +46,11 @@ on:
       - 'sql/paperworld_routine_loop_release_v1.sql'
       - 'server/routine-owner-api.cjs'
       - 'server/routine-loop-policy.cjs'
+      - 'server/v5-task-planner.cjs'
+      - 'supabase/functions/paperworld-task-dispatch/**'
+      - 'sql/paperworld_v6_autonomous_fixes.sql'
+      - 'tests/v5-task-auto-merge.test.cjs'
+      - 'tests/sql/paperworld-autonomous-fixes-integration.sql'
       - 'js/routine-intent.js'
       - 'js/camera-framing.js'
       - 'js/connection-status.js'
@@ -131,6 +136,9 @@ jobs:
             tests/messenger-v2.test.cjs \
             tests/workspace-v2.test.cjs \
             tests/routine-loop-policy.test.cjs \
+            tests/v5-task-auto-merge.test.cjs \
+            tests/v5-task-dispatcher.test.cjs \
+            tests/v5-matt-task-messenger.test.cjs \
             tests/routine-owner-api.test.cjs \
             tests/routine-loop-release-sql.test.cjs \
             tests/routine-intent-messenger-v4.test.cjs \
@@ -226,6 +234,14 @@ jobs:
           psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
             -h 127.0.0.1 -p 5432 -U postgres -d routine_synthetic \
             -f tests/sql/paperworld-routine-loop-integration.sql
+      - name: Autonomous fixes — limits, auto-merge switch and Matt's report (PostgreSQL 17)
+        env:
+          PGPASSWORD: synthetic-only
+        run: |
+          createdb -h 127.0.0.1 -p 5432 -U postgres autonomous_fixes_synthetic
+          psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
+            -h 127.0.0.1 -p 5432 -U postgres -d autonomous_fixes_synthetic \
+            -f tests/sql/paperworld-autonomous-fixes-integration.sql
       - name: Execute V5 Dispatch lifecycle, budget and crash integration on PostgreSQL 17
         env:
           PGPASSWORD: synthetic-only
