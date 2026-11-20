@@ -14,7 +14,8 @@ CREATE TABLE public.paperworld_agent_threads (id uuid, owner_id uuid, agent_id t
 CREATE TABLE public.paperworld_agent_messages (id uuid PRIMARY KEY, thread_id uuid, owner_id uuid,
  role text, content text);
 CREATE TABLE public.paperworld_autonomous_missions_v5 (id uuid PRIMARY KEY, owner_id uuid, thread_id uuid,
- project_id text, goal text, status text, engine text, spec jsonb, updated_at timestamptz DEFAULT now());
+ project_id text, goal text, status text, engine text, spec jsonb, updated_at timestamptz DEFAULT now(),
+ last_error text);
 CREATE TABLE public.paperworld_autonomous_steps_v5 (id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  mission_id uuid, seq integer, capability text, state text, output jsonb);
 CREATE TABLE public.paperworld_matt_notifications_v5 (mission_id uuid, owner_id uuid, kind text,
@@ -22,6 +23,8 @@ CREATE TABLE public.paperworld_matt_notifications_v5 (mission_id uuid, owner_id 
 
 \ir ../../sql/paperworld_v6_autonomous_fixes.sql
 \ir ../../sql/paperworld_v6_autonomous_fixes.sql
+\ir ../../sql/paperworld_phase1_plain_failures.sql
+\ir ../../sql/paperworld_phase1_plain_failures.sql
 
 DO $$
 DECLARE o uuid:='11111111-1111-4111-8111-111111111111'; t uuid:='22222222-2222-4222-8222-222222222222';
@@ -35,6 +38,8 @@ BEGIN
   ('a0000000-0000-4000-8000-000000000002',o,t,'listening','g','completed','v1','{"title":"Φίλτρο πόλης"}'),
   ('a0000000-0000-4000-8000-000000000003',o,t,'listening','g','completed','v1','{"title":"Παλιά εργασία"}'),
   ('a0000000-0000-4000-8000-000000000004',o,t,'listening','g','needs_you','v1','{"title":"Αποτυχία"}');
+ UPDATE public.paperworld_autonomous_missions_v5 SET last_error='trusted_verification_failed'
+  WHERE id='a0000000-0000-4000-8000-000000000004';
  INSERT INTO public.paperworld_autonomous_steps_v5(mission_id,seq,capability,state,output) VALUES
   ('a0000000-0000-4000-8000-000000000001',5,'report','succeeded',
    '{"title":"Λείπουν συναυλίες","merged":true,"mergeState":"merged","cause":"Η πηγή άλλαξε μορφή ημερομηνίας.","fix":"Διαβάζουμε και τη νέα μορφή.","prUrl":"https://github.com/mr-tanq/concerts/pull/12"}'),
@@ -53,7 +58,8 @@ BEGIN
  SELECT content INTO txt FROM public.paperworld_agent_messages WHERE id=md5('a0000000-0000-4000-8000-000000000003:completed')::uuid;
  ASSERT txt LIKE '%Δεν σημαίνει ότι η αλλαγή έχει ήδη δημοσιευτεί%','legacy wording kept for old missions';
  SELECT content INTO txt FROM public.paperworld_agent_messages WHERE id=md5('a0000000-0000-4000-8000-000000000004:needs_you')::uuid;
- ASSERT txt LIKE '%«Αποτυχία»%' AND txt LIKE '%Δεν άλλαξε τίποτα στην εφαρμογή%','needs_you: '||txt;
+ ASSERT txt LIKE '%«Αποτυχία»%' AND txt LIKE '%δεν πέρασε τα tests%' AND txt LIKE '%Δεν άλλαξε τίποτα στην εφαρμογή%'
+  AND txt NOT LIKE '%trusted_verification%','needs_you explains in plain words: '||txt;
  BEGIN
   UPDATE public.paperworld_autonomous_controller_v5 SET sessions_per_day=50;
   RAISE EXCEPTION 'limit not enforced';

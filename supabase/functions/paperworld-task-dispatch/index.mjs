@@ -230,6 +230,18 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
    const observation={prNumber:pr.number,prUrl:pr.html_url,
     headSha:sha,stableSince:stable,confirmedStart:effect.confirmed_at};
    if(age>3*60*60*1000)return fail(s.id,worker,'copilot_deadline_exceeded');
+   // Fast path: Copilot said it finished AND the head did not move since the
+   // previous poll (>= one 5-minute tick). Verification still pins this sha.
+   if(previous.headSha===sha&&clock()-stable>=4*60*1000){
+    let done={finished:false};
+    try{done=await gh.agentFinished(project,pr.number)}catch(_){}
+    if(done.finished===true){
+     await complete(s.id,worker,{...observation,completion:'agent_signal',
+      signal:done.signal,stableHead:true});
+     return {state:'agent_finished_waiting_verify',sessionsStarted:0};
+    }
+   }
+   // Fallback when no finish signal is visible: the original conservative rule.
    if(age>=75*60*1000&&clock()-stable>=20*60*1000){
     await complete(s.id,worker,{...observation,
      completion:'conservative_fallback',stableHead:true});

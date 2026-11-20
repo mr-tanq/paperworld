@@ -50,6 +50,8 @@ on:
       - 'supabase/functions/paperworld-task-dispatch/**'
       - 'sql/paperworld_v6_autonomous_fixes.sql'
       - 'tests/v5-task-auto-merge.test.cjs'
+      - 'tests/v5-task-agent-finish.test.cjs'
+      - 'sql/paperworld_phase1_plain_failures.sql'
       - 'tests/sql/paperworld-autonomous-fixes-integration.sql'
       - 'js/routine-intent.js'
       - 'js/camera-framing.js'
@@ -137,6 +139,7 @@ jobs:
             tests/workspace-v2.test.cjs \
             tests/routine-loop-policy.test.cjs \
             tests/v5-task-auto-merge.test.cjs \
+            tests/v5-task-agent-finish.test.cjs \
             tests/v5-task-dispatcher.test.cjs \
             tests/v5-matt-task-messenger.test.cjs \
             tests/routine-owner-api.test.cjs \

@@ -127,6 +127,29 @@ function makeTaskGithub({fetcher=fetch,token}={}){
   if(prs.length===0)return {state:'waiting'};
   return {state:'found',pr:prs[0]};
  }
+ // Has the Copilot session on this PR finished? Observed on real PRs:
+ // the timeline shows "Copilot started work" / "Copilot finished work", and
+ // Copilot removes the "[WIP]" prefix from the title when it is done. The
+ // caller still requires an unchanged head across two polls, and the trusted
+ // verification + sha-guarded merge protect against any later push.
+ async function agentFinished(project,prNumber){
+  if(!Number.isSafeInteger(prNumber)||prNumber<1)throw Error('invalid_pr_number');
+  let lastStart=-1,lastFinish=-1;
+  try{
+   const timeline=await api(project,'/issues/'+prNumber+'/timeline?per_page=100');
+   if(Array.isArray(timeline))timeline.forEach((e,i)=>{
+    const name=String(e?.event||'').toLowerCase();
+    if(!name.includes('copilot'))return;
+    if(/start/.test(name))lastStart=i;
+    else if(/finish|complete|stopp?ed|end/.test(name))lastFinish=i;
+   });
+  }catch(_){}
+  if(lastFinish>lastStart)return {finished:true,signal:'timeline'};
+  const pr=await getPull(project,prNumber);
+  const title=String(pr?.title||'').trim();
+  if(title&&!/^\[\s*wip\s*\]/i.test(title)&&lastStart<0)return {finished:true,signal:'title'};
+  return {finished:false,signal:null};
+ }
  async function assertScopedChanges(project,prNumber,allowedPaths,maxFiles){
   const rows=await api(project,'/pulls/'+prNumber+'/files?per_page=100');
   if(!Array.isArray(rows)||rows.length<1||rows.length>maxFiles)
@@ -275,6 +298,6 @@ function makeTaskGithub({fetcher=fetch,token}={}){
  }
  return Object.freeze({getIssue,findExistingIssue,createIssue,getPull,getRun,findDispatchedRun,
   assignCopilot,reconcileAssignment,findLinkedPr,assertScopedChanges,
-  dispatchVerify,getVerifiedRun,trustedMain,readTrustedAttestation,mergeVerified});
+  dispatchVerify,getVerifiedRun,trustedMain,readTrustedAttestation,mergeVerified,agentFinished});
 }
 export {makeTaskGithub,repoPath,linkedIssue,markerFor,PROJECTS};
