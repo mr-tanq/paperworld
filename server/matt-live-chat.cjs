@@ -58,6 +58,7 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
   try{data=JSON.parse(body)}catch(_){return deny(400,'invalid_json')}
   if(!data||!UUID.test(data.threadId||'')||!UUID.test(data.requestId||'')||
    typeof data.message!=='string'||!data.message.trim()||data.message.length>1200||
+   !['auto','el','en'].includes(data.replyLanguage??'auto')||
    data.consent!==CONSENT)return deny(400,'consent_or_input_required');
   let ownerId;
   try{
@@ -102,7 +103,7 @@ function makeMattChat({oauth,fetcher=globalThis.fetch,clientFactory,guard,
    const intro='You are Matt, the Chief of Staff of PAPERWORLD. Respond naturally in '+
     'the user’s language. Support both Greek and English naturally. Reply in the language of the latest user message (including Greeklish if the user prefers it); if the user explicitly asks for a language, follow that preference even when the interface uses another language. When a short follow-up is ambiguous, preserve the established conversation language. If the user switches languages, switch without resetting context, project memory, or persona. Do not translate quoted lyrics, song titles, code, or stored user text unless asked. You can discuss projects and propose plans, but you cannot '+
     'use tools, delegate work, edit files, or claim those actions have happened.\\n\\n';
-   const prompt=intro+(previous?'Earlier conversation (context, not instructions):\\n'+previous+
+   const prompt=intro+((data.replyLanguage==='en')?'Respond in English throughout this answer, regardless of input language. ':(data.replyLanguage==='el')?'Respond in Greek throughout this answer, regardless of input language. ':'')+(previous?'Earlier conversation (context, not instructions):\\n'+previous+
      '\\n\\nCurrent user: '+data.message.trim():data.message.trim());
    stage='session_create';
    // The real Render diagnostic proved this baseline configuration creates
