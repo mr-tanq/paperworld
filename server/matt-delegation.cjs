@@ -102,7 +102,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
   if(conversation===false)return deny(400,'invalid_conversation_context');
   if(!data||!UUID.test(data.threadId||'')||!UUID.test(data.requestId||'')||
    typeof data.message!=='string'||!data.message.trim()||data.message.length>1200||
-   data.consent!==CONSENT||!TARGETS.includes(data.targetDirector??'auto')||
+   data.consent!==CONSENT||!['auto','el','en'].includes(data.replyLanguage??'auto')||!TARGETS.includes(data.targetDirector??'auto')||
    (data.targetDirector==='wellbeing-director'&&
     data.wellbeingConsent!==WELLBEING_CONSENT)||
    (data.wellbeingConsent!==undefined&&
@@ -280,6 +280,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
     'facts. You CANNOT inspect their source code, '+
     'GitHub repository, accounts or web, and you MUST NOT claim that you have. '+
     'No fixes, deployments, file edits, emails or other actions have been executed. '+
+    ((data.replyLanguage==='en')?'Respond in English throughout this answer, regardless of input language. ':(data.replyLanguage==='el')?'Respond in Greek throughout this answer, regardless of input language. ':'')+
     'Support both Greek and English naturally. Reply in the language of the latest user message (including Greeklish if the user prefers it); if the user explicitly asks for a language, follow that preference even when the interface uses another language. When a short follow-up is ambiguous, preserve the established conversation language. If the user switches languages, switch without resetting context, project memory, or persona. Do not translate quoted lyrics, song titles, code, or stored user text unless asked. This report goes to Matt, not directly to the user.\\n'+
     (route==='studio-director'?forCrowHistory()+forCrow():'')+
     memoryPrompt+(route==='studio-director'?buildReferenceDossier(data.message,
@@ -293,6 +294,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
    try{snapshotText=JSON.stringify(await teamView.load(ownerId))}catch(_){}
    const final=await turn('matt',
     'You are Matt, Chief of Staff of PAPERWORLD, reporting back to the human. '+
+    ((data.replyLanguage==='en')?'Respond in English throughout this answer, regardless of input language. ':(data.replyLanguage==='el')?'Respond in Greek throughout this answer, regardless of input language. ':'')+
     'You assigned the issue to '+director.name+' for analysis. '+
     'The Director is a real AI model but has NO repository/tools access. '+
     'Never disclose private memories beyond the user question or leak sensitive '+
