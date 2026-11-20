@@ -52,6 +52,9 @@ on:
       - 'tests/v5-task-auto-merge.test.cjs'
       - 'tests/v5-task-agent-finish.test.cjs'
       - 'tests/v5-task-retry.test.cjs'
+      - 'tests/phase5-routines-do-work.test.cjs'
+      - 'sql/paperworld_phase5_routines_do_work.sql'
+      - 'tests/sql/**'
       - 'sql/paperworld_phase1_plain_failures.sql'
       - 'tests/sql/paperworld-autonomous-fixes-integration.sql'
       - 'js/routine-intent.js'
@@ -142,6 +145,7 @@ jobs:
             tests/v5-task-auto-merge.test.cjs \
             tests/v5-task-agent-finish.test.cjs \
             tests/v5-task-retry.test.cjs \
+            tests/phase5-routines-do-work.test.cjs \
             tests/v5-task-dispatcher.test.cjs \
             tests/v5-matt-task-messenger.test.cjs \
             tests/routine-owner-api.test.cjs \
@@ -247,6 +251,14 @@ jobs:
           psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
             -h 127.0.0.1 -p 5432 -U postgres -d autonomous_fixes_synthetic \
             -f tests/sql/paperworld-autonomous-fixes-integration.sql
+      - name: Phase 5 — routines start real work, safe fallback, exactly once (PostgreSQL 17)
+        env:
+          PGPASSWORD: synthetic-only
+        run: |
+          createdb -h 127.0.0.1 -p 5432 -U postgres phase5_synthetic
+          psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
+            -h 127.0.0.1 -p 5432 -U postgres -d phase5_synthetic \
+            -f tests/sql/paperworld-phase5-routines-integration.sql
       - name: Execute V5 Dispatch lifecycle, budget and crash integration on PostgreSQL 17
         env:
           PGPASSWORD: synthetic-only
