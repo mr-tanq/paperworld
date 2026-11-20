@@ -2,6 +2,7 @@ import {extractTrustedJson,validateAttestation} from './artifact.mjs';
 /* GitHub operations for Paperworld Task Engine v1.
  * Pure dependency-injected adapter. No IO at import, no implicit retries.
  * The dispatcher MUST reserve a DB effect before createIssue/assign/dispatchVerify.
+ * mergeVerified runs only when the owner enabled auto-merge and is idempotent by PR state.
  */
 const HOST='https://api.github.com';
 const PROJECTS=Object.freeze({
@@ -192,6 +193,45 @@ function makeTaskGithub({fetcher=fetch,token}={}){
   if(!Number.isSafeInteger(number)||number<1)throw Error('invalid_pr_number');
   return api(project,'/pulls/'+number);
  }
+ // Owner-enabled auto-merge of a VERIFIED head only. GitHub's own `sha` guard
+ // refuses the merge if anything was pushed after verification, and branch
+ // protection still applies. The pull request state is the source of truth,
+ // so a lost response is re-read instead of retried blindly.
+ async function graphql(query,variables){
+  const res=await fetcher(HOST+'/graphql',{method:'POST',redirect:'error',
+   signal:AbortSignal.timeout(12000),headers:{'Accept':'application/vnd.github+json',
+    'Authorization':'Bearer '+token,'User-Agent':'paperworld-v1',
+    'Content-Type':'application/json'},body:JSON.stringify({query,variables})});
+  if(!res?.ok)throw Error('github_graphql_'+(res?.status||0));
+  const data=await res.json();
+  if(Array.isArray(data?.errors)&&data.errors.length)throw Error('github_graphql_refused');
+  return data?.data;
+ }
+ async function mergeVerified(project,{prNumber,headSha,title}){
+  if(!Number.isSafeInteger(prNumber)||prNumber<1||!SHA.test(headSha||'')||
+   typeof title!=='string'||!title.trim()||title.length>120)throw Error('unsafe_merge_request');
+  const merged=pr=>pr?.merged===true&&pr.head?.sha===headSha&&SHA.test(pr.merge_commit_sha||'')?
+   {state:'merged',mergeSha:pr.merge_commit_sha}:null;
+  const pr=await getPull(project,prNumber);
+  const already=merged(pr);
+  if(already)return already;
+  if(pr?.state!=='open'||pr.head?.sha!==headSha||pr.base?.ref!=='main')
+   return {state:'head_moved'};
+  if(pr.draft===true){
+   if(!/^[A-Za-z0-9_=-]{4,120}$/.test(pr.node_id||''))return {state:'blocked',reason:'ready_for_review_refused'};
+   try{
+    await graphql('mutation($id:ID!){markPullRequestReadyForReview(input:{pullRequestId:$id}){pullRequest{isDraft}}}',
+     {id:pr.node_id});
+   }catch(_){return {state:'blocked',reason:'ready_for_review_refused'}}
+  }
+  try{
+   const r=await api(project,'/pulls/'+prNumber+'/merge',{method:'PUT',body:{
+    sha:headSha,merge_method:'squash',commit_title:title.trim()+' (#'+prNumber+')'}});
+   if(r?.merged===true&&SHA.test(r.sha||''))return {state:'merged',mergeSha:r.sha};
+  }catch(_){}
+  const after=merged(await getPull(project,prNumber));
+  return after||{state:'blocked',reason:'github_refused_merge'};
+ }
  async function trustedMain(project,pinnedBlob){
   if(!/^[a-f0-9]{40}$/i.test(pinnedBlob))throw Error('invalid_workflow_pin');
   const ref=await api(project,'/git/ref/heads/main');
@@ -235,6 +275,6 @@ function makeTaskGithub({fetcher=fetch,token}={}){
  }
  return Object.freeze({getIssue,findExistingIssue,createIssue,getPull,getRun,findDispatchedRun,
   assignCopilot,reconcileAssignment,findLinkedPr,assertScopedChanges,
-  dispatchVerify,getVerifiedRun,trustedMain,readTrustedAttestation});
+  dispatchVerify,getVerifiedRun,trustedMain,readTrustedAttestation,mergeVerified});
 }
 export {makeTaskGithub,repoPath,linkedIssue,markerFor,PROJECTS};

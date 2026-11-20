@@ -251,9 +251,9 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
      throw Error('task_intake_not_ready');
     const who=route==='listening-director'?'Luna':'Joey';
     const message=task.state==='queued'?
-     'Το ανέλαβε '+(who==='Luna'?'η Luna':'ο Joey')+'. Ξεκινάμε το «'+task.title+'». '+
-      'Θα σου πω όταν υπάρχει κάτι έτοιμο να δεις. '+
-      'Δεν θα δημοσιεύσω αλλαγές χωρίς εσένα.':
+     'Το ανέλαβε '+(who==='Luna'?'η Luna':'ο Joey')+' μαζί με τον Developer: «'+task.title+'». '+
+      'Θα βρουν τι φταίει, θα το διορθώσουν και θα το ελέγξουν. '+
+      'Δεν χρειάζεται να κάνεις τίποτα· θα σου πω τι βρήκαμε μόλις τελειώσει.':
      'Έχω ετοιμάσει το «'+task.title+'», αλλά δεν έχει ξεκινήσει ακόμη. '+
       'Θα σου πω μόλις μπορέσει να προχωρήσει.';
     let persisted=false;

@@ -1,12 +1,25 @@
 /* Paperworld Task Engine v1 — one deterministic cron-woken dispatcher.
- * No model calls, no autonomous issue merge, no user-facing CORS.
- * External mutations only after DB intent reservation.
+ * No model calls, no user-facing CORS. External mutations only after DB intent
+ * reservation. A verified PR is merged ONLY when the owner switched on
+ * controller.auto_merge_verified and the trusted workflow proved its exact head.
  */
 import {makeTaskGithub} from './github.mjs';
 import {taskProject,verifyBoundedSpec} from './projects.mjs';
 
 const URL='https://jrevhzvrgenucuozjowm.supabase.co';
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+// "Cause:/Fix:" lines the Developer writes at the top of the PR description,
+// reduced to short plain text for Matt's message (owner's own chat only).
+function plainLine(body,labels){
+ if(typeof body!=='string')return null;
+ for(const raw of body.split('\n').slice(0,40)){
+  const line=raw.replace(/<[^>]*>/g,'').replace(/[*_`#>]/g,'').trim().replace(/^[-•]\s*/,'');
+  const m=line.match(new RegExp('^(?:'+labels.join('|')+')\\s*[:：-]\\s*(.+)$','i'));
+  if(m){const text=m[1].replace(/https?:\/\/\S+/g,'').replace(/\s+/g,' ').trim();
+   return text?text.slice(0,280):null}
+ }
+ return null;
+}
 const respond=(status,body)=>new Response(JSON.stringify(body),{
  status,headers:{'content-type':'application/json','cache-control':'no-store',
  'x-content-type-options':'nosniff'}
@@ -144,7 +157,7 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
   }
   return null;
  }
- async function runClaim(step,worker,gh){
+ async function runClaim(step,worker,gh,settings={}){
   if(!UUID.test(step?.step_id)||!UUID.test(step?.mission_id)||
    !['create_issue','start_agent','await_agent','verify','report'].includes(step.capability))
    throw Error('invalid_task_claim');
@@ -170,7 +183,10 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
      spec.acceptance.map((x,i)=>'- '+(i+1)+'. '+x).join('\n')+
      '\n\nRequired tests: '+spec.requiredTests.join(', ')+
      '\nAllowed paths: '+spec.allowedPaths.join(', ')+
-     '\nDraft PR only. Never modify CI, secrets, deployment or protected files.';
+     '\nDraft PR only. Never modify CI, secrets, deployment or protected files.'+
+     '\nIf this reports a problem, find the root cause before changing code.'+
+     '\nStart the PR description with two plain Greek lines for the owner:'+
+     '\nCause: <one sentence: what was wrong>\nFix: <one sentence: what you changed>';
    const result=await gh.createIssue(project,{effectKey:key,title:spec.title,body:brief});
    if(result.state==='uncertain')return uncertainty(key,worker,'issue_post_uncertain');
    await confirm(key,worker,{externalId:String(result.issueNumber),
@@ -286,13 +302,26 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
    if(v.verification!=='trusted'||!Number.isSafeInteger(prNumber))
     return fail(s.id,worker,'trusted_verification_missing');
    const pr=await gh.getPull(project,prNumber);
-   if(pr?.state!=='open'||pr?.draft!==true||pr.head?.sha!==v.headSha)
+   // A retry after a successful merge sees the merged PR at the verified head.
+   const mergedEarlier=pr?.merged===true&&pr.head?.sha===v.headSha;
+   if(!mergedEarlier&&(pr?.state!=='open'||pr.head?.sha!==v.headSha))
     return fail(s.id,worker,'pr_head_moved_after_verification');
+   let merge={state:'not_enabled'};
+   if(settings.autoMerge===true){
+    merge=await gh.mergeVerified(project,{prNumber,headSha:v.headSha,title:spec.title});
+    if(merge.state==='head_moved')return fail(s.id,worker,'pr_head_moved_after_verification');
+   }
+   const merged=merge.state==='merged';
    const outcome={title:spec.title,projectId:project,
     prUrl:awaitStep.output.prUrl,runUrl:v.runUrl,
     headSha:v.headSha,headStillCurrent:true,
     requiredTests:v.requiredTests,sessionsReserved:1,
-    summary:'Draft PR checked by the trusted main workflow; review before merging.'};
+    merged,mergeState:merge.state,...(merged?{mergeSha:merge.mergeSha}:{}),
+    ...(merge.reason?{mergeBlockedReason:merge.reason}:{}),
+    cause:plainLine(pr?.body,['cause','αιτία','αιτια','τι έφταιγε']),
+    fix:plainLine(pr?.body,['fix','διόρθωση','διορθωση','τι αλλάξαμε']),
+    summary:merged?'Verified by the trusted main workflow and merged automatically.':
+     'PR checked by the trusted main workflow; review before merging.'};
    await complete(s.id,worker,outcome);
    return {state:'completed',missionId:mission.id,sessionsStarted:0};
   }
@@ -300,7 +329,7 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
  }
  async function processOnce(){
   const row=await fetchOne('paperworld_autonomous_controller_v5',{
-   select:'engine,dispatch_enabled,live_adapters',singleton:'eq.true'});
+   select:'engine,dispatch_enabled,live_adapters,auto_merge_verified',singleton:'eq.true'});
   if(!row||row.engine!=='v1'||row.dispatch_enabled!==true||
    !row.live_adapters?.includes('copilot_agent'))
    return {state:'disabled',sessionsStarted:0};
@@ -314,7 +343,7 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
   if(!Array.isArray(claimed)||claimed.length===0)
    return {state:'idle',sessionsStarted:0};
   if(claimed.length!==1)throw Error('multiple_steps_claimed');
-  return runClaim(claimed[0],worker,gh);
+  return runClaim(claimed[0],worker,gh,{autoMerge:row.auto_merge_verified===true});
  }
  async function handle(request){
   if(request.method!=='POST')return respond(405,{error:'method_not_allowed'});

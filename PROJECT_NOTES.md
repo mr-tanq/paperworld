@@ -529,3 +529,11 @@ The integration suite proves the state machine against real PostgreSQL 17 and te
 - New owner-only, read-only `/health/system` + Settings → Κατάσταση συστήματος (no AI, no secrets, owner-scoped counts).
 - Known: `credit_snapshot` never recorded → `credit_stop_at` inert; session caps are the effective budget guard (owner decision pending).
 - Owner launch order: apply SQL → merge → deploy Render manually → check system health.
+
+## 2026-11-20 — Autonomous fixes (owner decision)
+- Owner: "I tell Matt there is a problem; Luna and the Developer find it, fix it, and Matt tells me what it was. No approvals for each step; credits are not the concern."
+- Reported problems now route to the Task Engine (build), not to a consent-gated investigation. "Just look, change nothing" still routes to investigate.
+- Owner chose: auto-merge verified fixes (`controller.auto_merge_verified=true`) and a safety cap of 5 Developer sessions/day, 60/month (was 1/10). Applied live 2026-11-20 together with the richer `paperworld_v5_notify_matt` (`sql/paperworld_v6_autonomous_fixes.sql`).
+- Merge happens only in the dispatcher's report step: trusted main workflow proved the exact head, GitHub `sha` guard, branch protection respected; refusal → "needs one tap" message, never claimed as merged. Edge Function `paperworld-task-dispatch` v2 deployed 2026-11-20.
+- Matt's final message: "Το βρήκαμε και το φτιάξαμε … Τι έφταιγε … Τι αλλάξαμε …" from the Developer's Cause:/Fix: lines.
+- Rollback: `update paperworld_autonomous_controller_v5 set auto_merge_verified=false, sessions_per_day=1, sessions_per_month=10;`
