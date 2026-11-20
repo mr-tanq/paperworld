@@ -537,3 +537,11 @@ The integration suite proves the state machine against real PostgreSQL 17 and te
 - Merge happens only in the dispatcher's report step: trusted main workflow proved the exact head, GitHub `sha` guard, branch protection respected; refusal → "needs one tap" message, never claimed as merged. Edge Function `paperworld-task-dispatch` v2 deployed 2026-11-20.
 - Matt's final message: "Το βρήκαμε και το φτιάξαμε … Τι έφταιγε … Τι αλλάξαμε …" from the Developer's Cause:/Fix: lines.
 - Rollback: `update paperworld_autonomous_controller_v5 set auto_merge_verified=false, sessions_per_day=1, sessions_per_month=10;`
+
+## 2026-11-20 — Roadmap to the full vision (owner decisions)
+- Order: Phase 1 reliable autonomy (no dead wait, one self-retry, plain failure reasons, 5–10 real tasks) → Phase 2 living village (map/workshops show real work, daily Matt summary) → Phase 3 learning memory + Director-to-Director consults → Phase 4 tools for every resident → Phase 5 initiative (routines do real work, Directors propose improvements).
+- Owner: Suno song creation budget = **50 songs/month** (Phase 4; still behind a hard monthly counter, no auto-retry of paid calls).
+- Owner: weekly routines **may start Developer work on their own**, inside the shared 5/day–60/month cap (Phase 5).
+- Owner wish (after the village reaches 100%, not part of Phases 1–5): a more relaxed "personal assistant" Director that checks email (read-only first, private like Wellbeing).
+- Owner idea (some months out): a Director that runs a future 3D printer. Scope later.
+- One PR per phase, with tests; enabled live only after it works.

@@ -45,9 +45,9 @@ function setup({engine='v1',enabled=true,queue=true}={}){
 }
 test('semantic Matt router accepts coding build; rejects wellbeing execution',()=>{
  assert.deepEqual(parseIntent('{"director":"listening-director","action":"build"}'),
-  {director:'listening-director',action:'build',workerId:null});
+  {director:'listening-director',action:'build',consult:null,workerId:null});
  assert.deepEqual(parseIntent('{"director":"pokemon-director","action":"build"}'),
-  {director:'pokemon-director',action:'build',workerId:null});
+  {director:'pokemon-director',action:'build',consult:null,workerId:null});
  assert.equal(parseIntent('{"director":"studio-director","action":"build"}'),null);
  assert.equal(parseIntent('{"director":"wellbeing-director","action":"build"}'),null);
 });

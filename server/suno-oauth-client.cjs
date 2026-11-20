@@ -333,6 +333,7 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
    claimed=await durableClaim.reserve({ownerId:who.ownerId,
     threadId:data.threadId,idempotencyKey:data.idempotencyKey,brief:data.brief});
   }catch(error){
+   if(error?.message==='suno_monthly_limit_reached')return denied(429,'suno_monthly_limit_reached');
    return denied(503,error?.message==='suno_claim_storage_missing'?
     'suno_claim_storage_missing':'suno_claim_unavailable');
   }

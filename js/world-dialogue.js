@@ -466,6 +466,7 @@
      suno_claim_storage_missing:'Λείπει ο πίνακας ασφαλείας υποβολών στη βάση Paperworld '+
       '(sql/paperworld_suno_durable_claim_v1.sql δεν έχει εφαρμοστεί).',
      suno_claim_unavailable:'Η βάση Paperworld δεν επιβεβαίωσε το κλείδωμα υποβολής.',
+     suno_monthly_limit_reached:'Φτάσαμε τα 50 τραγούδια αυτού του μήνα. Ο Crow μπορεί να ετοιμάζει στίχους και ιδέες, και τα νέα τραγούδια συνεχίζουν από την 1η του επόμενου μήνα.',
      audio_create_already_submitted:'Αυτό το αίτημα έχει ήδη υποβληθεί.',
      audio_create_transport_unsupported:'Η Suno απάντησε μόνο σε παλαιότερο MCP που δεν υποστηρίζεται για δημιουργία.',
      audio_create_schema_unverified:'Δεν επαληθεύτηκε το σχήμα του εργαλείου δημιουργίας της Suno.',
@@ -1205,8 +1206,12 @@
     weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit',
     timeZone:preview.timezone||'Europe/Amsterdam',hourCycle:'h23'});
    const detail=make('p','','Πρώτη φορά: '+next+'. Η ώρα ακολουθεί και τη θερινή ώρα.');
-   const safety=make('p','','Τη σωστή μέρα θα σου ετοιμάζω την εργασία για έλεγχο. '+
-    'Δεν ξεκινά τίποτα και δεν χρεώνεται τίποτα χωρίς εσένα.');
+   // Phase 5 (owner decision): coding projects run the check on their own.
+   const safety=make('p','',['listening','pokemon'].includes(plan.projectId)?
+    'Τη σωστή μέρα η ομάδα θα κάνει μόνη της τον έλεγχο, θα διορθώνει ό,τι βρει '+
+     'και θα σου λέει τι έγινε, μέσα στο όριο των 5 εργασιών τη μέρα.':
+    'Τη σωστή μέρα θα σου ετοιμάζω την εργασία για έλεγχο. '+
+     'Δεν ξεκινά τίποτα και δεν χρεώνεται τίποτα χωρίς εσένα.');
    const controls=make('div','world-routine-actions');
    const cancel=make('button','','Ακύρωση');
    const confirm=make('button','','Αποθήκευση');

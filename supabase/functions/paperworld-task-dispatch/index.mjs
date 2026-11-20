@@ -57,7 +57,7 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
  }
  async function readMission(id){
   const mission=await fetchOne('paperworld_autonomous_missions_v5',{
-   select:'id,owner_id,project_id,status,engine,spec,policy',id:'eq.'+id});
+   select:'id,owner_id,thread_id,goal,project_id,status,engine,spec,policy',id:'eq.'+id});
   if(!mission||mission.engine!=='v1')throw Error('mission_scope_invalid');
   verifyBoundedSpec(mission.spec,mission.project_id);
   return mission;
@@ -157,6 +157,41 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
   }
   return null;
  }
+ // Phase 1b: ONE automatic follow-up when the Developer's attempt fails its
+ // tests or never delivers. It is a normal new mission (same owner, thread,
+ // project, bounded spec) so every budget cap and verification still applies.
+ // Deterministic id → a crash or replay can never queue it twice.
+ async function retryId(missionId){
+  const bytes=new Uint8Array(await crypto.subtle.digest('SHA-256',
+   new TextEncoder().encode('paperworld-retry:'+missionId))).slice(0,16);
+  bytes[6]=(bytes[6]&0x0f)|0x40;bytes[8]=(bytes[8]&0x3f)|0x80;
+  const h=[...bytes].map(b=>b.toString(16).padStart(2,'0')).join('');
+  return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20);
+ }
+ async function queueRetry(mission,reason,{prNumber=null,prUrl=null,runUrl=null}={}){
+  if(mission.policy?.retryOf||!['trusted_verification_failed','copilot_pr_missing'].includes(reason))
+   return {state:'not_retried'};
+  if(!UUID.test(mission.thread_id||'')||typeof mission.goal!=='string')return {state:'not_retried'};
+  const id=await retryId(mission.id);
+  const previous=reason==='trusted_verification_failed'?
+   '\n\nPrevious attempt'+(prNumber?' (PR #'+prNumber+')':'')+' failed the required tests'+
+    (runUrl?' ('+runUrl+')':'')+'. Start from that work if useful, find why the tests fail and fix it.':
+   '\n\nPrevious attempt did not deliver a pull request. Keep the change small and deliver one.';
+  const spec={...mission.spec,summary:(String(mission.spec.summary||'').slice(0,800-previous.length)+previous)};
+  try{
+   const existing=await fetchOne('paperworld_autonomous_missions_v5',{select:'id,status',id:'eq.'+id});
+   if(!existing){
+    await db('paperworld_autonomous_missions_v5','POST',{id,owner_id:mission.owner_id,
+     thread_id:mission.thread_id,project_id:mission.project_id,goal:mission.goal,status:'draft',
+     policy:{...(mission.policy||{}),retryOf:mission.id,retryReason:reason}});
+   }else if(existing.status!=='draft'&&existing.status!=='planned')return {state:'already_queued',missionId:id};
+   const now=await fetchOne('paperworld_autonomous_missions_v5',{select:'id,status',id:'eq.'+id});
+   if(now?.status==='draft'&&await rpc('paperworld_v5_plan_task',{p_mission:id,p_spec:spec})!==true)
+    return {state:'retry_plan_refused'};
+   if(await rpc('paperworld_v5_queue_task',{p_mission:id})!==true)return {state:'retry_queue_refused'};
+   return {state:'retry_queued',missionId:id};
+  }catch(_){return {state:'retry_failed'}}
+ }
  async function runClaim(step,worker,gh,settings={}){
   if(!UUID.test(step?.step_id)||!UUID.test(step?.mission_id)||
    !['create_issue','start_agent','await_agent','verify','report'].includes(step.capability))
@@ -217,7 +252,10 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
     effectKey:issueStep.input.effectKey});
    if(found.state==='ambiguous')return fail(s.id,worker,'ambiguous_copilot_pr');
    if(found.state!=='found'){
-    if(age>30*60*1000)return fail(s.id,worker,'copilot_pr_missing');
+    if(age>30*60*1000){
+     await queueRetry(mission,'copilot_pr_missing');
+     return fail(s.id,worker,'copilot_pr_missing');
+    }
     await rpc('paperworld_v5_defer_task_step',{p_step:s.id,p_worker:worker,
      p_seconds:300,p_observation:s.output||{}});
     return {state:'awaiting_agent_pr',sessionsStarted:0};
@@ -230,6 +268,18 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
    const observation={prNumber:pr.number,prUrl:pr.html_url,
     headSha:sha,stableSince:stable,confirmedStart:effect.confirmed_at};
    if(age>3*60*60*1000)return fail(s.id,worker,'copilot_deadline_exceeded');
+   // Fast path: Copilot said it finished AND the head did not move since the
+   // previous poll (>= one 5-minute tick). Verification still pins this sha.
+   if(previous.headSha===sha&&clock()-stable>=4*60*1000){
+    let done={finished:false};
+    try{done=await gh.agentFinished(project,pr.number)}catch(_){}
+    if(done.finished===true){
+     await complete(s.id,worker,{...observation,completion:'trusted_signal',
+      signal:done.signal,stableHead:true});
+     return {state:'agent_finished_waiting_verify',sessionsStarted:0};
+    }
+   }
+   // Fallback when no finish signal is visible: the original conservative rule.
    if(age>=75*60*1000&&clock()-stable>=20*60*1000){
     await complete(s.id,worker,{...observation,
      completion:'conservative_fallback',stableHead:true});
@@ -247,7 +297,18 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
    const pr=await gh.getPull(project,prNumber);
    if(pr?.head?.sha!==sha||pr?.draft!==true||pr?.state!=='open')
     return fail(s.id,worker,'pr_head_changed_before_verify');
-   await gh.assertScopedChanges(project,prNumber,spec.allowedPaths,spec.maxFiles);
+   // A Developer who investigated and changed nothing, or who touched files
+   // outside the allowed scope, is a clear outcome for the owner — never an
+   // error loop. Matt explains it in plain words.
+   try{await gh.assertScopedChanges(project,prNumber,spec.allowedPaths,spec.maxFiles)}
+   catch(error){
+    if(error?.message==='file_count_denied'){
+     const count=await gh.changedFileCount(project,prNumber);
+     return fail(s.id,worker,count===0?'agent_no_changes':'agent_too_many_files');
+    }
+    if(error?.message==='file_policy_denied')return fail(s.id,worker,'agent_files_out_of_scope');
+    throw error;
+   }
    const pin=await gh.trustedMain(project,config.workflowBlob);
    let effect=await readEffect(s.id);
    if(!effect){
@@ -274,8 +335,11 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
     proof.headSha!==sha||proof.workflowBlob!==config.workflowBlob)
     throw Error('verify_effect_receipt_invalid');
    const rawRun=await gh.getRun(project,runId);
-   if(rawRun?.status==='completed'&&rawRun.conclusion!=='success')
+   if(rawRun?.status==='completed'&&rawRun.conclusion!=='success'){
+    await queueRetry(mission,'trusted_verification_failed',{prNumber,
+     prUrl:awaitStep.output?.prUrl,runUrl:proof.runUrl});
     return fail(s.id,worker,'trusted_verification_failed');
+   }
    const elapsed=clock()-Date.parse(effect.confirmed_at||'');
    if(Number.isFinite(elapsed)&&elapsed>2*60*60*1000)
     return fail(s.id,worker,'trusted_verification_timed_out');
