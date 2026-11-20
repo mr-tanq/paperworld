@@ -64,7 +64,7 @@ const finished=[{event:'copilot_work_started'},{event:'committed'},{event:'copil
 test('Copilot finished + head stable for one poll → verification starts after ~10 minutes, not 75',async()=>{
  const f=fixture({minutes:10,previous:stablePrev(5),prTimeline:finished});
  assert.equal((await f.run()).state,'agent_finished_waiting_verify');
- assert.equal(f.done[0].completion,'agent_signal');assert.equal(f.done[0].signal,'timeline');
+ assert.equal(f.done[0].completion,'trusted_signal');assert.equal(f.done[0].signal,'timeline');
  assert.equal(f.done[0].headSha,HEAD);
 });
 test('finish signal but head just changed → wait one more poll',async()=>{
@@ -87,4 +87,11 @@ test('no signal at all still finishes through the 75-minute fallback',async()=>{
  const f=fixture({minutes:80,previous:stablePrev(50),title:'[WIP] x',prTimeline:[{event:'copilot_work_started'}]});
  assert.equal((await f.run()).state,'agent_finished_waiting_verify');
  assert.equal(f.done[0].completion,'conservative_fallback');
+});
+test('await completion values are exactly those the live finish_task_step accepts',()=>{
+ const src=require('node:fs').readFileSync('supabase/functions/paperworld-task-dispatch/index.mjs','utf8');
+ const used=[...src.matchAll(/completion:'([a-z_]+)'/g)].map(m=>m[1]);
+ assert.ok(used.length>=2);
+ // Live paperworld_v5_finish_task_step (2026-11-20): completion in ('trusted_signal','conservative_fallback').
+ for(const value of used)assert.ok(['trusted_signal','conservative_fallback'].includes(value),value);
 });

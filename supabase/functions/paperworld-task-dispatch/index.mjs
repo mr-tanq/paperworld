@@ -274,7 +274,7 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
     let done={finished:false};
     try{done=await gh.agentFinished(project,pr.number)}catch(_){}
     if(done.finished===true){
-     await complete(s.id,worker,{...observation,completion:'agent_signal',
+     await complete(s.id,worker,{...observation,completion:'trusted_signal',
       signal:done.signal,stableHead:true});
      return {state:'agent_finished_waiting_verify',sessionsStarted:0};
     }
