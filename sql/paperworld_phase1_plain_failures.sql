@@ -1,6 +1,7 @@
 -- PAPERWORLD Phase 1 — Matt explains why a task stopped, in plain words.
 -- Same notifier as paperworld_v6_autonomous_fixes.sql plus a reason line from
--- missions.last_error. Re-runnable; no cron, tick, grant or budget changes.
+-- missions.last_error, and "we are retrying" when the engine queued its one
+-- automatic follow-up (policy.retryOf). Re-runnable; no cron, tick, grant or budget changes.
 begin;
 create or replace function public.paperworld_v5_notify_matt()
  returns jsonb
@@ -82,6 +83,10 @@ begin
    when notice.kind='completed' then speaker||' ολοκλήρωσε την εργασία που είχαμε αναλάβει. '
      ||'Έχουμε καταγεγραμμένο αποτέλεσμα για να το δεις. '
      ||'Δεν σημαίνει ότι η αλλαγή έχει ήδη δημοσιευτεί.'
+   when notice.kind='needs_you' and exists(select 1 from public.paperworld_autonomous_missions_v5 r
+     where r.policy->>'retryOf'=notice.id::text and r.owner_id=notice.owner_id) then
+    'Η πρώτη προσπάθεια για «'||title||'» δεν τα κατάφερε: '||why
+     ||' Ο Developer το ξαναπιάνει μόνος του, με όσα έμαθε. Δεν χρειάζεται να κάνεις τίποτα· θα σου πω το αποτέλεσμα.'
    when notice.kind='needs_you' then 'Η ομάδα σταμάτησε την εργασία «'||title||'»: '||why
      ||' Δεν άλλαξε τίποτα στην εφαρμογή. Πες μου αν θέλεις να το ξαναδοκιμάσουμε.'
    else speaker||' δεν έχει δώσει νέα ενημέρωση εδώ και δύο ώρες. '

@@ -51,6 +51,7 @@ on:
       - 'sql/paperworld_v6_autonomous_fixes.sql'
       - 'tests/v5-task-auto-merge.test.cjs'
       - 'tests/v5-task-agent-finish.test.cjs'
+      - 'tests/v5-task-retry.test.cjs'
       - 'sql/paperworld_phase1_plain_failures.sql'
       - 'tests/sql/paperworld-autonomous-fixes-integration.sql'
       - 'js/routine-intent.js'
@@ -140,6 +141,7 @@ jobs:
             tests/routine-loop-policy.test.cjs \
             tests/v5-task-auto-merge.test.cjs \
             tests/v5-task-agent-finish.test.cjs \
+            tests/v5-task-retry.test.cjs \
             tests/v5-task-dispatcher.test.cjs \
             tests/v5-matt-task-messenger.test.cjs \
             tests/routine-owner-api.test.cjs \
