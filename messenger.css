@@ -467,3 +467,9 @@ html.pw-reduce-motion :is(.pw-messenger,.pw-workspace),html.pw-reduce-motion :is
  background:rgba(231,196,128,.12);border:1px solid rgba(231,196,128,.35);color:inherit}
 .pw-chat-context strong{display:block;font-size:.92rem}
 .pw-chat-context p{margin:4px 0 0;font-size:.86rem;opacity:.85;line-height:1.35}
+
+/* Empty chat: tap a starter to fill the composer (never auto-sent). */
+.pw-starters{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:14px 10px 0}
+.pw-starter{border:1px solid rgba(217,168,95,.45);background:rgba(217,168,95,.08);color:inherit;
+ border-radius:999px;padding:8px 13px;font:inherit;font-size:.86rem;cursor:pointer;min-height:38px;text-align:left}
+.pw-starter:hover,.pw-starter:focus-visible{background:rgba(217,168,95,.18)}
