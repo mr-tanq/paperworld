@@ -10,10 +10,12 @@ async function refresh(){
  const cloud=window.PaperworldCloudUI,world=window.PaperworldWorld,status=window.PaperworldResidentStatus;
  if(busy||!cloud||!world||!status||document.hidden)return;
  if(cloud.signedIn?.()!==true||typeof cloud.listAutonomousMissions!=='function'){
-  world.setResidentStatus?.({});return;
+  world.setResidentStatus?.({});document.dispatchEvent(new CustomEvent('paperworld:residents',{detail:{}}));return;
  }
  busy=true;
- try{world.setResidentStatus?.(status.statuses(await cloud.listAutonomousMissions()))}
+ try{const map=status.statuses(await cloud.listAutonomousMissions());
+  world.setResidentStatus?.(map);
+  document.dispatchEvent(new CustomEvent('paperworld:residents',{detail:map}))}
  catch(_){/* Keep the last verified view; never guess. */}
  finally{busy=false}
 }

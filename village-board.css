@@ -1,0 +1,31 @@
+/* Village board: the space under the village on tall screens. */
+.village-board{position:absolute;left:0;right:0;bottom:0;z-index:3;display:flex;flex-direction:column;
+ gap:10px;padding:14px 16px calc(16px + env(safe-area-inset-bottom));overflow:auto;
+ background:linear-gradient(180deg,rgba(17,20,28,0) 0,rgba(17,20,28,.92) 22px,#11141c 60px);color:#f4ead8}
+.village-board[hidden]{display:none}
+.village-board-head h2{margin:6px 0 0;font-size:1.05rem;letter-spacing:.02em}
+.village-board-head p{margin:2px 0 0;font-size:.82rem;opacity:.7}
+.village-board-list{display:flex;flex-direction:column;gap:8px}
+.village-board-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;cursor:pointer;
+ padding:9px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);
+ color:inherit;font:inherit;min-height:56px}
+.village-board-row:active{transform:scale(.99)}
+.village-board-row[data-tone=active]{border-color:rgba(120,170,255,.35)}
+.village-board-row[data-tone=attention]{border-color:rgba(231,150,110,.6);background:rgba(231,150,110,.09)}
+.village-board-row[data-tone=done]{border-color:rgba(120,200,140,.45)}
+.village-board-face{flex:0 0 42px;width:42px;height:42px;border-radius:12px;overflow:hidden}
+.village-board-face img,.village-board-face canvas{width:100%;height:100%;object-fit:cover}
+.village-board-text{display:flex;flex-direction:column;min-width:0;flex:1}
+.village-board-text strong{font-size:.92rem}
+.village-board-text span{font-size:.84rem;opacity:.78;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.village-board-go{opacity:.4;font-size:1.3rem}
+.village-board-talk{margin-top:2px;min-height:48px;border-radius:14px;border:0;font:inherit;font-weight:600;
+ background:#d9a85f;color:#21170c;cursor:pointer}
+html.pw-has-board .hint{display:none}
+@media (prefers-color-scheme:light){.village-board{color:#f4ead8}}
+/* Chat: decisions wait as one slim line until opened. */
+.human-hub-collapsed{display:block;width:100%;min-height:44px;padding:10px 14px;border-radius:14px;
+ border:1px solid rgba(217,168,95,.55);background:rgba(217,168,95,.14);color:#f4d9a8;font:inherit;
+ font-weight:600;text-align:left;cursor:pointer}
+.human-hub-collapse{margin-top:8px;min-height:36px;padding:6px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.14);
+ background:transparent;color:inherit;font:inherit;cursor:pointer}

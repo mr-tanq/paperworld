@@ -460,6 +460,9 @@ function drawResidentBubble(a,status){
  ctx.restore();
 }
 window.PaperworldWorld=Object.freeze({
+ // Where the village board may start on tall screens (null = no room).
+ boardTop:()=>{const f=framing?.frame({width:state.width,height:state.height,W,H,content:villageContent()});
+  return Number.isFinite(f?.boardTop)?f.boardTop:null},
  // Living village v3: the Messenger tells the village who is talking.
  setConversation:(next)=>{
   const id=next&&CHAT_PEERS.includes(next.with)?next.with:null;

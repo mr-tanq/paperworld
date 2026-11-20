@@ -58,6 +58,9 @@ on:
       - 'tests/suno-monthly-cap.test.cjs'
       - 'tests/living-village-v3.test.cjs'
       - 'tests/tidy-work-list.test.cjs'
+      - 'tests/master-polish.test.cjs'
+      - 'js/village-board.js'
+      - 'village-board.css'
       - 'sql/paperworld_dismissed_items_v1.sql'
       - 'js/village-life.js'
       - 'js/village-ambience.js'
@@ -165,6 +168,8 @@ jobs:
             tests/suno-monthly-cap.test.cjs \
             tests/living-village-v3.test.cjs \
             tests/tidy-work-list.test.cjs \
+            tests/master-polish.test.cjs \
+            tests/camera-framing.test.cjs \
             tests/village-life-v2.test.cjs \
             tests/v5-task-dispatcher.test.cjs \
             tests/v5-matt-task-messenger.test.cjs \
