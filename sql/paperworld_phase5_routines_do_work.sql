@@ -103,7 +103,11 @@ begin
      'director',case r.project_id when 'pokemon' then 'pokemon-director'
       when 'studio' then 'studio-director' when 'wellbeing' then 'wellbeing-director'
       else 'listening-director' end,
-     'text',case when started then
+     'text',case when r.project_id='wellbeing' then
+       -- Phase 4: Dave's routines are gentle reminders; private content never
+       -- appears in Matt's thread.
+       'Ο Dave: ήρθε η ώρα για το πρόγραμμά σου. Αν θέλεις, πες μου μετά πώς πήγε.'
+      when started then
        speaker||': ξεκίνησα την εβδομαδιαία εργασία «'||left(r.goal,140)||
        '». Θα την ελέγξω με τον Developer, θα διορθώσουμε ό,τι βρούμε και θα σου πω τι έγινε.'
       else speaker||': ήρθε η ώρα για την εβδομαδιαία εργασία «'||left(r.goal,140)||

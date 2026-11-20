@@ -68,7 +68,9 @@ VALUES('33333333-3333-4333-8333-333333333333','11111111-1111-4111-8111-111111111
 ('66666666-6666-4666-8666-666666666666','11111111-1111-4111-8111-111111111111',
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','studio','Ιδέες για νέο τραγούδι',true,1,9,0),
 ('77777777-7777-4777-8777-777777777777','11111111-1111-4111-8111-111111111111',
- 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','listening','QUEUE_FAILS check',true,1,9,0);
+ 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','listening','QUEUE_FAILS check',true,1,9,0),
+('88888888-8888-4888-8888-888888888888','11111111-1111-4111-8111-111111111111',
+ 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','wellbeing','Ιδιωτική άσκηση γονάτου',true,1,9,0);
 -- Make all three due at the same genuine local slot.
 DO $$
 DECLARE slot timestamptz:=date_trunc('minute',now())-interval '5 minutes';
@@ -105,7 +107,10 @@ BEGIN
  ASSERT m.status='draft' AND m.spec IS NULL,'failure rolled back to draft: '||m.status;
  -- Exactly once per slot, and every routine advanced.
  PERFORM paperworld_v5_unified_tick();
- ASSERT (SELECT count(*) FROM paperworld_routine_slots_v1)=3,'exactly once';
+ ASSERT (SELECT count(*) FROM paperworld_routine_slots_v1)=4,'exactly once';
+ SELECT content INTO txt FROM paperworld_agent_messages a JOIN paperworld_routine_slots_v1 s
+  ON a.id=md5(s.mission_id::text||':routine_due')::uuid WHERE s.routine_id='88888888-8888-4888-8888-888888888888';
+ ASSERT txt LIKE '%Ο Dave: ήρθε η ώρα για το πρόγραμμά σου%' AND txt NOT LIKE '%γονάτου%','Dave reminder is private: '||txt;
  ASSERT NOT EXISTS(SELECT 1 FROM paperworld_routines_v1 WHERE next_review_at<=now()),'all advanced';
 END $$;
 

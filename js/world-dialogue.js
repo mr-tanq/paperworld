@@ -466,6 +466,7 @@
      suno_claim_storage_missing:'Λείπει ο πίνακας ασφαλείας υποβολών στη βάση Paperworld '+
       '(sql/paperworld_suno_durable_claim_v1.sql δεν έχει εφαρμοστεί).',
      suno_claim_unavailable:'Η βάση Paperworld δεν επιβεβαίωσε το κλείδωμα υποβολής.',
+     suno_monthly_limit_reached:'Φτάσαμε τα 50 τραγούδια αυτού του μήνα. Ο Crow μπορεί να ετοιμάζει στίχους και ιδέες, και τα νέα τραγούδια συνεχίζουν από την 1η του επόμενου μήνα.',
      audio_create_already_submitted:'Αυτό το αίτημα έχει ήδη υποβληθεί.',
      audio_create_transport_unsupported:'Η Suno απάντησε μόνο σε παλαιότερο MCP που δεν υποστηρίζεται για δημιουργία.',
      audio_create_schema_unverified:'Δεν επαληθεύτηκε το σχήμα του εργαλείου δημιουργίας της Suno.',

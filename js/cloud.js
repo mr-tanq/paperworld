@@ -741,7 +741,7 @@
     'invalid_audio_create_request','unauthorized','origin_denied',
     'suno_oauth_required','audio_create_not_verified',
     'audio_create_session_limit','request_too_large',
-    'suno_claim_unavailable','suno_claim_storage_missing',
+    'suno_claim_unavailable','suno_claim_storage_missing','suno_monthly_limit_reached',
     'audio_create_already_submitted','audio_create_transport_unsupported',
     'audio_create_schema_unverified','audio_create_schema_mismatch',
     'audio_create_field_too_long','audio_create_required_field_unsupported',

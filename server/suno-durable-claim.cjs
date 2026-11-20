@@ -44,7 +44,13 @@ function makeSunoClaim({fetcher=globalThis.fetch,
   });
   // 404 = migration sql/paperworld_suno_durable_claim_v1.sql not applied.
   if(response?.status===404)throw Error('suno_claim_storage_missing');
-  if(!response?.ok)throw Error('suno_claim_unavailable');
+  if(!response?.ok){
+   // Phase 4: the monthly cap (50 songs) is enforced inside the claim itself.
+   let detail='';
+   try{detail=String((await response.json())?.message||'')}catch(_){}
+   if(detail.includes('suno_monthly_limit_reached'))throw Error('suno_monthly_limit_reached');
+   throw Error('suno_claim_unavailable');
+  }
   const result=await response.json();
   if(result!==true&&result!==false)throw Error('suno_claim_invalid_reply');
   return result;
