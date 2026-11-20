@@ -285,7 +285,7 @@
    const thread=await getAgentThread(agentId,true);
    if(saveNote)await agentStore().say(thread.id,text);
    const payload={agentId,threadId:thread.id,requestId:crypto.randomUUID(),
-    message:text,consent:'ONE_DIRECTOR_COPILOT_TURN_INCLUDED_ALLOWANCE'};
+    message:text,replyLanguage:window.PaperworldI18n?.chat?.()||'auto',consent:'ONE_DIRECTOR_COPILOT_TURN_INCLUDED_ALLOWANCE'};
    try{
     const response=await fetcher(MATT_ORIGIN+'/chat/director',{
      method:'POST',redirect:'error',headers:{Authorization:'Bearer '+session.access_token,
@@ -887,6 +887,7 @@
    const thread=await getAgentThread('matt',true);
    await agentStore().say(thread.id,text);
    const payload={threadId:thread.id,requestId:crypto.randomUUID(),message:text,
+    replyLanguage:window.PaperworldI18n?.chat?.()||'auto',
     consent:'MATT_DIRECTOR_UP_TO_THREE_AI_TURNS',targetDirector,
      ...(conversation?{conversation}:{}),
     ...(targetDirector==='wellbeing-director'&&wellbeingConsent===true?{
@@ -945,7 +946,7 @@
    // Human text is stored privately before making the separately confirmed call.
    await agentStore().say(thread.id,text);
    const payload={threadId:thread.id,requestId:crypto.randomUUID(),message:text,
-     consent:'ONE_COPILOT_TURN_INCLUDED_ALLOWANCE'};
+     replyLanguage:window.PaperworldI18n?.chat?.()||'auto',consent:'ONE_COPILOT_TURN_INCLUDED_ALLOWANCE'};
    let response;
    try{
     response=await fetcher(MATT_ORIGIN+'/chat/matt',{method:'POST',
