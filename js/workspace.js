@@ -36,7 +36,7 @@ const ownerName=id=>profiles()?.get(id)?.name||'Matt';
 const withArticle=id=>(id==='listening-director'?'τη ':'τον ')+ownerName(id);
 
 // ---------- Shell ----------------------------------------------------------
-const shell=el('section','pw-workspace');shell.hidden=true;shell.lang='el';
+const shell=el('section','pw-workspace');shell.hidden=true;shell.lang=window.PaperworldI18n?.ui?.()||'el';
 shell.setAttribute('role','dialog');shell.setAttribute('aria-modal','false');
 shell.setAttribute('aria-labelledby','pw-ws-title');
 const head=el('header','pw-ws-head');
@@ -522,6 +522,25 @@ function healthLines(h){
 }
 function renderSettings(){
  const ui=cloud();
+ // Language preferences are local UI settings, independent of sign-in.
+ const i18n=window.PaperworldI18n;
+ if(i18n){
+  const createChoice=(labelText,values,current,onChange)=>{
+   const select=el('select','pw-language-select');
+   select.setAttribute('aria-label',labelText);
+   for(const [value,text] of values){const option=el('option','',text);option.value=value;select.append(option)}
+   select.value=current;
+   select.addEventListener('change',()=>onChange(select.value));
+   return settingRow(labelText,null,select);
+  };
+  const interfaceChoice=createChoice('Γλώσσα εφαρμογής',
+   [['el','🇬🇷 Ελληνικά'],['en','🇬🇧 English']],i18n.ui(),v=>i18n.setUI(v));
+  const conversationChoice=createChoice('Γλώσσα συνομιλιών',
+   [['auto','Αυτόματα — απάντηση στη γλώσσα μου'],['el','Πάντα ελληνικά'],['en','Πάντα αγγλικά']],
+   i18n.chat(),v=>i18n.setChat(v));
+  body.append(section('Γλώσσα',null,[interfaceChoice,conversationChoice]));
+ }
+
  // Account
  const account=[];
  if(signedIn()){
@@ -649,6 +668,7 @@ if(controls){
  if(after)after.after(gear);else controls.append(gear);
  wire(gear,'settings');
 }
+document.addEventListener('paperworld:language-change',()=>{shell.lang=window.PaperworldI18n?.ui?.()||'el'});
 window.PaperworldWorkspace=Object.freeze({open,close,isOpen:()=>!shell.hidden,
  view:()=>state.view,items,stats,PROJECTS});
 })();
