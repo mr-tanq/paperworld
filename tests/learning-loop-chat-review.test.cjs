@@ -30,7 +30,7 @@ test('learning client submits only references and metadata, not a forged message
  assert.match(shell,/proposeDirectorCorrection:\(id,messageId,options\)/);
 });
 test('browser loads matching reviewed JS and CSS assets',()=>{
- assert.ok(html.includes('js/cloud.js?v=release-1'));
+ assert.ok(html.includes('js/cloud.js?v=bilingual-v1'));
  for(const file of ['style.css','js/messenger-format.js'])
   assert.ok(html.includes(file+'?v=messenger-v2-1'),file);
  for(const file of ['js/app.js','js/camera-framing.js','js/connection-status.js'])
