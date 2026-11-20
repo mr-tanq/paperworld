@@ -387,3 +387,18 @@ test('Crow owner sees actual specialist reply, never a contradictory Matt paraph
  assert.equal(out.body.aiTurns,3);
  assert.equal(seen.sent,3);
 });
+
+
+test('English conversation preference passes through Director and final Matt answer',async()=>{
+ const {gateway,seen}=make();
+ const result=await gateway.handle({headers,body:requestBody({...data,replyLanguage:'en'})});
+ assert.equal(result.status,200);
+ assert.match(seen.prompts[1],/Respond in English throughout this answer/);
+ assert.match(seen.prompts[2],/Respond in English throughout this answer/);
+});
+test('Invalid conversation preference cannot initiate AI calls',async()=>{
+ const {gateway,seen}=make();
+ const result=await gateway.handle({headers,body:requestBody({...data,replyLanguage:'invalid'})});
+ assert.equal(result.status,400);
+ assert.equal(seen.sent,0);
+});
