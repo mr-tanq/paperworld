@@ -75,6 +75,11 @@ function routePrompt(message,conversation=null){
  'Output strict JSON exactly: {"director":"<id>","action":"answer"} or',
  '{"director":"<id>","action":"investigate"} or',
  '{"director":"<id>","action":"build"}. If unrelated, output not_ready.',
+ 'Optionally, when ANOTHER project clearly holds knowledge that would help (for example',
+ 'the owner\'s own music, bands and taste from studio-director for a concert question),',
+ 'add "consult":"<other director id>" to the JSON. Only listening-director,',
+ 'studio-director and pokemon-director may consult or be consulted, never the same one.',
+ 'Example: {"director":"listening-director","action":"answer","consult":"studio-director"}.',
  'For read-only Worker investigation, separate human consent is mandatory.',
  'This JSON only proposes project routing. The backend alone decides if',
  'a task fits standing authorization and budgets; never grant permissions.',
@@ -88,6 +93,7 @@ function routePrompt(message,conversation=null){
 }
 // Structured intent is an advisory recommendation, NEVER an action approval.
 // Legacy plain director-only replies remain compatible and never request Worker.
+const CONSULTABLE=new Set(['listening-director','studio-director','pokemon-director']);
 const WORKERS=Object.freeze({
  'listening-director':'listening-developer',
  'pokemon-director':'pokemon-developer'
@@ -115,12 +121,15 @@ function parseIntent(answer){
  }
  if(keys.length===1&&keys[0]==='action'&&data.action==='team_status')
   return Object.freeze({director:null,action:'team_status',workerId:null});
- if(keys.join(',')!=='action,director')return null;
+ if(keys.join(',')!=='action,director'&&keys.join(',')!=='action,consult,director')return null;
  const {director,action}=data;
  if(typeof director!=='string'||!ALLOWED.has(director)||
   !['answer','investigate','build'].includes(action))return null;
  if(action!=='answer'&&!WORKERS[director])return null;
- return Object.freeze({director,action,
+ // A consult is advisory context only; an invalid one is dropped, not fatal.
+ const consult=typeof data.consult==='string'&&CONSULTABLE.has(director)&&
+  CONSULTABLE.has(data.consult)&&data.consult!==director?data.consult:null;
+ return Object.freeze({director,action,consult,
   workerId:action==='investigate'?WORKERS[director]:null});
 }
 module.exports=Object.freeze({parseRoute,parseIntent,routePrompt,AUTO,WORKERS});

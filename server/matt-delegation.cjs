@@ -9,7 +9,7 @@ const path=require('node:path');
 const {randomUUID}=require('node:crypto');
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {createSafeSessionConfig}=require('./matt-session-config.cjs');
-const {createApprovedDirectorMemory,formatDirectorMemory}=require('./approved-director-memory.cjs');
+const {createApprovedDirectorMemory,formatDirectorMemory,formatConsultMemory}=require('./approved-director-memory.cjs');
 const {forCrow,currentBriefPriority}=require('./crow-songwriting-guide.cjs');
 const {forCrow:forCrowHistory}=require('./crow-project-bible.cjs');
 const {buildReferenceDossier}=require('./crow-reference-dossier.cjs');
@@ -176,7 +176,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
     await session.disconnect();session=null;
     return output;
    }
-   let route,workProposal=null,taskRequested=false;
+   let route,workProposal=null,taskRequested=false,consult=null;
    const routeMethod=data.targetDirector&&data.targetDirector!=='auto'?
     'owner_selected':'ai_semantic';
    if(routeMethod==='owner_selected'){
@@ -200,6 +200,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
       persisted,workProposal:null}};
     }
     route=intent?.director||null;
+    consult=intent?.consult||null;
     taskRequested=intent?.action==='build'&&
      ['listening-director','pokemon-director'].includes(route);
     if(intent?.action==='investigate'&&intent.workerId){
@@ -234,7 +235,19 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
    const memory=await approvedMemory.load({
     token:bearer.slice(7),ownerId,actor:route,query:data.message.trim()
    });
-   const memoryPrompt=formatDirectorMemory(memory);
+   // Phase 3: optional colleague consult (standard approved notes only, via a
+   // server-made one-request grant). Failure just means no colleague notes.
+   let consultPrompt='',consulted=null;
+   if(consult&&typeof approvedMemory.loadConsult==='function'){
+    try{
+     const notes=await approvedMemory.loadConsult({token:bearer.slice(7),ownerId,
+      actor:route,consult,requestId:data.requestId,query:data.message.trim()});
+     consultPrompt=formatConsultMemory(notes,CAPABILITIES[consult].name);
+     if(consultPrompt){consulted=consult;
+      try{onProgress({stage:'consulted',directorId:route,consultedId:consult})}catch(_){}}
+    }catch(_){}
+   }
+   const memoryPrompt=formatDirectorMemory(memory)+consultPrompt;
    // A real coding request needs both standing owner consent and a live v1
    // controller. Ordinary Matt conversations retain their previous behavior.
    if(taskRequested&&await codingIntake.available()){
@@ -265,7 +278,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
      taskMission:{id:task.missionId,projectId:task.projectId,
       title:task.title,status:task.state},workProposal:null,
      persisted,handoffStored:false,
-     memory:{projectId:memory.projectId,included:memory.included}}};
+     memory:{projectId:memory.projectId,included:memory.included},consulted}};
    }
    // Only project-matching context reaches a Director; never mix projects.
    const sameProject=conversation?.activeDirector===route;
@@ -338,7 +351,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
     content:userFacing,aiTurns,requestId:data.requestId,
     routeMethod,routeStatus:'selected',workProposal,
     execution:'analysis_only',persisted,handoffStored,
-    memory:{projectId:memory.projectId,included:memory.included}}};
+    memory:{projectId:memory.projectId,included:memory.included},consulted}};
   }catch(_){
    // No raw exception, token, user message or model output in HTTP/logs.
    diagnostics(stage);

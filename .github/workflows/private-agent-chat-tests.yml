@@ -53,6 +53,8 @@ on:
       - 'tests/v5-task-agent-finish.test.cjs'
       - 'tests/v5-task-retry.test.cjs'
       - 'tests/phase5-routines-do-work.test.cjs'
+      - 'tests/director-consult.test.cjs'
+      - 'sql/paperworld_phase3_learning_memory.sql'
       - 'sql/paperworld_phase5_routines_do_work.sql'
       - 'tests/sql/**'
       - 'sql/paperworld_phase1_plain_failures.sql'
@@ -146,6 +148,7 @@ jobs:
             tests/v5-task-agent-finish.test.cjs \
             tests/v5-task-retry.test.cjs \
             tests/phase5-routines-do-work.test.cjs \
+            tests/director-consult.test.cjs \
             tests/v5-task-dispatcher.test.cjs \
             tests/v5-matt-task-messenger.test.cjs \
             tests/routine-owner-api.test.cjs \

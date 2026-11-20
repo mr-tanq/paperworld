@@ -25,6 +25,17 @@ CREATE TABLE public.paperworld_matt_notifications_v5 (mission_id uuid, owner_id 
 \ir ../../sql/paperworld_v6_autonomous_fixes.sql
 \ir ../../sql/paperworld_phase1_plain_failures.sql
 \ir ../../sql/paperworld_phase1_plain_failures.sql
+CREATE TABLE public.paperworld_director_memory (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), owner_id uuid NOT NULL,
+ project_id text NOT NULL CHECK (project_id IN ('town','workshop','pokemon','wellbeing','studio')),
+ kind text NOT NULL CHECK (kind IN ('project_bible','decision','preference','current_state','work_history')),
+ status text NOT NULL DEFAULT 'proposed' CHECK (status IN ('proposed','approved','rejected','superseded')),
+ title text NOT NULL CHECK (char_length(btrim(title)) BETWEEN 1 AND 140),
+ body text NOT NULL CHECK (char_length(btrim(body)) BETWEEN 1 AND 4000),
+ source_type text NOT NULL CHECK (source_type IN ('project_file','conversation','owner_note','verified_result')),
+ source_ref text NOT NULL CHECK (char_length(btrim(source_ref)) BETWEEN 1 AND 400),
+ observed_at timestamptz NOT NULL, sensitivity text NOT NULL DEFAULT 'standard', created_at timestamptz DEFAULT now());
+\ir ../../sql/paperworld_phase3_learning_memory.sql
+\ir ../../sql/paperworld_phase3_learning_memory.sql
 
 DO $$
 DECLARE o uuid:='11111111-1111-4111-8111-111111111111'; t uuid:='22222222-2222-4222-8222-222222222222';
@@ -71,6 +82,14 @@ BEGIN
  EXCEPTION WHEN check_violation THEN NULL; END;
 END $$;
 DO $$ DECLARE txt text; BEGIN
+ ASSERT (SELECT count(*) FROM public.paperworld_director_memory)=4,'one lesson per finished task, none while retrying';
+ SELECT body INTO txt FROM public.paperworld_director_memory WHERE source_ref='mission:a0000000-0000-4000-8000-000000000001';
+ ASSERT txt LIKE '%Τι έφταιγε: Η πηγή άλλαξε μορφή ημερομηνίας.%' AND txt LIKE '%μπήκε στην εφαρμογή%','lesson: '||txt;
+ ASSERT (SELECT project_id||kind||status||source_type FROM public.paperworld_director_memory
+  WHERE source_ref='mission:a0000000-0000-4000-8000-000000000001')='workshopwork_historyapprovedverified_result';
+ ASSERT NOT EXISTS(SELECT 1 FROM public.paperworld_director_memory WHERE source_ref='mission:a0000000-0000-4000-8000-000000000005'),'no lesson while a retry runs';
+ SELECT body INTO txt FROM public.paperworld_director_memory WHERE source_ref='mission:a0000000-0000-4000-8000-000000000004';
+ ASSERT txt LIKE '%Δεν ολοκληρώθηκε: η διόρθωση δεν πέρασε τα tests%','failure lesson: '||txt;
  SELECT content INTO txt FROM public.paperworld_agent_messages WHERE id=md5('a0000000-0000-4000-8000-000000000005:needs_you')::uuid;
  ASSERT txt LIKE '%δεν τα κατάφερε: η διόρθωση δεν πέρασε τα tests%' AND txt LIKE '%το ξαναπιάνει μόνος του%','retry message: '||txt;
 END $$;
