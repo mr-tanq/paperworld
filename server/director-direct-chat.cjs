@@ -38,10 +38,10 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
   if(typeof body!=='string'||Buffer.byteLength(body)>3500)return deny(413,'invalid_body');
   let data;
   try{data=JSON.parse(body)}catch(_){return deny(400,'invalid_json')}
-  if(!data||Object.keys(data).sort().join(',')!=='agentId,consent,message,requestId,threadId'||
+  if(!data||!['agentId,consent,message,requestId,threadId','agentId,consent,message,replyLanguage,requestId,threadId'].includes(Object.keys(data).sort().join(','))||
    !Object.hasOwn(DIRECTORS,data.agentId)||!UUID.test(data.threadId||'')||
    !UUID.test(data.requestId||'')||typeof data.message!=='string'||
-   !data.message.trim()||data.message.length>1200||data.consent!==CONSENT)
+   !data.message.trim()||data.message.length>1200||data.consent!==CONSENT||!['auto','el','en'].includes(data.replyLanguage??'auto'))
    return deny(400,'explicit_director_consent_required');
   const token=bearer.slice(7),agentId=data.agentId;
   let ownerId;
@@ -106,7 +106,7 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
    // context + APPROVED memory only, separating known facts from inference.
    const dossier=agentId==='studio-director'?buildReferenceDossier(data.message,
     {memoryText:approved.text}).text:'';
-   const prompt=intro+(agentId==='studio-director'?forCrowHistory()+forCrow():'')+
+   const prompt=intro+((data.replyLanguage==='en')?'Respond in English throughout this answer, regardless of input language. ':(data.replyLanguage==='el')?'Respond in Greek throughout this answer, regardless of input language. ':'')+(agentId==='studio-director'?forCrowHistory()+forCrow():'')+
     context+dossier+(previous?'\nEarlier conversation (lower-trust context):\n'+
     previous:'')+'\nCurrent user message: '+data.message.trim()+
     (agentId==='studio-director'?currentBriefPriority():'');
