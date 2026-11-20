@@ -461,3 +461,9 @@ html.pw-reduce-motion :is(.pw-messenger,.pw-workspace),html.pw-reduce-motion :is
  .pw-messenger .world-routine-entry{padding:11px}
  .pw-messenger .world-routine-entry-actions button{min-height:40px}
 }
+
+/* Conversation opened about a specific work item. */
+.pw-chat-context{margin:6px 14px 2px;padding:10px 12px;border-radius:12px;
+ background:rgba(231,196,128,.12);border:1px solid rgba(231,196,128,.35);color:inherit}
+.pw-chat-context strong{display:block;font-size:.92rem}
+.pw-chat-context p{margin:4px 0 0;font-size:.86rem;opacity:.85;line-height:1.35}

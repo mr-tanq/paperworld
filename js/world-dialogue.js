@@ -1273,8 +1273,11 @@
  contextRow.append(openStudio);
  composer.append(contextRow,form);
  composer.insertBefore(routineReview,form);
+ // The work item this conversation is about (opened from the Work list).
+ const contextNote=make('div','pw-chat-context');contextNote.hidden=true;
+ contextNote.setAttribute('role','note');
  const chat=make('div','pw-chat');
- chat.append(top,status,messages,decisions,composer);
+ chat.append(top,status,contextNote,messages,decisions,composer);
  panel.append(chat,musicPanel,memorySheet);view.append(panel);
  // Matt owns the conversation; internal agent and worker routing stays invisible.
  async function runMattWorkflow(text){
@@ -1782,15 +1785,22 @@
   // Avoid popping the phone keyboard over the conversation on open.
   if(!field.disabled&&!window.matchMedia?.('(pointer: coarse)')?.matches)field.focus();
  }
- function hide(){stopLiveMatt();openId=null;clearTimeout(speakingTimer);world()?.setConversation?.(null);const closed=panel.hidden?null:panel.dataset.agent||null;clearRoutineReview();resetMusic();setMenu(false);memorySheet.hidden=true;
+ function hide(){stopLiveMatt();openId=null;clearTimeout(speakingTimer);contextNote.hidden=true;contextNote.replaceChildren();world()?.setConversation?.(null);const closed=panel.hidden?null:panel.dataset.agent||null;clearRoutineReview();resetMusic();setMenu(false);memorySheet.hidden=true;
   panel.classList.remove('pw-memory-open');veil.classList.remove('world-chat-journey');paint();
   (opener&&opener.isConnected&&opener!==document.body?opener:mattBtn).focus?.();opener=null;
   // Lets the Workspace return the user to where they came from (Team/Work).
   if(closed)document.dispatchEvent(new CustomEvent('paperworld:chat-closed',{detail:{id:closed}}))}
  // Optional draft from Work ("Ζήτα κάτι από την ομάδα"): prefilled only,
  // never sent automatically — the owner still presses Send.
- function open(id,{draft=''}={}){
+ function open(id,{draft='',context=null}={}){
   show(id);
+  contextNote.replaceChildren();contextNote.hidden=true;
+  if(context&&typeof context.title==='string'&&context.title.trim()){
+   contextNote.append(make('strong','','Συζητάμε για: «'+context.title.trim().slice(0,140)+'»'));
+   if(typeof context.state==='string'&&context.state.trim())
+    contextNote.append(make('p','',context.state.trim().slice(0,240)));
+   contextNote.hidden=false;
+  }
   if(typeof draft==='string'&&draft.trim()&&!field.disabled){
    field.value=draft.trim().slice(0,1500);autoGrow();field.focus();
   }

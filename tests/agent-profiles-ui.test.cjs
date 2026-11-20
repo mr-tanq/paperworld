@@ -29,5 +29,5 @@ test('chat and team reuse the single portrait registry, loaded before UI scripts
  // Workers route to their responsible Director through the Workspace handoff
  // (which opens the Messenger and returns to Team afterwards).
  assert.match(team,/ctx\.chat\(responsible\)/);
- assert.match(read('js/workspace.js'),/chat\(\)\.open\(agentId,\{draft\}\)/);
+ assert.match(read('js/workspace.js'),/chat\(\)\.open\(agentId,\{draft,context\}\)/);
 });

@@ -20,6 +20,20 @@ const STATUS=Object.freeze({
  cancelled:'Η εργασία ακυρώθηκε.'
 });
 const ACTIVE=new Set(['queued','running','working','verifying']);
+// Why a task stopped, in plain words (same wording Matt uses in the chat).
+const STOP_REASON=Object.freeze({
+ agent_no_changes:'Ο Developer έψαξε τον κώδικα και δεν βρήκε κάτι χαλασμένο. Χρειάζεται ένα συγκεκριμένο παράδειγμα (πόλη, ημερομηνίες ή καλλιτέχνη).',
+ trusted_verification_failed:'Η διόρθωση δεν πέρασε τα tests, οπότε δεν μπήκε στην εφαρμογή.',
+ trusted_verification_timed_out:'Ο έλεγχος με τα tests δεν τελείωσε εγκαίρως.',
+ copilot_pr_missing:'Ο Developer δεν παρέδωσε διόρθωση.',
+ copilot_deadline_exceeded:'Ο Developer δεν τελείωσε εγκαίρως.',
+ agent_too_many_files:'Η αλλαγή άγγιζε περισσότερα αρχεία από όσα επιτρέπονται.',
+ agent_files_out_of_scope:'Η αλλαγή άγγιζε αρχεία έξω από τα επιτρεπόμενα.',
+ pr_head_moved_after_verification:'Η διόρθωση άλλαξε μετά τον έλεγχο, οπότε για ασφάλεια δεν μπήκε.',
+ pr_head_moved_after_verify:'Η διόρθωση άλλαξε μετά τον έλεγχο, οπότε για ασφάλεια δεν μπήκε.',
+ pr_head_changed_before_verify:'Η διόρθωση άλλαξε πριν τον έλεγχο.',
+ effect_requires_reconciliation:'Ο έλεγχος σταμάτησε πριν ολοκληρωθεί. Δεν άλλαξε τίποτα στην εφαρμογή.'
+});
 function safeUrl(url){
  if(typeof url!=='string')return null;
  try{const u=new URL(url);
@@ -47,6 +61,8 @@ function view(raw){
  return Object.freeze({id:String(raw.id||''),person:PERSON[raw.projectId],
   projectId:raw.projectId,title,status:raw.status,
   message:isSimulation?'Ολοκληρώθηκε μόνο δοκιμή υποδομής, όχι πραγματική εργασία.':
+   raw.status==='needs_you'&&typeof raw.lastError==='string'&&STOP_REASON[raw.lastError]?
+    STOP_REASON[raw.lastError]:
    completed&&!reviewed?'Η εργασία καταγράφηκε ως ολοκληρωμένη. Δεν υπάρχει εδώ επαληθευμένο αποτέλεσμα.':
    STATUS[raw.status],
   stage:raw.status==='needs_you'||raw.status==='failed'?'attention':
@@ -67,5 +83,5 @@ function summary(rows){
   attention:visible.filter(x=>x.stage==='attention').length,
   finished:visible.filter(x=>x.stage==='finished').length});
 }
-return Object.freeze({view,summary,safeUrl,STATUS});
+return Object.freeze({view,summary,safeUrl,STATUS,STOP_REASON});
 });

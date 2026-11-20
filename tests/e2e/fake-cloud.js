@@ -8,11 +8,12 @@ window.__installFakeCloud=function(){
   {id:'t3',room:'wellbeing',title:'Εβδομαδιαίο πρόγραμμα προπόνησης',notes:'',status:'done',created:now-7200000}];
  const missions=[
   {id:U(1),projectId:'listening',status:'running',goal:'Διόρθωση εικόνων που λείπουν από τις συναυλίες'},
-  {id:U(2),projectId:'pokemon',status:'needs_you',goal:'Ρύθμιση δυσκολίας στη μάχη του Alder'},
+  {id:U(2),projectId:'pokemon',status:'needs_you',lastError:'agent_no_changes',goal:'Ρύθμιση δυσκολίας στη μάχη του Alder'},
   {id:U(3),projectId:'listening',status:'completed',goal:'Βελτίωση φόρτωσης λίστας συναυλιών',report:{headStillCurrent:true,requiredTests:['npm test'],prUrl:'https://github.com/mr-tanq/concerts/pull/42'}}];
  const teamJobs=[{id:U(10),requestId:U(11),project:'pokemon',directorId:'pokemon-director',workerId:'pokemon-developer',status:'awaiting_consent',summary:'Ο Joey προτείνει έλεγχο του player.gd για το κόλλημα στην κίνηση',createdAt:iso(40)}];
  // Routine fakes: the slot rule mirrors the database (Europe/Amsterdam local time).
  const routines=[];
+ const dismissed=new Set();
  const slot=(day,hour,minute)=>{const d=new Date();for(let i=0;i<8;i++){const c=new Date(d);c.setDate(d.getDate()+i);
   if(c.getDay()===day){c.setHours(hour,minute,0,0);if(c>d)return c.toISOString()}}return new Date(d.getTime()+7*864e5).toISOString()};
  const client={
@@ -36,6 +37,7 @@ window.__installFakeCloud=function(){
   teamHandoffHistory:async()=>({jobs:teamJobs,workerRuns:[]}),
   listPokemonProposals:async()=>[],listListeningProposals:async()=>[],
   listAutonomousMissions:async()=>missions,autonomousControllerStatus:async()=>null,
+  listDismissed:async()=>[...dismissed],dismissItem:async k=>{dismissed.add(k);return true},restoreItem:async k=>{dismissed.delete(k);return true},
   agentMessages:async()=>[],githubLinkStatus:async()=>({connected:true,login:'owner'}),
   sunoLinkStatus:async()=>({oauthAuthorized:false,canGenerate:false,ephemeral:true}),
   listDirectorMemory:async()=>[],signout:async()=>{},beginGithubLink:async()=>'https://github.com/login/oauth/authorize?x=1',

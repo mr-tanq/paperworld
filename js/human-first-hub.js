@@ -333,6 +333,19 @@
       check.disabled=opBusy||loading;
       actions.append(check);
      }
+     // A decision that is no longer relevant can be put away (record kept).
+     const ui=window.PaperworldCloudUI;
+     if(typeof ui?.dismissItem==='function'){
+      const drop=button('Δεν χρειάζεται πια',async()=>{
+       if(!window.confirm('Να αφαιρεθεί αυτή η απόφαση από τη λίστα; Δεν θα ξεκινήσει κανένας έλεγχος.'))return;
+       drop.disabled=true;
+       try{await ui.dismissItem('handoff:'+item.id);
+        (window.PaperworldDismissedKeys||(window.PaperworldDismissedKeys=new Set())).add('handoff:'+item.id);
+        render();document.dispatchEvent(new CustomEvent('paperworld:work-changed'))}
+       catch(_){drop.disabled=false;markError('Η αφαίρεση δεν ολοκληρώθηκε.');render()}
+      },'human-hub-no');
+      actions.append(drop);
+     }
      card.append(actions);
     }
    }else card.append(e('p','human-hub-summary',
@@ -480,7 +493,8 @@
    if(!compact)host.append(controls);
    if(error)host.append(e('p','human-hub-error',error));
    if(loading&&!current.rows.length)host.append(e('p','human-hub-loading','Ανακτώ τις εργασίες σου…'));
-   const shown=current.rows.filter(item=>compact?
+   const removed=window.PaperworldDismissedKeys;
+   const shown=current.rows.filter(item=>!removed?.has?.(item.kind+':'+item.id)).filter(item=>compact?
     item.stage==='decision'||(item.kind==='handoff'&&item.status==='awaiting_consent'):
     visible(item));
    if(compact&&!shown.length&&!error){host.hidden=true;return}
