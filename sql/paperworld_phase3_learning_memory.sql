@@ -4,7 +4,8 @@
 -- kind work_history, source verified_result, standard sensitivity, approved,
 -- once per mission; never for Wellbeing; isolated from the message path).
 -- The owner sees and removes lessons in Memory like any other note.
--- Re-runnable; no cron, tick, grant or budget changes.
+-- Also calls Matt's morning summary (paperworld_phase2_daily_summary.sql) in its
+-- own exception block. Re-runnable; no cron, tick, grant or budget changes.
 begin;
 create or replace function public.paperworld_v5_notify_matt()
  returns jsonb
@@ -144,6 +145,9 @@ begin
   end if;
   new_count:=new_count+1;
  end loop;
+ -- Phase 2: Matt's morning summary (no-op before 09:00 local or if already sent).
+ begin perform public.paperworld_v1_daily_summary();
+ exception when others then null; end;
  return jsonb_build_object('state','ok','messages',new_count);
 end $function$;
 

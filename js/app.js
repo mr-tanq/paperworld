@@ -421,7 +421,26 @@ const mattReturnWaiters=[];
 function resolveMattReturn(){while(mattReturnWaiters.length)mattReturnWaiters.shift()()}
 // Workspace framing affects only the camera, never actor positions or scene scale.
 let workspaceFrame=null;
+// Phase 2: what each resident is doing now, from real missions only.
+let residentStatus=Object.freeze({});
+function drawResidentBubble(a,status){
+ if(!status||typeof status.text!=='string'||!status.text)return;
+ const text=status.text.slice(0,40);
+ ctx.save();
+ ctx.font='600 12px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+ const w=Math.min(220,ctx.measureText(text).width+18),h=22,x=a.x-w/2,y=a.y-118;
+ ctx.fillStyle=status.tone==='attention'?'rgba(122,46,28,.94)':status.tone==='done'?'rgba(36,84,52,.94)':'rgba(32,38,52,.92)';
+ ctx.strokeStyle='rgba(255,244,219,.85)';ctx.lineWidth=1.2;
+ ctx.beginPath();
+ if(ctx.roundRect)ctx.roundRect(x,y,w,h,9);else ctx.rect(x,y,w,h);
+ ctx.fill();ctx.stroke();
+ ctx.beginPath();ctx.moveTo(a.x-5,y+h);ctx.lineTo(a.x,y+h+6);ctx.lineTo(a.x+5,y+h);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#fff4db';ctx.fillText(text,a.x,y+h/2+.5);
+ ctx.restore();
+}
 window.PaperworldWorld=Object.freeze({
+ // Phase 2: residents' real activity (read-only projection, never execution).
+ setResidentStatus:(map)=>{residentStatus=map&&typeof map==='object'?Object.freeze({...map}):Object.freeze({});return true},
  agents:()=>actors.map(a=>({...a})),
  camera:()=>({x:state.x,y:state.y,scale:state.scale,fit:state.fit,
   width:state.width,height:state.height,adjusted:state.adjusted===true}),
@@ -710,6 +729,8 @@ layers.push({id:'player',depth:depth.actorWalkwayDepth(w,navigation,defs),paint:
  if(d)layers.push({id:'depth-demo',depth:d.y,paint:()=>drawFigure(d,true)});
  layers.push(...depth.foregroundLayers(ctx,scene.ready,scene.image,W,H));
  depth.sortLayers(layers).forEach(item=>item.paint());
+ // Bubbles stay above buildings so a resident's work is always readable.
+ for(const a of actors)if(residentStatus[a.id])drawResidentBubble(a,residentStatus[a.id]);
  // Authoring overlay stays visible even over building art; it is never used for live routes.
  if(editingPaths){
   pathDraft.draw(ctx);

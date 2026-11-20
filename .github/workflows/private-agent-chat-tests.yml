@@ -54,6 +54,10 @@ on:
       - 'tests/v5-task-retry.test.cjs'
       - 'tests/phase5-routines-do-work.test.cjs'
       - 'tests/director-consult.test.cjs'
+      - 'tests/phase2-living-village.test.cjs'
+      - 'js/resident-status.js'
+      - 'js/resident-feed.js'
+      - 'sql/paperworld_phase2_daily_summary.sql'
       - 'sql/paperworld_phase3_learning_memory.sql'
       - 'sql/paperworld_phase5_routines_do_work.sql'
       - 'tests/sql/**'
@@ -149,6 +153,7 @@ jobs:
             tests/v5-task-retry.test.cjs \
             tests/phase5-routines-do-work.test.cjs \
             tests/director-consult.test.cjs \
+            tests/phase2-living-village.test.cjs \
             tests/v5-task-dispatcher.test.cjs \
             tests/v5-matt-task-messenger.test.cjs \
             tests/routine-owner-api.test.cjs \

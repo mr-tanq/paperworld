@@ -15,7 +15,7 @@ CREATE TABLE public.paperworld_agent_messages (id uuid PRIMARY KEY, thread_id uu
  role text, content text);
 CREATE TABLE public.paperworld_autonomous_missions_v5 (id uuid PRIMARY KEY, owner_id uuid, thread_id uuid,
  project_id text, goal text, status text, engine text, spec jsonb, updated_at timestamptz DEFAULT now(),
- last_error text, policy jsonb DEFAULT '{}');
+ last_error text, policy jsonb DEFAULT '{}', report jsonb);
 CREATE TABLE public.paperworld_autonomous_steps_v5 (id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  mission_id uuid, seq integer, capability text, state text, output jsonb);
 CREATE TABLE public.paperworld_matt_notifications_v5 (mission_id uuid, owner_id uuid, kind text,
@@ -92,6 +92,22 @@ DO $$ DECLARE txt text; BEGIN
  ASSERT txt LIKE '%Δεν ολοκληρώθηκε: η διόρθωση δεν πέρασε τα tests%','failure lesson: '||txt;
  SELECT content INTO txt FROM public.paperworld_agent_messages WHERE id=md5('a0000000-0000-4000-8000-000000000005:needs_you')::uuid;
  ASSERT txt LIKE '%δεν τα κατάφερε: η διόρθωση δεν πέρασε τα tests%' AND txt LIKE '%το ξαναπιάνει μόνος του%','retry message: '||txt;
+END $$;
+\ir ../../sql/paperworld_phase2_daily_summary.sql
+\ir ../../sql/paperworld_phase2_daily_summary.sql
+DO $$ DECLARE txt text; n int; BEGIN
+ UPDATE public.paperworld_autonomous_missions_v5 SET report='{"merged":true,"title":"Λείπουν συναυλίες"}'
+  WHERE id='a0000000-0000-4000-8000-000000000001';
+ UPDATE public.paperworld_autonomous_missions_v5 SET updated_at='2030-01-15 07:30Z';
+ ASSERT public.paperworld_v1_daily_summary('2030-01-15 06:30Z')=0,'nothing before 09:00 Amsterdam';
+ n:=public.paperworld_v1_daily_summary('2030-01-15 08:30Z');
+ ASSERT n=1,'one summary for the owner: '||n;
+ ASSERT public.paperworld_v1_daily_summary('2030-01-15 10:30Z')=0,'once per local day';
+ SELECT content INTO txt FROM public.paperworld_agent_messages
+  WHERE id=md5('11111111-1111-4111-8111-111111111111:daily:2030-01-15')::uuid;
+ ASSERT txt LIKE '%"director": "matt"%' OR txt LIKE '%"director":"matt"%','from Matt: '||txt;
+ ASSERT txt LIKE '%Ολοκληρώθηκαν 3 (1 μπήκαν ήδη στην εφαρμογή)%' AND txt LIKE '%«Λείπουν συναυλίες»%'
+  AND txt LIKE '%Σε εξέλιξη: 1%' AND txt LIKE '%Χρειάζονται εσένα: 1%','summary: '||txt;
 END $$;
 SELECT 'Autonomous fixes integration passed' AS result;
 ROLLBACK;

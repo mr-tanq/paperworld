@@ -43,6 +43,7 @@ function view(raw){
   verifiedUrl.startsWith('https://github.com/mr-tanq/'+projectRepo[raw.projectId]+'/pull/')
   ?verifiedUrl:null;
  const isSimulation=raw.simulation===true;
+ const merged=Boolean(link)&&raw.report.merged===true;
  return Object.freeze({id:String(raw.id||''),person:PERSON[raw.projectId],
   projectId:raw.projectId,title,status:raw.status,
   message:isSimulation?'Ολοκληρώθηκε μόνο δοκιμή υποδομής, όχι πραγματική εργασία.':
@@ -51,8 +52,12 @@ function view(raw){
   stage:raw.status==='needs_you'||raw.status==='failed'?'attention':
    ACTIVE.has(raw.status)?'active':completed?'finished':'waiting',
   resultLink:isSimulation?null:link,
-  resultLabel:link?'Δες την αλλαγή που ετοιμάστηκε':null,
-  resultNote:link?'Η αλλαγή έχει ελεγχθεί, αλλά δεν έχει δημοσιευτεί.':null
+  resultLabel:link?(merged?'Δες τι αλλάξαμε':'Δες την αλλαγή που ετοιμάστηκε'):null,
+  resultNote:link?(merged?'Πέρασε τα tests και μπήκε ήδη στην εφαρμογή.':
+   'Η αλλαγή έχει ελεγχθεί, αλλά δεν έχει δημοσιευτεί.'):null,
+  // Phase 2: the Developer's own one-line explanation, when present.
+  cause:reviewed&&typeof raw.report.cause==='string'?raw.report.cause.slice(0,280):null,
+  fix:reviewed&&typeof raw.report.fix==='string'?raw.report.fix.slice(0,280):null
  });
 }
 function summary(rows){
