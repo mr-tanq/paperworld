@@ -1282,6 +1282,7 @@
   busy=true;field.disabled=true;send.disabled=true;
   veil.classList.remove('world-chat-journey');mattJourneyCaption='';
   status.textContent='Ο Matt το σκέφτεται…';
+  speak('agent');
   pendingFailure=null;
   {const sent=bubble('human',text,new Date().toISOString());sent.classList.add('pw-pending');
    messages.querySelector('.world-dialogue-note')?.remove();messages.append(sent);showTyping()}
@@ -1299,8 +1300,9 @@
    finally{polling=false}
   };
   let journeyStarted=false,journeyDirector=null;
-  const directorNames={'studio-director':'Crow','pokemon-director':'Joey',
-   'listening-director':'Luna'};
+  const directorNames={'studio-director':'τον Crow','pokemon-director':'τον Joey',
+   'listening-director':'τη Luna','wellbeing-director':'τον Dave'};
+  const bare=id=>({'studio-director':'Crow','pokemon-director':'Joey','listening-director':'Luna'})[id];
   try{
    const result=await cloud().delegateMatt(text,{targetDirector:'auto',
      conversation:{activeDirector:activeMattDirector,turns:mattConversation.slice(-8)},
@@ -1310,8 +1312,14 @@
        journeyStarted=world()?.startMattDirectorJourney?.(event.directorId)===true;
        if(journeyStarted){
         journeyDirector=event.directorId;
-        status.textContent='Ο Matt πηγαίνει στον '+(directorNames[journeyDirector]||'Director')+'…';
+        status.textContent='Ο Matt πηγαίνει '+(journeyDirector==='listening-director'?'στη Luna':'στον '+(bare(journeyDirector)||'Director'))+'…';
        }
+      }else if(event.stage==='consulted'){
+       // A colleague consult is shown as a letter between the two Directors.
+       world()?.showConsult?.(event.consultedId,event.directorId);
+       if(bare(event.directorId)&&bare(event.consultedId))
+        status.textContent=(event.directorId==='listening-director'?'Η ':'Ο ')+bare(event.directorId)+
+         ' ρωτά '+(event.consultedId==='listening-director'?'τη ':'τον ')+bare(event.consultedId)+'…';
       }else if(event.stage==='director_reported'&&journeyStarted){
        status.textContent='Ο Matt έρχεται με νέα…';
       }
@@ -1334,13 +1342,13 @@
    }
    if(journeyStarted){
     veil.classList.add('world-chat-journey');
-    const who=directorNames[journeyDirector]||'Director';
-    status.textContent='Ο Matt επιστρέφει από τον '+who+'…';
+    const who=directorNames[journeyDirector]||'τον Director';
+    status.textContent='Ο Matt επιστρέφει από '+who+'…';
     world()?.completeMattDirectorJourney?.();
     // If browser animation is paused, do not leave the reply blocked forever.
     await Promise.race([world()?.waitMattDirectorReturn?.()||Promise.resolve(),
      new Promise(resolve=>setTimeout(resolve,90000))]);
-    mattJourneyCaption='Ο Matt επέστρεψε από τον '+who;
+    mattJourneyCaption='Ο Matt επέστρεψε από '+who;
    }
    mattReplies.push({id:result.persisted===true?result.requestId:null,
     content:String(result.content||
@@ -1434,6 +1442,7 @@
   }finally{
    if(watcher!==null)clearInterval(watcher);
    busy=false;field.disabled=false;send.disabled=false;
+   if(openId)speak(null);
    if(openId==='matt'){
     paint();
     if(failure)status.textContent=friendlyError(failure);
@@ -1760,12 +1769,20 @@
  // Return focus to whatever opened the Messenger (village control, shortcut).
  let opener=null;
  document.addEventListener('focusin',e=>{if(!panel.contains(e.target))opener=e.target});
+ // Living village v3: the village shows who the owner is talking to.
+ let speakingTimer=null;
+ function speak(who,ms=0){
+  clearTimeout(speakingTimer);
+  world()?.setConversation?.(openId?{with:openId,speaking:who}:null);
+  if(ms>0)speakingTimer=setTimeout(()=>{if(openId)world()?.setConversation?.({with:openId,speaking:busy?'agent':null})},ms);
+ }
  function show(id){stopLiveMatt();openId=id;paint();startLiveMatt();fitViewport();autoGrow();
+  world()?.setConversation?.({with:id,speaking:null});
   document.dispatchEvent(new CustomEvent('paperworld:chat-opened',{detail:{id}}));
   // Avoid popping the phone keyboard over the conversation on open.
   if(!field.disabled&&!window.matchMedia?.('(pointer: coarse)')?.matches)field.focus();
  }
- function hide(){stopLiveMatt();openId=null;const closed=panel.hidden?null:panel.dataset.agent||null;clearRoutineReview();resetMusic();setMenu(false);memorySheet.hidden=true;
+ function hide(){stopLiveMatt();openId=null;clearTimeout(speakingTimer);world()?.setConversation?.(null);const closed=panel.hidden?null:panel.dataset.agent||null;clearRoutineReview();resetMusic();setMenu(false);memorySheet.hidden=true;
   panel.classList.remove('pw-memory-open');veil.classList.remove('world-chat-journey');paint();
   (opener&&opener.isConnected&&opener!==document.body?opener:mattBtn).focus?.();opener=null;
   // Lets the Workspace return the user to where they came from (Team/Work).
@@ -1840,7 +1857,7 @@
   const optimistic=bubble('human',text,new Date().toISOString());
   optimistic.classList.add('pw-pending');
   if(saveNote&&openId===id){messages.querySelector('.world-dialogue-note')?.remove();messages.append(optimistic)}
-  field.value='';autoGrow();showTyping();scrollBottom();
+  field.value='';autoGrow();showTyping();scrollBottom();speak('agent');
   try{
    const result=saveNote?await cloud().askDirector(id,text):
     await cloud().askDirector(id,text,{saveNote:false});
@@ -1851,7 +1868,7 @@
    pendingFailure={agentId:id,text,noteSaved:error?.noteSaved===true||!saveNote,error};
    if(!pendingFailure.noteSaved&&openId===id){field.value=text;autoGrow()}
   }
-  finally{busy=false;typing.remove();if(openId===id)paint()}
+  finally{busy=false;typing.remove();if(openId===id){paint();speak(null)}}
  }
  // Composer grows with its content up to a comfortable maximum.
  function autoGrow(){
@@ -1859,6 +1876,8 @@
   field.style.height=Math.min(field.scrollHeight,160)+'px';
  }
  field.addEventListener('input',autoGrow);
+ // While the owner types, the village shows them speaking.
+ field.addEventListener('input',()=>{if(openId&&!busy&&field.value.trim())speak('player',1400)});
  // Keep the composer above the on-screen keyboard on phones and tablets.
  const vv=window.visualViewport;
  function fitViewport(){

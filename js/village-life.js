@@ -10,14 +10,19 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
  'use strict';
  const DIRECTORS=['listening-director','pokemon-director','wellbeing-director','studio-director'];
- const SPEED=68,PAUSE_MIN=3.4,PAUSE_MAX=8.2;
+ // v3: continuous strolls. SPEED is the hard per-tick ceiling; each resident
+ // walks at their own pace below it, eases into stops, and mostly keeps going.
+ const SPEED=78,PAUSE_MIN=0.8,PAUSE_MAX=2.6,LINGER_MIN=4,LINGER_MAX=7;
  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  const face=(a,b)=>Math.abs(b.x-a.x)>=Math.abs(b.y-a.y)?(b.x>a.x?'right':'left'):(b.y>a.y?'down':'up');
  function create(navigation,actors,random=Math.random){
   if(!navigation||!Array.isArray(actors))throw Error('VillageLife requires navigation and actors');
   const members=actors.filter(a=>DIRECTORS.includes(a.id));
   const records=new Map(members.map((a,i)=>[a.id,{actor:a,home:{x:a.x,y:a.y},
-    route:[],timer:4+i*2.3,greeting:0,friend:null,cooldown:8+i*3,homeward:false}]));
+    route:[],timer:1.2+i*1.1,greeting:0,friend:null,cooldown:8+i*3,homeward:false,
+    pace:60+((i*7)%4)*5.5,legs:0}]));
+  const pause=()=>random()<0.22?LINGER_MIN+random()*(LINGER_MAX-LINGER_MIN):
+   PAUSE_MIN+random()*(PAUSE_MAX-PAUSE_MIN);
   let suspended=false,seconds=0,assemblyBusy=false;
   const connected=(a,b)=>{const s=navigation.snapToPath([a.x,a.y],26),e=navigation.snapToPath([b.x,b.y],2);
    return s&&e?navigation.routeBetween(s,e):[]};
@@ -33,25 +38,35 @@
    for(const r of records.values()){r.friend=null;r.greeting=0;r.timer=0;r.route=[];
     r.homeward=true;if(!home(r))go(r,r.home);else r.actor.moving=false}
   }
+  // A resident who is talking with someone stops strolling and faces them.
+  function hold(id,faceTo){const r=records.get(id);if(!r)return false;
+   r.held=typeof faceTo==='function'?faceTo:()=>null;r.route=[];r.greeting=0;r.friend=null;r.actor.moving=false;return true}
+  function release(id){const r=records.get(id);if(!r||!r.held)return false;r.held=null;r.timer=1.5+random()*2;return true}
   function ready(){return [...records.values()].every(r=>home(r)&&r.route.length===0)}
   function resume(){if(!ready())return false;suspended=false;
    for(const r of records.values()){r.homeward=false;r.timer=2+random()*5;r.cooldown=9+random()*12}
    return true}
   function chooseRoam(r){
+   // Longer, varied strolls: anywhere within a neighbourhood of home, and after
+   // a few legs the walk curves back towards home so nobody drifts away.
+   const far=r.legs>=3&&dist(r.actor,r.home)>160;
    const candidates=navigation.nodes.filter(p=>{
-    const dest={x:p[0],y:p[1]},span=dist(r.home,dest);
-    return span>=70&&span<=230&&!navigation.blockedPoint(p,12)&&
+    const dest={x:p[0],y:p[1]},span=dist(r.home,dest),hop=dist(r.actor,dest);
+    return (far?span<=120:span<=420)&&hop>=90&&!navigation.blockedPoint(p,12)&&
       [...records.values()].every(o=>o===r||dist(o.actor,dest)>38);
    });
    for(let tries=0;tries<Math.min(candidates.length,8);tries++){
     const p=candidates[Math.floor(random()*candidates.length)];
-    if(go(r,{x:p[0],y:p[1]}))return true;
+    if(go(r,{x:p[0],y:p[1]})){r.legs=far?0:r.legs+1;return true}
    }
    if(!home(r))return go(r,r.home);
    return false;
   }
   function advance(r,dt){
-   let budget=SPEED*dt;const a=r.actor;a.moving=false;
+   // Ease out over the last few steps of a stroll (never above SPEED).
+   const left=r.route.reduce((n,p,i)=>n+(i?dist(r.route[i-1],p):dist(r.actor,p)),0);
+   const pace=Math.min(SPEED,r.pace||SPEED)*(left<24?Math.max(.45,left/24):1);
+   let budget=pace*dt;const a=r.actor;a.moving=false;
    while(r.route.length&&budget>0){
     const point=r.route[0],d=dist(a,point);
     if(d<.01){r.route.shift();continue}
@@ -85,6 +100,7 @@
      continue;
     }
     if(assemblyBusy){r.route=[];r.greeting=0;r.timer=Math.max(r.timer,2);continue}
+    if(r.held){a.moving=false;const t=r.held();if(t)a.direction=face(a,t);continue}
     r.cooldown=Math.max(0,r.cooldown-step);
     if(r.greeting>0){
      r.greeting=Math.max(0,r.greeting-step);a.moving=false;
@@ -93,18 +109,18 @@
      if(r.greeting===0)r.friend=null;
      continue;
     }
-    if(r.route.length){advance(r,step);if(!r.route.length)r.timer=PAUSE_MIN+random()*(PAUSE_MAX-PAUSE_MIN);continue}
+    if(r.route.length){advance(r,step);if(!r.route.length)r.timer=pause();continue}
     a.moving=false;r.timer-=step;
     if(r.timer<=0){
      const nearby=[...records.values()].filter(o=>o!==r&&!o.route.length&&o.greeting<=0&&o.cooldown<=0);
      const friend=nearby.find(o=>greet(r,o));
      if(friend)continue;
-     if(!chooseRoam(r))r.timer=PAUSE_MIN+random()*PAUSE_MAX;
+     if(!chooseRoam(r))r.timer=pause();
     }
    }
   }
   function greetings(){return [...records.values()].filter(r=>r.greeting>0).map(r=>({id:r.actor.id,with:r.friend}))}
-  return Object.freeze({tick,recallAll,ready,resume,greetings,isSuspended:()=>suspended,homeOf:id=>records.get(id)?.home||null});
+  return Object.freeze({tick,recallAll,ready,resume,greetings,hold,release,isSuspended:()=>suspended,homeOf:id=>records.get(id)?.home||null});
  }
  return Object.freeze({create,DIRECTORS,SPEED});
 });

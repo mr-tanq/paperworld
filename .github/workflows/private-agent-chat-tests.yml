@@ -56,6 +56,9 @@ on:
       - 'tests/director-consult.test.cjs'
       - 'tests/phase2-living-village.test.cjs'
       - 'tests/suno-monthly-cap.test.cjs'
+      - 'tests/living-village-v3.test.cjs'
+      - 'js/village-life.js'
+      - 'js/village-ambience.js'
       - 'sql/paperworld_phase4_suno_monthly_cap.sql'
       - 'server/suno-durable-claim.cjs'
       - 'js/resident-status.js'
@@ -158,6 +161,8 @@ jobs:
             tests/director-consult.test.cjs \
             tests/phase2-living-village.test.cjs \
             tests/suno-monthly-cap.test.cjs \
+            tests/living-village-v3.test.cjs \
+            tests/village-life-v2.test.cjs \
             tests/v5-task-dispatcher.test.cjs \
             tests/v5-matt-task-messenger.test.cjs \
             tests/routine-owner-api.test.cjs \
