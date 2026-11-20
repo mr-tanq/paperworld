@@ -11,6 +11,7 @@ const {forCrow:forCrowHistory}=require('./crow-project-bible.cjs');
 const {createDirectorThreadRecall}=require('./director-thread-recall.cjs');
 const {createDirectorReplyPersistence}=require('./director-reply-persistence.cjs');
 const {buildReferenceDossier}=require('./crow-reference-dossier.cjs');
+const {forDave}=require('./dave-coaching-guide.cjs');
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const ORIGIN='https://mr-tanq.github.io',CONSENT='ONE_DIRECTOR_COPILOT_TURN_INCLUDED_ALLOWANCE';
 const DIRECTORS=Object.freeze({
@@ -107,6 +108,7 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
    const dossier=agentId==='studio-director'?buildReferenceDossier(data.message,
     {memoryText:approved.text}).text:'';
    const prompt=intro+((data.replyLanguage==='en')?'Respond in English throughout this answer, regardless of input language. ':(data.replyLanguage==='el')?'Respond in Greek throughout this answer, regardless of input language. ':'')+(agentId==='studio-director'?forCrowHistory()+forCrow():'')+
+    (agentId==='wellbeing-director'?forDave():'')+
     context+dossier+(previous?'\nEarlier conversation (lower-trust context):\n'+
     previous:'')+'\nCurrent user message: '+data.message.trim()+
     (agentId==='studio-director'?currentBriefPriority():'');
