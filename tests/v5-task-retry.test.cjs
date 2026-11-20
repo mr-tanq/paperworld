@@ -104,3 +104,30 @@ test('passing tests do not create a retry',async()=>{
  await f.run().catch(()=>{});
  assert.equal(f.retry(),null);
 });
+test('a PR with no changes stops cleanly as agent_no_changes (no loop, no retry)',async()=>{
+ const {createTaskDispatcher}=await import('../supabase/functions/paperworld-task-dispatch/index.mjs');
+ const rpcs=[];
+ const mission='11111111-1111-4111-8111-111111111111',HEAD='a'.repeat(40);
+ const steps=['create_issue','start_agent','await_agent','verify','report'].map((capability,i)=>({
+  id:String(i+1).repeat(8)+'-aaaa-4aaa-8aaa-'+'a'.repeat(12),seq:i+1,capability,state:i<3?'succeeded':i===3?'leased':'pending',
+  input:{effectKey:'task-v1:'+mission+':'+(i+1)},output:capability==='await_agent'?{prNumber:11,headSha:HEAD}:{}}));
+ const json=v=>({ok:true,status:200,json:async()=>v});
+ const fetcher=async(url,opts={})=>{const u=new URL(url);
+  if(u.pathname.includes('/rpc/')){const name=u.pathname.split('/').pop();rpcs.push({name,args:JSON.parse(opts.body||'{}')});
+   if(name==='paperworld_v5_claim_task_step')return json([{step_id:steps[3].id,mission_id:mission,capability:'verify'}]);
+   return json(name==='paperworld_v5_resume_due_budget'?0:true)}
+  if(u.pathname.endsWith('/paperworld_autonomous_controller_v5'))return json([{engine:'v1',dispatch_enabled:true,live_adapters:['copilot_agent']}]);
+  if(u.pathname.endsWith('/paperworld_autonomous_effects_v5'))return json([]);
+  if(u.pathname.endsWith('/paperworld_autonomous_missions_v5'))return json([{id:mission,owner_id:mission,thread_id:mission,goal:'g',engine:'v1',project_id:'listening',status:'verifying',
+   spec:{projectId:'listening',directorId:'listening-director',repository:'mr-tanq/concerts',title:'t',summary:'s',acceptance:['a'],
+    requiredTests:['festival_discovery'],allowedPaths:['js/'],maxFiles:3,noAutoMerge:true,noAutoDeploy:true},policy:{}}]);
+  if(u.pathname.endsWith('/paperworld_autonomous_steps_v5'))return json(steps);
+  if(u.pathname.endsWith('/pulls/11'))return json({state:'open',draft:true,head:{sha:HEAD}});
+  if(u.pathname.endsWith('/pulls/11/files'))return json([]);
+  throw Error('unexpected '+url)};
+ const d=createTaskDispatcher({environment:k=>({PAPERWORLD_DISPATCH_TRIGGER_SECRET:'synthetic_test_secret_0123456789012345',
+  GITHUB_COPILOT_USER_TOKEN:'synthetic_github_token_0000000000000',SUPABASE_SECRET_KEYS:JSON.stringify({default:'sb_secret_test_only_00000000000000000'})})[k],fetcher});
+ const r=await d.processOnce();
+ assert.equal(r.state,'needs_you');assert.equal(r.reason,'agent_no_changes');
+ assert.ok(!rpcs.some(x=>x.name==='paperworld_v5_plan_task'),'no automatic retry for "nothing to change"');
+});

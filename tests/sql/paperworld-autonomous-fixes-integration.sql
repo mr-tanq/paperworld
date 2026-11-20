@@ -36,6 +36,11 @@ CREATE TABLE public.paperworld_director_memory (id uuid PRIMARY KEY DEFAULT gen_
  observed_at timestamptz NOT NULL, sensitivity text NOT NULL DEFAULT 'standard', created_at timestamptz DEFAULT now());
 \ir ../../sql/paperworld_phase3_learning_memory.sql
 \ir ../../sql/paperworld_phase3_learning_memory.sql
+INSERT INTO public.paperworld_autonomous_missions_v5(id,owner_id,thread_id,project_id,goal,status,engine,spec,last_error) VALUES
+ ('a0000000-0000-4000-8000-000000000007','11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222',
+  'listening','g','needs_you','v1','{"title":"Διόρθωση εύρεσης συναυλιών"}','agent_no_changes');
+INSERT INTO public.paperworld_autonomous_steps_v5(mission_id,seq,capability,state,output) VALUES
+ ('a0000000-0000-4000-8000-000000000007',3,'await_agent','succeeded','{"prUrl":"https://github.com/mr-tanq/concerts/pull/11"}');
 
 DO $$
 DECLARE o uuid:='11111111-1111-4111-8111-111111111111'; t uuid:='22222222-2222-4222-8222-222222222222';
@@ -63,7 +68,7 @@ BEGIN
    '{"title":"Φίλτρο πόλης","merged":false,"mergeState":"blocked","prUrl":"https://github.com/mr-tanq/concerts/pull/13"}'),
   ('a0000000-0000-4000-8000-000000000003',5,'report','succeeded','{"title":"Παλιά εργασία"}');
  r:=public.paperworld_v5_notify_matt();
- ASSERT (r->>'messages')::int=5,'five notifications '||r;
+ ASSERT (r->>'messages')::int=6,'six notifications '||r;
  ASSERT (public.paperworld_v5_notify_matt()->>'messages')::int=0,'never notified twice';
  SELECT content INTO txt FROM public.paperworld_agent_messages WHERE id=md5('a0000000-0000-4000-8000-000000000001:completed')::uuid;
  ASSERT txt LIKE '%Το βρήκαμε και το φτιάξαμε: «Λείπουν συναυλίες»%' AND txt LIKE '%Τι έφταιγε: Η πηγή άλλαξε μορφή ημερομηνίας.%'
@@ -82,7 +87,10 @@ BEGIN
  EXCEPTION WHEN check_violation THEN NULL; END;
 END $$;
 DO $$ DECLARE txt text; BEGIN
- ASSERT (SELECT count(*) FROM public.paperworld_director_memory)=4,'one lesson per finished task, none while retrying';
+ SELECT content INTO txt FROM public.paperworld_agent_messages WHERE id=md5('a0000000-0000-4000-8000-000000000007:needs_you')::uuid;
+ ASSERT txt LIKE '%δεν βρήκε κάτι χαλασμένο%' AND txt LIKE '%πόλη, ημερομηνίες ή καλλιτέχνη%'
+  AND txt LIKE '%https://github.com/mr-tanq/concerts/pull/11%','no-change message: '||txt;
+ ASSERT (SELECT count(*) FROM public.paperworld_director_memory)=5,'one lesson per finished task, none while retrying';
  SELECT body INTO txt FROM public.paperworld_director_memory WHERE source_ref='mission:a0000000-0000-4000-8000-000000000001';
  ASSERT txt LIKE '%Τι έφταιγε: Η πηγή άλλαξε μορφή ημερομηνίας.%' AND txt LIKE '%μπήκε στην εφαρμογή%','lesson: '||txt;
  ASSERT (SELECT project_id||kind||status||source_type FROM public.paperworld_director_memory
@@ -108,7 +116,7 @@ DO $$ DECLARE txt text; n int; BEGIN
   WHERE id=md5('11111111-1111-4111-8111-111111111111:daily:2030-01-15')::uuid;
  ASSERT txt LIKE '%"director": "matt"%' OR txt LIKE '%"director":"matt"%','from Matt: '||txt;
  ASSERT txt LIKE '%Ολοκληρώθηκαν 3 (1 μπήκαν ήδη στην εφαρμογή)%' AND txt LIKE '%«Λείπουν συναυλίες»%'
-  AND txt LIKE '%Σε εξέλιξη: 1%' AND txt LIKE '%Χρειάζονται εσένα: 1%','summary: '||txt;
+  AND txt LIKE '%Σε εξέλιξη: 1%' AND txt LIKE '%Χρειάζονται εσένα: 2%','summary: '||txt;
 END $$;
 SELECT 'Autonomous fixes integration passed' AS result;
 ROLLBACK;

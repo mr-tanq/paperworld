@@ -297,7 +297,18 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
    const pr=await gh.getPull(project,prNumber);
    if(pr?.head?.sha!==sha||pr?.draft!==true||pr?.state!=='open')
     return fail(s.id,worker,'pr_head_changed_before_verify');
-   await gh.assertScopedChanges(project,prNumber,spec.allowedPaths,spec.maxFiles);
+   // A Developer who investigated and changed nothing, or who touched files
+   // outside the allowed scope, is a clear outcome for the owner — never an
+   // error loop. Matt explains it in plain words.
+   try{await gh.assertScopedChanges(project,prNumber,spec.allowedPaths,spec.maxFiles)}
+   catch(error){
+    if(error?.message==='file_count_denied'){
+     const count=await gh.changedFileCount(project,prNumber);
+     return fail(s.id,worker,count===0?'agent_no_changes':'agent_too_many_files');
+    }
+    if(error?.message==='file_policy_denied')return fail(s.id,worker,'agent_files_out_of_scope');
+    throw error;
+   }
    const pin=await gh.trustedMain(project,config.workflowBlob);
    let effect=await readEffect(s.id);
    if(!effect){

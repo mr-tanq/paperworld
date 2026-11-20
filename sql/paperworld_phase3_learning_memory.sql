@@ -62,6 +62,10 @@ begin
   title:=left(coalesce(nullif(rep->>'title',''),nullif(notice.spec->>'title',''),'την εργασία'),120);
   details:=coalesce(E'\nΤι έφταιγε: '||left(nullif(rep->>'cause',''),280),'')||
    coalesce(E'\nΤι αλλάξαμε: '||left(nullif(rep->>'fix',''),280),'');
+  if rep is null and notice.kind='needs_you' then
+   select jsonb_build_object('prUrl',s.output->>'prUrl') into rep from public.paperworld_autonomous_steps_v5 s
+    where s.mission_id=notice.id and s.capability='await_agent' limit 1;
+  end if;
   pr_link:=case when rep->>'prUrl' ~ '^https://github\.com/mr-tanq/[A-Za-z0-9._-]+/pull/[0-9]+$'
    then rep->>'prUrl' end;
   -- Plain words for the engine's stop reasons (never shows raw codes).
@@ -75,6 +79,9 @@ begin
    when 'pr_head_moved_after_verify' then 'η διόρθωση άλλαξε μετά τον έλεγχο, οπότε για ασφάλεια δεν τη βάλαμε.'
    when 'pr_head_moved_after_verification' then 'η διόρθωση άλλαξε μετά τον έλεγχο, οπότε για ασφάλεια δεν τη βάλαμε.'
    when 'trusted_verification_missing' then 'δεν βρέθηκε επιβεβαιωμένος έλεγχος, οπότε δεν τη βάλαμε.'
+   when 'agent_no_changes' then 'ο Developer έψαξε τον κώδικα και δεν βρήκε κάτι χαλασμένο να διορθώσει, οπότε δεν άλλαξε τίποτα.'
+   when 'agent_too_many_files' then 'η αλλαγή άγγιζε περισσότερα αρχεία από όσα επιτρέπονται, οπότε δεν τη βάλαμε.'
+   when 'agent_files_out_of_scope' then 'η αλλαγή άγγιζε αρχεία έξω από τα επιτρεπόμενα, οπότε για ασφάλεια δεν τη βάλαμε.'
    else 'κάτι δεν πήγε όπως έπρεπε στη διαδικασία.' end;
   msg:=case
    when notice.kind='completed' and rep->>'merged'='true' then
@@ -93,6 +100,10 @@ begin
      where r.policy->>'retryOf'=notice.id::text and r.owner_id=notice.owner_id) then
     'Η πρώτη προσπάθεια για «'||title||'» δεν τα κατάφερε: '||why
      ||' Ο Developer το ξαναπιάνει μόνος του, με όσα έμαθε. Δεν χρειάζεται να κάνεις τίποτα· θα σου πω το αποτέλεσμα.'
+   when notice.kind='needs_you' and notice.last_error='agent_no_changes' then
+    'Για «'||title||'»: '||why||' Για να το εντοπίσουμε χρειάζομαι ένα συγκεκριμένο παράδειγμα, '
+     ||'π.χ. πόλη, ημερομηνίες ή καλλιτέχνη που δεν εμφανίζεται. Πες μου και το ξαναψάχνουμε.'
+     ||coalesce(E'\nΟι σημειώσεις του Developer: '||pr_link,'')
    when notice.kind='needs_you' then 'Η ομάδα σταμάτησε την εργασία «'||title||'»: '||why
      ||' Δεν άλλαξε τίποτα στην εφαρμογή. Πες μου αν θέλεις να το ξαναδοκιμάσουμε.'
    else speaker||' δεν έχει δώσει νέα ενημέρωση εδώ και δύο ώρες. '

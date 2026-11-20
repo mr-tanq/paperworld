@@ -163,6 +163,11 @@ function makeTaskGithub({fetcher=fetch,token}={}){
     throw Error('file_policy_denied');
   return rows.map(f=>f.filename);
  }
+ async function changedFileCount(project,prNumber){
+  const rows=await api(project,'/pulls/'+prNumber+'/files?per_page=100');
+  if(!Array.isArray(rows))throw Error('pr_files_unavailable');
+  return rows.length;
+ }
  async function dispatchVerify(project,{missionId,headSha,requiredTests,workflow='paperworld-verify.yml'}){
   if(!/^[a-f0-9-]{36}$/i.test(missionId)||!SHA.test(headSha)||
    !Array.isArray(requiredTests)||requiredTests.length<1||requiredTests.length>10||
@@ -298,6 +303,6 @@ function makeTaskGithub({fetcher=fetch,token}={}){
  }
  return Object.freeze({getIssue,findExistingIssue,createIssue,getPull,getRun,findDispatchedRun,
   assignCopilot,reconcileAssignment,findLinkedPr,assertScopedChanges,
-  dispatchVerify,getVerifiedRun,trustedMain,readTrustedAttestation,mergeVerified,agentFinished});
+  dispatchVerify,getVerifiedRun,trustedMain,readTrustedAttestation,mergeVerified,agentFinished,changedFileCount});
 }
 export {makeTaskGithub,repoPath,linkedIssue,markerFor,PROJECTS};
