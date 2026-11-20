@@ -174,3 +174,14 @@ test('Matt live chat uses exact successfully diagnosed baseline session config',
  assert.equal((await seen.sessions[0].onPermissionRequest()).kind,'reject');
  assert.equal(seen.reply,1);
 });
+
+
+test('English conversation preference is accepted while invalid values fail closed',async()=>{
+ const {chat,seen}=mock();
+ const ok=await chat.handle({headers,body:JSON.stringify({...payload,replyLanguage:'en'})});
+ assert.equal(ok.status,200);
+ assert.equal(seen.reply,1);
+ const bad=await chat.handle({headers,body:JSON.stringify({...payload,requestId:'44444444-4444-4444-8444-444444444444',replyLanguage:'invalid'})});
+ assert.equal(bad.status,400);
+ assert.equal(seen.reply,1);
+});
