@@ -423,6 +423,27 @@ function resolveMattReturn(){while(mattReturnWaiters.length)mattReturnWaiters.sh
 let workspaceFrame=null;
 // Phase 2: what each resident is doing now, from real missions only.
 let residentStatus=Object.freeze({});
+// Living village v3: who the owner is talking to, who is speaking, and
+// colleague consults (visual only; set by the Messenger, never by AI output).
+const conversation={with:null,speaking:null,since:0};
+const ambience=window.PaperworldVillageAmbience?.create({defs,W,H,
+ reducedMotion:window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true})||null;
+const consultFx=[];
+const CHAT_PEERS=['matt','listening-director','pokemon-director','studio-director','wellbeing-director'];
+function drawSpeech(a,{dots=true}={},now){
+ if(!a)return;
+ const x=a.x,y=a.y-104,w=40,h=24;
+ ctx.save();
+ ctx.fillStyle='rgba(255,248,232,.96)';ctx.strokeStyle='rgba(70,52,34,.85)';ctx.lineWidth=1.4;
+ ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x-w/2,y,w,h,11);else ctx.rect(x-w/2,y,w,h);ctx.fill();ctx.stroke();
+ ctx.beginPath();ctx.moveTo(x-4,y+h);ctx.lineTo(x+2,y+h+7);ctx.lineTo(x+6,y+h);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#5b4630';
+ for(let i=0;i<3;i++){
+  const lift=dots?Math.max(0,Math.sin(now/170-i*0.9))*3:0;
+  ctx.beginPath();ctx.arc(x-9+i*9,y+h/2-lift,2.6,0,Math.PI*2);ctx.fill();
+ }
+ ctx.restore();
+}
 function drawResidentBubble(a,status){
  if(!status||typeof status.text!=='string'||!status.text)return;
  const text=status.text.slice(0,40);
@@ -439,6 +460,20 @@ function drawResidentBubble(a,status){
  ctx.restore();
 }
 window.PaperworldWorld=Object.freeze({
+ // Living village v3: the Messenger tells the village who is talking.
+ setConversation:(next)=>{
+  const id=next&&CHAT_PEERS.includes(next.with)?next.with:null;
+  const speaking=next&&['player','agent'].includes(next.speaking)?next.speaking:null;
+  if(conversation.with&&conversation.with!==id&&conversation.with!=='matt')villageLife.release?.(conversation.with);
+  if(id&&id!=='matt')villageLife.hold?.(id,()=>state.walker);
+  if(conversation.with==='matt'&&id!=='matt'&&agentJourney.mode==='chatting')endReportPose();
+  conversation.with=id;conversation.speaking=speaking;conversation.since=performance.now();
+  return true},
+ // A Director consulted a colleague: a letter travels between their homes.
+ showConsult:(fromId,toId)=>{
+  const from=actors.find(a=>a.id===fromId),to=actors.find(a=>a.id===toId);
+  if(!from||!to||from===to)return false;
+  consultFx.push({from,to,start:performance.now()});if(consultFx.length>4)consultFx.shift();return true},
  // Phase 2: residents' real activity (read-only projection, never execution).
  setResidentStatus:(map)=>{residentStatus=map&&typeof map==='object'?Object.freeze({...map}):Object.freeze({});return true},
  agents:()=>actors.map(a=>({...a})),
@@ -581,7 +616,11 @@ function endFaceToFace(){
  // claim that a model is physically walking between agents.
 function startMattDirectorJourney(directorId){
  const target=actors.find(a=>a.id===directorId&&
-  ['listening-director','pokemon-director','studio-director'].includes(a.id));
+  ['listening-director','pokemon-director','studio-director','wellbeing-director'].includes(a.id));
+ // A chat pose gives way to a real handoff: Matt leaves the owner to go there.
+ if(target&&(agentJourney.mode==='chatting'||agentJourney.mode==='approach-chat')){
+  agentJourney.mode='following';agentJourney.route=[];villageLife.resume();
+ }
  if(!target||agentJourney.mode!=='following')return false;
  if(!planMattEncounter(target))return false;
  agentJourney.phase='routed';agentJourney.failed=false;
@@ -729,8 +768,29 @@ layers.push({id:'player',depth:depth.actorWalkwayDepth(w,navigation,defs),paint:
  if(d)layers.push({id:'depth-demo',depth:d.y,paint:()=>drawFigure(d,true)});
  layers.push(...depth.foregroundLayers(ctx,scene.ready,scene.image,W,H));
  depth.sortLayers(layers).forEach(item=>item.paint());
+ // Small signs of life: chimney smoke, birds, butterflies, evening fireflies.
+ ambience?.draw(ctx,now);
  // Bubbles stay above buildings so a resident's work is always readable.
  for(const a of actors)if(residentStatus[a.id])drawResidentBubble(a,residentStatus[a.id]);
+ // Who is talking right now (only while the Messenger is open).
+ if(conversation.with){
+  const peer=actors.find(a=>a.id===conversation.with);
+  const near=peer&&Math.hypot(peer.x-state.walker.x,peer.y-state.walker.y)<160;
+  if(conversation.speaking==='player')drawSpeech(state.walker,{},now);
+  else if(conversation.speaking==='agent')drawSpeech(peer,{},now);
+  else if(near&&!residentStatus[peer.id])drawSpeech(peer,{dots:false},now);
+ }
+ // A colleague consult: a small letter travels from one Director to another.
+ for(let i=consultFx.length-1;i>=0;i--){
+  const fx=consultFx[i],t=(now-fx.start)/2200;
+  if(t>=1.35){consultFx.splice(i,1);continue}
+  const k=Math.min(1,t),ease=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+  const x=fx.from.x+(fx.to.x-fx.from.x)*ease,y=fx.from.y-70+(fx.to.y-fx.from.y)*ease-Math.sin(Math.PI*k)*90;
+  ctx.save();ctx.globalAlpha=t>1?Math.max(0,1-(t-1)/.35):1;
+  ctx.font='22px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=6;ctx.fillText(t<1?'✉️':'💡',x,y);
+  ctx.restore();
+ }
  // Authoring overlay stays visible even over building art; it is never used for live routes.
  if(editingPaths){
   pathDraft.draw(ctx);
@@ -826,7 +886,7 @@ function tick(now){
  if(Math.hypot(state.walker.x-last.x,state.walker.y-last.y)>11)
   followTrail.push({x:state.walker.x,y:state.walker.y});
  mattActor.moving=false;
- if(agentJourney.mode==='outbound'||agentJourney.mode==='returning'){
+ if(agentJourney.mode==='outbound'||agentJourney.mode==='returning'||agentJourney.mode==='approach-chat'){
   const next=agentJourney.route[0];
   if(next){
    const dx=next.x-mattActor.x,dy=next.y-mattActor.y;
@@ -842,10 +902,31 @@ function tick(now){
    if(villageLife.ready()){
     agentJourney.mode='meeting';agentJourney.meeting=true;agentJourney.meetingSince=now;startFaceToFace();
    }
+  }else if(agentJourney.mode==='approach-chat'){
+   agentJourney.mode='chatting';
+   mattActor.direction=directorMovement.facingToward(mattActor,state.walker,mattActor.direction);
+   state.walker.direction=directorMovement.facingToward(state.walker,mattActor,state.walker.direction);
   }else{
    agentJourney.meeting=false;
    startReportPose(now);
   }
+ }
+ // Talking with Matt: he comes to stand facing the owner, and stays while the chat is open.
+ if(conversation.with==='matt'&&agentJourney.mode==='following'&&!state.route.length&&
+    Math.hypot(mattActor.x-state.walker.x,mattActor.y-state.walker.y)<260&&planMattReportRoute()){
+  agentJourney.priorPlayerDirection=state.walker.direction;agentJourney.mode='approach-chat';
+ }
+ if(agentJourney.mode==='chatting'||agentJourney.mode==='approach-chat'){
+  if(conversation.with!=='matt'||state.route.length){
+   if(agentJourney.mode==='approach-chat'){agentJourney.route=[];agentJourney.mode='following'}
+   else endReportPose();
+  }
+ }
+ // Talking with a Director nearby: the owner turns to face them.
+ if(conversation.with&&conversation.with!=='matt'&&!state.route.length){
+  const peer=actors.find(a=>a.id===conversation.with);
+  if(peer&&Math.hypot(peer.x-state.walker.x,peer.y-state.walker.y)<140)
+   state.walker.direction=directorMovement.facingToward(state.walker,peer,state.walker.direction);
  }
  if(agentJourney.mode==='meeting'&&agentJourney.pendingReturn&&
     now-agentJourney.meetingSince>1600){

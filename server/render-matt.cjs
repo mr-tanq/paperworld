@@ -422,12 +422,15 @@ function createRenderMattServer({oauth=createGithubOAuth({
      'Cache-Control':'no-store','Access-Control-Allow-Origin':APP_ORIGIN,
      'Vary':'Origin','X-Content-Type-Options':'nosniff'};
     const onProgress=event=>{
+     const team=['listening-director','studio-director','pokemon-director'];
      if(!wantsStages||!event||
-      !['routed','director_reported'].includes(event.stage)||
-      !['listening-director','studio-director','pokemon-director'].includes(event.directorId))return;
+      !['routed','director_reported','consulted'].includes(event.stage)||
+      !team.includes(event.directorId)||
+      (event.stage==='consulted'&&(!team.includes(event.consultedId)||event.consultedId===event.directorId)))return;
      if(!streaming){res.writeHead(200,headers);streaming=true}
      res.write(JSON.stringify({type:'progress',stage:event.stage,
-      directorId:event.directorId})+'\n');
+      directorId:event.directorId,
+      ...(event.stage==='consulted'?{consultedId:event.consultedId}:{})})+'\n');
     };
     const result=await action({headers:req.headers,
       body:Buffer.concat(parts).toString('utf8'),onProgress});
