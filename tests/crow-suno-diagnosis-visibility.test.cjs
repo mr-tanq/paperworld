@@ -20,7 +20,7 @@ test('Crow diagnostics remain available for maintenance but do not interrupt son
 test('GitHub Pages invalidates stale cached Messenger and Suno cloud API',()=>{
  const html=read('index.html');
  assert.match(html,/world-dialogue\.js\?v=release-1-routine-v4/);
- assert.match(html,/cloud\.js\?v=release-1/);
+ assert.match(html,/cloud\.js\?v=bilingual-v1/);
  assert.match(html,/cloud-ui\.js\?v=release-1/);
  assert.match(html,/style\.css\?v=messenger-v2-1/);
  assert.doesNotMatch(html,/world-dialogue\.js\?v=crow-transfer-v1/);
