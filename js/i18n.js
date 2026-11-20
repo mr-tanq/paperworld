@@ -179,12 +179,31 @@ function apply(){
   }
  }finally{busy=false}
 }
+// Dynamic summaries are application-generated UI, never stored user text.
+const dynamic=Object.freeze([
+ [/^(\\d+) θέματα περιμένουν εσένα\\.$/,n=>n+' items need your attention.'],
+ [/^(\\d+) χρειάζεται εσένα$/,n=>n+' needs your attention'],
+ [/^(\\d+) χρειάζονται εσένα$/,n=>n+' need your attention'],
+ [/^(\\d+) σε εξέλιξη$/,n=>n+' in progress'],
+ [/^(\\d+) ολοκληρώθηκαν πρόσφατα$/,n=>n+' recently completed'],
+ [/^Καμία ενεργή εργασία · (\\d+) ολοκληρώθηκαν πρόσφατα$/,n=>'No active tasks · '+n+' recently completed'],
+ [/^(\\d+) ανοιχτά$/,n=>n+' open'],
+ [/^(\\d+) εργασίες χωρίς νέα πάνω από 2 ώρες\\.$/,n=>n+' tasks without updates for over 2 hours.'],
+ [/^Μίλα με (?:τη|τον) (Matt|Luna|Joey|Crow|Dave)$/,n=>'Talk to '+n],
+ [/^Συνομιλία με (?:τη|τον) (Matt|Luna|Joey|Crow|Dave)$/,n=>'Chat with '+n],
+ [/^Τι γνωρίζει (?:ο|η) (Matt|Luna|Joey|Crow|Dave)$/,n=>'What '+n+' knows'],
+ [/^Εργασίες του project (.+)$/,n=>'Tasks for '+n],
+ [/^Μέσω (.+) ›$/,n=>'Via '+n+' ›']
+]);
 function replaceText(value,language){
  const trimmed=String(value).trim();
  const greek=Object.hasOwn(dict,trimmed)?trimmed:Object.hasOwn(reverse,trimmed)?reverse[trimmed]:null;
- if(!greek)return value;
- const next=language==='en'?dict[greek]:greek;
- return value.replace(trimmed,next);
+ if(greek)return value.replace(trimmed,language==='en'?dict[greek]:greek);
+ if(language==='en')for(const [regex,make] of dynamic){
+  const match=trimmed.match(regex);
+  if(match)return value.replace(trimmed,make(match[1]));
+ }
+ return value;
 }
 let queued=false;
 function queue(){if(queued)return;queued=true;queueMicrotask(()=>{queued=false;apply()})}
