@@ -181,14 +181,14 @@ function apply(){
 }
 // Dynamic summaries are application-generated UI, never stored user text.
 const dynamic=Object.freeze([
- [/^(\\d+) θέματα περιμένουν εσένα\\.$/,n=>n+' items need your attention.'],
- [/^(\\d+) χρειάζεται εσένα$/,n=>n+' needs your attention'],
- [/^(\\d+) χρειάζονται εσένα$/,n=>n+' need your attention'],
- [/^(\\d+) σε εξέλιξη$/,n=>n+' in progress'],
- [/^(\\d+) ολοκληρώθηκαν πρόσφατα$/,n=>n+' recently completed'],
- [/^Καμία ενεργή εργασία · (\\d+) ολοκληρώθηκαν πρόσφατα$/,n=>'No active tasks · '+n+' recently completed'],
- [/^(\\d+) ανοιχτά$/,n=>n+' open'],
- [/^(\\d+) εργασίες χωρίς νέα πάνω από 2 ώρες\\.$/,n=>n+' tasks without updates for over 2 hours.'],
+ [/^(\d+) θέματα περιμένουν εσένα\.$/,n=>n+' items need your attention.'],
+ [/^(\d+) χρειάζεται εσένα$/,n=>n+' needs your attention'],
+ [/^(\d+) χρειάζονται εσένα$/,n=>n+' need your attention'],
+ [/^(\d+) σε εξέλιξη$/,n=>n+' in progress'],
+ [/^(\d+) ολοκληρώθηκαν πρόσφατα$/,n=>n+' recently completed'],
+ [/^Καμία ενεργή εργασία · (\d+) ολοκληρώθηκαν πρόσφατα$/,n=>'No active tasks · '+n+' recently completed'],
+ [/^(\d+) ανοιχτά$/,n=>n+' open'],
+ [/^(\d+) εργασίες χωρίς νέα πάνω από 2 ώρες\.$/,n=>n+' tasks without updates for over 2 hours.'],
  [/^Μίλα με (?:τη|τον) (Matt|Luna|Joey|Crow|Dave)$/,n=>'Talk to '+n],
  [/^Συνομιλία με (?:τη|τον) (Matt|Luna|Joey|Crow|Dave)$/,n=>'Chat with '+n],
  [/^Τι γνωρίζει (?:ο|η) (Matt|Luna|Joey|Crow|Dave)$/,n=>'What '+n+' knows'],
