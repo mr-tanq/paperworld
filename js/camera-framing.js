@@ -16,6 +16,7 @@
  const EDGE=14;          // legacy contain padding (unchanged landscape look)
  const CONTENT_PAD=24;   // breathing room around the buildings in portrait
  const PORTRAIT=1.0;     // width/height below this counts as portrait
+ const TOP=60;           // header height kept clear above a lifted village
  const finite=n=>Number.isFinite(n);
  // Union of the building sprites (x = centre, bottom = base, width) plus the
  // walkable apron in front of them. Building art is roughly as tall as wide.
@@ -43,6 +44,13 @@
   // Never smaller than before, never larger than "cover" (no blank zooming).
   const cover=Math.max(width/W,height/H);
   const scale=Math.min(cover,Math.max(contain,fitContent));
+  // Tall screens: lift the village to just under the header so the free space
+  // gathers below it, where the village board lives (no building is cut).
+  const spare=height-TOP-content.h*scale;
+  if(spare>140){
+   return {scale,cx:content.x+content.w/2,cy:content.y+(height/2-TOP)/scale,mode:'content',
+    boardTop:Math.round(TOP+content.h*scale+6)};
+  }
   return {scale,cx:content.x+content.w/2,cy:content.y+content.h/2,mode:'content'};
  }
  function place({width,height},scale,cx,cy){

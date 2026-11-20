@@ -213,12 +213,12 @@
   const b=e('button',cls,label);b.type='button';
   b.addEventListener('click',handler);return b;
  }
- function create(host,{load,approve,reject,publishPokemon,rejectPokemon,runWorker,runSourceFact,openMatt,openProject,
+ function create(host,{load,collapsible=false,approve,reject,publishPokemon,rejectPokemon,runWorker,runSourceFact,openMatt,openProject,
   onChanged,onError,compact=false}={}){
   if(!host||typeof host.replaceChildren!=='function'||
    typeof load!=='function')throw Error('human_first_host_required');
   let current=freeze({rows:freeze([]),counts:freeze({decision:0,active:0,prepared:0,all:0})});
-  let loading=false,error='',filter='attention',selected=null,rendered=false;
+  let loading=false,error='',filter='attention',selected=null,rendered=false,expanded=false;
   let opBusy=false;
   const markError=msg=>{
    error=human(msg,160)||'Η ενημέρωση δεν ολοκληρώθηκε.';
@@ -498,6 +498,14 @@
     item.stage==='decision'||(item.kind==='handoff'&&item.status==='awaiting_consent'):
     visible(item));
    if(compact&&!shown.length&&!error){host.hidden=true;return}
+   // In the chat, decisions wait as one slim line so the conversation keeps
+   // its space; tapping it opens the cards right there.
+   if(compact&&collapsible&&!expanded&&!error){
+    host.replaceChildren();
+    host.append(button((shown.length===1?'1 απόφαση περιμένει εσένα':shown.length+' αποφάσεις περιμένουν εσένα')+' · Δες',
+     ()=>{expanded=true;render()},'human-hub-collapsed'));
+    return;
+   }
    if(!loading&&!shown.length){
     host.append(e('div','human-hub-empty',
      current.counts.all?'Δεν υπάρχουν εργασίες σε αυτή την κατηγορία.':
@@ -506,7 +514,7 @@
    const list=e('div','human-hub-list');
    for(const item of shown.slice(0,MAX))list.append(rowCard(item));
    host.append(list);
-   if(compact)return;
+   if(compact){if(collapsible)host.append(button('Απόκρυψη',()=>{expanded=false;render()},'human-hub-collapse'));return}
    const foot=e('div','human-hub-footer');
    if(typeof openMatt==='function')foot.append(button('Μίλα στον Matt',openMatt,'human-hub-talk'));
    if(typeof openProject==='function')foot.append(button('Άνοιξε Listening Mirror',openProject,'human-hub-project-open'));

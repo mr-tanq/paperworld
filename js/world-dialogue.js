@@ -182,7 +182,7 @@
  function setupDecisions(){
   if(decisionView||!window.PaperworldHumanFirstHub?.create)return;
   decisionView=window.PaperworldHumanFirstHub.create(decisions,{
-   compact:true,load:()=>cloud().loadHumanWork(),
+   compact:true,load:()=>cloud().loadHumanWork(),collapsible:true,
    approve:item=>cloud().prepareHumanSolution(item),
    reject:item=>cloud().discardHumanSolution(item),
    publishPokemon:item=>cloud().preparePokemonSolution(item),
@@ -1716,7 +1716,8 @@
      const summary=window.PaperworldVillageActivity?.summary(rows);
      if(!summary)return;
      villageActivityText=summary.attention?
-      'Έχουμε '+summary.attention+' θέματα που χρειάζονται την απόφασή σου.':
+      (summary.attention===1?'Έχουμε 1 θέμα που χρειάζεται την απόφασή σου.':
+       'Έχουμε '+summary.attention+' θέματα που χρειάζονται την απόφασή σου.'):
       summary.active?'Η ομάδα δουλεύει σε '+summary.active+' '+(summary.active===1?'εργασία.':'εργασίες.'):
       'Πες μου τι έχεις στο μυαλό σου.';
      if(!mattJourneyCaption)status.textContent=villageActivityText;
