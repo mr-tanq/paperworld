@@ -101,7 +101,8 @@ begin
     insert into public.paperworld_agent_messages(id,thread_id,owner_id,role,content)
     values(stored,r.thread_id,r.owner_id,'agent','@paperworld-matt:v1:'||jsonb_build_object(
      'director',case r.project_id when 'pokemon' then 'pokemon-director'
-      when 'studio' then 'studio-director' when 'wellbeing' then 'wellbeing-director'
+      -- The Messenger only accepts these senders; Dave's reminder comes via Matt.
+      when 'studio' then 'studio-director' when 'wellbeing' then 'matt'
       else 'listening-director' end,
      'text',case when r.project_id='wellbeing' then
        -- Phase 4: Dave's routines are gentle reminders; private content never

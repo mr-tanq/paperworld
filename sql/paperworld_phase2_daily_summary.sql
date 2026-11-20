@@ -1,5 +1,5 @@
 -- PAPERWORLD Phase 2 — Matt's short morning summary.
--- Once per owner per local day (Europe/Amsterdam, from 09:00), and only when
+-- Once per owner per local day (Europe/Amsterdam, 09:00-11:59), and only when
 -- the team did something in the last 24 hours: finished / live / running /
 -- needs you, with up to three finished titles. Deterministic message id, a
 -- ledger row per owner-day, no AI call, no cron (called by the existing
@@ -23,7 +23,8 @@ declare local_now timestamp:=p_now at time zone 'Europe/Amsterdam';
 declare today date:=(p_now at time zone 'Europe/Amsterdam')::date;
 declare msg text;declare stored uuid;declare titles text;declare sent integer:=0;
 begin
- if extract(hour from local_now)<9 then return 0; end if;
+ -- Morning only: a missed morning is skipped, never sent as a late "Καλημέρα".
+ if extract(hour from local_now)<9 or extract(hour from local_now)>=12 then return 0; end if;
  for o in
   select m.owner_id,
    (array_agg(m.thread_id order by m.updated_at desc))[1] thread_id,

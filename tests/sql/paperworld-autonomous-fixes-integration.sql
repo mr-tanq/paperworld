@@ -103,6 +103,7 @@ DO $$ DECLARE txt text; n int; BEGIN
  n:=public.paperworld_v1_daily_summary('2030-01-15 08:30Z');
  ASSERT n=1,'one summary for the owner: '||n;
  ASSERT public.paperworld_v1_daily_summary('2030-01-15 10:30Z')=0,'once per local day';
+ ASSERT public.paperworld_v1_daily_summary('2030-01-16 17:30Z')=0,'never an evening good-morning';
  SELECT content INTO txt FROM public.paperworld_agent_messages
   WHERE id=md5('11111111-1111-4111-8111-111111111111:daily:2030-01-15')::uuid;
  ASSERT txt LIKE '%"director": "matt"%' OR txt LIKE '%"director":"matt"%','from Matt: '||txt;
