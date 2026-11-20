@@ -34,3 +34,10 @@ test('Matt chat keeps its space: decisions collapse to one line there only',()=>
  assert.doesNotMatch(fs.readFileSync('js/workspace.js','utf8'),/collapsible:true/,'Work keeps full cards');
  assert.match(fs.readFileSync('js/world-dialogue.js','utf8'),/'Έχουμε 1 θέμα που χρειάζεται την απόφασή σου\.'/);
 });
+test('empty chats offer starters that only fill the composer (never send)',()=>{
+ const ui=fs.readFileSync('js/world-dialogue.js','utf8');
+ assert.match(ui,/function starters\(id\)/);assert.match(ui,/messages\.append\(starters\(openId\)\)/);
+ const fn=ui.slice(ui.indexOf('function starters(id)'),ui.indexOf('function starters(id)')+700);
+ assert.match(fn,/field\.value=text;autoGrow\(\);field\.focus\(\)/);
+ assert.doesNotMatch(fn,/requestSubmit|runMattWorkflow|submitDirector|delegateMatt/);
+});

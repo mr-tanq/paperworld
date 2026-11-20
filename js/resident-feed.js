@@ -21,7 +21,7 @@ async function refresh(){
 }
 function start(){
  if(timer)return;
- setTimeout(refresh,4000);
+ setTimeout(refresh,1500);
  timer=setInterval(refresh,PERIOD);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
 }

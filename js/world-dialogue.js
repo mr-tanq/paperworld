@@ -1615,6 +1615,25 @@
   messages.append(typing);scrollBottom();
  }
  function system(text){return make('p','world-dialogue-note',text)}
+ // Empty conversation: a few natural ways to start. Tapping only fills the
+ // composer — nothing is sent until the owner presses Send.
+ const STARTERS=Object.freeze({
+  matt:['Τι κάνει η ομάδα αυτή τη στιγμή;','Έχουμε πρόβλημα με ','Θέλω ένα καινούργιο τραγούδι για το The Lost Wanderer','Κάθε Δευτέρα στις 09:00 έλεγχε το Listening Mirror'],
+  'listening-director':['Ποιες συναυλίες αξίζουν αυτόν τον μήνα;','Τι θυμάσαι για τις προτιμήσεις μου;'],
+  'pokemon-director':['Ποιο είναι το επόμενο βήμα για το παιχνίδι;','Τι θυμάσαι για το Pokémon Echoes;'],
+  'studio-director':['Πάμε να γράψουμε ένα καινούργιο τραγούδι','Τι θυμάσαι για τον ήχο του The Lost Wanderer;'],
+  'wellbeing-director':['Φτιάξε μου ένα ήπιο πρόγραμμα για αυτή την εβδομάδα','Πώς πάει η πρόοδός μου;']
+ });
+ function starters(id){
+  const wrap=make('div','pw-starters');wrap.setAttribute('aria-label','Ιδέες για να ξεκινήσεις');
+  for(const text of STARTERS[id]||[]){
+   const chip=make('button','pw-starter',text);chip.type='button';
+   chip.addEventListener('click',()=>{if(field.disabled)return;field.value=text;autoGrow();field.focus();
+    const end=field.value.length;try{field.setSelectionRange(end,end)}catch(_){}});
+   wrap.append(chip);
+  }
+  return wrap;
+ }
  function scrollBottom(){messages.scrollTo?.({top:messages.scrollHeight,behavior:'auto'});
   messages.scrollTop=messages.scrollHeight}
  function appendEntries(entries){
@@ -1628,9 +1647,12 @@
   if(openId==='matt')for(const reply of mattReplies)messages.append(bubble('agent',reply.content,reply.time));
   else for(const reply of directorReplies.get(openId)||[])
    messages.append(bubble('agent',reply.content,reply.time));
-  if(!entries.length&&!(openId==='matt'?mattReplies.length:(directorReplies.get(openId)||[]).length))messages.append(system(openId==='matt'?
+  if(!entries.length&&!(openId==='matt'?mattReplies.length:(directorReplies.get(openId)||[]).length)){
+   messages.append(system(openId==='matt'?
    'Πες μου τι έχεις στο μυαλό σου. Θα βρούμε μαζί πώς να προχωρήσουμε.':
    'Γράψε '+(openId==='listening-director'?'στη ':'στον ')+heading.textContent+' ό,τι χρειάζεσαι για το project.'));
+   messages.append(starters(openId));
+  }
   if(pendingFailure&&pendingFailure.agentId===openId)messages.append(failureCard(pendingFailure));
   showTyping();
   scrollBottom();
