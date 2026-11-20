@@ -542,5 +542,6 @@ The integration suite proves the state machine against real PostgreSQL 17 and te
 - Order: Phase 1 reliable autonomy (no dead wait, one self-retry, plain failure reasons, 5–10 real tasks) → Phase 2 living village (map/workshops show real work, daily Matt summary) → Phase 3 learning memory + Director-to-Director consults → Phase 4 tools for every resident → Phase 5 initiative (routines do real work, Directors propose improvements).
 - Owner: Suno song creation budget = **50 songs/month** (Phase 4; still behind a hard monthly counter, no auto-retry of paid calls).
 - Owner: weekly routines **may start Developer work on their own**, inside the shared 5/day–60/month cap (Phase 5).
-- Owner wish (future): a more relaxed "personal assistant" Director that checks email. Needs mail access (read-only first) and a privacy design; to be scoped when Phase 4 starts.
+- Owner wish (after the village reaches 100%, not part of Phases 1–5): a more relaxed "personal assistant" Director that checks email (read-only first, private like Wellbeing).
+- Owner idea (some months out): a Director that runs a future 3D printer. Scope later.
 - One PR per phase, with tests; enabled live only after it works.
