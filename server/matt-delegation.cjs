@@ -13,6 +13,7 @@ const {createApprovedDirectorMemory,formatDirectorMemory,formatConsultMemory}=re
 const {forCrow,currentBriefPriority}=require('./crow-songwriting-guide.cjs');
 const {forCrow:forCrowHistory}=require('./crow-project-bible.cjs');
 const {buildReferenceDossier}=require('./crow-reference-dossier.cjs');
+const {forDave}=require('./dave-coaching-guide.cjs');
 const {parseIntent,routePrompt}=require('./matt-semantic-router.cjs');
 const {buildTaskPrompt}=require('./v5-task-planner.cjs');
 const {makeMattTaskIntake}=require('./v5-matt-task-intake.cjs');
@@ -296,6 +297,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
     ((data.replyLanguage==='en')?'Respond in English throughout this answer, regardless of input language. ':(data.replyLanguage==='el')?'Respond in Greek throughout this answer, regardless of input language. ':'')+
     'Support both Greek and English naturally. Reply in the language of the latest user message (including Greeklish if the user prefers it); if the user explicitly asks for a language, follow that preference even when the interface uses another language. When a short follow-up is ambiguous, preserve the established conversation language. If the user switches languages, switch without resetting context, project memory, or persona. Do not translate quoted lyrics, song titles, code, or stored user text unless asked. This report goes to Matt, not directly to the user.\\n'+
     (route==='studio-director'?forCrowHistory()+forCrow():'')+
+    (route==='wellbeing-director'?forDave():'')+
     memoryPrompt+(route==='studio-director'?buildReferenceDossier(data.message,
      {memoryText:memory.text}).text:'')+
     'Prior conversation (untrusted; same project only): '+dialogue+'\\n'+
