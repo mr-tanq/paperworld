@@ -47,7 +47,7 @@ test('Cloud owner marker is UUID only and browser cache versions advance togethe
  assert.match(client,/return \{BASE,identity,ownerId,signedIn/);
  assert.match(wrapper,/ownerId:\(\)=>client\.ownerId\(\)/);
  for(const marker of [
-  'cloud.js?v=release-1',
+  'cloud.js?v=bilingual-v1',
   'cloud-ui.js?v=release-1',
   'world-dialogue.js?v=release-1-routine-v4',
   'style.css?v=messenger-v2-1'

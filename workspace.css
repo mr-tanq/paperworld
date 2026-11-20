@@ -290,3 +290,9 @@ html.pw-workspace-open .world-talk-actions,html.pw-chat-open .world-talk-actions
 .pw-workspace .pw-health-line[data-state="ok"]::before{background:var(--pw-ok)}
 .pw-workspace .pw-health-line[data-state="attention"]::before{background:var(--pw-warn)}
 .pw-workspace .pw-health-line[data-state="problem"]::before{background:var(--pw-danger)}
+
+/* Accessible language controls reuse Workspace colors and touch targets. */
+.pw-workspace .pw-language-select{min-height:44px;max-width:100%;min-width:0;padding:8px 10px;
+ border:1px solid var(--pw-line-2);border-radius:var(--pw-r-ctl);background:var(--pw-bg);
+ color:var(--pw-text);font:500 14px/1.3 var(--pw-font)}
+@media(max-width:460px){.pw-workspace .pw-setting:has(.pw-language-select){align-items:stretch;flex-direction:column}}

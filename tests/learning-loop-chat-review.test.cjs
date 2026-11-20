@@ -30,12 +30,15 @@ test('learning client submits only references and metadata, not a forged message
  assert.match(shell,/proposeDirectorCorrection:\(id,messageId,options\)/);
 });
 test('browser loads matching reviewed JS and CSS assets',()=>{
- assert.ok(html.includes('js/cloud.js?v=release-1'));
+ assert.ok(html.includes('js/cloud.js?v=bilingual-v1'));
  for(const file of ['style.css','js/messenger-format.js'])
   assert.ok(html.includes(file+'?v=messenger-v2-1'),file);
  for(const file of ['js/app.js','js/camera-framing.js','js/connection-status.js'])
   assert.ok(html.includes(file+'?v=responsive-1'),file);
- for(const file of ['workspace.css','js/workspace.js','js/cloud-ui.js','messenger.css','js/routine-intent.js'])
+ for(const file of ['workspace.css','js/workspace.js'])
+  assert.ok(html.includes(file+'?v=bilingual-v1'),file);
+ for(const file of ['js/cloud-ui.js','js/routine-intent.js'])
   assert.ok(html.includes(file+'?v=release-1'),file);
+ assert.match(html,/messenger\.css\?v=release-1(?:-routine-cards-v2)?/);
  assert.ok(html.includes('js/world-dialogue.js?v=release-1-routine-v4'));
 });

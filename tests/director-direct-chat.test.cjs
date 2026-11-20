@@ -109,3 +109,17 @@ test('Successful reply persistence is accurately reported without adding model c
  assert.equal(seen.saved.requestId,id);
  assert.equal(seen.calls,1);
 });
+
+
+test('English reply preference reaches the Director prompt without changing the user message',async()=>{
+ const {api,seen}=setup();
+ const result=await run(api,{...request,replyLanguage:'en'});
+ assert.equal(result.status,200);
+ assert.match(seen.prompts[0],/Respond in English throughout this answer/);
+ assert.match(seen.prompts[0],/Current user message: How is our music app/);
+});
+test('Invalid reply preference is rejected without consuming a turn',async()=>{
+ const {api,seen}=setup();
+ assert.equal((await run(api,{...request,replyLanguage:'invalid'})).status,400);
+ assert.equal(seen.calls,0);
+});
