@@ -57,6 +57,8 @@ on:
       - 'tests/phase2-living-village.test.cjs'
       - 'tests/suno-monthly-cap.test.cjs'
       - 'tests/living-village-v3.test.cjs'
+      - 'tests/tidy-work-list.test.cjs'
+      - 'sql/paperworld_dismissed_items_v1.sql'
       - 'js/village-life.js'
       - 'js/village-ambience.js'
       - 'sql/paperworld_phase4_suno_monthly_cap.sql'
@@ -162,6 +164,7 @@ jobs:
             tests/phase2-living-village.test.cjs \
             tests/suno-monthly-cap.test.cjs \
             tests/living-village-v3.test.cjs \
+            tests/tidy-work-list.test.cjs \
             tests/village-life-v2.test.cjs \
             tests/v5-task-dispatcher.test.cjs \
             tests/v5-matt-task-messenger.test.cjs \
@@ -284,6 +287,14 @@ jobs:
           psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
             -h 127.0.0.1 -p 5432 -U postgres -d suno_cap_synthetic \
             -f tests/sql/paperworld-suno-monthly-cap.sql
+      - name: Owner-removed work items — RLS between owners (PostgreSQL 17)
+        env:
+          PGPASSWORD: synthetic-only
+        run: |
+          createdb -h 127.0.0.1 -p 5432 -U postgres dismissed_synthetic
+          psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
+            -h 127.0.0.1 -p 5432 -U postgres -d dismissed_synthetic \
+            -f tests/sql/paperworld-dismissed-items.sql
       - name: Execute V5 Dispatch lifecycle, budget and crash integration on PostgreSQL 17
         env:
           PGPASSWORD: synthetic-only

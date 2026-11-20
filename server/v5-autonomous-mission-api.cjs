@@ -67,7 +67,7 @@ function makeAutonomousMissionApi({fetcher=globalThis.fetch,
     }}};
    }
    if(action==='list'){
-    const qs=new URLSearchParams({select:'id,project_id,goal,status,policy,report,created_at,updated_at',
+    const qs=new URLSearchParams({select:'id,project_id,goal,status,policy,report,last_error,created_at,updated_at',
      owner_id:'eq.'+ownerId,thread_id:'eq.'+input.threadId,
      order:'created_at.desc',limit:'20'});
     const rows=await query('GET','paperworld_autonomous_missions_v5?'+qs);
@@ -75,6 +75,8 @@ function makeAutonomousMissionApi({fetcher=globalThis.fetch,
      id:r.id,projectId:r.project_id,goal:r.goal,status:r.status,
      simulation:r.policy?.executionMode==='simulation',
      report:r.status==='completed'?r.report:null,
+     // Stop reason code only (never free text), so the card can explain it.
+     lastError:['needs_you','failed'].includes(r.status)&&/^[a-z_]{1,60}$/.test(r.last_error||'')?r.last_error:null,
      createdAt:r.created_at,updatedAt:r.updated_at}))}};
    }
    if(action==='pilot'){

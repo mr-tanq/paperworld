@@ -73,6 +73,23 @@
    const rows=await withAuth('/rest/v1/paperworld_tasks?id=eq.'+encodeURIComponent(id)+'&select='+fields,{method:'PATCH',data:permitted,extra:{Prefer:'return=representation'}});
    if(!rows.length)throw Error('Task not found or not accessible');return rows[0];
   }
+  // Owner-removed work items: hidden from the owner's lists only (RLS, own rows).
+  const ITEM_KEY=/^[a-z-]{2,24}:[A-Za-z0-9_.:-]{1,120}$/;
+  async function listDismissed(){
+   const rows=await withAuth('/rest/v1/paperworld_dismissed_items_v1?select=item_key&limit=1000');
+   return Array.isArray(rows)?rows.map(r=>r.item_key).filter(k=>ITEM_KEY.test(k)):[];
+  }
+  async function dismissItem(key){
+   if(!ITEM_KEY.test(key||''))throw Error('Invalid item');
+   await withAuth('/rest/v1/paperworld_dismissed_items_v1',{method:'POST',data:{item_key:key},
+    extra:{Prefer:'resolution=ignore-duplicates,return=minimal'}});
+   return true;
+  }
+  async function restoreItem(key){
+   if(!ITEM_KEY.test(key||''))throw Error('Invalid item');
+   await withAuth('/rest/v1/paperworld_dismissed_items_v1?item_key=eq.'+encodeURIComponent(key),{method:'DELETE'});
+   return true;
+  }
   async function remove(id){if(!/^[0-9a-f-]{36}$/i.test(id))throw Error('Invalid task ID');await withAuth('/rest/v1/paperworld_tasks?id=eq.'+encodeURIComponent(id),{method:'DELETE'})}
   function prepareImport(localTasks,remoteTasks){
    if(!Array.isArray(localTasks)||!Array.isArray(remoteTasks))throw Error('Invalid task lists');
@@ -963,7 +980,8 @@
     throw error;
    }
   }
-  return {BASE,identity,ownerId,signedIn,login,signup,signout,list,add,update,remove,prepareImport,importTasks,
+  return {BASE,identity,ownerId,signedIn,login,signup,signout,list,add,update,remove,
+   listDismissed,dismissItem,restoreItem,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
    createAutonomousMission,listAutonomousMissions,autonomousControllerStatus,simulateAutonomousMission,launchCopilotPilot,
    previewRoutine,listRoutines,createRoutine,changeRoutine,updateRoutine,systemHealth,

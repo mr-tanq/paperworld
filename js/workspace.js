@@ -70,6 +70,7 @@ const toast=el('p','pw-ws-toast');toast.setAttribute('role','status');toast.setA
 shell.append(head,nav,body,toast);view.append(shell);
 
 const state={view:'work',project:null,raw:null,missions:[],loadedAt:0,loading:false,error:'',
+ dismissed:new Set(),
  settings:{github:{state:'checking'},suno:{state:'checking'}}};
 let opener=null,handoff=null,suppressChatEvent=false,toastTimer=null;
 function say(text){
@@ -84,9 +85,13 @@ async function load(force=false){
  if(!force&&Date.now()-state.loadedAt<20000)return;
  state.loading=true;state.error='';paintChrome();
  try{
-  const [raw,missions]=await Promise.all([cloud().loadHumanWork(),
-   cloud().listAutonomousMissions().catch(()=>null)]);
+  const [raw,missions,dismissed]=await Promise.all([cloud().loadHumanWork(),
+   cloud().listAutonomousMissions().catch(()=>null),
+   typeof cloud().listDismissed==='function'?cloud().listDismissed().catch(()=>null):null]);
   state.raw=raw;state.missions=Array.isArray(missions)?missions:[];
+  // Items the owner removed from their lists (records stay in the database).
+  if(Array.isArray(dismissed)){state.dismissed=new Set(dismissed);
+   window.PaperworldDismissedKeys=state.dismissed}
   state.missionsUnavailable=missions===null;state.loadedAt=Date.now();
  }catch(_){
   // Fail closed: never keep showing actionable items we could not re-verify.
@@ -101,7 +106,7 @@ function items(){
  if(state.raw&&hub?.project){
   for(const row of hub.project(state.raw).rows){
    if(row.stage==='decision'||(row.kind==='handoff'&&row.status==='awaiting_consent')||
-      row.stage==='rejected')continue;
+      row.stage==='rejected'||state.dismissed.has(row.kind+':'+row.id))continue;
    const project=byHub(row.project)||byId('town');
    // Finished investigations and planned tasks must never look like live work.
    const bucket=['review_required','needs_attention'].includes(row.stage)?'attention':
@@ -116,7 +121,7 @@ function items(){
  }
  if(activity?.summary){
   for(const m of activity.summary(state.missions).items){
-   const project=byMission(m.projectId);if(!project)continue;
+   const project=byMission(m.projectId);if(!project||state.dismissed.has('mission:'+m.id))continue;
    out.push({key:'mission:'+m.id,project:project.id,title:m.title,label:m.message,
     bucket:m.stage==='attention'?'attention':m.stage==='finished'?'done':
      m.stage==='active'?'active':'waiting',
@@ -128,14 +133,14 @@ function items(){
 function decisionsCount(){
  const hub=window.PaperworldHumanFirstHub;
  if(!state.raw||!hub?.project)return 0;
- return hub.project(state.raw).rows.filter(r=>r.stage==='decision'||
-  (r.kind==='handoff'&&r.status==='awaiting_consent')).length;
+ return hub.project(state.raw).rows.filter(r=>(r.stage==='decision'||
+  (r.kind==='handoff'&&r.status==='awaiting_consent'))&&!state.dismissed.has(r.kind+':'+r.id)).length;
 }
 function decisionsFor(projectId){
  const hub=window.PaperworldHumanFirstHub;
  if(!state.raw||!hub?.project)return 0;
  return hub.project(state.raw).rows.filter(r=>(r.stage==='decision'||
-  (r.kind==='handoff'&&r.status==='awaiting_consent'))&&
+  (r.kind==='handoff'&&r.status==='awaiting_consent'))&&!state.dismissed.has(r.kind+':'+r.id)&&
   (byHub(r.project)||byId('town')).id===projectId).length;
 }
 // Per-project counts for Team cards. null = data unavailable (never guessed).
@@ -202,13 +207,14 @@ function close({restoreFocus=true}={}){
  if(restoreFocus&&opener?.isConnected&&opener!==document.body)opener.focus?.();
 }
 // Workspace → Messenger, and back again when the chat closes.
-function talk(agentId,{draft='',memory=false}={}){
+function talk(agentId,{draft='',memory=false,context=null}={}){
  handoff={view:state.view,project:state.project};
  close({restoreFocus:false});
  if(memory&&chat()?.showMemory)chat().showMemory(agentId);
- else if(chat()?.open)chat().open(agentId,{draft});
+ else if(chat()?.open)chat().open(agentId,{draft,context});
  else chat()?.show?.(agentId);
 }
+document.addEventListener('paperworld:work-changed',()=>{if(!shell.hidden)render()});
 document.addEventListener('paperworld:chat-closed',()=>{
  if(suppressChatEvent)return;
  if(!handoff){window.PaperworldWorld?.frameForWorkspace?.({open:false});return}
@@ -293,10 +299,33 @@ function itemCard(item,{showProject=true}={}){
   const a=el('a','pw-link',item.linkLabel||'Λεπτομέρειες');a.href=item.link;a.target='_blank';a.rel='noopener noreferrer';
   actions.append(a);
  }
+ // The conversation opens about THIS item, so the resident knows what you mean.
  if(project&&!item.note)actions.append(button('Μίλα με '+withArticle(project.owner),'pw-chip',
-  ()=>talk(project.owner)));
+  ()=>talk(project.owner,{draft:'Για την εργασία «'+titleText.slice(0,90)+'»: ',
+   context:{title:titleText.slice(0,140),state:String(item.label||'').slice(0,240)}})));
+ if(!item.note&&item.key&&typeof cloud()?.dismissItem==='function')
+  actions.append(button('✕','pw-icon-btn pw-item-remove',()=>void removeItem(item,titleText),
+   'Αφαίρεση από τη λίστα'));
  if(actions.childNodes.length)card.append(actions);
  return card;
+}
+// Hide an item from the owner's lists. The record itself is kept, and an
+// "Αναίρεση" in the toast brings it straight back.
+async function removeItem(item,titleText){
+ if(!window.confirm('Να αφαιρεθεί «'+titleText.slice(0,80)+'» από τη λίστα;\n'+
+  'Η καταγραφή μένει στο ιστορικό· απλώς δεν θα την βλέπεις εδώ.'))return;
+ try{
+  await cloud().dismissItem(item.key);state.dismissed.add(item.key);render();
+  undoToast(item.key);
+ }catch(_){say('Η αφαίρεση δεν ολοκληρώθηκε. Δοκίμασε ξανά.')}
+}
+function undoToast(key){
+ toast.replaceChildren(el('span','','Αφαιρέθηκε από τη λίστα. '),
+  button('Αναίρεση','pw-btn-ghost',async()=>{
+   try{await cloud().restoreItem(key);state.dismissed.delete(key);toast.hidden=true;render()}
+   catch(_){say('Η αναίρεση απέτυχε.')}
+  }));
+ toast.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>{toast.hidden=true},7000);
 }
 function section(titleText,hint,children,{id,count}={}){
  const s=el('section','pw-section');if(id)s.id=id;
