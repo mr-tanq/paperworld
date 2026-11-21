@@ -131,13 +131,13 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
  }
  // The owner's live Suno link: memory first, then the sealed copy; renewed
  // with the refresh token when the access token has expired.
- async function linkFor(ownerId){
+ async function linkFor(ownerId,{allowRefresh=true}={}){
   cleanup();
   const live=linked.get(ownerId);if(live)return live;
   const saved=await store.load(ownerId);
   if(!saved||typeof saved.accessToken!=='string')return null;
   if(Number(saved.expires)>clock()+60000){linked.set(ownerId,saved);return saved}
-  if(typeof saved.refreshToken!=='string'||!sunoHost(saved.tokenEndpoint))return null;
+  if(!allowRefresh||typeof saved.refreshToken!=='string'||!sunoHost(saved.tokenEndpoint))return null;
   const next=await refresh(saved);if(!next)return null;
   linked.set(ownerId,next);await store.save(ownerId,next);return next;
  }
@@ -227,11 +227,11 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
  async function inspectTools(req={}){
   const who=await identify(req);if(who.error)return who.error;
   cleanup();
-  const linkedToken=await linkFor(who.ownerId);
+  const linkedToken=await linkFor(who.ownerId,{allowRefresh:false});
   if(!linkedToken)return denied(409,'suno_oauth_required');
   // Owner initiated only; a successful OAuth link does not authorize a tools/call.
   const verdict=await tools.inspect({accessToken:linkedToken.accessToken,
-   includeCreationSchema:true,includeToolSignatures:true});
+   includeCreationSchema:true,includeToolSignatures:true,includeInventory:true});
   const allowed=verdict?.available===true&&
    Number.isSafeInteger(verdict.toolCount)&&verdict.toolCount>=0&&verdict.toolCount<=100&&
    Array.isArray(verdict.tools)&&verdict.tools.length===verdict.toolCount&&
@@ -244,6 +244,7 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
    toolSignatures:allowed&&Array.isArray(verdict.toolSignatures)?verdict.toolSignatures:[],
    creationTools:allowed&&Array.isArray(verdict.creationTools)?
     verdict.creationTools:[],
+   ...(allowed&&verdict.inventory?{inventory:verdict.inventory}:{}),
    reason:allowed?'read_only_tools_verified':safeToolReason(verdict)});
  }
  // Owner-initiated connection doctor. Only existing read-only discovery

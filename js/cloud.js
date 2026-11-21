@@ -733,7 +733,8 @@
   }
   async function inspectSunoTools(){
    await ensureAuth();
-   const thread=await getAgentThread('studio-director',true);
+   const thread=await getAgentThread('studio-director');
+   if(!thread)throw Error('Crow thread required for Suno diagnostics');
    const response=await fetcher(MATT_ORIGIN+'/auth/suno/inspect-tools',{
     method:'POST',redirect:'error',
     headers:{Authorization:'Bearer '+session.access_token,

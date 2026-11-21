@@ -6,7 +6,8 @@
 const ENDPOINT='https://api.suno.com/mcp';
 const VERSION='2025-11-25';
 const MAX_BODY=512*1024;
-const {summarize}=require('./suno-mcp-tool-probe.cjs');
+const {toolInventory}=require('./suno-tool-inventory.cjs');
+const {summarize,creationSignatures,toolSignatures}=require('./suno-mcp-tool-probe.cjs');
 function parseMessage(raw,expectedId){
  if(typeof raw!=='string'||raw.length>MAX_BODY)return null;
  let parsed;
@@ -70,7 +71,7 @@ async function readResponse(response,id){
 }
 function makeLegacySunoMcpProbe({fetcher=globalThis.fetch}={}){
  if(typeof fetcher!=='function')throw Error('fetcher_required');
- async function inspect({accessToken}={}){
+ async function inspect({accessToken,includeCreationSchema=false,includeToolSignatures=false,includeInventory=false}={}){
   if(typeof accessToken!=='string'||accessToken.length<12||accessToken.length>8192)
    return {available:false,reason:'not_authorized'};
   const base={'Authorization':'Bearer '+accessToken,
@@ -112,7 +113,10 @@ function makeLegacySunoMcpProbe({fetcher=globalThis.fetch}={}){
    const summary=summarize(result);
    if(!summary)return {available:false,reason:'legacy_tools_unverified'};
    return {available:true,reason:'read_only_legacy_tools_verified',
-    toolCount:summary.toolCount,tools:summary.tools};
+    toolCount:summary.toolCount,tools:summary.tools,
+    ...(includeCreationSchema===true?{creationTools:creationSignatures(result)}:{}),
+    ...(includeToolSignatures===true?{toolSignatures:toolSignatures(result)}:{}),
+    ...(includeInventory===true?{inventory:toolInventory(result,version)}:{})};
   }catch(error){
    return {available:false,reason:error?.name==='TimeoutError'||
     error?.name==='AbortError'?'provider_timeout':'legacy_probe_unavailable'};

@@ -60,9 +60,12 @@ test('OAuth owner must be linked before MCP tool discovery; never enables genera
     token_type:'Bearer',expires_in:600})};
  };
  const client=createSunoOAuthClient({identity,discovery,fetcher,
-  toolProbe:{inspect:async({accessToken})=>{
+  toolProbe:{inspect:async({accessToken,includeInventory})=>{
    assert.equal(accessToken,'valid-access-token-1234');inspections++;
-   return {available:true,toolCount:1,tools:['music/create_song']};
+   return {available:true,toolCount:1,tools:['music/create_song'],
+    ...(includeInventory?{inventory:{protocolVersion:VERSION,toolCount:1,
+     toolContracts:'unverified',tools:[{name:'music/create_song',input:null,
+      omittedStructure:true}]}}:{})};
   }}});
  assert.equal((await client.inspectTools({headers,body})).status,409);
  const started=await client.start({headers,body});
@@ -75,7 +78,10 @@ test('OAuth owner must be linked before MCP tool discovery; never enables genera
  assert.deepEqual(result.body,{service:'suno_mcp',oauthAuthorized:true,
    toolsListed:true,canGenerate:false,toolCount:1,creationTools:[],
    toolNames:['music/create_song'],toolSignatures:[],
+   inventory:{protocolVersion:VERSION,toolCount:1,toolContracts:'unverified',
+    tools:[{name:'music/create_song',input:null,omittedStructure:true}]},
    reason:'read_only_tools_verified'});
+ assert.equal(result.headers['Cache-Control'],'no-store');
  assert.equal(inspections,1);
  const doctor=await client.diagnose({headers,body});
  assert.equal(doctor.body.toolsListed,true);
@@ -238,4 +244,90 @@ test('Live capability discovery requests tools/list and exposes only structural 
  }]);
  assert.doesNotMatch(JSON.stringify(result),/secret description|private |valid-access-token/);
  assert.deepEqual(calls,['tools/list']);
+});
+
+test('Owner inventory is bounded, structural and available on both transports',async()=>{
+ const accessToken='valid-access-token-1234';
+ const version='2025-06-18';
+ const tools=Array.from({length:60},(_,i)=>({
+  name:'fixture-'+i,description:'private tool description',
+  inputSchema:{type:'object',required:['request'],properties:{
+   request:{type:'array',items:{type:'object',properties:{
+    track:{type:['string','null'],enum:['private track']},
+    model:{anyOf:[{type:'string',const:'private model'},{type:'integer'}]},
+    other:{$ref:'#/private-ref'},
+    'private field name':{type:'string'}
+   }}},
+   cursor:{type:'string',default:'private cursor',examples:['private example']}
+  }},
+  outputSchema:{properties:{'private-output':{type:'string'}}}
+ }));
+ for(const legacy of [false,true]){
+  const calls=[];
+  const probe=makeSunoMcpToolProbe({fetcher:async(url,req)=>{
+   const {method}=JSON.parse(req.body);
+   calls.push(method);
+   if(legacy&&calls.length===1)return {status:406};
+   const response=(id,result)=>new Response(JSON.stringify({jsonrpc:'2.0',id,result}),{
+    headers:{'Content-Type':'application/json','Mcp-Session-Id':'private-session-id'}
+   });
+   if(method==='initialize')return response(0,{protocolVersion:version});
+   if(method==='notifications/initialized')return new Response(null,{status:202});
+   return response(1,{tools});
+  }});
+  const result=await probe.inspect({accessToken,includeInventory:true});
+  const report=result.inventory;
+  assert.equal(report.protocolVersion,legacy?version:VERSION);
+  assert.equal(report.toolCount,60);
+  assert.equal(report.toolContracts,'unverified');
+  assert.deepEqual(report.tools.map(t=>t.name),tools.map(t=>t.name));
+  const {input,omittedStructure}=report.tools[59];
+  assert.equal(omittedStructure,true);
+  const [request,cursor]=input.fields;
+  assert.equal(request.required,true);
+  assert.equal(cursor.required,false);
+  assert.deepEqual(request.shape.items.fields[0].shape.types,['string','null']);
+  assert.deepEqual(request.shape.items.fields[1].shape.anyOf,[
+   {types:['string']},{types:['integer']}
+  ]);
+  assert.doesNotMatch(JSON.stringify(report),/private|valid-access-token/);
+  assert.deepEqual(calls,legacy?
+   ['tools/list','initialize','notifications/initialized','tools/list']:['tools/list']);
+ }
+});
+
+test('Inventory explicitly marks schemas whose structural bounds are reached',async()=>{
+ const properties=Object.fromEntries(Array.from({length:65},(_,i)=>[
+  'field-'+i,{type:'object',properties:{nested:{type:'string'}}}
+ ]));
+ const tools=Array.from({length:60},(_,i)=>({
+  name:'fixture-'+i,inputSchema:{type:'object',properties}
+ }));
+ const probe=makeSunoMcpToolProbe({fetcher:async()=>new Response(
+  JSON.stringify({jsonrpc:'2.0',id:1,result:{tools}}),
+  {headers:{'Content-Type':'application/json'}})});
+ const result=await probe.inspect({accessToken:'valid-access-token-1234',includeInventory:true});
+ assert.equal(result.inventory.tools.length,60);
+ assert.equal(result.inventory.tools[0].input.fields.length,64);
+ assert.equal(result.inventory.tools[0].omittedStructure,true);
+ assert.equal(result.inventory.tools[59].input,null);
+ assert.equal(result.inventory.tools[59].omittedStructure,true);
+});
+
+test('Inventory denies a foreign Crow thread before reading the link and never refreshes an expired token',async()=>{
+ const ownersRead=[];
+ const client=createSunoOAuthClient({identity,linkStore:{
+  load:async id=>{
+   ownersRead.push(id);
+   return {accessToken:'expired-access-token-1234',refreshToken:'private-refresh-token',
+    tokenEndpoint:metadata.token_endpoint,expires:0};
+  },
+  save:async()=>assert.fail('inventory must not write a link')
+ },fetcher:async()=>assert.fail('inventory must not refresh a token'),
+ toolProbe:{inspect:async()=>assert.fail('inventory must have a live owner token')}});
+ const foreignThreadBody=JSON.stringify({agentId:'studio-director',threadId:ownerId});
+ assert.equal((await client.inspectTools({headers,body:foreignThreadBody})).status,404);
+ assert.deepEqual(ownersRead,[]);
+ assert.equal((await client.inspectTools({headers,body})).status,409);
+ assert.deepEqual(ownersRead,[ownerId]);
 });

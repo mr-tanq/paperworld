@@ -6,6 +6,7 @@
  * Supports bounded JSON and request-scoped SSE responses, not SSE sessions.
  */
 'use strict';
+const {toolInventory}=require('./suno-tool-inventory.cjs');
 const ENDPOINT='https://api.suno.com/mcp';
 const VERSION='2026-07-28';
 const MAX_BODY=512*1024,MAX_TOOLS=100;
@@ -178,7 +179,7 @@ function parseRequestSse(raw){
 }
 function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
  if(typeof fetcher!=='function')throw Error('fetcher_required');
- async function inspect({accessToken,includeCreationSchema=false,includeToolSignatures=false,contractFor=null}={}){
+ async function inspect({accessToken,includeCreationSchema=false,includeToolSignatures=false,includeInventory=false,contractFor=null}={}){
   if(typeof accessToken!=='string'||accessToken.length<12||accessToken.length>8192)
    return {available:false,reason:'not_authorized'};
   const request={jsonrpc:'2.0',id:1,method:'tools/list',params:{
@@ -202,7 +203,7 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
    // Authorization failures, redirects and malformed successes MUST NOT fall back.
    if([400,404,406].includes(response.status)){
     const {makeLegacySunoMcpProbe}=require('./suno-mcp-legacy-probe.cjs');
-    return makeLegacySunoMcpProbe({fetcher}).inspect({accessToken});
+    return makeLegacySunoMcpProbe({fetcher}).inspect({accessToken,includeCreationSchema,includeToolSignatures,includeInventory});
    }
    if(response.status===429)return {available:false,reason:'provider_rate_limited'};
    if(response.status===404)return {available:false,reason:'provider_endpoint_missing'};
@@ -230,7 +231,7 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
       Number.isInteger(message.error.code)){
     if([-32600,-32601,-32602].includes(message.error.code)){
      const {makeLegacySunoMcpProbe}=require('./suno-mcp-legacy-probe.cjs');
-     return makeLegacySunoMcpProbe({fetcher}).inspect({accessToken});
+     return makeLegacySunoMcpProbe({fetcher}).inspect({accessToken,includeCreationSchema,includeToolSignatures,includeInventory});
     }
     return {available:false,reason:'provider_rpc_rejected'};
    }
@@ -242,6 +243,7 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
     toolCount:result.toolCount,tools:result.tools,
     ...(includeCreationSchema===true?{creationTools:creationSignatures(message)}:{}),
     ...(includeToolSignatures===true?{toolSignatures:toolSignatures(message)}:{}),
+    ...(includeInventory===true?{inventory:toolInventory(message,VERSION)}:{}),
     ...(typeof contractFor==='string'?{toolContract:toolContract(message,contractFor)}:{})};
   }catch(error){
    return {available:false,reason:error?.name==='TimeoutError'||
@@ -250,4 +252,4 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
  }
  return Object.freeze({inspect});
 }
-module.exports=Object.freeze({makeSunoMcpToolProbe,summarize,parseRequestSse,responseFailure,creationSignatures,toolContract,ENDPOINT,VERSION});
+module.exports=Object.freeze({makeSunoMcpToolProbe,summarize,parseRequestSse,responseFailure,creationSignatures,toolSignatures,toolContract,ENDPOINT,VERSION});
