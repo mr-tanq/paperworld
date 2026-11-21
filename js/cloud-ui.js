@@ -461,6 +461,8 @@ window.PaperworldCloudUI={
  listDismissed:()=>client.listDismissed(),
  dismissItem:key=>client.dismissItem(key),
  restoreItem:key=>client.restoreItem(key),
+ savePushSubscription:sub=>client.savePushSubscription(sub),
+ deletePushSubscription:endpoint=>client.deletePushSubscription(endpoint),
  preparePokemonSolution,discardPokemonSolution,
  prepareHumanSolution:prepareSolution,
  discardHumanSolution:discardSolution,
