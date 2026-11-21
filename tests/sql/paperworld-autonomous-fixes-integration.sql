@@ -88,7 +88,7 @@ BEGIN
 END $$;
 DO $$ DECLARE txt text; BEGIN
  SELECT content INTO txt FROM public.paperworld_agent_messages WHERE id=md5('a0000000-0000-4000-8000-000000000007:needs_you')::uuid;
- ASSERT txt LIKE '%δεν βρήκε κάτι χαλασμένο%' AND txt LIKE '%πόλη, ημερομηνίες ή καλλιτέχνη%'
+ ASSERT txt LIKE '%δεν χρειάστηκε να αλλάξει τίποτα%' AND txt LIKE '%Τι βρήκε:%' AND txt LIKE '%π.χ. πόλη ή καλλιτέχνη%'
   AND txt LIKE '%https://github.com/mr-tanq/concerts/pull/11%','no-change message: '||txt;
  ASSERT (SELECT count(*) FROM public.paperworld_director_memory)=5,'one lesson per finished task, none while retrying';
  SELECT body INTO txt FROM public.paperworld_director_memory WHERE source_ref='mission:a0000000-0000-4000-8000-000000000001';

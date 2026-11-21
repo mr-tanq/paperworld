@@ -38,3 +38,17 @@ test('no placeholder star; tidy settings; focused memory page',()=>{
  assert.match(fs.readFileSync('js/cloud-ui.js','utf8'),/pw-classic-focus/);
  assert.match(fs.readFileSync('messenger.css','utf8'),/@media \(pointer:coarse\)\{\.world-talk-actions\{display:none!important\}\}/);
 });
+test('round 2: no empty-room flash, honest count, Greek badges, honest no-change message',()=>{
+ const th=fs.readFileSync('js/town-hall-interior.js','utf8');
+ assert.match(th,/const waiting=!scene&&!\(failed\.day&&failed\.night\)/);
+ assert.match(th,/i\.src=SCENE\[k\]/,'scene preloaded at app start');
+ const act=require('../js/village-activity.js');
+ const NOW=Date.parse('2026-11-21T20:00:00Z');
+ const s=act.summary([{id:'1',projectId:'pokemon',status:'needs_you',lastError:'agent_no_changes',goal:'g',updatedAt:'2026-11-21T19:00:00Z'},
+  {id:'2',projectId:'listening',status:'needs_you',lastError:'trusted_verification_failed',goal:'g',updatedAt:'2026-11-21T19:00:00Z'},
+  {id:'3',projectId:'listening',status:'needs_you',goal:'g',updatedAt:'2026-11-10T19:00:00Z'}],{dismissed:['mission:2'],now:NOW});
+ assert.equal(s.attention,0);
+ assert.match(fs.readFileSync('js/director-memory-review.js','utf8'),/approved:'Εγκεκριμένη'/);
+ const sql=fs.readFileSync('sql/paperworld_phase3_learning_memory.sql','utf8');
+ assert.match(sql,/δεν χρειάστηκε να αλλάξει τίποτα/);assert.doesNotMatch(sql,/Για να το εντοπίσουμε χρειάζομαι/);
+});

@@ -81,6 +81,9 @@ function paintRoom(ctx,w,h){
  ctx.fillStyle='#3f7a4f';ctx.fillRect(tx+tw*.1,ty+th*.38,tw*.8,th*.24);
  ctx.fillStyle='#5a3a22';ctx.fillRect(tx+8,ty+th,10,h*.08);ctx.fillRect(tx+tw-18,ty+th,10,h*.08);
 }
+// Warm the browser cache with the painted scene as soon as the app loads, so
+// the first meeting opens straight on it.
+try{if(root.Image&&root.document)for(const k of ['day','night']){const i=new root.Image();i.decoding='async';i.src=SCENE[k]}}catch(_){}
 function create(host,{statuses=()=>({}),onTalk=null,onEnd=null,onAgenda=null,profiles=null}={}){
  if(!host)throw Error('host required');
  const doc=host.ownerDocument||root.document;
@@ -97,10 +100,11 @@ function create(host,{statuses=()=>({}),onTalk=null,onEnd=null,onAgenda=null,pro
  const lines=el('div','th-lines');
  wrap.append(stage,lines,bar);host.append(wrap);
  // Day or night art follows the village's evening light.
- const arts={},scenes={};
- for(const [store,src] of [[arts,ART],[scenes,SCENE]])for(const key of ['day','night']){
+ const arts={},scenes={},failed={};
+ for(const [store,src] of [[scenes,SCENE],[arts,ART]])for(const key of ['day','night']){
   const img=root.Image?new root.Image():null;if(!img)continue;
-  img.decoding='async';img.onload=()=>{store[key]=img;if(!wrap.hidden){draw();place()}};img.src=src[key];
+  img.decoding='async';img.onload=()=>{store[key]=img;if(!wrap.hidden){draw();place()}};
+  img.onerror=()=>{if(store===scenes)failed[key]=true;if(!wrap.hidden){draw();place()}};img.src=src[key];
  }
  let painted=false;
  const isNight=()=>{try{return (root.PaperworldVillageAmbience?.darkness?.()??0)>=.5}catch(_){return false}};
@@ -118,10 +122,15 @@ function create(host,{statuses=()=>({}),onTalk=null,onEnd=null,onAgenda=null,pro
   const ctx=canvas.getContext?.('2d');if(!ctx)return;ctx.setTransform(dpr,0,0,dpr,0,0);
   const night=isNight();
   const scene=(night?scenes.night:scenes.day)||scenes.day||scenes.night;
-  const art=scene||(night?arts.night:arts.day)||arts.day||arts.night;
+  // While the painted scene is still loading, show a calm dark room (never the
+  // empty-room art for a split second); fall back only if the scene failed.
+  const waiting=!scene&&!(failed.day&&failed.night)&&!!root.Image;
+  const art=scene||(waiting?null:(night?arts.night:arts.day)||arts.day||arts.night);
   painted=!!scene;wrap.classList.toggle('th-scene',painted);
   rect=art?coverRect(w,h):{x:0,y:0,w,h};
-  if(art)ctx.drawImage(art,rect.x,rect.y,rect.w,rect.h);else paintRoom(ctx,w,h);
+  if(art)ctx.drawImage(art,rect.x,rect.y,rect.w,rect.h);
+  else if(waiting){ctx.fillStyle='#1b120b';ctx.fillRect(0,0,w,h)}else paintRoom(ctx,w,h);
+  seats.style.visibility=waiting?'hidden':'';
  }
  // Seats follow the drawn art exactly, whatever the screen shape.
  function place(){
