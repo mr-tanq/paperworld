@@ -33,3 +33,8 @@
 .th-line-face img,.th-line-face canvas{width:100%;height:100%;object-fit:cover}
 .th-line-text{display:flex;flex-direction:column;min-width:0}
 .th-line-text strong{font-size:.88rem}.th-line-text span{font-size:.82rem;opacity:.8}
+/* Director workspaces reuse the room layout. */
+.ws-note{margin:0;padding:10px 14px;background:#1b120b;font-size:.9rem;line-height:1.35}
+.ws-room:not(.th-portrait) .ws-note{display:none}
+.ws-room .th-seat[data-seat=guest]{cursor:default}
+.ws-room.th-portrait .ws-note{flex:1;padding:16px 18px;font-size:1rem;color:#f3e3c4}
