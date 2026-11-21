@@ -24,34 +24,31 @@ function components(){
 test('preserve exact owner-exported path survey counts and coordinates',()=>{
  assert.equal(survey.format,'paperworld-path-survey-v1');
  assert.deepEqual(survey.scene,{width:1671,height:941});
- assert.equal(survey.nodes.length,85);
- assert.equal(survey.connections.length,82);
- assert.equal(survey.hiddenConnections.length,17);
+ assert.equal(survey.nodes.length,74);
+ assert.equal(survey.connections.length,77);
+ assert.equal(survey.hiddenConnections.length,7);
  assert.deepEqual(survey.nodes[0],[612,551]);
- assert.deepEqual(survey.nodes[83],[884,731]);
- assert.deepEqual(survey.nodes[84],[23,439]);
- assert.deepEqual(survey.connections.at(-1),[81,82]);
+ assert.deepEqual(survey.nodes[70],[868,715]);
+ assert.deepEqual(survey.nodes[73],[1446,752]);
+ assert.deepEqual(survey.connections.at(-1),[72,11]);
  const keys=new Set(survey.connections.map(([a,b])=>[Math.min(a,b),Math.max(a,b)].join(':')));
  for(const [a,b] of survey.hiddenConnections)assert.ok(keys.has([Math.min(a,b),Math.max(a,b)].join(':')));
 });
-test('flag disconnected branches instead of inventing routes',()=>{
+test('owner survey is connected but three leaf spurs fail calibrated obstacle checks',()=>{
  const groups=components();
- assert.equal(groups.length,7);
- assert.deepEqual(groups.map(g=>g.length).sort((a,b)=>b-a),[75,5,1,1,1,1,1]);
- assert.deepEqual(groups.filter(g=>g.length===1).map(g=>g[0]).sort((a,b)=>a-b),[46,47,48,83,84]);
- assert.ok(groups.some(g=>g.join(',')==='78,79,80,81,82'));
- assert.match(app,/pathDisconnectedComponents/);
- assert.match(app,/ασύνδετα τμήματα/);
+ assert.equal(groups.length,1);
+ assert.equal(groups[0].length,74);
+ for(const [a,b] of [[69,13],[70,7],[71,1]])assert.equal(originalNav.clearSegment(survey.nodes[a],survey.nodes[b]),false);
 });
 test('retain exact owner export as archive while live routes use repaired connected graph',()=>{
  assert.match(app,/nodes:window\.PaperworldNavigation\.nodes/);
- assert.match(app,/storageKey:'paperworld-operational-paths-studio-only-v2'/);
- assert.match(html,/owner-path-survey\.js\?v=20261117/);
+ assert.match(app,/storageKey:'paperworld-operational-paths-owner-nov21-v3'/);
+ assert.ok(html.includes('owner-path-survey.js?v=20261121-74'));
  assert.ok(html.indexOf('owner-path-survey.js')<html.indexOf('navigation.js'));
  assert.ok(html.indexOf('navigation.js')<html.indexOf('js/app.js'));
  assert.equal(originalNav.safeConnections.length,originalNav.connections.length);
  assert.deepEqual(originalNav.nodes,survey.nodes.filter((_,i)=>!originalNav.operationalExcludedNodes.includes(i)));
- assert.deepEqual(originalNav.operationalExcludedNodes,[43,44,45,46,47,48,49,50,51,52,53,54,55,78,79,80,81,82,83,84]);
+ assert.deepEqual(originalNav.operationalExcludedNodes,[69,70,71]);
  assert.equal(originalNav.repairedConnections.length,0);
  assert.match(app,/navigation\.snapToPath/);
  assert.match(app,/navigation\.routeBetween/);
