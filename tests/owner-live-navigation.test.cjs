@@ -13,11 +13,11 @@ const homes={
  'studio-director':[822,861]
 };
 test('Studio-only hidden walkway leaves one fully connected public network',()=>{
- assert.equal(survey.nodes.length,85,'preserve owner export intact');
- assert.equal(navigation.nodes.length,65,'remove the right bypass and stray markers');
- assert.deepEqual(navigation.operationalExcludedNodes,[43,44,45,46,47,48,49,50,51,52,53,54,55,78,79,80,81,82,83,84]);
+ assert.equal(survey.nodes.length,74,'preserve owner export intact');
+ assert.equal(navigation.nodes.length,71,'remove the right bypass and stray markers');
+ assert.deepEqual(navigation.operationalExcludedNodes,[69,70,71]);
  assert.deepEqual(navigation.repairedConnections,[]);
- assert.equal(navigation.connections.length,68);
+ assert.equal(navigation.connections.length,74);
  assert.equal(navigation.hiddenConnections.length,7);
  assert.deepEqual(navigation.hiddenConnections,[[16,37],[37,38],[38,39],[39,40],[40,41],[41,42],[42,28]]);
  assert.equal(navigation.safeConnections.length,navigation.connections.length);
@@ -58,7 +58,7 @@ test('owner route overlay and live graph use same network, with browser load ord
  assert.ok(html.indexOf('navigation.js')<html.indexOf('js/app.js'));
  assert.match(app,/nodes:window\.PaperworldNavigation\.nodes/);
  assert.match(app,/connections:window\.PaperworldNavigation\.connections/);
- assert.match(app,/paperworld-operational-paths-studio-only-v2/);
+ assert.match(app,/paperworld-operational-paths-owner-nov21-v3/);
  for(const point of ['1110,558','1238,640','822,861'])assert.ok(app.includes(point));
  assert.match(app,/navigation\.routeBetween\(start,destination\)/);
 });

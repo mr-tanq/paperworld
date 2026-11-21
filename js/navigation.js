@@ -1,4 +1,4 @@
-/* PAPERWORLD user-annotated path survey v4: conservative, explicit walking network.
+/* PAPERWORLD user-annotated path survey v5: conservative, explicit walking network.
    The map is artwork, not walkable terrain; these are reviewed sidewalk waypoints.
    No automated movement may enter a building's ground footprint. */
 (function(root,factory){
@@ -8,19 +8,16 @@
  else root.PaperworldNavigation=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(root){
  'use strict';
- // Operational network derived from the owner's 2026-11-17 survey.
- // Nodes 83 (inside Studio's building footprint) and 84 (x=23, isolated map edge)
- // remain in owner-path-survey.js for editing, but are not navigable roads.
+ // Operational network derived from the owner's 2026-11-21 survey.
+ // Unsafe leaf spurs 69–71 intersect a calibrated building base and are not walkable.
  const survey=(typeof module==='object'&&module.exports)
   ?require('./owner-path-survey.js'):root.PaperworldOwnerPathSurvey;
- if(!survey||survey.nodes.length!==85)throw new Error('Owner path survey missing');
- // Remove the entire right-hand purple detour toward Listening Mirror,
- // not just its overlay. Preserve the Studio's seven rear hidden edges.
- // Old indices are kept in the immutable survey for future user reference.
- const removedSurveyNodes=new Set([
-  43,44,45,46,47,48,49,50,51,52,53,54,55,
-  78,79,80,81,82,83,84
- ]);
+ if(!survey||survey.nodes.length!==74)throw new Error('Owner path survey missing');
+ // The owner removed the right Listening Mirror hidden detour from this survey.
+ // Only the Studio's seven rear edges remain hidden.
+ // Three leaf nodes are retained in the exact survey for editing, but never activated:
+ // 69 crosses Wellbeing; 70 is inside Studio; 71 crosses Pokémon's base.
+ const removedSurveyNodes=new Set([69,70,71]);
  const retainedSurveyIndices=survey.nodes.map((_,i)=>i)
   .filter(i=>!removedSurveyNodes.has(i));
  const operationalIndex=new Map(retainedSurveyIndices.map((id,i)=>[id,i]));

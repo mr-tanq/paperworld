@@ -67,7 +67,7 @@ test('annotated red routes are curved and visible at the correct locations',()=>
 });
 
 test('removed Listening Mirror bypass does not reappear in live navigation',()=>{
- assert.equal(nav.nodes.length,65,'65 connected waypoints excluding the right hidden bypass');
+ assert.equal(nav.nodes.length,71,'71 connected safe waypoints; three unsafe leaf spurs excluded');
  assert.equal(nav.safeConnections.length,nav.connections.length,'all hidden alleys must be ground-safe');
  assert.equal(nav.hiddenConnections.length,7,'only Studio rear path stays hidden');
  const removed=[[950,355],[988,320],[1040,305],[1120,300],[1210,305],[1270,335]];
