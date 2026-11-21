@@ -1,5 +1,5 @@
 -- PAPERWORLD — Director initiatives, phase B: ideas answered with Yes/No (2026-11-21).
--- Weekly (Sunday 10:23 Amsterdam) the database wakes the Render server with a
+-- Daily (10:23 Amsterdam) the database wakes the Render server with a
 -- single-use token; Luna, Joey and Crow each store ONE idea here and Matt tells
 -- the owner. Nothing starts until the owner answers "Ναι" in the app.
 -- ROLLBACK: select cron.unschedule('paperworld-proposals');
@@ -69,6 +69,6 @@ do $$
 begin
  if exists(select 1 from cron.job where jobname='paperworld-proposals')
  then perform cron.unschedule('paperworld-proposals'); end if;
- perform cron.schedule('paperworld-proposals','23 8 * * 0','select public.paperworld_proposals_wakeup()');
+ perform cron.schedule('paperworld-proposals','23 8 * * *','select public.paperworld_proposals_wakeup()');
 end $$;
 commit;
