@@ -64,6 +64,14 @@ on:
       - 'tests/director-delegates.test.cjs'
       - 'tests/town-hall-room.test.cjs'
       - 'tests/director-workspaces.test.cjs'
+      - 'tests/push-notifications.test.cjs'
+      - 'tests/v5-task-test-paths.test.cjs'
+      - 'tests/v5-task-batch.test.cjs'
+      - 'tests/sql/paperworld-push-notifications.sql'
+      - 'sql/paperworld_push_notifications_v1.sql'
+      - 'supabase/functions/paperworld-push/**'
+      - 'js/push-notify.js'
+      - 'sw.js'
       - 'js/workspace-interior.js'
       - 'js/town-hall-interior.js'
       - 'js/director-movement.js'
@@ -184,6 +192,9 @@ jobs:
             tests/director-delegates.test.cjs \
             tests/town-hall-room.test.cjs \
             tests/director-workspaces.test.cjs \
+            tests/push-notifications.test.cjs \
+            tests/v5-task-test-paths.test.cjs \
+            tests/v5-task-batch.test.cjs \
             tests/director-movement.test.cjs \
             tests/camera-framing.test.cjs \
             tests/village-life-v2.test.cjs \
@@ -316,6 +327,14 @@ jobs:
           psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
             -h 127.0.0.1 -p 5432 -U postgres -d dismissed_synthetic \
             -f tests/sql/paperworld-dismissed-items.sql
+      - name: Execute phone notification schema on PostgreSQL 17
+        env:
+          PGPASSWORD: synthetic-only
+        run: |
+          createdb -h 127.0.0.1 -p 5432 -U postgres push_synthetic
+          psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
+            -h 127.0.0.1 -p 5432 -U postgres -d push_synthetic \
+            -f tests/sql/paperworld-push-notifications.sql
       - name: Execute V5 Dispatch lifecycle, budget and crash integration on PostgreSQL 17
         env:
           PGPASSWORD: synthetic-only

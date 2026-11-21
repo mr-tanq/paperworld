@@ -632,9 +632,24 @@ function renderSettings(){
   snd.setAttribute('aria-checked',String(sound?.enabled?.()===true));
   if(on)sound?.chime?.();
  });
+ // Phone notifications: Matt's updates reach this device even when the app is closed.
+ const push=window.PaperworldPush;
+ const ntf=el('button','pw-switch');ntf.type='button';ntf.setAttribute('role','switch');
+ ntf.setAttribute('aria-checked','false');ntf.setAttribute('aria-label','Ειδοποιήσεις στο κινητό');
+ ntf.disabled=!push||typeof cloud()?.savePushSubscription!=='function';
+ const ntfNote=el('p','pw-section-hint','');ntfNote.hidden=true;
+ if(push)void push.enabled().then(on=>ntf.setAttribute('aria-checked',String(on)));
+ ntf.addEventListener('click',async()=>{
+  ntf.disabled=true;ntfNote.hidden=true;
+  const on=ntf.getAttribute('aria-checked')==='true';
+  const r=on?await push.disable(cloud()):await push.enable(cloud()).catch(()=>({ok:false,reason:'save_failed'}));
+  ntf.setAttribute('aria-checked',String(await push.enabled()));ntf.disabled=false;
+  if(!r.ok){ntfNote.textContent=push.REASONS[r.reason]||push.REASONS.save_failed;ntfNote.hidden=false}
+ });
  const keys=el('p','pw-section-hint','Συντομεύσεις: M · Matt, T · κοντινός agent, Esc · κλείσιμο.');
  body.append(section('Προτιμήσεις',null,[settingRow('Λιγότερη κίνηση','Απενεργοποιεί τις μεταβάσεις και τις κινήσεις διεπαφής',sw),
-  settingRow('Ήχοι του χωριού','Ρυάκι, πουλιά τη μέρα, γρύλοι το βράδυ και ένα απαλό «ντινγκ» όταν σου απαντούν',snd),keys]));
+  settingRow('Ήχοι του χωριού','Ρυάκι, πουλιά τη μέρα, γρύλοι το βράδυ και ένα απαλό «ντινγκ» όταν σου απαντούν',snd),
+  settingRow('Ειδοποιήσεις στο κινητό','Ο Matt σε ειδοποιεί όταν τελειώνει ή σταματά μια εργασία, και για την πρωινή σύνοψη',ntf),ntfNote,keys]));
  // Advanced (clearly separated from everyday settings)
  const adv=el('details','pw-advanced');
  adv.append(el('summary','','Για προχωρημένους'));

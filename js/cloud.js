@@ -85,6 +85,19 @@
     extra:{Prefer:'resolution=ignore-duplicates,return=minimal'}});
    return true;
   }
+  // Phone notifications: this device's Web Push subscription (own row, RLS).
+  async function savePushSubscription({endpoint,p256dh,auth}={}){
+   if(!/^https:\/\/[A-Za-z0-9.-]+\//.test(endpoint||'')||String(endpoint).length>1000||
+    !/^[A-Za-z0-9_-]{80,100}$/.test(p256dh||'')||!/^[A-Za-z0-9_-]{16,30}$/.test(auth||''))throw Error('Invalid subscription');
+   await withAuth('/rest/v1/paperworld_push_subscriptions_v1',{method:'POST',data:{endpoint,p256dh,auth},
+    extra:{Prefer:'resolution=ignore-duplicates,return=minimal'}});
+   return true;
+  }
+  async function deletePushSubscription(endpoint){
+   if(!/^https:\/\//.test(endpoint||''))throw Error('Invalid subscription');
+   await withAuth('/rest/v1/paperworld_push_subscriptions_v1?endpoint=eq.'+encodeURIComponent(endpoint),{method:'DELETE'});
+   return true;
+  }
   async function restoreItem(key){
    if(!ITEM_KEY.test(key||''))throw Error('Invalid item');
    await withAuth('/rest/v1/paperworld_dismissed_items_v1?item_key=eq.'+encodeURIComponent(key),{method:'DELETE'});
@@ -981,7 +994,7 @@
    }
   }
   return {BASE,identity,ownerId,signedIn,login,signup,signout,list,add,update,remove,
-   listDismissed,dismissItem,restoreItem,prepareImport,importTasks,
+   listDismissed,dismissItem,restoreItem,savePushSubscription,deletePushSubscription,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
    createAutonomousMission,listAutonomousMissions,autonomousControllerStatus,simulateAutonomousMission,launchCopilotPilot,
    previewRoutine,listRoutines,createRoutine,changeRoutine,updateRoutine,systemHealth,
