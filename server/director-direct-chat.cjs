@@ -18,6 +18,19 @@ const {buildTaskPrompt}=require('./v5-task-planner.cjs');
 // Task Engine Matt uses (same caps, verification and merge rules).
 const CODING=new Set(['listening-director','pokemon-director']);
 const TASK_MARKER='START_DEVELOPER_TASK';
+// The Developer's brief is the OWNER's own words only: the last few things
+// they said in this chat plus the current ask, never the Director's replies
+// and never a message cut in half.
+function ownerGoal(previous,ask){
+ const now=String(ask||'').trim();
+ if(now.length>=200)return now.slice(0,1200);
+ const said=String(previous||'').split(/\n(?=(?:User|Prior agent): )/)
+  .filter(c=>c.startsWith('User: ')).map(c=>c.slice(6).trim().replace(/\s+/g,' '))
+  .filter(c=>c&&c!==now);
+ const earlier=[];let room=1200-now.length-40;
+ for(const line of said.slice(-4).reverse()){if(line.length>room)break;earlier.unshift(line);room-=line.length+3}
+ return (earlier.length?'Νωρίτερα: '+earlier.join(' / ')+'\nΤώρα: ':'')+now;
+}
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const ORIGIN='https://mr-tanq.github.io',CONSENT='ONE_DIRECTOR_COPILOT_TURN_INCLUDED_ALLOWANCE';
 const DIRECTORS=Object.freeze({
@@ -155,7 +168,7 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
      const mattThread=await findMattThread(ownerId);
      if(!mattThread)throw Error('matt_thread_missing');
      const ask=data.message.trim();
-     const goal=(ask.length>=200?ask:((previous||'').slice(-700)+'\n'+ask)).trim().slice(-1200);
+     const goal=ownerGoal(previous,ask);
      const spec=await session.sendAndWait({prompt:buildTaskPrompt({message:goal,directorId:agentId,memory:context})});
      aiTurns=2;
      const task=await intake.submit({ownerId,threadId:mattThread,requestId:data.requestId,
@@ -191,4 +204,4 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
  }
  return Object.freeze({handle});
 }
-module.exports=Object.freeze({makeDirectorChat,DIRECTORS,CONSENT});
+module.exports=Object.freeze({makeDirectorChat,ownerGoal,DIRECTORS,CONSENT});
