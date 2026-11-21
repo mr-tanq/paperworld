@@ -401,11 +401,6 @@
    showSunoCreateStatus('Υπάρχει ήδη υποβολή σε εξέλιξη. Δεν στέλνω δεύτερο αίτημα.','pending');
    return;
   }
-  if(lastSunoSubmission){
-   showSunoCreateStatus('Έχει ήδη επιχειρηθεί υποβολή σε αυτή τη συνεδρία. '+
-    'Έλεγξε πρώτα τη Suno Library πριν δημιουργήσεις ξανά.','error');
-   return;
-  }
   if(!cloud()?.signedIn()){
    showSunoCreateStatus('Χρειάζεται σύνδεση στο Paperworld Cloud για δημιουργία στο Suno.','error');
    return;
@@ -433,6 +428,14 @@
     'τις αγκύλες στους στίχους. Οι μισογραμμένες οδηγίες δεν στέλνονται στη Suno.','error');
    return;
   }
+  // Guard against sending the SAME song twice by accident; a new or edited
+  // song is always allowed (the server's monthly cap still applies).
+  const fingerprint=JSON.stringify([brief.title,brief.style,brief.lyrics,selectedVoiceId]);
+  if(lastSunoSubmission===fingerprint&&!window.confirm('Αυτό ακριβώς το τραγούδι στάλθηκε ήδη στο Suno. '+
+   'Έλεγξε πρώτα τη Suno Library. Να σταλεί ξανά;')){
+   showSunoCreateStatus('Δεν στάλθηκε ξανά. Έλεγξε τη Suno Library.','notice');
+   return;
+  }
   if(!window.confirm('Να στείλω το τραγούδι στο Suno με φωνή «'+
    selectedVoiceName+'»; Μπορεί να χρησιμοποιηθούν Suno credits.')){
    showSunoCreateStatus('Η δημιουργία ακυρώθηκε. Δεν στάλθηκε αίτημα στη Suno.','notice');
@@ -444,7 +447,7 @@
    return;
   }
   rememberSongDraft();
-  lastSunoSubmission=key;
+  lastSunoSubmission=fingerprint;
   musicBusy=true;sunoGenerate.disabled=true;
   sunoGenerate.textContent='Αποστολή…';
   showSunoCreateStatus('Υποβολή στο Suno… Μην επαναλάβεις το αίτημα.','pending');
