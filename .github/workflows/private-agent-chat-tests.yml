@@ -68,6 +68,8 @@ on:
       - 'tests/director-tools.test.cjs'
       - 'tests/suno-durable-link.test.cjs'
       - 'tests/memory-lesson-clean.test.cjs'
+      - 'tests/github-durable-link.test.cjs'
+      - 'sql/paperworld_github_links_v1.sql'
       - 'sql/paperworld_memory_lesson_clean_v1.sql'
       - 'server/suno-link-store.cjs'
       - 'server/director-actions.cjs'
@@ -203,6 +205,7 @@ jobs:
             tests/director-tools.test.cjs \
             tests/suno-durable-link.test.cjs \
             tests/memory-lesson-clean.test.cjs \
+            tests/github-durable-link.test.cjs \
             tests/v5-task-test-paths.test.cjs \
             tests/v5-task-batch.test.cjs \
             tests/director-movement.test.cjs \
@@ -361,6 +364,14 @@ jobs:
           psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
             -h 127.0.0.1 -p 5432 -U postgres -d lesson_synthetic \
             -f tests/sql/paperworld-memory-lesson-clean.sql
+      - name: Execute GitHub link schema on PostgreSQL 17
+        env:
+          PGPASSWORD: synthetic-only
+        run: |
+          createdb -h 127.0.0.1 -p 5432 -U postgres github_links_synthetic
+          psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
+            -h 127.0.0.1 -p 5432 -U postgres -d github_links_synthetic \
+            -f tests/sql/paperworld-github-links.sql
       - name: Execute V5 Dispatch lifecycle, budget and crash integration on PostgreSQL 17
         env:
           PGPASSWORD: synthetic-only

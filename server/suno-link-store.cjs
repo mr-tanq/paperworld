@@ -8,9 +8,9 @@
 const {createCipheriv,createDecipheriv,randomBytes,hkdfSync}=require('node:crypto');
 const BASE='https://jrevhzvrgenucuozjowm.supabase.co';
 const OWNER=/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
-function keyFrom(secret){
+function keyFrom(secret,purpose='paperworld-suno-link-v1'){
  return Buffer.from(hkdfSync('sha256',Buffer.from(secret,'utf8'),Buffer.from('paperworld'),
-  Buffer.from('paperworld-suno-link-v1'),32));
+  Buffer.from(purpose),32));
 }
 function seal(key,value){
  const iv=randomBytes(12),c=createCipheriv('aes-256-gcm',key,iv);
@@ -24,9 +24,11 @@ function open(key,sealed){
   return JSON.parse(Buffer.concat([d.update(raw.subarray(28)),d.final()]).toString('utf8'));
  }catch(_){return null}
 }
-function makeSunoLinkStore({fetcher=globalThis.fetch,secret=process.env.PAPERWORLD_SUPABASE_SERVICE_ROLE_KEY}={}){
+// One sealed link per owner in a service-role-only table (Suno, GitHub).
+function makeSealedLinkStore({table,purpose,fetcher=globalThis.fetch,secret=process.env.PAPERWORLD_SUPABASE_SERVICE_ROLE_KEY}={}){
+ if(!/^paperworld_[a-z]+_links_v1$/.test(table||''))throw Error('sealed_table_required');
  const enabled=typeof secret==='string'&&secret.length>=20&&typeof fetcher==='function';
- const key=enabled?keyFrom(secret):null;
+ const key=enabled?keyFrom(secret,purpose):null;
  const headers=()=>({apikey:secret,...(secret.startsWith('eyJ')?{Authorization:'Bearer '+secret}:{}),
   'Content-Type':'application/json',Accept:'application/json'});
  async function call(path,init){
@@ -36,21 +38,30 @@ function makeSunoLinkStore({fetcher=globalThis.fetch,secret=process.env.PAPERWOR
  }
  async function save(ownerId,link){
   if(!enabled||!OWNER.test(ownerId||''))return false;
-  try{await call('paperworld_suno_links_v1',{method:'POST',
+  try{await call(table,{method:'POST',
     headers:{Prefer:'resolution=merge-duplicates,return=minimal'},
     body:JSON.stringify({owner_id:ownerId,sealed:seal(key,link),updated_at:new Date().toISOString()})});return true}
   catch(_){return false}
  }
  async function load(ownerId){
   if(!enabled||!OWNER.test(ownerId||''))return null;
-  try{const rows=await call('paperworld_suno_links_v1?select=sealed&owner_id=eq.'+ownerId+'&limit=1',{method:'GET'});
+  try{const rows=await call(table+'?select=sealed&owner_id=eq.'+ownerId+'&limit=1',{method:'GET'});
    return Array.isArray(rows)&&rows[0]?open(key,rows[0].sealed):null}
   catch(_){return null}
  }
  async function remove(ownerId){
   if(!enabled||!OWNER.test(ownerId||''))return false;
-  try{await call('paperworld_suno_links_v1?owner_id=eq.'+ownerId,{method:'DELETE'});return true}catch(_){return false}
+  try{await call(table+'?owner_id=eq.'+ownerId,{method:'DELETE'});return true}catch(_){return false}
  }
- return Object.freeze({enabled,save,load,remove});
+ async function loadAll(){
+  if(!enabled)return [];
+  try{const rows=await call(table+'?select=owner_id,sealed&limit=20',{method:'GET'});
+   return (Array.isArray(rows)?rows:[]).flatMap(r=>{const v=OWNER.test(r?.owner_id||'')?open(key,r.sealed):null;
+    return v?[{ownerId:r.owner_id,link:v}]:[]})}
+  catch(_){return []}
+ }
+ return Object.freeze({enabled,save,load,loadAll,remove});
 }
-module.exports=Object.freeze({makeSunoLinkStore,seal,open,keyFrom});
+const makeSunoLinkStore=(o={})=>makeSealedLinkStore({...o,table:'paperworld_suno_links_v1',purpose:'paperworld-suno-link-v1'});
+const makeGithubLinkStore=(o={})=>makeSealedLinkStore({...o,table:'paperworld_github_links_v1',purpose:'paperworld-github-link-v1'});
+module.exports=Object.freeze({makeSunoLinkStore,makeGithubLinkStore,makeSealedLinkStore,seal,open,keyFrom});
