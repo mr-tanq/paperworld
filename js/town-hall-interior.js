@@ -8,12 +8,23 @@
  if(typeof module==='object'&&module.exports)module.exports=api;
  else root.PaperworldTownHallInterior=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(root){'use strict';
-// Seat centres as fractions of the room image (tuned to the owner's art later).
+// Where each person sits, as fractions of the owner's Town Hall art
+// (1672x941): head-of-table armchairs left/right, two chairs behind the table,
+// two in front. The face sits where a seated head would be.
+const ART=Object.freeze({w:1672,h:941,day:'./assets/interiors/town-hall-day.webp',
+ night:'./assets/interiors/town-hall-night.webp'});
 const SEATS=Object.freeze({
- owner:[.13,.6],matt:[.87,.6],
- 'listening-director':[.38,.4],'pokemon-director':[.62,.4],
- 'studio-director':[.38,.8],'wellbeing-director':[.62,.8]
+ owner:[.197,.53],matt:[.795,.53],
+ 'listening-director':[.398,.455],'pokemon-director':[.601,.455],
+ 'studio-director':[.392,.655],'wellbeing-director':[.607,.655]
 });
+// "Cover" fit: the art fills the stage without stretching; returns the drawn rect.
+function coverRect(w,h,aw=ART.w,ah=ART.h){
+ // Fill the stage, but never crop the table: the six seats (12%-88% of the
+ // art's width) always stay visible, e.g. on a tall phone screen.
+ const s=Math.min(Math.max(w/aw,h/ah),w/(.8*aw)),dw=aw*s,dh=ah*s;
+ return {x:(w-dw)/2,y:(h-dh)/2,w:dw,h:dh};
+}
 const ORDER=['owner','matt','listening-director','pokemon-director','studio-director','wellbeing-director'];
 const IDLE='Όλα ήσυχα από μένα.';
 function seatLines(statuses){
@@ -71,39 +82,71 @@ function create(host,{statuses=()=>({}),onTalk=null,onEnd=null,onAgenda=null,pro
  const title=el('strong','','Town Hall · συνάντηση της ομάδας');
  const agenda=el('button','th-btn','Ατζέντα');agenda.type='button';
  const done=el('button','th-btn th-primary','Τέλος συνάντησης');done.type='button';
- bar.append(title,agenda,done);wrap.append(stage,bar);host.append(wrap);
- const art=new (root.Image||function(){})();let artReady=false;
- if(art&&'onload' in art){art.onload=()=>{artReady=true;draw()};art.src='./assets/interiors/town-hall.png'}
+ bar.append(title,agenda,done);
+ // Tall screens: the room on top, and what everyone says as a clear list below.
+ const lines=el('div','th-lines');
+ wrap.append(stage,lines,bar);host.append(wrap);
+ // Day or night art follows the village's evening light.
+ const arts={};
+ for(const key of ['day','night']){
+  const img=root.Image?new root.Image():null;if(!img)continue;
+  img.decoding='async';img.onload=()=>{arts[key]=img;if(!wrap.hidden){draw();place()}};img.src=ART[key];
+ }
+ const isNight=()=>{try{return (root.PaperworldVillageAmbience?.darkness?.()??0)>=.5}catch(_){return false}};
+ let rect={x:0,y:0,w:1,h:1};
+ function layout(){
+  const r=wrap.getBoundingClientRect();
+  const portrait=r.width>0&&r.width/Math.max(1,r.height-60)<.9;
+  wrap.classList.toggle('th-portrait',portrait);
+  stage.style.height=portrait?Math.round(r.width/(.8*ART.w)*ART.h)+'px':'';
+ }
  function draw(){
+  layout();
   const r=stage.getBoundingClientRect();const w=Math.max(320,r.width),h=Math.max(200,r.height);
   const dpr=Math.min(2,root.devicePixelRatio||1);canvas.width=w*dpr;canvas.height=h*dpr;
   const ctx=canvas.getContext?.('2d');if(!ctx)return;ctx.setTransform(dpr,0,0,dpr,0,0);
-  if(artReady)ctx.drawImage(art,0,0,w,h);else paintRoom(ctx,w,h);
+  const art=(isNight()?arts.night:arts.day)||arts.day||arts.night;
+  rect=art?coverRect(w,h):{x:0,y:0,w,h};
+  if(art)ctx.drawImage(art,rect.x,rect.y,rect.w,rect.h);else paintRoom(ctx,w,h);
+ }
+ // Seats follow the drawn art exactly, whatever the screen shape.
+ function place(){
+  for(const seat of seats.children){const [fx,fy]=SEATS[seat.dataset.id]||[.5,.5];
+   seat.style.left=(rect.x+fx*rect.w)+'px';seat.style.top=(rect.y+fy*rect.h)+'px'}
  }
  function render(){
   seats.replaceChildren();
-  const lines=seatLines(statuses());
+  const lines_=seatLines(statuses());
   for(const id of ORDER){
    const [fx,fy]=SEATS[id];
    const seat=el('button','th-seat');seat.type='button';seat.dataset.id=id;
-   seat.style.left=(fx*100)+'%';seat.style.top=(fy*100)+'%';
+   seat.style.left=(fx*100)+'%';seat.style.top=(fy*100)+'%';// refined by place()
    const face=el('span','th-face');
    if(id==='owner')face.textContent='★';else profiles?.paintAvatar?.(face,id);
    const name=el('span','th-name',id==='owner'?'Εσύ':(profiles?.get?.(id)?.name||id));
    seat.append(face,name);
-   if(lines[id]){const say=el('span','th-say',lines[id]);seat.append(say)}
+   if(lines_[id]){const say=el('span','th-say',lines_[id]);seat.append(say)}
    if(id==='owner')seat.disabled=true;
    else seat.addEventListener('click',()=>onTalk?.(id));
-   seat.setAttribute('aria-label',id==='owner'?'Η θέση σου':'Μίλα με '+name.textContent+'. '+(lines[id]||''));
+   seat.setAttribute('aria-label',id==='owner'?'Η θέση σου':'Μίλα με '+name.textContent+'. '+(lines_[id]||''));
    seats.append(seat);
   }
+  lines.replaceChildren();
+  for(const id of ORDER.slice(1)){
+   const row=el('button','th-line');row.type='button';
+   const face=el('span','th-line-face');profiles?.paintAvatar?.(face,id);
+   const text=el('span','th-line-text');
+   text.append(el('strong','',profiles?.get?.(id)?.name||id),el('span','',lines_[id]||''));
+   row.append(face,text);row.addEventListener('click',()=>onTalk?.(id));lines.append(row);
+  }
+  place();
  }
  agenda.addEventListener('click',()=>onAgenda?.());
  done.addEventListener('click',()=>{close();onEnd?.()});
- root.addEventListener?.('resize',()=>{if(!wrap.hidden)draw()});
- function open(){wrap.hidden=false;render();draw();done.focus?.()}
+ root.addEventListener?.('resize',()=>{if(!wrap.hidden){draw();place()}});
+ function open(){wrap.hidden=false;render();draw();place();done.focus?.()}
  function close(){wrap.hidden=true}
  return Object.freeze({open,close,render,isOpen:()=>!wrap.hidden});
 }
-return Object.freeze({create,SEATS,seatLines,ORDER});
+return Object.freeze({create,SEATS,ART,coverRect,seatLines,ORDER});
 });
