@@ -473,3 +473,12 @@ html.pw-reduce-motion :is(.pw-messenger,.pw-workspace),html.pw-reduce-motion :is
 .pw-starter{border:1px solid rgba(217,168,95,.45);background:rgba(217,168,95,.08);color:inherit;
  border-radius:999px;padding:8px 13px;font:inherit;font-size:.86rem;cursor:pointer;min-height:38px;text-align:left}
 .pw-starter:hover,.pw-starter:focus-visible{background:rgba(217,168,95,.18)}
+/* Voice input: 🎤 next to Send; pulses while listening. */
+.pw-messenger .world-dialogue-form .world-chat-mic{flex:none;display:grid;place-items:center;width:40px;height:40px;min-height:40px;
+ padding:0;border:0;border-radius:14px;background:color-mix(in srgb,var(--pw-accent) 16%,transparent);font-size:18px;cursor:pointer}
+.pw-messenger .world-dialogue-form .world-chat-mic[hidden]{display:none}
+.pw-messenger .world-dialogue-form .world-chat-mic.pw-listening{background:#d9534f;animation:pw-mic 1.2s ease-in-out infinite}
+@keyframes pw-mic{0%,100%{box-shadow:0 0 0 0 rgba(217,83,79,.55)}50%{box-shadow:0 0 0 8px rgba(217,83,79,0)}}
+@media (prefers-reduced-motion:reduce){.pw-messenger .world-dialogue-form .world-chat-mic.pw-listening{animation:none}}
+.pw-messenger .world-chat-voice-note{font-size:.82rem;color:var(--pw-text-2);padding:2px 14px 6px}
+.pw-messenger .world-chat-voice-note[hidden]{display:none}

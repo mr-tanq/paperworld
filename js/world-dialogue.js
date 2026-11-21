@@ -164,7 +164,11 @@
  field.rows=1;field.maxLength=1500;field.required=true;
  field.setAttribute('aria-label','Message to agent');
  send.type='submit';send.setAttribute('aria-label','Send message');
- form.append(field,send);
+ // Speak instead of typing: 🎤 fills the box and sends after a short pause.
+ const mic=make('button','world-chat-mic','🎤');
+ const voiceNote=make('div','world-chat-voice-note');voiceNote.hidden=true;voiceNote.setAttribute('aria-live','polite');
+ form.append(field,mic,send);
+ window.PaperworldVoice?.attach?.({field,button:mic,form,status:voiceNote})||(mic.hidden=true);
  // Optional real decision inbox. Never invokes AI automatically or claims the
  // village actors worked merely because an animation played.
  const decisions=make('div','world-chat-decisions');
@@ -1272,6 +1276,7 @@
  openStudio.textContent='♫ Άνοιγμα στο Music Studio';
  contextRow.append(openStudio);
  composer.append(contextRow,form);
+ composer.insertBefore(voiceNote,form);
  composer.insertBefore(routineReview,form);
  // The work item this conversation is about (opened from the Work list).
  const contextNote=make('div','pw-chat-context');contextNote.hidden=true;
