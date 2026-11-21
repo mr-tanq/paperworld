@@ -254,7 +254,7 @@ test('Settings names unavailable and unconfigured services and offers a retry',a
 test('A temporary GitHub link is labelled as temporary, never as permanent',async()=>{
  const t=boot({github:'connected'});t.ws.open('settings');await flush(10);
  assert.match(t.text(),/GitHub · Συνδεδεμένο/);
- assert.match(t.text(),/προσωρινή και χάνεται αν γίνει επανεκκίνηση/);
+ assert.match(t.text(),/προσωρινά: θα χαθεί αν γίνει επανεκκίνηση/);
 });
 test('Portrait-tablet bottom sheet frames the village above it; Messenger is framed too',async()=>{
  const t=boot();t.win.innerWidth=800;t.win.innerHeight=1280;

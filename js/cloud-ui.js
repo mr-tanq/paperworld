@@ -115,8 +115,11 @@ function openDirectorMemory(){
 function renderDirectorMemory(){
  const section=el('section',undefined,'director-memory-desk');
  section.id='director-memory-panel';
- host.append(btn('← Επιστροφή στις εργασίες',()=>{
-  memoryOpen=false;render()
+ const focus=document.querySelector('#world-drawer')?.classList.contains('pw-classic-focus');
+ host.append(btn(focus?'← Πίσω στις Ρυθμίσεις':'← Επιστροφή στις εργασίες',()=>{
+  memoryOpen=false;
+  if(focus){document.querySelector('#world-drawer').hidden=true;window.PaperworldWorkspace?.open?.('settings');return}
+  render()
  }));
  host.append(section);
  if(memoryView)memoryView.draw(section);
@@ -488,6 +491,8 @@ window.PaperworldCloudUI={
  // The classic desk keeps every advanced tool (memory desk, history import,
  // Listening technical review, local task import) reachable from Settings.
  openClassicDesk:async(view='town')=>{const d=document.querySelector('#world-drawer');if(d)d.hidden=false;
+  // Memory review opens as one focused page, without the old desk around it.
+  d?.classList.toggle('pw-classic-focus',view==='memory');
   open(view==='memory'?'town':view);
   if(view==='memory'&&client.signedIn()){
    // Wait for the reload that open() started; the desk refuses while busy.

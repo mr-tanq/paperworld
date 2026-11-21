@@ -136,7 +136,7 @@ function create(host,{statuses=()=>({}),onTalk=null,onEnd=null,onAgenda=null,pro
    const seat=el('button','th-seat');seat.type='button';seat.dataset.id=id;
    seat.style.left=(fx*100)+'%';seat.style.top=(fy*100)+'%';// refined by place()
    const face=el('span','th-face');
-   if(id==='owner')face.textContent='★';else profiles?.paintAvatar?.(face,id);
+   if(id!=='owner')profiles?.paintAvatar?.(face,id);
    const name=el('span','th-name',id==='owner'?'Εσύ':(profiles?.get?.(id)?.name||id));
    seat.append(face,name);
    if(lines_[id]){const say=el('span','th-say',lines_[id]);seat.append(say)}

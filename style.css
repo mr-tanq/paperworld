@@ -455,3 +455,8 @@ body>header span{font-size:10px;color:#a3afa6;letter-spacing:.04em}
 /* Keep compact Matt work alerts legible within the dark Messenger. */
 .world-chat-decisions .human-hub-header{background:transparent;border:0;box-shadow:none;padding:0;color:#edf0ed}
 
+/* Memory review opened from Settings: one focused page, no old desk chrome. */
+#world-drawer.pw-classic-focus>#name,#world-drawer.pw-classic-focus>#desc,
+#world-drawer.pw-classic-focus>.workspace-actions,#world-drawer.pw-classic-focus>.dev-tools,
+#world-drawer.pw-classic-focus>.disclaimer,#world-drawer.pw-classic-focus .room-heading,
+#world-drawer.pw-classic-focus .human-hub-account-settings{display:none!important}

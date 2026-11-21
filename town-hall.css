@@ -43,6 +43,11 @@
 .th-scene .th-face{background:transparent;border-color:transparent;box-shadow:none;color:transparent;
  width:clamp(56px,8vw,110px);height:clamp(56px,8vw,110px)}
 .th-scene .th-face img,.th-scene .th-face canvas{opacity:0}
-.th-scene .th-seat:hover .th-face,.th-scene .th-seat:focus-visible .th-face{border-color:rgba(243,210,140,.8)}
 .th-scene .th-name{top:auto;bottom:calc(100% - 4px);background:rgba(30,18,10,.72);padding:1px 8px;border-radius:9px}
 .th-scene .th-say{bottom:calc(100% + 22px)}
+/* No placeholder star: the owner's seat is just a label; empty rooms show none. */
+.ws-room:not(.th-scene) .th-seat[data-seat=guest]{display:none}
+.th-seat[data-id=owner] .th-face{background:transparent;border-color:transparent;box-shadow:none}
+/* Touch: no sticky hover ring on painted people; keyboard focus still visible. */
+.th-scene .th-seat:hover .th-face{border-color:transparent}
+.th-scene .th-seat:focus-visible .th-face{border-color:rgba(243,210,140,.8)}

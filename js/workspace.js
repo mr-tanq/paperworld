@@ -579,7 +579,7 @@ function healthLines(h){
 function renderSettings(){
  const ui=cloud();
  // Language preferences are local UI settings, independent of sign-in.
- const i18n=window.PaperworldI18n;
+ const i18n=window.PaperworldI18n;let languageSection=null;
  if(i18n){
   const createChoice=(labelText,values,current,onChange)=>{
    const select=el('select','pw-language-select');
@@ -594,11 +594,11 @@ function renderSettings(){
   const conversationChoice=createChoice('Γλώσσα συνομιλιών',
    [['auto','Αυτόματα — απάντηση στη γλώσσα μου'],['el','Πάντα ελληνικά'],['en','Πάντα αγγλικά']],
    i18n.chat(),v=>i18n.setChat(v));
-  body.append(section('Γλώσσα',null,[interfaceChoice,conversationChoice]));
+  languageSection=section('Γλώσσα',null,[interfaceChoice,conversationChoice]);
  }
 
  // «Απόδειξη»: what the team really did on its own (last 30 days, real records).
- const P=window.PaperworldProof;
+ let proofBox=null;const P=window.PaperworldProof;
  if(P&&signedIn()){
   const sum=P.summary(state.missions||[]);
   const proof=[];
@@ -612,7 +612,10 @@ function renderSettings(){
    row.append(el('span','pw-proof-out',P.LABEL[r.outcome]),el('span','pw-proof-title',r.who+' · '+r.title),
     el('span','pw-proof-meta',r.source+(r.minutes!==null&&r.outcome!=='running'?' · '+r.minutes+'′':'')));proof.push(row)}
   if(!sum.total)proof.push(empty('Καμία εργασία τις τελευταίες 30 μέρες.'));
-  body.append(section('Απόδειξη αυτονομίας','Μόνο από πραγματικές εργασίες των τελευταίων 30 ημερών (Luna και Joey).',proof));
+  const box=el('details','pw-advanced pw-proof');
+  box.append(el('summary','','Απόδειξη αυτονομίας'+(sum.rate===null?'':' · '+sum.rate+'% μόνοι τους')),
+   el('p','pw-section-hint','Μόνο από πραγματικές εργασίες των τελευταίων 30 ημερών (Luna και Joey).'),...proof);
+  proofBox=box;
  }
  // Account
  const account=[];
@@ -636,12 +639,13 @@ function renderSettings(){
    try{const url=await ui.beginSunoLink();window.location.assign(url)}catch(_){say('Η σύνδεση Suno δεν ξεκίνησε.')}
   }):sn.state==='unavailable'?retry():sn.state==='connected'?
    button('Music Studio','pw-btn-ghost',()=>talk('studio-director')):null;
-  const ghHint=gh.state==='connected'?(gh.chat?'Οι AI συνομιλίες είναι έτοιμες.':
-    'Η σύνδεση είναι προσωρινή και χάνεται αν γίνει επανεκκίνηση του server.'):
+  const ghHint=gh.state==='connected'?(gh.temporary?'Συνδεδεμένο, αλλά προσωρινά: θα χαθεί αν γίνει επανεκκίνηση του server.':
+    'Συνδεδεμένο μόνιμα· οι AI συνομιλίες και οι Developers είναι έτοιμοι.'):
    gh.state==='not_configured'?'Η σύνδεση GitHub δεν έχει ρυθμιστεί στον server.':
    gh.state==='unavailable'?'Ο server δεν απάντησε. Η κατάσταση δεν είναι γνωστή.':
    'Για AI συνομιλίες και προετοιμασία αλλαγών κώδικα.';
-  const snHint=sn.state==='connected'?'Προσωρινή εξουσιοδότηση. Κάθε τραγούδι ελέγχεται ξανά πριν δημιουργηθεί.':
+  const snHint=sn.state==='connected'?(sn.temporary?'Συνδεδεμένο προσωρινά (λήγει σε περίπου μία ώρα).':
+   'Συνδεδεμένο μόνιμα· ανανεώνεται μόνο του. Όριο 50 τραγούδια τον μήνα.'):
    sn.state==='unavailable'?'Ο server δεν απάντησε. Η κατάσταση δεν είναι γνωστή.':
    'Για δημιουργία τραγουδιών από το Music Studio του Crow.';
   const status=window.PaperworldConnectionStatus;
@@ -690,10 +694,12 @@ function renderSettings(){
   ntf.setAttribute('aria-checked',String(await push.enabled()));ntf.disabled=false;
   if(!r.ok){ntfNote.textContent=push.REASONS[r.reason]||push.REASONS.save_failed;ntfNote.hidden=false}
  });
- const keys=el('p','pw-section-hint','Συντομεύσεις: M · Matt, T · κοντινός agent, Esc · κλείσιμο.');
+ const keys=el('p','pw-section-hint pw-keys-hint','Συντομεύσεις: M · Matt, T · κοντινός agent, Esc · κλείσιμο.');
  body.append(section('Προτιμήσεις',null,[settingRow('Λιγότερη κίνηση','Απενεργοποιεί τις μεταβάσεις και τις κινήσεις διεπαφής',sw),
   settingRow('Ήχοι του χωριού','Ρυάκι, πουλιά τη μέρα, γρύλοι το βράδυ και ένα απαλό «ντινγκ» όταν σου απαντούν',snd),
   settingRow('Ειδοποιήσεις στο κινητό','Ο Matt σε ειδοποιεί όταν τελειώνει ή σταματά μια εργασία, και για την πρωινή σύνοψη',ntf),ntfNote,keys]));
+ if(languageSection)body.append(languageSection);
+ if(proofBox)body.append(proofBox);
  // Advanced (clearly separated from everyday settings)
  const adv=el('details','pw-advanced');
  adv.append(el('summary','','Για προχωρημένους'));

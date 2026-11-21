@@ -23,7 +23,7 @@
   'studio-director':'studio','wellbeing-director':'wellbeing'};
  const reducedMotion=()=>window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true;
  const actions=make('div','world-talk-actions');
- const mattBtn=make('button','','M · Matt'),nearBtn=make('button','','T · Talk');
+ const mattBtn=make('button','','M · Matt'),nearBtn=make('button','','T · Κοντινός');
  for(const b of [mattBtn,nearBtn]){b.type='button';actions.append(b)}
  view.append(actions);
 
@@ -1465,6 +1465,8 @@
    !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(message?.id||''))
    return;
   const targetDirector=openId;
+  // Only the latest owner message offers "Να το θυμάται;" (less clutter).
+  for(const prev of messages.querySelectorAll('.world-chat-remember'))if(!prev.disabled)prev.hidden=true;
   const button=make('button','world-chat-remember',
    proposedMemoryMessages.has(message.id)?'Προτάθηκε για μνήμη':'Να το θυμάται;');
   button.type='button';
@@ -1808,7 +1810,27 @@
   world()?.setConversation?.(openId?{with:openId,speaking:who}:null);
   if(ms>0)speakingTimer=setTimeout(()=>{if(openId)world()?.setConversation?.({with:openId,speaking:busy?'agent':null})},ms);
  }
- function show(id){stopLiveMatt();openId=id;paint();startLiveMatt();fitViewport();autoGrow();
+ // What each resident's map bubble is about (real missions only), so tapping
+ // a Director who "needs you" says WHAT, with a way to clear it.
+ let residentDetails={};
+ document.addEventListener('paperworld:residents',e=>{const map=e.detail||{};residentDetails={};
+  for(const [k,v] of Object.entries(map))if(v?.detail)residentDetails[k]={tone:v.tone,text:v.text,...v.detail}});
+ function residentNote(id){
+  const r=residentDetails[id];contextNote.replaceChildren();contextNote.hidden=true;
+  if(!r||!['attention','done'].includes(r.tone)||!r.title)return;
+  const reason=window.PaperworldVillageActivity?.STOP_REASON?.[r.lastError]||'';
+  contextNote.append(make('strong','',(r.tone==='attention'?'Σε χρειάζεται για: «':'Τελευταία εργασία: «')+r.title+'»'));
+  contextNote.append(make('p','',reason||r.text));
+  if(r.missionId&&typeof cloud()?.dismissItem==='function'){
+   const clear=make('button','world-chat-context-clear','Δεν χρειάζεται πια');clear.type='button';
+   clear.addEventListener('click',async()=>{clear.disabled=true;
+    try{await cloud().dismissItem('mission:'+r.missionId);delete residentDetails[id];contextNote.hidden=true;
+     window.PaperworldResidentFeed?.refresh?.()}catch(_){clear.disabled=false}});
+   contextNote.append(clear);
+  }
+  contextNote.hidden=false;
+ }
+ function show(id){stopLiveMatt();openId=id;paint();startLiveMatt();fitViewport();autoGrow();residentNote(id);
   world()?.setConversation?.({with:id,speaking:null});
   document.dispatchEvent(new CustomEvent('paperworld:chat-opened',{detail:{id}}));
   // Avoid popping the phone keyboard over the conversation on open.

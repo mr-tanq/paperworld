@@ -799,6 +799,9 @@ function tap(p){
   state.chosen.entrance=[Math.round(Math.max(0,Math.min(W,p.x))),Math.round(Math.max(0,Math.min(H,p.y)))];
   saveMarker(state.chosen);setCalibrating(false);updateMarkerControls();return;
  }
+ // Tapping a resident (Matt or a Director) opens the conversation with them.
+ const who=actors.find(a=>!a.inside&&Math.hypot(a.x-p.x,(a.y-24)-p.y)<Math.max(26,22/state.scale));
+ if(who){state.destination=null;window.PaperworldWorldDialogue?.show(who.id);return}
  const d=hitBuilding(p);if(d){inspect(d);state.destination=null;return}
  // Taps on/near the map resolve to the nearest point ON a surveyed paved segment.
  // Allow a comfortable finger-sized margin around mapped paving, but never jump to a far-away path.
@@ -1117,7 +1120,7 @@ function openWorkDesk(){
 }
 document.querySelector('#open-projects').addEventListener('click',openWorkDesk);
 document.querySelector('#world-work-panel')?.addEventListener('click',openWorkDesk);
-document.querySelector('#close-world-drawer')?.addEventListener('click',()=>{drawer.hidden=true});
+document.querySelector('#close-world-drawer')?.addEventListener('click',()=>{drawer.hidden=true;drawer.classList.remove('pw-classic-focus')});
 document.querySelector('#open-chief')?.addEventListener('click',()=>{
  drawer.hidden=true;window.PaperworldWorldDialogue?.show('matt');
 });
@@ -1149,10 +1152,8 @@ function openMeetingRoom(){
  if(!meetingRoom)meetingRoom=Interior.create(document.querySelector('#view'),{
   statuses:()=>meetingStatuses,profiles:window.PaperworldProfiles,
   onTalk:id=>window.PaperworldWorldDialogue?.show(id),
-  onAgenda:()=>{const m=window.PaperworldTownHall;if(m?.create&&!townHallBriefing)townHallBriefing=m.create(document.querySelector('#view'),{
-    load:()=>window.PaperworldCloudUI.loadHumanWork(),chat:id=>window.PaperworldWorldDialogue?.show(id),
-    askAI:(id,prompt)=>window.PaperworldCloudUI.askDirector(id,prompt,{saveNote:false}),
-    openWork:()=>window.PaperworldWorkspace?.open?.('work')});void townHallBriefing?.show()},
+  // The agenda is the same tidy Work list everywhere (no second, older list).
+  onAgenda:()=>window.PaperworldWorkspace?.open?.('work'),
   onEnd:leaveTownHall});
  meetingRoom.open();
 }
@@ -1173,6 +1174,7 @@ document.querySelector('#call-visual-meeting')?.addEventListener('click',()=>{
   'Άνοιγμα Town Hall · η οπτική συγκέντρωση δεν ξεκίνησε ξανά.';
  // While the team walks in, the agenda waits for the room ("Ατζέντα" there).
  const module=window.PaperworldTownHall;
+ if(!started&&window.PaperworldWorkspace?.open){window.PaperworldWorkspace.open('work');return}
  if(module?.create&&!started){
   if(!townHallBriefing)townHallBriefing=module.create(document.querySelector('#view'),{
    load:()=>window.PaperworldCloudUI.loadHumanWork(),
