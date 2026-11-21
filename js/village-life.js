@@ -35,13 +35,20 @@
   function home(r){return dist(r.actor,r.home)<1.5}
   function recallAll(){
    suspended=true;
-   for(const r of records.values()){r.friend=null;r.greeting=0;r.timer=0;r.route=[];
+   for(const r of records.values()){if(r.working){r.working=null;r.actor.inside=false}r.friend=null;r.greeting=0;r.timer=0;r.route=[];
     r.homeward=true;if(!home(r))go(r,r.home);else r.actor.moving=false}
   }
   // A resident who is talking with someone stops strolling and faces them.
   function hold(id,faceTo){const r=records.get(id);if(!r)return false;
    r.held=typeof faceTo==='function'?faceTo:()=>null;r.route=[];r.greeting=0;r.friend=null;r.actor.moving=false;return true}
   function release(id){const r=records.get(id);if(!r||!r.held)return false;r.held=null;r.timer=1.5+random()*2;return true}
+  // Real work: the resident walks to their own door and goes inside; rest()
+  // brings them back out to stroll. Both are idempotent (called every frame).
+  function work(id,spot){const r=records.get(id);if(!r||!spot||suspended)return false;
+   if(r.working&&r.working.x===spot.x&&r.working.y===spot.y)return true;
+   r.working={x:spot.x,y:spot.y};r.greeting=0;r.friend=null;if(!go(r,r.working))r.route=[];return true}
+  function rest(id){const r=records.get(id);if(!r||!r.working)return false;
+   r.working=null;r.route=[];r.actor.inside=false;r.actor.moving=false;r.timer=1+random()*2;return true}
   function ready(){return [...records.values()].every(r=>home(r)&&r.route.length===0)}
   function resume(){if(!ready())return false;suspended=false;
    for(const r of records.values()){r.homeward=false;r.timer=2+random()*5;r.cooldown=9+random()*12}
@@ -100,6 +107,11 @@
      continue;
     }
     if(assemblyBusy){r.route=[];r.greeting=0;r.timer=Math.max(r.timer,2);continue}
+    if(r.working&&!r.held){
+     if(r.route.length){advance(r,step);continue}
+     a.moving=false;if(dist(a,r.working)<3){a.inside=true;a.direction='up'}else if(!go(r,r.working)){a.x=r.working.x;a.y=r.working.y}
+     continue;
+    }
     if(r.held){a.moving=false;const t=r.held();if(t)a.direction=face(a,t);continue}
     r.cooldown=Math.max(0,r.cooldown-step);
     if(r.greeting>0){
@@ -120,7 +132,7 @@
    }
   }
   function greetings(){return [...records.values()].filter(r=>r.greeting>0).map(r=>({id:r.actor.id,with:r.friend}))}
-  return Object.freeze({tick,recallAll,ready,resume,greetings,hold,release,isSuspended:()=>suspended,homeOf:id=>records.get(id)?.home||null});
+  return Object.freeze({tick,recallAll,ready,resume,greetings,hold,release,work,rest,isWorking:id=>!!records.get(id)?.working,isSuspended:()=>suspended,homeOf:id=>records.get(id)?.home||null});
  }
  return Object.freeze({create,DIRECTORS,SPEED});
 });

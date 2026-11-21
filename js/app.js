@@ -764,8 +764,36 @@ function inspect(d){
  // Open the work desk only on explicit user action; do not show task tabs.
  const agentIds={town:'matt',workshop:'listening-director',pokemon:'pokemon-director',
                  wellbeing:'wellbeing-director',studio:'studio-director'};
- window.PaperworldWorldDialogue?.show(agentIds[d.id]||'matt');
+ const id=agentIds[d.id]||'matt';
+ // A Director's house opens their workspace: at the desk while they have real
+ // work, an empty desk while they are out strolling.
+ if(id!=='matt'&&openWorkspace(id))return;
+ window.PaperworldWorldDialogue?.show(id);
 }
+let workspaceRoom=null;
+function openWorkspace(id){
+ const Room=window.PaperworldWorkspaceInterior;if(!Room)return false;
+ if(!workspaceRoom)workspaceRoom=Room.create(document.querySelector('#view'),{
+  statuses:()=>residentStatus,profiles:window.PaperworldProfiles,
+  isInside:who=>actors.find(a=>a.id===who)?.inside===true,
+  onTalk:who=>window.PaperworldWorldDialogue?.show(who)});
+ return workspaceRoom.open(id);
+}
+// Directors with REAL active work (resident feed) walk home and go inside;
+// everyone comes out for Town Hall meetings, Matt's visits and chats.
+const workSpots={};
+function syncWork(){
+ const calm=directorAssembly.status()==='idle'&&!villageLife.isSuspended?.()&&!meeting.active;
+ for(const a of actors){if(a.id==='matt')continue;
+  const busy=calm&&residentStatus[a.id]?.tone==='active'&&conversation.with!==a.id;
+  if(!busy){villageLife.rest?.(a.id);continue}
+  if(!workSpots[a.id]){const d=defs.find(x=>actorHouse[a.id]===x.id),snap=d&&navigation.snapToPath(d.approach,60);
+   workSpots[a.id]=snap?{x:snap.point[0],y:snap.point[1]}:null}
+  if(workSpots[a.id])villageLife.work?.(a.id,workSpots[a.id]);
+ }
+ if(workspaceRoom?.isOpen())workspaceRoom.render();
+}
+const actorHouse={'listening-director':'workshop','pokemon-director':'pokemon','wellbeing-director':'wellbeing','studio-director':'studio'};
 function tap(p){
  if(calibrating&&state.chosen){
   state.chosen.entrance=[Math.round(Math.max(0,Math.min(W,p.x))),Math.round(Math.max(0,Math.min(H,p.y)))];
@@ -922,6 +950,7 @@ function tick(now){
  const dt=Math.min(.05,(now-(tick.last||now))/1000);tick.last=now;
  directorAssembly.tick(dt);
  villageLife.tick(dt,{allowRoaming:directorAssembly.status()==='idle'});
+ syncWork();
  const player=state.walker;
  player.moving=false;
  if(state.route.length){

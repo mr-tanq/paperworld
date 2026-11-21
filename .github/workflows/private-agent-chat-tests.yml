@@ -63,6 +63,8 @@ on:
       - 'tests/village-sound.test.cjs'
       - 'tests/director-delegates.test.cjs'
       - 'tests/town-hall-room.test.cjs'
+      - 'tests/director-workspaces.test.cjs'
+      - 'js/workspace-interior.js'
       - 'js/town-hall-interior.js'
       - 'js/director-movement.js'
       - 'server/director-direct-chat.cjs'
@@ -181,6 +183,7 @@ jobs:
             tests/village-sound.test.cjs \
             tests/director-delegates.test.cjs \
             tests/town-hall-room.test.cjs \
+            tests/director-workspaces.test.cjs \
             tests/director-movement.test.cjs \
             tests/camera-framing.test.cjs \
             tests/village-life-v2.test.cjs \
