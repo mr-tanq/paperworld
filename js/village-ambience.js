@@ -16,6 +16,22 @@ const CHIMNEYS=Object.freeze({
  studio:[[0.736,0.135]]
 });
 const MAX_SMOKE=70,MAX_FLIES=26;
+// Night: lit windows (fractions of each building sprite) and the village's
+// lamp posts (world points measured on the scene art).
+const WINDOWS=Object.freeze({
+ town:[[0.385,0.66],[0.73,0.66]],workshop:[[0.29,0.6],[0.54,0.61]],
+ pokemon:[[0.28,0.55],[0.75,0.55]],wellbeing:[[0.24,0.59],[0.54,0.6]],
+ studio:[[0.235,0.55],[0.54,0.6]]
+});
+const LAMPS=Object.freeze([[425,306],[776,290],[928,300],[1135,464],[533,470],[703,749],[949,748]]);
+// Darkness 0..1 by local time: dusk 17:30-19:00, night, dawn 06:00-07:30.
+function darkness(date=new Date()){
+ const h=date.getHours()+date.getMinutes()/60;
+ if(h>=19||h<6)return 1;
+ if(h>=17.5)return (h-17.5)/1.5;
+ if(h<7.5)return 1-(h-6)/1.5;
+ return 0;
+}
 function create({defs,W,H,random=Math.random,reducedMotion=false}={}){
  const smoke=[],birds=[],butterflies=[],flies=[];
  let lastBirds=0,lastTime=0,emitAcc=0;
@@ -64,8 +80,33 @@ function create({defs,W,H,random=Math.random,reducedMotion=false}={}){
   for(const f of flies){f.phase+=dt*f.speed*3;f.x+=Math.cos(f.phase*.7)*8*dt;f.y+=Math.sin(f.phase)*6*dt}
   return dt;
  }
- function draw(ctx,now,{night=evening()}={}){
+ function windowPoints(){
+  const out=[];
+  for(const d of defs||[]){
+   if(!d.ready||!d.image||!WINDOWS[d.id])continue;
+   const ratio=d.image.naturalHeight/d.image.naturalWidth||.75,height=d.width*ratio;
+   const x0=d.x-d.width/2,y0=d.bottom-height;
+   for(const [fx,fy] of WINDOWS[d.id])out.push({x:x0+fx*d.width,y:y0+fy*height,r:d.width*.07});
+  }
+  return out;
+ }
+ // Evening light: the whole village dims, windows and lamps glow (static
+ // glow without flicker when reduced motion is requested).
+ function drawNight(ctx,now,dark){
+  if(!(dark>0))return;
+  ctx.save();
+  ctx.fillStyle='rgba(12,20,46,'+(0.46*dark).toFixed(3)+')';ctx.fillRect(0,0,W,H);
+  ctx.globalCompositeOperation='lighter';
+  const glow=(x,y,r,a)=>{const g=ctx.createRadialGradient(x,y,0,x,y,r);
+   g.addColorStop(0,'rgba(255,196,110,'+a.toFixed(3)+')');g.addColorStop(1,'rgba(255,196,110,0)');
+   ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill()};
+  windowPoints().forEach((w,i)=>glow(w.x,w.y,w.r,(.42+(reducedMotion?0:Math.sin(now/900+i)*.04))*dark));
+  LAMPS.forEach(([x,y],i)=>glow(x,y,46,(.5+(reducedMotion?0:Math.sin(now/260+i*1.7)*.05))*dark));
+  ctx.restore();
+ }
+ function draw(ctx,now,{night=evening(),dark=darkness()}={}){
   step(now);
+  drawNight(ctx,now,dark);
   if(reducedMotion)return;
   ctx.save();
   for(const p of smoke){
@@ -99,5 +140,5 @@ function create({defs,W,H,random=Math.random,reducedMotion=false}={}){
  return Object.freeze({draw,step,chimneyPoints,evening,counts:()=>({smoke:smoke.length,birds:birds.length,
   butterflies:butterflies.length,flies:flies.length})});
 }
-return Object.freeze({create,CHIMNEYS,MAX_SMOKE});
+return Object.freeze({create,darkness,CHIMNEYS,WINDOWS,LAMPS,MAX_SMOKE});
 });

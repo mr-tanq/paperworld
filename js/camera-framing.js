@@ -85,5 +85,28 @@
   const visibleBottom=Math.max(top+160,height-Math.max(0,panelHeight));
   return {x:visibleW/2-cx*scale,y:(top+visibleBottom)/2-cy*scale};
  }
- return Object.freeze({contentBox,frame,place,resize,frameAround,isPortrait,EDGE,CONTENT_PAD});
+ // One smooth camera step that keeps `target` (world point) inside the visible
+ // region `view` ({left,top,right,bottom} in screen px). With `scale` it also
+ // eases the zoom towards that value around the target. `k` in 0..1 is the
+ // easing amount for this frame. Pure: returns a new {x,y,scale}.
+ function followStep({cam,target,view,scale=null,k=.12,margin=.26,world=null}){
+  if(!cam||!target||!view)return cam;
+  const t=Math.max(0,Math.min(1,k));
+  const s=Number.isFinite(scale)&&scale>0?cam.scale+(scale-cam.scale)*t:cam.scale;
+  // Keep the target's screen position while the zoom changes.
+  const sx0=cam.x+target.x*cam.scale,sy0=cam.y+target.y*cam.scale;
+  let x=sx0-target.x*s,y=sy0-target.y*s;
+  const w=view.right-view.left,h=view.bottom-view.top;
+  const cx=view.left+w/2,cy=view.top+h/2,mx=w*margin,my=h*margin;
+  const sx=x+target.x*s,sy=y+target.y*s;
+  // Zooming: glide the target to the centre. Otherwise only when it leaves the comfort box.
+  const goalX=scale?cx:sx<cx-mx?cx-mx:sx>cx+mx?cx+mx:sx;
+  const goalY=scale?cy:sy<cy-my?cy-my:sy>cy+my?cy+my:sy;
+  x+=(goalX-sx)*t;y+=(goalY-sy)*t;
+  // Never show empty space beyond the village when it is larger than the view.
+  if(world&&world.W*s>=w){x=Math.min(view.left,Math.max(view.right-world.W*s,x))}
+  if(world&&world.H*s>=h){y=Math.min(view.top,Math.max(view.bottom-world.H*s,y))}
+  return {x,y,scale:s};
+ }
+ return Object.freeze({contentBox,frame,place,resize,frameAround,followStep,isPortrait,EDGE,CONTENT_PAD});
 });

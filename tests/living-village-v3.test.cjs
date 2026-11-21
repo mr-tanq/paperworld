@@ -49,7 +49,7 @@ test('renderer wires talking poses, speech, consult letters and ambience',()=>{
  assert.match(app,/setConversation:\(next\)=>/);assert.match(app,/showConsult:\(fromId,toId\)=>/);
  assert.match(app,/agentJourney\.mode='approach-chat'/);assert.match(app,/agentJourney\.mode='chatting'/);
  assert.match(app,/villageLife\.hold\?\.\(id,\(\)=>state\.walker\)/);
- assert.match(app,/ambience\?\.draw\(ctx,now\)/);
+ assert.match(app,/ambience\?\.draw\(ctx,now,previewLight\)/);
  assert.match(app,/'wellbeing-director'\]\.includes\(a\.id\)\);\n \/\/ A chat pose gives way to a real handoff/);
  const ui=fs.readFileSync('js/world-dialogue.js','utf8');
  assert.match(ui,/world\(\)\?\.setConversation\?\.\(\{with:id,speaking:null\}\)/);
