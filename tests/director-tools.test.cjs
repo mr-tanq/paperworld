@@ -29,24 +29,26 @@ test('Dave: task and reminder lines become bounded actions and disappear from th
 });
 test('app runs the actions with the owner session and reports in plain Greek',async()=>{
  const calls=[];
- const cloud={createSunoSong:async(b,k)=>{calls.push(['suno',b.title,k]);return {accepted:true}},
+ const cloud={listSunoVoices:async()=>[{id:'voiceWWWW2222',name:'The Wanderer'}],
+  createSunoSong:async(b,k)=>{calls.push(['suno',b.title,k]);return {accepted:true}},
   addTask:async(room,t)=>{calls.push(['task',room,t])},
   createRoutine:async p=>{calls.push(['routine',p.projectId,p.dayOfWeek]);return {routineId:'r1'}},
   changeRoutine:async(id,on)=>{calls.push(['enable',id,on])}};
  const lines=await client.run([{type:'suno_song',brief:{title:'Ash',style:'folk',lyrics:'[Verse]\nx\n[End]'}},
   {type:'add_task',title:'Πόδια',notes:''},{type:'weekly_reminder',dayOfWeek:1,hour:18,minute:5,goal:'Προπόνηση'},
-  {type:'delete_everything'}],{cloud,requestId:'req-1'});
+  {type:'delete_everything'}],{cloud,requestId:'req-1',confirmSuno:()=>true});
  assert.deepEqual(calls,[['suno','Ash','req-1'],['task','wellbeing','Πόδια'],['routine','wellbeing',1],['enable','r1',true]]);
  assert.match(lines[0],/στάλθηκε στο Suno/);assert.match(lines[2],/κάθε Δευτέρα στις 18:05/);assert.equal(lines.length,3);
  const capped=await client.run([{type:'suno_song',brief:{title:'A',style:'b',lyrics:'c'}}],
-  {cloud:{createSunoSong:async()=>({accepted:false,reason:'suno_monthly_limit_reached'})}});
+  {confirmSuno:()=>true,cloud:{...cloud,createSunoSong:async()=>({accepted:false,
+   status:'blocked_before_submission',reason:'suno_monthly_limit_reached'})}});
  assert.match(capped[0],/όριο των 50/);
 });
 test('chat wiring: two AI turns accepted only for Developer handoffs; actions run after the reply',()=>{
  const cloudSrc=fs.readFileSync('js/cloud.js','utf8');
  assert.match(cloudSrc,/result\.aiTurns===1\|\|\(result\.aiTurns===2&&result\.execution==='task_queued'\)/);
  const ui=fs.readFileSync('js/world-dialogue.js','utf8');
- assert.match(ui,/PaperworldDirectorActions\.run\(result\.actions,\{cloud:cloud\(\),requestId:result\.requestId\}\)/);
+ assert.match(ui,/PaperworldDirectorActions\.run\(result\.actions,\{\s*cloud:cloud\(\),requestId:result\.requestId,\s*confirmSuno:.*window\.confirm/);
  const server=fs.readFileSync('server/director-direct-chat.cjs','utf8');
  assert.match(server,/directorActions\.extract\(agentId,content\)/);
  assert.match(fs.readFileSync('index.html','utf8'),/director-actions-client\.js\?v=2/);
@@ -103,6 +105,38 @@ test('Crow\'s direct send uses the same voice as the Music Studio',async()=>{
  assert.equal((await pickVoice(cloud,mem('random'))).id,null,'owner chose random in the Studio');
  const sent=[];
  const lines=await run([{type:'suno_song',brief:{title:'Dub',style:'s',lyrics:'l'}}],
-  {cloud:{...cloud,createSunoSong:async(b,k,v)=>{sent.push(v);return {accepted:true}}},requestId:'r',storage:mem(null)});
+  {cloud:{...cloud,createSunoSong:async(b,k,v)=>{sent.push(v);return {accepted:true}}},
+   requestId:'r',storage:mem(null),confirmSuno:()=>true});
  assert.deepEqual(sent,['voiceWWWW2222']);assert.match(lines[0],/με φωνή «The Wanderer»/);
+});
+test('Crow requires approval and a verified voice, and reports uncertain attempts without retrying',async()=>{
+ const [action]=extract('studio-director',SONG).actions;
+ let attempts=0;
+ const cloud={ownerId:()=>'o1',listSunoVoices:async()=>[{id:'voiceWWWW2222',name:'The Wanderer'}],
+  createSunoSong:async()=>{attempts++;throw Error('private provider details')}};
+ await client.run([action],{cloud});
+ await client.run([action],{cloud,confirmSuno:()=>false});
+ const missing=await client.run([action],{cloud,storage:{getItem:()=>'voice:missing'},
+  confirmSuno:()=>assert.fail('missing saved voice must block approval')});
+ assert.match(missing[0],/Δεν επαληθεύτηκε η επιλεγμένη φωνή/);
+ assert.equal(attempts,0);
+ const uncertain=await client.run([action],{cloud,confirmSuno:brief=>{
+  assert.deepEqual(brief,{title:'Ash on the Windowsill',voice:'The Wanderer'});
+  return true;
+ }});
+ assert.equal(attempts,1);
+ assert.match(uncertain[0],/Η υποβολή δεν επαληθεύτηκε/);
+ assert.doesNotMatch(uncertain[0],/private provider|Δεν χρεώθηκε|Δοκίμασε ξανά/);
+});
+test('Crow discards a submission when the owner changes during voice lookup',async()=>{
+ const [action]=extract('studio-director',SONG).actions;
+ let owner='original';
+ const lines=await client.run([action],{
+  cloud:{ownerId:()=>owner,listSunoVoices:async()=>{
+   owner='different';
+   return [{id:'voiceWWWW2222',name:'The Wanderer'}];
+  },createSunoSong:()=>assert.fail('must not submit under a different owner')},
+  confirmSuno:()=>assert.fail('must not show the old owner’s song in a confirmation')
+ });
+ assert.match(lines[0],/Η υποβολή στο Suno ακυρώθηκε/);
 });

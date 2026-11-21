@@ -6,7 +6,7 @@ test('Suno create feedback appears directly below Create button in scrollable mo
  assert.match(source,/const sunoCreateStatus=make\('p','crow-suno-create-status'/);
  // Create sits in the studio's sticky action bar; its outcome directly follows.
  assert.match(source,/studioActions\.append\(musicCancel,musicCopy,musicSave,sunoGenerate\)/);
- assert.match(source,/studioBody\.append\(studioSource,musicForm,sunoCreateStatus,studioTools\)/);
+ assert.match(source,/studioCreate\.append\(studioSource,musicForm,sunoCreateStatus,studioTools\)/);
  assert.match(source,/sunoCreateStatus\.scrollIntoView\?\.\(\{block:'nearest'\}\)/);
  const style=fs.readFileSync('messenger.css','utf8');
  assert.match(style,/\.crow-suno-create-status\[data-state="error"\]/);

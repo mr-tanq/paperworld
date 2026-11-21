@@ -89,5 +89,5 @@ test('Suno voice selector and refresh are actually mounted in Crow Music Studio'
  assert.match(ui,/const voiceRow=make\('div','pw-studio-voice-row'\);voiceRow\.append\(voiceLabel,voiceRefresh\)/);
  assert.match(ui,/studioGroup\('Φωνή','Αποθηκευμένη φωνή Suno\. Προεπιλογή: The Wanderer\.',voiceRow,voiceHint\)/);
  assert.match(ui,/studioActions\.append\(musicCancel,musicCopy,musicSave,sunoGenerate\)/);
- assert.match(ui,/studioBody\.append\(studioSource,musicForm,sunoCreateStatus,studioTools\)/);
+ assert.match(ui,/studioCreate\.append\(studioSource,musicForm,sunoCreateStatus,studioTools\)/);
 });

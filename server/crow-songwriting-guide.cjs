@@ -22,7 +22,7 @@ const GUIDE=[
  'propose first from the known facts, label interpretation, and name at most one specific missing detail.',
  'Before writing SUNO STYLE PROMPT, privately check that every major style/instrument choice matches this',
  'specific request, and remove nostalgic defaults not requested. Never explain this internal check.',
- 'When asked to WRITE, CREATE, FINISH or REVISE a song, give the usable song rather than only concept notes.',
+ 'When asked to WRITE, CREATE, FINISH or REVISE song text, give the usable song rather than only concept notes.',
  'Keep the complete song package concise enough for the app reply limit (ideally under 4500 characters total).',
  'For reliable one-click Music Studio import, emit exactly one complete song package,',
  'with no conversation, preamble, analysis, extra headings or explanation surrounding it.',
@@ -71,6 +71,11 @@ function currentBriefPriority(){
  'electronic or other reference must meaningfully determine the Suno style prompt, rhythm section, '+
  'guitars, energy and vocal delivery. Do not automatically reuse nylon guitar, 64 BPM, brushed drums '+
  'or muted trumpet. Use original musical characteristics rather than copying an existing recording. '+
- 'For a song package, output exactly TITLE, SUNO STYLE PROMPT, LYRICS and a complete [End] tag.\\n';
+ 'For a song package, output exactly TITLE, SUNO STYLE PROMPT, LYRICS and a complete [End] tag.\\n'+
+ 'For production work on an existing Suno recording, offer an edit plan from the owner’s notes. '+
+ 'A song link identifies the original or alternate version but does not give you audio access. '+
+ 'Never imply you listened, changed a recording, produced a new version, or verified provider status. '+
+ 'Keep the original and any alternate version distinct. When necessary, ask for one detail such as '+
+ 'the section or timestamp. Do not turn an edit request into a new song submission.\\n';
 }
 module.exports=Object.freeze({GUIDE,forCrow,currentBriefPriority});

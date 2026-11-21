@@ -74,6 +74,7 @@ test('OAuth owner must be linked before MCP tool discovery; never enables genera
  const result=await client.inspectTools({headers,body});
  assert.deepEqual(result.body,{service:'suno_mcp',oauthAuthorized:true,
    toolsListed:true,canGenerate:false,toolCount:1,creationTools:[],
+   toolNames:['music/create_song'],toolSignatures:[],
    reason:'read_only_tools_verified'});
  assert.equal(inspections,1);
  const doctor=await client.diagnose({headers,body});
@@ -202,7 +203,7 @@ test('Streaming MCP response enforces actual byte limit when header is absent',a
  assert.equal(cancelled,true);
 });
 
-test('Live creation signature discovery exposes only field names and types, never provider text',async()=>{
+test('Live capability discovery requests tools/list and exposes only structural fields',async()=>{
  const payload={jsonrpc:'2.0',id:1,result:{tools:[
   {name:'audio-create',description:'secret description',inputSchema:{
    type:'object',required:['style','lyrics'],properties:{
@@ -210,13 +211,19 @@ test('Live creation signature discovery exposes only field names and types, neve
     style:{type:'string',description:'private style'},
     lyrics:{type:'string'},clip_count:{type:'integer'},instrumental:{type:'boolean'}
    }}},
-  {name:'library-list',inputSchema:{properties:{secret:{type:'string'}}}}
+  {name:'fixture-library',inputSchema:{required:['cursor'],properties:{
+   cursor:{type:'string',default:'private cursor',examples:['private sample']},
+   model:{type:'string',enum:['private custom model']}
+  }},outputSchema:{description:'private output description'}}
  ]}};
- const probe=makeSunoMcpToolProbe({fetcher:async()=>({
-  status:200,headers:{get:key=>key==='content-type'?'application/json':null},
-  text:async()=>JSON.stringify(payload)
- })});
- const result=await probe.inspect({accessToken:'valid-access-token-1234',includeCreationSchema:true});
+ const calls=[];
+ const probe=makeSunoMcpToolProbe({fetcher:async(url,opts)=>{
+  calls.push(JSON.parse(opts.body).method);
+  return {status:200,headers:{get:key=>key==='content-type'?'application/json':null},
+   text:async()=>JSON.stringify(payload)};
+ }});
+ const result=await probe.inspect({accessToken:'valid-access-token-1234',
+  includeCreationSchema:true,includeToolSignatures:true});
  assert.equal(result.available,true);
  assert.equal(result.toolCount,2);
  assert.deepEqual(result.creationTools,[{
@@ -225,6 +232,10 @@ test('Live creation signature discovery exposes only field names and types, neve
    {name:'lyrics',type:'string'},{name:'clip_count',type:'integer'},
    {name:'instrumental',type:'boolean'}]
  }]);
- assert.doesNotMatch(JSON.stringify(result),/secret description|private title|private style|valid-access-token/);
- assert.ok(!JSON.stringify(result).includes('tools/call'));
+ assert.deepEqual(result.toolSignatures,[result.creationTools[0],{
+  name:'fixture-library',required:['cursor'],
+  fields:[{name:'cursor',type:'string'},{name:'model',type:'string'}]
+ }]);
+ assert.doesNotMatch(JSON.stringify(result),/secret description|private |valid-access-token/);
+ assert.deepEqual(calls,['tools/list']);
 });
