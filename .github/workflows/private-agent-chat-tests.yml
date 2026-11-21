@@ -62,6 +62,9 @@ on:
       - 'tests/follow-and-night.test.cjs'
       - 'tests/village-sound.test.cjs'
       - 'tests/director-delegates.test.cjs'
+      - 'tests/town-hall-room.test.cjs'
+      - 'js/town-hall-interior.js'
+      - 'js/director-movement.js'
       - 'server/director-direct-chat.cjs'
       - 'js/village-sound.js'
       - 'js/village-board.js'
@@ -177,6 +180,8 @@ jobs:
             tests/follow-and-night.test.cjs \
             tests/village-sound.test.cjs \
             tests/director-delegates.test.cjs \
+            tests/town-hall-room.test.cjs \
+            tests/director-movement.test.cjs \
             tests/camera-framing.test.cjs \
             tests/village-life-v2.test.cjs \
             tests/v5-task-dispatcher.test.cjs \
