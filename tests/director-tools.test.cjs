@@ -82,3 +82,14 @@ test('a failing Director chat says at which stage, never provider text',async()=
    requestId:'33333333-3333-4333-8333-333333333334',message:'γεια',consent:CONSENT})});
  assert.equal(r.status,503);assert.deepEqual(r.body,{error:'director_chat_unavailable',stage:'client_start'});
 });
+test('wordless / instrumental songs are complete songs too (only when they end with [End])',()=>{
+ const {validLyrics,parseSong}=require('../js/crow-studio-draft.js');
+ const wordless='[Intro: solo baglama, dusty room air]\n[Verse vocal: wordless improvisation only, aman style]\n[Chorus: full band, vocal rises]\n[Outro: long breath]\n[End]';
+ assert.equal(validLyrics(wordless),true);
+ assert.equal(validLyrics('[Intro: baglama]\n[Verse: wordless]'),false,'no [End]: maybe truncated');
+ assert.equal(validLyrics('[Intro: baglama]\n[End]'),false,'too short to be a song');
+ const song=parseSong('TITLE: Smoke Over the Breakbeat\nSUNO STYLE PROMPT: drum and bass with rebetiko, wordless vocal\nLYRICS:\n'+wordless);
+ assert.equal(song.title,'Smoke Over the Breakbeat');
+ const {extract}=require('../server/director-actions.cjs');
+ assert.equal(extract('studio-director','TITLE: X\nSUNO STYLE PROMPT: y\nLYRICS:\n'+wordless+'\nCREATE_SUNO_SONG').actions.length,1);
+});

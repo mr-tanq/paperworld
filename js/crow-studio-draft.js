@@ -69,14 +69,18 @@
    if(line.startsWith('[')||line.endsWith(']')){
     // A production direction occupies one whole, closed bracketed line.
     if(!/^\[[^\[\]\r\n]{1,500}\]$/.test(line))return false;
-    if(marker.test(line))sections++;
+    if(marker.test(line)&&!/^\[(?:end|final)\s*\]$/i.test(line))sections++;
    }else{
     // Stray bracket characters in a lyric line indicate truncated text.
     if(line.includes('[')||line.includes(']'))return false;
     vocal=true;
    }
   }
-  if(!vocal||sections===0)return false;
+  if(sections===0)return false;
+  // Instrumental / wordless songs (e.g. "aman" vocal improvisation) have only
+  // bracketed directions. Accept them only when clearly complete: at least two
+  // sections and a final [End], so truncated text is never sent.
+  if(!vocal&&(sections<2||lines.at(-1)!=='[End]'))return false;
   if(requireEnd&&lines.at(-1)!=='[End]')return false;
   return true;
  }
