@@ -69,6 +69,9 @@ on:
       - 'tests/suno-durable-link.test.cjs'
       - 'tests/memory-lesson-clean.test.cjs'
       - 'tests/github-durable-link.test.cjs'
+      - 'tests/initiative-watch.test.cjs'
+      - 'tests/voice-input.test.cjs'
+      - 'supabase/functions/paperworld-watch/**'
       - 'sql/paperworld_github_links_v1.sql'
       - 'sql/paperworld_memory_lesson_clean_v1.sql'
       - 'server/suno-link-store.cjs'
@@ -206,6 +209,8 @@ jobs:
             tests/suno-durable-link.test.cjs \
             tests/memory-lesson-clean.test.cjs \
             tests/github-durable-link.test.cjs \
+            tests/initiative-watch.test.cjs \
+            tests/voice-input.test.cjs \
             tests/v5-task-test-paths.test.cjs \
             tests/v5-task-batch.test.cjs \
             tests/director-movement.test.cjs \
