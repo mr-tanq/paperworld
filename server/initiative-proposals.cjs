@@ -39,7 +39,9 @@ function makeInitiativeProposals({fetcher=globalThis.fetch,clientFactory,secret=
     Accept:'application/json','Content-Type':'application/json',...(prefer?{Prefer:prefer}:{})},
    ...(body===undefined?{}:{body:JSON.stringify(body)})});
   if(!r?.ok)throw Error('database_request_failed');
-  return r.status===204?null:r.json();
+  // "return=minimal" writes answer 201 with an empty body.
+  const text=r.status===204?'':await (r.text?r.text():r.json().then(JSON.stringify));
+  return text?JSON.parse(text):null;
  }
  // The database created this token moments ago; it can be used once.
  async function claim(token){

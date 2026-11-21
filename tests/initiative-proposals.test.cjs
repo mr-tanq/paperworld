@@ -13,12 +13,15 @@ test('ideas are parsed strictly and bounded',()=>{
 function fake({claimed=true,open=[],memory=[{title:'Μάθημα',body:'κάτι'}]}={}){
  const posts=[],calls=[];
  const fetcher=async(url,o={})=>{const m=o.method||'GET';calls.push([m,url]);
-  const json=b=>({ok:true,status:200,json:async()=>b});
+  const json=b=>({ok:true,status:200,json:async()=>b,text:async()=>JSON.stringify(b)});
   if(url.includes('paperworld_initiative_runs_v1'))return json(claimed?[{token}]:[]);
   if(url.includes('paperworld_agent_threads'))return json([{id:'44444444-4444-4444-8444-444444444444'}]);
   if(url.includes('paperworld_proposals_v1')&&m==='GET')return json(url.includes('listening')?open:[]);
   if(url.includes('paperworld_director_memory'))return json(url.includes('studio')?[]:memory);
-  if(m==='POST'){posts.push([url,JSON.parse(o.body)]);return json([{id:'p1'}])}
+  if(m==='POST'){posts.push([url,JSON.parse(o.body)]);
+   // Like PostgREST: return=minimal answers 201 with an empty body.
+   if(url.includes('paperworld_agent_messages'))return {ok:true,status:201,text:async()=>'',json:async()=>{throw Error('empty')}};
+   return json([{id:'p1'}])}
   return json([]);
  };
  const prompts=[];
