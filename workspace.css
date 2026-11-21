@@ -307,3 +307,4 @@ html.pw-workspace-open .world-talk-actions,html.pw-chat-open .world-talk-actions
 .pw-proof-out{white-space:nowrap;font-weight:600}
 .pw-proof-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pw-proof-meta{grid-column:2;opacity:.65;font-size:.8rem}
+@media (pointer:coarse){.pw-keys-hint{display:none}}

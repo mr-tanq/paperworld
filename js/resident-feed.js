@@ -13,7 +13,9 @@ async function refresh(){
   world.setResidentStatus?.({});document.dispatchEvent(new CustomEvent('paperworld:residents',{detail:{}}));return;
  }
  busy=true;
- try{const map=status.statuses(await cloud.listAutonomousMissions());
+ try{const [missions,dismissed]=await Promise.all([cloud.listAutonomousMissions(),
+   typeof cloud.listDismissed==='function'?cloud.listDismissed().catch(()=>[]):[]]);
+  const map=status.statuses(missions,Date.now(),dismissed);
   world.setResidentStatus?.(map);
   document.dispatchEvent(new CustomEvent('paperworld:residents',{detail:map}))}
  catch(_){/* Keep the last verified view; never guess. */}

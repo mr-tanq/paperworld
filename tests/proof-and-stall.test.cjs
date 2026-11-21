@@ -17,7 +17,7 @@ test('proof: alone vs needed you, rate and median time from real records only',(
  assert.equal(sum.initiatives,1);assert.equal(sum.medianMinutes,50);assert.equal(sum.recent[0].source,'Πρωτοβουλία');
 });
 test('wiring: settings shows the proof; the server says who started each task',()=>{
- assert.match(fs.readFileSync('js/workspace.js','utf8'),/section\('Απόδειξη αυτονομίας'/);
+ assert.match(fs.readFileSync('js/workspace.js','utf8'),/el\('summary','','Απόδειξη αυτονομίας'/);
  assert.match(fs.readFileSync('server/v5-autonomous-mission-api.cjs','utf8'),/source:r\.policy\?\.initiative===true\?'initiative'/);
  assert.match(fs.readFileSync('index.html','utf8'),/proof\.js\?v=1/);
 });

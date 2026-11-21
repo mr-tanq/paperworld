@@ -482,3 +482,7 @@ html.pw-reduce-motion :is(.pw-messenger,.pw-workspace),html.pw-reduce-motion :is
 @media (prefers-reduced-motion:reduce){.pw-messenger .world-dialogue-form .world-chat-mic.pw-listening{animation:none}}
 .pw-messenger .world-chat-voice-note{font-size:.82rem;color:var(--pw-text-2);padding:2px 14px 6px}
 .pw-messenger .world-chat-voice-note[hidden]{display:none}
+/* Keyboard shortcuts bar (M · Matt, T · Κοντινός): only where there is a keyboard. */
+@media (pointer:coarse){.world-talk-actions{display:none!important}}
+.pw-messenger .world-chat-context-clear{margin-top:6px;border:1px solid rgba(255,255,255,.18);background:transparent;color:inherit;
+ border-radius:10px;padding:6px 10px;font:inherit;font-size:.85rem;cursor:pointer}

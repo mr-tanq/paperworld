@@ -22,7 +22,7 @@ const STATUS=Object.freeze({
 const ACTIVE=new Set(['queued','running','working','verifying']);
 // Why a task stopped, in plain words (same wording Matt uses in the chat).
 const STOP_REASON=Object.freeze({
- agent_no_changes:'Ο Developer έψαξε τον κώδικα και δεν βρήκε κάτι χαλασμένο. Χρειάζεται ένα συγκεκριμένο παράδειγμα (πόλη, ημερομηνίες ή καλλιτέχνη).',
+ agent_no_changes:'Ο Developer το έλεγξε και δεν βρήκε κάτι να αλλάξει. Αν υπάρχει πρόβλημα, ένα συγκεκριμένο παράδειγμα θα βοηθήσει.',
  trusted_verification_failed:'Η διόρθωση δεν πέρασε τα tests, οπότε δεν μπήκε στην εφαρμογή.',
  trusted_verification_timed_out:'Ο έλεγχος με τα tests δεν τελείωσε εγκαίρως.',
  copilot_pr_missing:'Ο Developer δεν παρέδωσε διόρθωση.',

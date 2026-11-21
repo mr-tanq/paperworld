@@ -5,14 +5,14 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const activity=require('../js/village-activity.js');
 test('a stopped task explains why in plain words, never with a raw code',()=>{
  const v=activity.view({id:'1',projectId:'listening',status:'needs_you',goal:'Διόρθωση',lastError:'agent_no_changes'});
- assert.match(v.message,/δεν βρήκε κάτι χαλασμένο/);
+ assert.match(v.message,/δεν βρήκε κάτι να αλλάξει/);
  assert.doesNotMatch(v.message,/agent_no_changes/);
  const unknown=activity.view({id:'2',projectId:'listening',status:'needs_you',goal:'x',lastError:'weird_code'});
  assert.equal(unknown.message,activity.STATUS.needs_you);
 });
 test('mission list returns only the stop-reason code for stopped tasks',()=>{
  const api=fs.readFileSync('server/v5-autonomous-mission-api.cjs','utf8');
- assert.match(api,/select:'id,project_id,goal,status,policy,report,last_error,created_at,updated_at'/);
+ assert.match(api,/select:'id,project_id,goal,status,policy,spec,report,last_error,created_at,updated_at'/);
  assert.match(api,/lastError:\['needs_you','failed'\]\.includes\(r\.status\)&&\/\^\[a-z_\]\{1,60\}\$\/\.test/);
 });
 test('removing items: own rows via RLS, filtered everywhere, with undo; notes keep their own delete',()=>{

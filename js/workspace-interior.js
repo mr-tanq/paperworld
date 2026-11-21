@@ -93,8 +93,10 @@ function create(host,{statuses=()=>({}),isInside=()=>false,onTalk=null,onLeave=n
    seat.setAttribute('aria-label','Μίλα με '+name+'. '+roomLine(status,name));
    seat.addEventListener('click',()=>onTalk?.(current));seats.append(seat);
   }
-  const you=el('span','th-seat');you.dataset.seat='guest';
-  const star=el('span','th-face','★');you.append(star,el('span','th-name','Εσύ'));seats.append(you);
+  // "Εσύ" only labels the owner who is painted in the scene; an empty room
+  // shows no placeholder star.
+  if(inside){const you=el('span','th-seat');you.dataset.seat='guest';
+   you.append(el('span','th-face'),el('span','th-name','Εσύ'));seats.append(you)}
   note.textContent=inside?roomLine(status,name):roomLine(null,WHO[current]||name);
   wrap.setAttribute('aria-label',room.title+' · '+note.textContent);
   draw();place();

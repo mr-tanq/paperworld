@@ -67,12 +67,13 @@ function makeAutonomousMissionApi({fetcher=globalThis.fetch,
     }}};
    }
    if(action==='list'){
-    const qs=new URLSearchParams({select:'id,project_id,goal,status,policy,report,last_error,created_at,updated_at',
+    const qs=new URLSearchParams({select:'id,project_id,goal,status,policy,spec,report,last_error,created_at,updated_at',
      owner_id:'eq.'+ownerId,thread_id:'eq.'+input.threadId,
      order:'created_at.desc',limit:'20'});
     const rows=await query('GET','paperworld_autonomous_missions_v5?'+qs);
     return {status:200,body:{missions:rows.map(r=>({
      id:r.id,projectId:r.project_id,goal:r.goal,status:r.status,
+     title:typeof r.spec?.title==='string'?r.spec.title.slice(0,120):null,
      simulation:r.policy?.executionMode==='simulation',
      // Who started it: the owner, a Director's own initiative, or the automatic retry.
      source:r.policy?.initiative===true?'initiative':r.policy?.retryOf?'retry':'owner',
