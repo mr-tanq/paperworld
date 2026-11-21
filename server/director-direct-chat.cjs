@@ -202,7 +202,14 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
     execution:taskMission?'task_queued':actions.length?'owner_actions':'chat_only',aiTurns,
     ...(taskMission?{taskMission}:{}),...(actions.length?{actions}:{}),
     ...(tool.actionError?{actionError:tool.actionError}:{})}};
-  }catch(_){diagnostic(stage);return deny(503,'director_chat_unavailable')}
+  }catch(error){
+   // Only the fixed stage name is reported (never prompts, tokens or provider text),
+   // so a failure says WHERE it happened, in the app and in the Render log.
+   diagnostic(stage);
+   const code=String(error?.message||'');
+   try{console.warn('[director-chat] failed at',stage,agentId,/^[a-z_]{3,60}$/.test(code)?code:(error?.name||'Error'))}catch(_){}
+   return {status:503,body:{error:'director_chat_unavailable',stage}};
+  }
   finally{
    try{await session?.disconnect?.()}catch(_){}
    try{await client?.stop?.()}catch(_){}
