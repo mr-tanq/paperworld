@@ -25,6 +25,16 @@ function coverRect(w,h,aw=ART.w,ah=ART.h){
  const s=Math.min(Math.max(w/aw,h/ah),w/(.8*aw)),dw=aw*s,dh=ah*s;
  return {x:(w-dw)/2,y:(h-dh)/2,w:dw,h:dh};
 }
+// The owner's meeting scene: everyone already painted around the table (you
+// on the left, Luna and Joey behind, Matt on the right, Crow and Dave in
+// front). Positions are where each head is; the empty room is the fallback.
+const SCENE=Object.freeze({day:'./assets/interiors/town-hall-meeting-day.webp',
+ night:'./assets/interiors/town-hall-meeting-night.webp'});
+const PEOPLE=Object.freeze({
+ owner:[.175,.47],matt:[.79,.45],
+ 'listening-director':[.398,.41],'pokemon-director':[.59,.40],
+ 'studio-director':[.383,.64],'wellbeing-director':[.643,.64]
+});
 const ORDER=['owner','matt','listening-director','pokemon-director','studio-director','wellbeing-director'];
 const IDLE='Όλα ήσυχα από μένα.';
 function seatLines(statuses){
@@ -87,11 +97,12 @@ function create(host,{statuses=()=>({}),onTalk=null,onEnd=null,onAgenda=null,pro
  const lines=el('div','th-lines');
  wrap.append(stage,lines,bar);host.append(wrap);
  // Day or night art follows the village's evening light.
- const arts={};
- for(const key of ['day','night']){
+ const arts={},scenes={};
+ for(const [store,src] of [[arts,ART],[scenes,SCENE]])for(const key of ['day','night']){
   const img=root.Image?new root.Image():null;if(!img)continue;
-  img.decoding='async';img.onload=()=>{arts[key]=img;if(!wrap.hidden){draw();place()}};img.src=ART[key];
+  img.decoding='async';img.onload=()=>{store[key]=img;if(!wrap.hidden){draw();place()}};img.src=src[key];
  }
+ let painted=false;
  const isNight=()=>{try{return (root.PaperworldVillageAmbience?.darkness?.()??0)>=.5}catch(_){return false}};
  let rect={x:0,y:0,w:1,h:1};
  function layout(){
@@ -105,13 +116,16 @@ function create(host,{statuses=()=>({}),onTalk=null,onEnd=null,onAgenda=null,pro
   const r=stage.getBoundingClientRect();const w=Math.max(320,r.width),h=Math.max(200,r.height);
   const dpr=Math.min(2,root.devicePixelRatio||1);canvas.width=w*dpr;canvas.height=h*dpr;
   const ctx=canvas.getContext?.('2d');if(!ctx)return;ctx.setTransform(dpr,0,0,dpr,0,0);
-  const art=(isNight()?arts.night:arts.day)||arts.day||arts.night;
+  const night=isNight();
+  const scene=(night?scenes.night:scenes.day)||scenes.day||scenes.night;
+  const art=scene||(night?arts.night:arts.day)||arts.day||arts.night;
+  painted=!!scene;wrap.classList.toggle('th-scene',painted);
   rect=art?coverRect(w,h):{x:0,y:0,w,h};
   if(art)ctx.drawImage(art,rect.x,rect.y,rect.w,rect.h);else paintRoom(ctx,w,h);
  }
  // Seats follow the drawn art exactly, whatever the screen shape.
  function place(){
-  for(const seat of seats.children){const [fx,fy]=SEATS[seat.dataset.id]||[.5,.5];
+  for(const seat of seats.children){const [fx,fy]=(painted?PEOPLE:SEATS)[seat.dataset.id]||[.5,.5];
    seat.style.left=(rect.x+fx*rect.w)+'px';seat.style.top=(rect.y+fy*rect.h)+'px'}
  }
  function render(){
@@ -148,5 +162,5 @@ function create(host,{statuses=()=>({}),onTalk=null,onEnd=null,onAgenda=null,pro
  function close(){wrap.hidden=true}
  return Object.freeze({open,close,render,isOpen:()=>!wrap.hidden});
 }
-return Object.freeze({create,SEATS,ART,coverRect,seatLines,ORDER});
+return Object.freeze({create,SEATS,ART,SCENE,PEOPLE,coverRect,seatLines,ORDER});
 });
