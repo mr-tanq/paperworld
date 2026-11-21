@@ -1901,6 +1901,16 @@
    if(result.taskMission)window.PaperworldResidentFeed?.refresh?.();
    directorReplies.set(id,[...existing,{id:result.persisted===true?result.requestId:null,
     content:result.content,time:new Date().toISOString()}].slice(-12));
+   // Crow/Dave tools chosen in the conversation run with the owner's session.
+   if(Array.isArray(result.actions)&&result.actions.length&&window.PaperworldDirectorActions){
+    if(openId===id)paint();
+    const done=await window.PaperworldDirectorActions.run(result.actions,{cloud:cloud(),requestId:result.requestId});
+    if(done.length)directorReplies.set(id,[...(directorReplies.get(id)||[]),{id:null,
+     content:done.join('\n'),time:new Date().toISOString()}].slice(-12));
+   }else if(result.actionError==='song_package_incomplete')
+    directorReplies.set(id,[...(directorReplies.get(id)||[]),{id:null,
+     content:'🎵 Το τραγούδι δεν ήταν πλήρες (τίτλος, ύφος, στίχοι με [End]), οπότε δεν στάλθηκε στο Suno. Ζήτα από τον Crow να το ολοκληρώσει.',
+     time:new Date().toISOString()}].slice(-12));
   }catch(error){
    pendingFailure={agentId:id,text,noteSaved:error?.noteSaved===true||!saveNote,error};
    if(!pendingFailure.noteSaved&&openId===id){field.value=text;autoGrow()}

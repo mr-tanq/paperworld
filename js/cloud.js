@@ -325,8 +325,10 @@
     try{result=await response.json()}catch(_){}
     if(!response.ok)throw Error((result.error||'Director unavailable')+
      ' (HTTP '+response.status+')');
+    // Two AI turns only when the Director handed real work to the Developer.
     if(result.agentId!==agentId||result.executed!==true||
-     result.aiTurns!==1||typeof result.content!=='string'||!result.content.trim())
+     !(result.aiTurns===1||(result.aiTurns===2&&result.execution==='task_queued'))||
+     typeof result.content!=='string'||!result.content.trim())
      throw Error('Director response not verified');
     return result;
    }catch(e){e.noteSaved=saveNote;throw e}

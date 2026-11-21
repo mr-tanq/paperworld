@@ -18,6 +18,7 @@ const {buildTaskPrompt}=require('./v5-task-planner.cjs');
 // Task Engine Matt uses (same caps, verification and merge rules).
 const CODING=new Set(['listening-director','pokemon-director']);
 const TASK_MARKER='START_DEVELOPER_TASK';
+const directorActions=require('./director-actions.cjs');
 // The Developer's brief is the OWNER's own words only: the last few things
 // they said in this chat plus the current ask, never the Director's replies
 // and never a message cut in half.
@@ -140,6 +141,7 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
     'You still cannot run tools or read files yourself, and you must not claim results. ':
     'you CANNOT execute tools, access live files, delegate Workers, send messages '+
     'to Matt, make edits, run tests, claim work was completed, or spend additional AI calls. ')+
+    directorActions.prompt(agentId)+
     'Never assert project status without verified evidence. '+
     'Do not treat historical memory as live status. ';
    // Crow resolves references to the owner's own catalogue against curated
@@ -182,6 +184,10 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
      content+='\n\nΔεν μπόρεσα να το αναθέσω στον Developer αυτή τη στιγμή. Πες το στον Matt και θα το αναλάβει.';
     }
    }
+   // Crow/Dave tools: strict action lines become structured actions that the
+   // owner's own app session executes (never run here, never shown as text).
+   const tool=directorActions.extract(agentId,content);
+   content=tool.content||content;const actions=tool.actions;
    // Persistence never authorizes actions, merges, tools or additional model turns.
    // Failure must never be reported as a successfully saved historical reply.
    let persisted=false;
@@ -193,7 +199,9 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
     executed:true,model:priced[0].id,requestId:data.requestId,
     persisted,persistedExcerpt:persisted&&content.trim().length>
      (agentId==='studio-director'?6000:2000),
-    execution:taskMission?'task_queued':'chat_only',aiTurns,...(taskMission?{taskMission}:{})}};
+    execution:taskMission?'task_queued':actions.length?'owner_actions':'chat_only',aiTurns,
+    ...(taskMission?{taskMission}:{}),...(actions.length?{actions}:{}),
+    ...(tool.actionError?{actionError:tool.actionError}:{})}};
   }catch(_){diagnostic(stage);return deny(503,'director_chat_unavailable')}
   finally{
    try{await session?.disconnect?.()}catch(_){}
