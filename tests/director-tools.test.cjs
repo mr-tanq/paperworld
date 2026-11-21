@@ -69,3 +69,16 @@ test('server: Crow\'s reply returns the Suno action, never runs it, one AI turn'
  assert.equal(r.body.actions[0].type,'suno_song');assert.doesNotMatch(r.body.content,/CREATE_SUNO_SONG/);
  assert.match(prompts[0],/You CAN create the song on Suno/);
 });
+test('a failing Director chat says at which stage, never provider text',async()=>{
+ const {makeDirectorChat,CONSENT}=require('../server/director-direct-chat.cjs');
+ const owner='11111111-1111-4111-8111-111111111111';
+ const api=makeDirectorChat({oauth:{getLinkedToken:()=>'gho_TEST123456789'},
+  guard:{authenticate:async()=>({ownerId:owner}),ownsThread:async()=>true},
+  memoryLoader:{load:async a=>({actor:a.actor,projectId:'wellbeing',text:'',included:0,capabilitiesGranted:[],untrustedContent:true})},
+  threadRecall:{load:async()=>({text:'',messageCount:0})},replyPersistence:{save:async()=>true},budgetVerified:()=>true,
+  clientFactory:async()=>({start:async()=>{throw Error('secret provider detail sk-123')},stop:async()=>{}})});
+ const r=await api.handle({headers:{origin:'https://mr-tanq.github.io',authorization:'Bearer aaa.bbb.fake12345678'},
+  body:JSON.stringify({agentId:'wellbeing-director',threadId:'22222222-2222-4222-8222-222222222222',
+   requestId:'33333333-3333-4333-8333-333333333334',message:'γεια',consent:CONSENT})});
+ assert.equal(r.status,503);assert.deepEqual(r.body,{error:'director_chat_unavailable',stage:'client_start'});
+});

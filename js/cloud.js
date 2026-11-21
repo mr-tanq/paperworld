@@ -324,6 +324,7 @@
     let result={};
     try{result=await response.json()}catch(_){}
     if(!response.ok)throw Error((result.error||'Director unavailable')+
+     (typeof result.stage==='string'&&/^[a-z_]{3,40}$/.test(result.stage)?' · '+result.stage:'')+
      ' (HTTP '+response.status+')');
     // Two AI turns only when the Director handed real work to the Developer.
     if(result.agentId!==agentId||result.executed!==true||
