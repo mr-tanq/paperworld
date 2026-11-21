@@ -85,9 +85,11 @@ async function load(force=false){
  if(!force&&Date.now()-state.loadedAt<20000)return;
  state.loading=true;state.error='';paintChrome();
  try{
-  const [raw,missions,dismissed]=await Promise.all([cloud().loadHumanWork(),
+  const [raw,missions,dismissed,proposals]=await Promise.all([cloud().loadHumanWork(),
    cloud().listAutonomousMissions().catch(()=>null),
-   typeof cloud().listDismissed==='function'?cloud().listDismissed().catch(()=>null):null]);
+   typeof cloud().listDismissed==='function'?cloud().listDismissed().catch(()=>null):null,
+   typeof cloud().listProposals==='function'?cloud().listProposals().catch(()=>[]):[]]);
+  state.proposals=Array.isArray(proposals)?proposals:[];
   state.raw=raw;state.missions=Array.isArray(missions)?missions:[];
   // Items the owner removed from their lists (records stay in the database).
   if(Array.isArray(dismissed)){state.dismissed=new Set(dismissed);
@@ -369,6 +371,28 @@ function greeting(){
  const h=new Date().getHours();
  return h<5?'Καλό βράδυ':h<12?'Καλημέρα':h<18?'Καλό απόγευμα':'Καλησπέρα';
 }
+// "Ναι" hands the idea to its Director in the normal chat (they decide how:
+// Developer task, a song, a plan); "Όχι" just closes it.
+const IDEA_ASK={'listening-director':'Ναι, προχώρα: ανάθεσέ το στον Developer.','pokemon-director':'Ναι, προχώρα: ανάθεσέ το στον Developer.',
+ 'studio-director':'Ναι, προχώρα: φτιάξ\' το.','wellbeing-director':'Ναι, προχώρα.'};
+function proposalCard(p){
+ const card=el('article','pw-item pw-idea');
+ const head=el('div','pw-idea-head');head.append(portrait(p.directorId),el('strong','',p.title));
+ card.append(head,el('p','pw-idea-why',p.why));
+ const row=el('div','pw-idea-actions');
+ const answer=async accept=>{
+  row.querySelectorAll('button').forEach(b=>b.disabled=true);
+  try{
+   const r=await cloud().decideProposal(p.id,accept);
+   state.proposals=state.proposals.filter(x=>x.id!==p.id);render();
+   if(accept&&r?.state==='accepted'){close({restoreFocus:false});
+    window.PaperworldWorldDialogue?.open?.(p.directorId,{context:{title:p.title,state:'Πρόταση που δέχτηκες'},
+     draft:'Για την πρότασή σου «'+p.title+'»: '+p.task+' '+(IDEA_ASK[p.directorId]||'Ναι, προχώρα.'),send:true})}
+  }catch(_){row.querySelectorAll('button').forEach(b=>b.disabled=false)}
+ };
+ row.append(button('Ναι, προχώρα','pw-btn-primary',()=>answer(true)),button('Όχι','pw-btn-ghost',()=>answer(false)));
+ card.append(row);return card;
+}
 function renderWork(){
  if(!signedIn()){body.append(signInCard());return}
  if(state.project){renderProject(byId(state.project));return}
@@ -399,6 +423,9 @@ function renderWork(){
  const needsChildren=[decisionsMount(),...attention.map(i=>itemCard(i))];
  if(!needs&&state.raw)needsChildren.push(empty('Τίποτα δεν περιμένει την απόφασή σου.'));
  body.append(section('Χρειάζονται εσένα',null,needsChildren,{id:'pw-sec-attention',count:state.raw?needs:undefined}));
+ // 2b) Ideas the Directors had on their own: the owner answers Ναι / Όχι.
+ if(state.proposals?.length)body.append(section('💡 Προτάσεις της ομάδας','Τίποτα δεν ξεκινά χωρίς το «Ναι» σου.',
+  state.proposals.map(proposalCard),{id:'pw-sec-ideas',count:state.proposals.length}));
  // 3) In progress.
  body.append(section('Σε εξέλιξη',null,active.length?active.slice(0,8).map(i=>itemCard(i)):
   [empty(state.raw?'Καμία ενεργή εργασία αυτή τη στιγμή.':'—')],{id:'pw-sec-active'}));

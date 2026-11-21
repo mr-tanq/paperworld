@@ -98,6 +98,17 @@
    await withAuth('/rest/v1/paperworld_push_subscriptions_v1?endpoint=eq.'+encodeURIComponent(endpoint),{method:'DELETE'});
    return true;
   }
+  // Directors' weekly ideas (own rows only) and the owner's one-time answer.
+  async function listProposals(){
+   const rows=await withAuth('/rest/v1/paperworld_proposals_v1?select=id,director_id,title,why,task,created_at&status=eq.proposed&order=created_at.desc&limit=10');
+   return (Array.isArray(rows)?rows:[]).filter(r=>/^[0-9a-f-]{36}$/i.test(r.id)&&
+    ['listening-director','pokemon-director','studio-director','wellbeing-director'].includes(r.director_id))
+    .map(r=>({id:r.id,directorId:r.director_id,title:String(r.title).slice(0,80),why:String(r.why).slice(0,200),task:String(r.task).slice(0,400)}));
+  }
+  async function decideProposal(id,accept){
+   if(!/^[0-9a-f-]{36}$/i.test(id||''))throw Error('Invalid proposal');
+   return withAuth('/rest/v1/rpc/paperworld_decide_proposal',{method:'POST',data:{p_id:id,p_accept:accept===true}});
+  }
   async function restoreItem(key){
    if(!ITEM_KEY.test(key||''))throw Error('Invalid item');
    await withAuth('/rest/v1/paperworld_dismissed_items_v1?item_key=eq.'+encodeURIComponent(key),{method:'DELETE'});
@@ -997,7 +1008,7 @@
    }
   }
   return {BASE,identity,ownerId,signedIn,login,signup,signout,list,add,update,remove,
-   listDismissed,dismissItem,restoreItem,savePushSubscription,deletePushSubscription,prepareImport,importTasks,
+   listDismissed,dismissItem,restoreItem,listProposals,decideProposal,savePushSubscription,deletePushSubscription,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
    createAutonomousMission,listAutonomousMissions,autonomousControllerStatus,simulateAutonomousMission,launchCopilotPilot,
    previewRoutine,listRoutines,createRoutine,changeRoutine,updateRoutine,systemHealth,

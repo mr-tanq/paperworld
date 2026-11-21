@@ -37,6 +37,8 @@ window.__installFakeCloud=function(){
   teamHandoffHistory:async()=>({jobs:teamJobs,workerRuns:[]}),
   listPokemonProposals:async()=>[],listListeningProposals:async()=>[],
   listAutonomousMissions:async()=>missions,autonomousControllerStatus:async()=>null,
+  listProposals:async()=>[{id:U(700),directorId:'listening-director',title:'Λίστα φεστιβάλ ανά μήνα',why:'Θα βλέπεις με μια ματιά τι έρχεται.',task:'Φτιάξε σελίδα με τα φεστιβάλ ανά μήνα.'}],
+  decideProposal:async(id,accept)=>({state:accept?'accepted':'declined',id}),
   listDismissed:async()=>[...dismissed],dismissItem:async k=>{dismissed.add(k);return true},restoreItem:async k=>{dismissed.delete(k);return true},
   agentMessages:async()=>[],githubLinkStatus:async()=>({connected:true,login:'owner'}),
   sunoLinkStatus:async()=>({oauthAuthorized:false,canGenerate:false,ephemeral:true}),

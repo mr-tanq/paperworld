@@ -27,6 +27,7 @@ const {createProposalMemory}=require('./listening-proposal-memory.cjs');
 const {createDurableApprovalStore}=require('./listening-approval-store.cjs');
 const {createListeningProposalApi}=require('./listening-proposal-api.cjs');
 const {createCopilotClient}=require('./copilot-client-loader.cjs');
+const {makeInitiativeProposals}=require('./initiative-proposals.cjs');
 function response(res,status,body){
  res.writeHead(status,{'Content-Type':'application/json; charset=utf-8',
   'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
@@ -109,6 +110,19 @@ function createRenderMattServer({oauth=createGithubOAuth({
  function getSunoOAuth(){if(!sunoOAuth)sunoOAuth=sunoOAuthFactory();return sunoOAuth}
  const server=http.createServer(async(req,res)=>{
   // Never enable CORS or accept browser credentials until a full OAuth review.
+  // Weekly Director ideas: called by the database cron with a single-use token.
+  if(req.url==='/initiative/propose'){
+   if(req.method!=='POST')return response(res,405,{error:'method_not_allowed'});
+   let raw='';
+   try{for await(const chunk of req){raw+=chunk;if(raw.length>512)return response(res,413,{error:'request_too_large'})}
+    let token=null;try{token=JSON.parse(raw)?.token}catch(_){}
+    try{await oauth?.hydrate?.()}catch(_){}
+    const credential=getChatCredential();
+    const result=await makeInitiativeProposals({clientFactory:createCopilotClient,
+     tokenFor:({ownerId})=>credential.getLinkedToken({ownerId})}).run({token});
+    return response(res,result.status,result.body);
+   }catch(_){return response(res,503,{error:'initiative_unavailable'})}
+  }
   if(req.method==='GET'&&req.url==='/health')
    return response(res,200,{service:'paperworld-matt',reachable:true,aiEnabled:true,stage:'authenticated-chat-guarded'});
   if(req.url==='/auth/github/callback' || req.url?.startsWith('/auth/github/callback?')){
