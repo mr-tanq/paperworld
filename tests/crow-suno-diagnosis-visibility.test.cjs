@@ -33,7 +33,8 @@ test('Create song button never exits silently or offers a duplicate submission',
  assert.ok(click,'Suno create handler must exist');
  assert.match(click,/Η λειτουργία δημιουργίας Suno δεν έχει φορτωθεί/);
  assert.match(click,/Χρειάζεται σύνδεση στο Paperworld Cloud/);
- assert.match(click,/Έχει ήδη επιχειρηθεί υποβολή/);
+ assert.match(click,/Αυτό ακριβώς το τραγούδι στάλθηκε ήδη στο Suno/);
+ assert.doesNotMatch(click,/Έχει ήδη επιχειρηθεί υποβολή/,'a new song is never blocked by an earlier one');
  assert.match(click,/Υπάρχει ήδη υποβολή σε εξέλιξη/);
  assert.match(click,/cloud\(\)\.createSunoSong\(brief,key,selectedVoiceId\)/);
  assert.match(click,/sunoGenerate\.disabled=false/);

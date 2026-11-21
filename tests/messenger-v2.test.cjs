@@ -56,7 +56,7 @@ test('Music Studio is a grouped workspace keeping every Suno safeguard',()=>{
  // Explicit confirmation, verified voice, one-shot key and honest outcome remain.
  assert.match(ui,/window\.confirm\('Να στείλω το τραγούδι στο Suno με φωνή «'/);
  assert.match(ui,/Πάτησε «Ανανέωση φωνών» ή διάλεξε ρητά «Τυχαία»\. Δεν στάλθηκε αίτημα/);
- assert.match(ui,/if\(lastSunoSubmission\)\{/);
+ assert.match(ui,/if\(lastSunoSubmission===fingerprint&&!window\.confirm\(/);
  assert.match(ui,/Η ολοκλήρωση του τραγουδιού δεν έχει ακόμη επαληθευτεί/);
  assert.match(ui,/random\.value='random'/);
  assert.doesNotMatch(ui,/createSunoSong\([^)]*\)[^;]*;\s*\/\/\s*auto/i);
