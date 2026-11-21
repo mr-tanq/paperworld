@@ -21,14 +21,27 @@ function valid(a){
   typeof a.goal==='string'&&a.goal.trim().length>0;
  return false;
 }
-async function run(actions,{cloud,requestId}={}){
+// Same voice as the Music Studio: the owner's saved choice there, otherwise
+// their saved "The Wanderer" voice. Without a voice Suno improvises one, and
+// that is when it flagged songs as copyrighted.
+async function pickVoice(cloud,storage){
+ if(typeof cloud?.listSunoVoices!=='function')return {id:null,name:'χωρίς επιλογή'};
+ let voices=[];try{voices=await cloud.listSunoVoices()}catch(_){return {id:null,name:'χωρίς επιλογή'}}
+ let pref=null;try{const o=cloud.ownerId?.();if(o)pref=storage?.getItem?.('paperworld-suno-voice-choice-v1-'+o)}catch(_){}
+ if(pref==='random')return {id:null,name:'τυχαία'};
+ const chosen=typeof pref==='string'&&pref.startsWith('voice:')?voices.find(v=>'voice:'+v.id===pref):null;
+ const v=chosen||voices.find(x=>String(x?.name||'').trim().toLowerCase()==='the wanderer');
+ return v?{id:v.id,name:v.name}:{id:null,name:'χωρίς επιλογή'};
+}
+async function run(actions,{cloud,requestId,storage=(typeof localStorage!=='undefined'?localStorage:null)}={}){
  const lines=[];
  for(const a of Array.isArray(actions)?actions.slice(0,8):[]){
   if(!valid(a))continue;
   try{
    if(a.type==='suno_song'){
-    const r=await cloud.createSunoSong(a.brief,requestId);
-    if(r?.accepted===true)lines.push('🎵 Το «'+a.brief.title+'» στάλθηκε στο Suno. Θα το βρεις στη βιβλιοθήκη σου σε λίγα λεπτά.');
+    const voice=await pickVoice(cloud,storage);
+    const r=await cloud.createSunoSong(a.brief,requestId,voice.id);
+    if(r?.accepted===true)lines.push('🎵 Το «'+a.brief.title+'» στάλθηκε στο Suno με φωνή «'+voice.name+'». Θα το βρεις στη βιβλιοθήκη σου σε λίγα λεπτά.');
     else lines.push('🎵 Δεν στάλθηκε στο Suno: '+(SUNO_REASONS[r?.reason]||'το Suno δεν το δέχτηκε αυτή τη στιγμή')+'. Δεν χρεώθηκε τίποτα.');
    }else if(a.type==='add_task'){
     await cloud.addTask('wellbeing',a.title.trim(),String(a.notes||'').trim());
@@ -46,5 +59,5 @@ async function run(actions,{cloud,requestId}={}){
  }
  return lines;
 }
-return Object.freeze({run,valid});
+return Object.freeze({run,valid,pickVoice});
 });
