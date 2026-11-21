@@ -43,7 +43,7 @@ test('owner survey is connected but three leaf spurs fail calibrated obstacle ch
 test('retain exact owner export as archive while live routes use repaired connected graph',()=>{
  assert.match(app,/nodes:window\.PaperworldNavigation\.nodes/);
  assert.match(app,/storageKey:'paperworld-operational-paths-owner-nov21-v3'/);
- assert.match(html,/owner-path-survey\\.js\\?v=20261121/);
+ assert.ok(html.includes('owner-path-survey.js?v=20261121-74'));
  assert.ok(html.indexOf('owner-path-survey.js')<html.indexOf('navigation.js'));
  assert.ok(html.indexOf('navigation.js')<html.indexOf('js/app.js'));
  assert.equal(originalNav.safeConnections.length,originalNav.connections.length);
