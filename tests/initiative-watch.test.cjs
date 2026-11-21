@@ -53,7 +53,7 @@ test('a failing workflow becomes one queued mission and Matt tells the owner',as
  assert.equal(f.missions.length,1);
  const m=f.missions[0];assert.equal(m.policy.initiative,true);assert.equal(m.policy.retryOf,undefined,'never inherits a retry marker');
  assert.equal(m.owner_id,owner);assert.equal(m.thread_id,thread);
- assert.match(f.posts[0].content,/Η Luna είδε ότι απέτυχε η αυτόματη εργασία «Discover concerts» και την έδωσε μόνη της στον Developer/);
+ assert.match(f.posts.find(x=>/είδε ότι απέτυχε/.test(x.content)).content,/Η Luna είδε ότι απέτυχε η αυτόματη εργασία «Discover concerts» και την έδωσε μόνη της στον Developer/);
  assert.ok(f.calls.some(([,u])=>u.includes('rpc/paperworld_v5_plan_task'))&&f.calls.some(([,u])=>u.includes('rpc/paperworld_v5_queue_task')));
 });
 test('limits: one per Director per day, never the same workflow twice, pause stops all',async()=>{
@@ -65,8 +65,29 @@ test('limits: one per Director per day, never the same workflow twice, pause sto
  const r2=await createWatcher({environment:k=>env[k],fetcher:twice.fetcher,clock}).runOnce();
  assert.equal(r2.results.find(x=>x.projectId==='listening').state,'all_green','same workflow within 7 days is left alone');
  const paused=fakeDb({paused:true});
- assert.deepEqual(await createWatcher({environment:k=>env[k],fetcher:paused.fetcher,clock}).runOnce(),{state:'paused'});
+ assert.equal((await createWatcher({environment:k=>env[k],fetcher:paused.fetcher,clock}).runOnce()).state,'paused');
  const sql=fs.readFileSync('sql/paperworld_initiatives_v1.sql','utf8');
  assert.match(sql,/add column if not exists initiatives_paused boolean not null default false/);
  assert.match(sql,/cron\.schedule\('paperworld-watch','47 6 \* \* \*'/);
+});
+test('morning health check: Matt writes only when something needs attention, once a day',async()=>{
+ const {createWatcher}=await load();
+ const make=({links=true,stuck=[],ghOk=true})=>{const posts=[];
+  const fetcher=async(url,o={})=>{const m=o.method||'GET';const json=b=>({ok:true,status:200,json:async()=>b});
+   if(url==='https://api.github.com/user')return ghOk?json({login:'x'}):{ok:false,status:401};
+   if(url.includes('api.github.com'))return json({workflow_runs:[]});
+   if(url.includes('_links_v1'))return json(links?[{updated_at:'x'}]:[]);
+   if(url.includes('paperworld_autonomous_controller_v5'))return json([{engine:'v1',dispatch_enabled:true,initiatives_paused:false}]);
+   if(url.includes('status=in.'))return json(stuck);
+   if(url.includes('paperworld_agent_messages')){posts.push(JSON.parse(o.body));return {ok:true,status:201,json:async()=>null}}
+   if(url.includes('engine=eq.v1'))return json([{owner_id:owner,thread_id:thread}]);
+   return json([]);};
+  return {fetcher,posts}};
+ const ok=make({});const r=await createWatcher({environment:k=>env[k],fetcher:ok.fetcher,clock}).runOnce();
+ assert.equal(r.health.state,'healthy');assert.equal(ok.posts.length,0,'silence when all is well');
+ const bad=make({links:false,ghOk:false,stuck:[{goal:'Διόρθωση φίλτρου'}]});
+ const r2=await createWatcher({environment:k=>env[k],fetcher:bad.fetcher,clock}).runOnce();
+ assert.equal(r2.health.state,'problems');
+ assert.match(bad.posts[0].content,/Πρωινός έλεγχος: .*GitHub δεν δουλεύει.*Suno.*«Διόρθωση φίλτρου» δεν προχωράει/);
+ assert.ok(bad.posts[0].id,'deterministic id: once per day');
 });

@@ -19,8 +19,13 @@ function topic(m){
  return short(t,26);
 }
 // One line per resident, most important first: needs you > working > just finished.
-function line(m){
+// Active work with no progress for 2 hours is NOT shown as busy: the village
+// must never look busier than the system really is.
+const STALL=2*3600*1000;
+function line(m,now=Date.now()){
  if(ATTENTION.has(m.status))return {tone:'attention',text:'Χρειάζεται εσένα'};
+ const at=Date.parse(m.updatedAt||m.createdAt||'');
+ if(ACTIVE.has(m.status)&&Number.isFinite(at)&&now-at>STALL)return {tone:'attention',text:'Κόλλησε: δεν προχωράει'};
  if(m.status==='verifying')return {tone:'active',text:'Ελέγχει: '+topic(m)};
  if(ACTIVE.has(m.status))return {tone:'active',text:'Δουλεύει: '+topic(m)};
  if(m.status==='completed'&&m.report?.merged===true)return {tone:'done',text:'✓ Το φτιάξαμε'};
@@ -33,7 +38,7 @@ function statuses(missions,now=Date.now()){
  for(const m of Array.isArray(missions)?missions:[]){
   if(!m||typeof m!=='object'||!Object.hasOwn(DIRECTOR,m.projectId)||m.simulation===true)continue;
   const at=Date.parse(m.updatedAt||m.createdAt||'');
-  const l=line(m);
+  const l=line(m,now);
   if(!l)continue;
   // Finished work shows for a day; attention for three days; active while active.
   if(l.tone==='done'&&!(at>now-DAY))continue;
@@ -45,5 +50,5 @@ function statuses(missions,now=Date.now()){
  for(const k of Object.keys(out))out[k]=Object.freeze({tone:out[k].tone,text:out[k].text});
  return Object.freeze(out);
 }
-return Object.freeze({statuses,DIRECTOR});
+return Object.freeze({statuses,DIRECTOR,STALL});
 });

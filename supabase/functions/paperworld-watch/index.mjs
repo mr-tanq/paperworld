@@ -80,12 +80,38 @@ function createWatcher({environment,fetcher=fetch,clock=Date.now}={}){
    return {name:String(job.name).slice(0,80),step:String(step?.name||'?').slice(0,80)};
   }catch(_){return null}
  }
+ // Morning health check: Matt writes ONLY when something needs attention,
+ // at most once a day (deterministic message id). No AI, read-only checks.
+ async function health(){
+  const problems=[];
+  try{const t=env('GITHUB_COPILOT_USER_TOKEN');
+   const r=await fetcher('https://api.github.com/user',{redirect:'error',signal:AbortSignal.timeout(8000),
+    headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+t,'User-Agent':'paperworld-watch'}});
+   if(!r?.ok)problems.push('το κλειδί του Developer στο GitHub δεν δουλεύει (χρειάζεται ανανέωση)');
+  }catch(_){problems.push('δεν μπόρεσα να ελέγξω το GitHub')}
+  const has=async t=>{try{const r=await db(t+'?select=updated_at&limit=1');return Array.isArray(r)&&r.length>0}catch(_){return null}};
+  if(await has('paperworld_github_links_v1')===false)problems.push('η σύνδεσή σου στο GitHub λείπει (Ρυθμίσεις → GitHub → Σύνδεση)');
+  if(await has('paperworld_suno_links_v1')===false)problems.push('το Suno δεν είναι συνδεδεμένο (Music Studio του Crow → Σύνδεση Suno)');
+  let stuck=[];
+  try{stuck=await db('paperworld_autonomous_missions_v5?select=id,goal,project_id&status=in.(queued,running,working,verifying)'+
+   '&updated_at=lt.'+new Date(clock()-2*3600e3).toISOString()+'&limit=5')||[]}catch(_){}
+  for(const m of stuck)problems.push('η εργασία «'+String(m.goal||'').replace(/\s+/g,' ').slice(0,60)+'» δεν προχωράει εδώ και 2+ ώρες');
+  if(!problems.length)return {state:'healthy'};
+  const ctx=(await db('paperworld_autonomous_missions_v5?select=owner_id,thread_id&engine=eq.v1&order=created_at.desc&limit=1').catch(()=>null))?.[0];
+  if(!ctx?.owner_id)return {state:'problems',count:problems.length};
+  const day=amsterdamDay(clock());
+  await db('paperworld_agent_messages','POST',{id:await uuidFrom('paperworld-health:'+day),thread_id:ctx.thread_id,owner_id:ctx.owner_id,
+   role:'agent',content:PREFIX+JSON.stringify({director:'matt',kind:'notification',
+    text:'Πρωινός έλεγχος: '+problems.slice(0,4).join('· ')+'.'})},'resolution=ignore-duplicates,return=minimal').catch(()=>null);
+  return {state:'problems',count:problems.length};
+ }
  async function runOnce(){
   // The pause switch column may not exist yet: fall back to the basic row.
   const ctrl=(await db('paperworld_autonomous_controller_v5?select=engine,dispatch_enabled,initiatives_paused&singleton=eq.true&limit=1')
    .catch(()=>db('paperworld_autonomous_controller_v5?select=engine,dispatch_enabled&singleton=eq.true&limit=1')).catch(()=>null))?.[0];
-  if(!ctrl||ctrl.engine!=='v1'||ctrl.dispatch_enabled!==true)return {state:'disabled'};
-  if(ctrl.initiatives_paused===true||env('PAPERWORLD_INITIATIVES_PAUSED')==='1')return {state:'paused'};
+  let checked=null;try{checked=await health()}catch(_){checked={state:'health_unavailable'}}
+  if(!ctrl||ctrl.engine!=='v1'||ctrl.dispatch_enabled!==true)return {state:'disabled',health:checked};
+  if(ctrl.initiatives_paused===true||env('PAPERWORLD_INITIATIVES_PAUSED')==='1')return {state:'paused',health:checked};
   const since=new Date(clock()-COOLDOWN_DAYS*864e5).toISOString();
   const recent=await db('paperworld_autonomous_missions_v5?select=id,project_id,policy,created_at&created_at=gte.'+since+
    '&policy->>initiative=eq.true&limit=100');
@@ -130,7 +156,7 @@ function createWatcher({environment,fetcher=fetch,clock=Date.now}={}){
     'resolution=ignore-duplicates,return=minimal').catch(()=>null);
    results.push({projectId,state:queued===true?'initiative_queued':'initiative_planned',missionId:id});
   }catch(_){results.push({projectId,state:'error'})}
-  return {state:'done',results};
+  return {state:'done',results,health:checked};
  }
  async function handle(request){
   if(request.method!=='POST')return respond(405,{error:'method_not_allowed'});

@@ -71,6 +71,8 @@ on:
       - 'tests/github-durable-link.test.cjs'
       - 'tests/initiative-watch.test.cjs'
       - 'tests/initiative-proposals.test.cjs'
+      - 'tests/proof-and-stall.test.cjs'
+      - 'js/proof.js'
       - 'server/initiative-proposals.cjs'
       - 'sql/paperworld_initiatives_ab_v1.sql'
       - 'tests/voice-input.test.cjs'
@@ -214,6 +216,7 @@ jobs:
             tests/github-durable-link.test.cjs \
             tests/initiative-watch.test.cjs \
             tests/initiative-proposals.test.cjs \
+            tests/proof-and-stall.test.cjs \
             tests/voice-input.test.cjs \
             tests/v5-task-test-paths.test.cjs \
             tests/v5-task-batch.test.cjs \
