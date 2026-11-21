@@ -59,6 +59,7 @@ on:
       - 'tests/living-village-v3.test.cjs'
       - 'tests/tidy-work-list.test.cjs'
       - 'tests/master-polish.test.cjs'
+      - 'tests/follow-and-night.test.cjs'
       - 'js/village-board.js'
       - 'village-board.css'
       - 'sql/paperworld_dismissed_items_v1.sql'
@@ -169,6 +170,7 @@ jobs:
             tests/living-village-v3.test.cjs \
             tests/tidy-work-list.test.cjs \
             tests/master-polish.test.cjs \
+            tests/follow-and-night.test.cjs \
             tests/camera-framing.test.cjs \
             tests/village-life-v2.test.cjs \
             tests/v5-task-dispatcher.test.cjs \

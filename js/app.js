@@ -426,6 +426,50 @@ let residentStatus=Object.freeze({});
 // Living village v3: who the owner is talking to, who is speaking, and
 // colleague consults (visual only; set by the Messenger, never by AI output).
 const conversation={with:null,speaking:null,since:0};
+const previewLight=(()=>{try{const q=new URLSearchParams(location.search);
+ return q.get('night')==='1'?{dark:1,night:true}:q.get('day')==='1'?{dark:0,night:false}:{}}catch(_){return {}}})();
+// Follow camera: a gentle close-up while Matt walks to a Director, and keeping
+// the owner in view when zoomed in. Any manual drag/zoom pauses it.
+const follow={pausedUntil:0,cinematic:null,restoreAt:0};
+const JOURNEY_MODES=['outbound','meeting','returning'];
+function visibleRegion(){
+ const panel=workspaceFrame?.panel||null;
+ let bottom=state.height,right=state.width;
+ if(panel?.height>0)bottom=state.height-panel.height;
+ else{const f=framing?.frame({width:state.width,height:state.height,W,H,content:villageContent()});
+  if(Number.isFinite(f?.boardTop)&&!document.querySelector('.village-board')?.hidden)bottom=f.boardTop}
+ if(panel?.width>0)right=state.width-panel.width;
+ return {left:0,top:56,right:Math.max(200,right),bottom:Math.max(200,bottom)};
+}
+function followCamera(dt,now){
+ if(!framing?.followStep||state.pointer||editingPaths||placingBuildings)return;
+ const journey=JOURNEY_MODES.includes(agentJourney.mode);
+ if(journey&&!follow.cinematic&&now>=follow.pausedUntil){
+  follow.cinematic={x:state.x,y:state.y,scale:state.scale,adjusted:state.adjusted};
+ }
+ const k=Math.min(1,dt*2.4);
+ if(follow.cinematic&&journey&&now>=follow.pausedUntil){
+  const close=Math.min(state.fit*2.2,Math.max(state.scale,follow.cinematic.scale*1.8));
+  const next=framing.followStep({cam:state,target:{x:mattActor.x,y:mattActor.y-40},
+   view:visibleRegion(),scale:close,k,world:{W,H}});
+  state.x=next.x;state.y=next.y;state.scale=next.scale;follow.restoreAt=0;return;
+ }
+ if(follow.cinematic&&!journey){
+  // Linger a moment on the report, then glide back to the owner's own view.
+  if(!follow.restoreAt)follow.restoreAt=now+1400;
+  if(now<follow.restoreAt)return;
+  const back=follow.cinematic;
+  state.scale+=(back.scale-state.scale)*k;state.x+=(back.x-state.x)*k;state.y+=(back.y-state.y)*k;
+  if(Math.abs(state.scale-back.scale)<.002&&Math.hypot(state.x-back.x,state.y-back.y)<1){
+   Object.assign(state,{x:back.x,y:back.y,scale:back.scale,adjusted:back.adjusted});follow.cinematic=null}
+  return;
+ }
+ // Owner walking while zoomed in: keep them comfortably in view.
+ if(now>=follow.pausedUntil&&state.route.length&&state.scale>state.fit*1.12){
+  const next=framing.followStep({cam:state,target:{x:state.walker.x,y:state.walker.y-40},view:visibleRegion(),k,world:{W,H}});
+  state.x=next.x;state.y=next.y;
+ }
+}
 const ambience=window.PaperworldVillageAmbience?.create({defs,W,H,
  reducedMotion:window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true})||null;
 const consultFx=[];
@@ -483,6 +527,8 @@ window.PaperworldWorld=Object.freeze({
  camera:()=>({x:state.x,y:state.y,scale:state.scale,fit:state.fit,
   width:state.width,height:state.height,adjusted:state.adjusted===true}),
  frameForWorkspace:({open=false,panelWidth=0,panelHeight=0}={})=>{
+  // A panel opening/closing owns the camera; drop any close-up snapshot.
+  follow.cinematic=null;follow.restoreAt=0;
   if(open){
    if(!Number.isFinite(panelWidth)||panelWidth<0||
       !Number.isFinite(panelHeight)||panelHeight<0)return false;
@@ -772,7 +818,8 @@ layers.push({id:'player',depth:depth.actorWalkwayDepth(w,navigation,defs),paint:
  layers.push(...depth.foregroundLayers(ctx,scene.ready,scene.image,W,H));
  depth.sortLayers(layers).forEach(item=>item.paint());
  // Small signs of life: chimney smoke, birds, butterflies, evening fireflies.
- ambience?.draw(ctx,now);
+ // ?night=1 / ?day=1 preview the evening light without waiting for dusk.
+ ambience?.draw(ctx,now,previewLight);
  // Bubbles stay above buildings so a resident's work is always readable.
  for(const a of actors)if(residentStatus[a.id])drawResidentBubble(a,residentStatus[a.id]);
  // Who is talking right now (only while the Messenger is open).
@@ -957,6 +1004,7 @@ function tick(now){
   }
   if(dist<=speed+0.01){mattActor.x=next.x;mattActor.y=next.y;followTrail.shift()}
  }
+ followCamera(dt,now);
  draw(now);requestAnimationFrame(tick)
 }
 canvas.addEventListener('pointerdown',e=>{
@@ -983,7 +1031,9 @@ canvas.addEventListener('pointermove',e=>{
  if(Math.hypot(p.x-v.originalX,p.y-v.originalY)>7)v.dragged=true;
  if(v.dragged){
   if(placingBuildings&&v.building)movePlacement(v.building,(p.x-v.x)/state.scale,(p.y-v.y)/state.scale);
-  else{state.x+=p.x-v.x;state.y+=p.y-v.y;state.adjusted=true}
+  else{state.x+=p.x-v.x;state.y+=p.y-v.y;state.adjusted=true;
+   // The owner took the camera: stop any close-up and keep their view.
+   follow.pausedUntil=performance.now()+4000;follow.cinematic=null}
  }
  v.x=p.x;v.y=p.y;
 });
@@ -1004,7 +1054,7 @@ canvas.addEventListener('pointercancel',()=>{
  if(placingBuildings&&state.pointer?.building&&state.pointer.dragged)saveBuildingLayout();
  state.pointer=null;
 });
-function zoom(delta){state.adjusted=true;const cx=state.width/2,cy=state.height/2,worldX=(cx-state.x)/state.scale,worldY=(cy-state.y)/state.scale;state.scale=Math.max(state.fit*.7,Math.min(state.fit*3,state.scale*delta));state.x=cx-worldX*state.scale;state.y=cy-worldY*state.scale}
+function zoom(delta){state.adjusted=true;follow.pausedUntil=performance.now()+4000;follow.cinematic=null;const cx=state.width/2,cy=state.height/2,worldX=(cx-state.x)/state.scale,worldY=(cy-state.y)/state.scale;state.scale=Math.max(state.fit*.7,Math.min(state.fit*3,state.scale*delta));state.x=cx-worldX*state.scale;state.y=cy-worldY*state.scale}
 document.querySelector('#plus').onclick=()=>zoom(1.2);document.querySelector('#minus').onclick=()=>zoom(1/1.2);document.querySelector('#home').onclick=()=>{resetCamera();
  // Home re-frames the village, still leaving room for an open panel.
  if(workspaceFrame){workspaceFrame.x=state.x;workspaceFrame.y=state.y;workspaceFrame.scale=state.scale;
