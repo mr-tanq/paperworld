@@ -676,27 +676,27 @@
  });
  const sunoTools=make('button','crow-music-check','Έλεγχος εργαλείων Suno');
  sunoTools.type='button';
- const sunoToolList=make('ul','pw-studio-tool-list');sunoToolList.hidden=true;
+ const sunoToolList=make('textarea','pw-studio-tool-list');
+ sunoToolList.hidden=true;sunoToolList.readOnly=true;sunoToolList.rows=12;
+ sunoToolList.spellcheck=false;
+ sunoToolList.setAttribute('aria-label','Αναφορά εργαλείων Suno MCP');
+ let sunoReportOwner=null;
+ function clearSunoReport(){
+  sunoReportOwner=null;sunoToolList.value='';sunoToolList.hidden=true;
+ }
  sunoTools.addEventListener('click',async()=>{
   if(openId!=='studio-director'||musicBusy||!cloud()?.signedIn()||
      typeof cloud()?.inspectSunoTools!=='function')return;
   sunoTools.disabled=true;
-  sunoToolList.replaceChildren();sunoToolList.hidden=true;
-  const ownerId=songOwner();
+  clearSunoReport();
+  const ownerId=songOwner(),selectedRevision=revision;
+  if(!validSongOwner(ownerId)){sunoTools.disabled=false;return}
+  const isCurrent=()=>openId==='studio-director'&&songOwner()===ownerId&&
+   revision===selectedRevision;
   musicResult.textContent='Έλεγχος εργαλείων Suno…';
   try{
    const r=await cloud().inspectSunoTools();
-   if(openId!=='studio-director'||songOwner()!==ownerId)return;
-   const signaturesByName=new Map((r.toolSignatures||[]).map(t=>[t.name,t]));
-   for(const name of r.toolsListed&&Array.isArray(r.toolNames)?r.toolNames:[]){
-    const entry=make('li','',name);
-    const signature=signaturesByName.get(name);
-    if(signature?.fields?.length)entry.append(make('span','',
-     signature.fields.map(field=>field.name+' ('+field.type+
-      (signature.required.includes(field.name)?', required':'')+')').join(', ')));
-    sunoToolList.append(entry);
-   }
-   sunoToolList.hidden=!sunoToolList.children.length;
+   if(!isCurrent())return;
    const toolFailures={
     not_authorized:'Δεν υπάρχει ενεργή εξουσιοδότηση Suno.',
     authorization_rejected:'Το Suno απέρριψε το token πρόσβασης (401/403).',
@@ -722,16 +722,23 @@
     legacy_session_invalid:'Το Suno επέστρεψε μη έγκυρο MCP session.',
     legacy_tools_unverified:'Η παλαιότερη σύνδεση δεν επέστρεψε έγκυρη λίστα εργαλείων.'
    };
-   const candidates=Array.isArray(r.creationTools)?r.creationTools:[];
-   const signatures=candidates.slice(0,4).map(t=>
-    t.name+' · fields: '+t.fields.map(f=>f.name+' ('+f.type+')').join(', ')+
-    ' · required: '+(t.required.join(', ')||'none')).join(' | ');
-   musicResult.textContent=r.toolsListed?
-    'Επαληθεύτηκαν '+r.toolCount+' εργαλεία MCP. '+
-    (signatures?'Εργαλεία παραγωγής: '+signatures:
-     'Δεν εντοπίστηκε γνωστό εργαλείο δημιουργίας στα διαθέσιμα schemas.'):
-    (toolFailures[r.reason]||'Δεν επαληθεύτηκαν τα εργαλεία MCP.');
-  }catch(_){musicResult.textContent='Απαιτείται ενεργή σύνδεση Suno ή συμβατή έκδοση MCP.'}
+   if(!r.toolsListed){
+    musicResult.textContent=toolFailures[r.reason]||'Δεν επαληθεύτηκαν τα εργαλεία MCP.';
+    return;
+   }
+   if(!r.inventory){
+    musicResult.textContent='Η πλήρης αναφορά εργαλείων Suno δεν είναι διαθέσιμη από τον server.';
+    return;
+   }
+   sunoReportOwner=ownerId;
+   sunoToolList.value=JSON.stringify(r.inventory,null,2);
+   sunoToolList.hidden=false;
+   musicResult.textContent='Η λίστα περιέχει '+r.toolCount+' εργαλεία MCP. '+
+    'Μπορείς να αντιγράψεις την αναφορά. Οι συμβάσεις κλήσης παραμένουν ανεπιβεβαίωτες.';
+  }catch(_){
+   if(isCurrent())musicResult.textContent='Απαιτούνται ιδιωτική συνομιλία Crow και ενεργή σύνδεση Suno. '+
+    'Αν έχει λήξει η σύνδεση, εκτέλεσε πρώτα τη διάγνωση σύνδεσης.';
+  }
   finally{sunoTools.disabled=false}
  });
  const sunoCheck=make('button','crow-music-check','Διάγνωση σύνδεσης Suno');
@@ -922,7 +929,7 @@
   musicCopy.hidden=true;
   sourceSong=null;sourceOwner=null;sourceForm.reset();sourceStatus.textContent='';
   sourceLink.removeAttribute('href');editForm.reset();editStatus.textContent='';
-  sunoToolList.replaceChildren();sunoToolList.hidden=true;
+  clearSunoReport();
   selectStudioView('create');
  }
  musicToggle.addEventListener('click',()=>{
@@ -1878,6 +1885,7 @@
   activity.title=active?'Συνδεδεμένο στο PAPERWORLD Cloud':'Εκτός σύνδεσης';
   openStudio.hidden=!isMatt||!active||!latestStudioHandoff||busy;
   if(musicToggle.hidden||(sourceOwner&&sourceOwner!==songOwner()))resetMusic();
+  if(sunoReportOwner&&sunoReportOwner!==songOwner())clearSunoReport();
   if(voicesOwner&&voicesOwner!==songOwner()){
    voicesOwner=null;voicesLoaded=false;verifiedVoices=[];drawVoiceOptions();
   }

@@ -315,9 +315,7 @@
 .pw-messenger .pw-studio-tools[open]{display:flex;flex-direction:column;gap:8px}
 .pw-messenger .crow-technical-tools{display:flex;flex-direction:column;gap:8px}
 .pw-messenger .crow-technical-tools[open]{gap:8px}
-.pw-messenger .pw-studio-tool-list{padding-inline-start:22px;overflow-wrap:anywhere}
-.pw-messenger .pw-studio-tool-list li+li{margin-top:8px}
-.pw-messenger .pw-studio-tool-list span{display:block;color:var(--pw-text-3)}
+.pw-messenger .pw-studio-tool-list{box-sizing:border-box;width:100%;resize:vertical;overflow-wrap:anywhere}
 .pw-messenger .crow-music-instructions{color:var(--pw-accent);font-size:13px}
 /* Memory sheet */
 .pw-messenger .pw-memory-body{padding-bottom:20px}
