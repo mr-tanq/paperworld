@@ -5,16 +5,24 @@
 const REGISTRY=Object.freeze({
  listening:Object.freeze({director:'listening-director',repo:'mr-tanq/concerts',
   paths:Object.freeze(['js/','css/','scripts/','tests/','workers/','server/']),
-  testIds:Object.freeze(['festival_revisit','festival_discovery','identity_profile','setlist_resolver'])}),
+  testIds:Object.freeze(['festival_revisit','festival_discovery','identity_profile','setlist_resolver']),
+  // Where this repository keeps its tests: always allowed, so a Developer who
+  // adds a test next to the fix is never stopped as "out of scope".
+  testPaths:Object.freeze(['scripts/','tests/'])}),
  pokemon:Object.freeze({director:'pokemon-director',repo:'mr-tanq/pokemon-echoes',
   paths:Object.freeze(['scripts/','scenes/','tests/']),
-  testIds:Object.freeze(['godot_smoke','battle_damage'])})
+  testIds:Object.freeze(['godot_smoke','battle_damage']),testPaths:Object.freeze(['tests/'])})
 });
 const forbidden=['.github/','.paperworld/','node_modules/','addons/','assets/'];
 function safePath(p){return typeof p==='string'&&p.length<160&&p.length>1&&
  !p.startsWith('/')&&!p.includes('\\')&&!p.split('/').includes('..')&&
  !p.split('/').includes('.')&&!p.includes('//')&&
  /^[A-Za-z0-9_./-]+$/.test(p)&&!forbidden.some(f=>p.startsWith(f))}
+// The database accepts at most 8 path prefixes; test folders always fit.
+function withTestPaths(paths,testPaths=[]){
+ const extra=testPaths.filter(t=>!paths.includes(t));
+ return [...paths.slice(0,8-extra.length),...extra];
+}
 function normalizedSpec(input,{projectId,directorId}={}){
  if(!input||typeof input!=='object'||Array.isArray(input))throw Error('invalid_spec');
  const reg=Object.hasOwn(REGISTRY,projectId)?REGISTRY[projectId]:null;
@@ -40,7 +48,8 @@ function normalizedSpec(input,{projectId,directorId}={}){
   title:input.title.trim(),summary:input.summary.trim(),
   acceptance:Object.freeze(input.acceptance.map(x=>x.trim())),
   requiredTests:Object.freeze([...input.requiredTests]),
-  allowedPaths:Object.freeze([...input.allowedPaths]),maxFiles:input.maxFiles,
+  allowedPaths:Object.freeze(withTestPaths(input.allowedPaths,reg.testPaths)),
+  maxFiles:input.maxFiles,
   noAutoMerge:true,noAutoDeploy:true});
 }
-module.exports=Object.freeze({REGISTRY,normalizedSpec,safePath});
+module.exports=Object.freeze({REGISTRY,normalizedSpec,safePath,withTestPaths});
