@@ -70,6 +70,9 @@ on:
       - 'tests/memory-lesson-clean.test.cjs'
       - 'tests/github-durable-link.test.cjs'
       - 'tests/initiative-watch.test.cjs'
+      - 'tests/initiative-proposals.test.cjs'
+      - 'server/initiative-proposals.cjs'
+      - 'sql/paperworld_initiatives_ab_v1.sql'
       - 'tests/voice-input.test.cjs'
       - 'supabase/functions/paperworld-watch/**'
       - 'sql/paperworld_github_links_v1.sql'
@@ -210,6 +213,7 @@ jobs:
             tests/memory-lesson-clean.test.cjs \
             tests/github-durable-link.test.cjs \
             tests/initiative-watch.test.cjs \
+            tests/initiative-proposals.test.cjs \
             tests/voice-input.test.cjs \
             tests/v5-task-test-paths.test.cjs \
             tests/v5-task-batch.test.cjs \
@@ -377,6 +381,14 @@ jobs:
           psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
             -h 127.0.0.1 -p 5432 -U postgres -d github_links_synthetic \
             -f tests/sql/paperworld-github-links.sql
+      - name: Execute initiatives A+B schema on PostgreSQL 17
+        env:
+          PGPASSWORD: synthetic-only
+        run: |
+          createdb -h 127.0.0.1 -p 5432 -U postgres initiatives_synthetic
+          psql --no-psqlrc -X -v ON_ERROR_STOP=1 \
+            -h 127.0.0.1 -p 5432 -U postgres -d initiatives_synthetic \
+            -f tests/sql/paperworld-initiatives-ab.sql
       - name: Execute V5 Dispatch lifecycle, budget and crash integration on PostgreSQL 17
         env:
           PGPASSWORD: synthetic-only

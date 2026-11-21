@@ -1821,7 +1821,9 @@
   if(closed)document.dispatchEvent(new CustomEvent('paperworld:chat-closed',{detail:{id:closed}}))}
  // Optional draft from Work ("Ζήτα κάτι από την ομάδα"): prefilled only,
  // never sent automatically — the owner still presses Send.
+ // send:true only for an explicit owner action (e.g. "Ναι" on a proposal).
  function open(id,{draft='',context=null}={}){
+  const send=arguments[1]?.send===true;
   show(id);
   contextNote.replaceChildren();contextNote.hidden=true;
   if(context&&typeof context.title==='string'&&context.title.trim()){
@@ -1832,6 +1834,7 @@
   }
   if(typeof draft==='string'&&draft.trim()&&!field.disabled){
    field.value=draft.trim().slice(0,1500);autoGrow();field.focus();
+   if(send===true)setTimeout(()=>{if(openId===id&&field.value.trim()&&!field.disabled)form.requestSubmit?.()},300);
   }
  }
  function showMemory(id){if(!AGENT_PROJECT[id])return;show(id);void openMemory()}

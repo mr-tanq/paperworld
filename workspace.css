@@ -296,3 +296,9 @@ html.pw-workspace-open .world-talk-actions,html.pw-chat-open .world-talk-actions
  border:1px solid var(--pw-line-2);border-radius:var(--pw-r-ctl);background:var(--pw-bg);
  color:var(--pw-text);font:500 14px/1.3 var(--pw-font)}
 @media(max-width:460px){.pw-workspace .pw-setting:has(.pw-language-select){align-items:stretch;flex-direction:column}}
+/* Directors' ideas (initiatives phase B). */
+.pw-idea{display:flex;flex-direction:column;gap:8px}
+.pw-idea-head{display:flex;align-items:center;gap:10px}
+.pw-idea-head strong{font-size:1rem}
+.pw-idea-why{margin:0;opacity:.85;font-size:.92rem}
+.pw-idea-actions{display:flex;gap:8px;flex-wrap:wrap}
