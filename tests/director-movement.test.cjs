@@ -49,3 +49,21 @@ test('movement is only initiated by visible user control',()=>{
  assert.match(js,/directorAssembly\.call\(\)/);
  assert.doesNotMatch(moduleText,/fetch\(|localStorage|Copilot|approval\(/);
 });
+test('Town Hall v2: everyone climbs the steps, enters the real door, stays until the owner ends it',()=>{
+ const actors=origins.map(([id,x,y])=>({id,x,y,direction:'down',moving:false,walkDistance:14}));
+ const instance=assembly.create(navigation,actors);
+ assert.equal(instance.call(),true);assert.equal(instance.keepMeeting(),true);
+ for(let t=0;t<6000&&instance.status()!=='meeting';t++)instance.tick(.05);
+ assert.equal(instance.status(),'meeting');
+ actors.forEach(a=>{assert.equal(a.inside,true,a.id+' inside');
+  assert.deepEqual([a.x,a.y],[assembly.DOOR.x,assembly.DOOR.y],a.id+' went through the real door')});
+ for(let t=0;t<400;t++)instance.tick(.05);
+ assert.equal(instance.status(),'meeting','held while the owner is in the room');
+ assert.equal(instance.end(),true);
+ for(let t=0;t<8000&&instance.status()!=='idle';t++)instance.tick(.05);
+ assert.equal(instance.status(),'idle');
+ actors.forEach((a,i)=>{assert.equal(a.inside,false);assert.ok(Math.hypot(a.x-origins[i][1],a.y-origins[i][2])<.01,a.id+' home')});
+ // Door/steps sit on the Town Hall artwork, above the paving spots.
+ for(const [x,y] of Object.values(assembly.meetingPlaces))assert.ok(navigation.snapToPath([x,y],25),'spot on paving');
+ assert.ok(assembly.DOOR.y<assembly.STEPS.y);
+});

@@ -504,6 +504,10 @@ function drawResidentBubble(a,status){
  ctx.restore();
 }
 window.PaperworldWorld=Object.freeze({
+ // Read-only meeting state (diagnostics/tests): where the team is.
+ meetingState:()=>({phase:directorAssembly.status(),walkerInside:state.walker.inside===true,
+  mattInside:mattActor.inside===true,route:state.route.length,
+  actors:actors.map(a=>({id:a.id,x:Math.round(a.x),y:Math.round(a.y),inside:a.inside===true}))}),
  // Where the village board may start on tall screens (null = no room).
  boardTop:()=>{const f=framing?.frame({width:state.width,height:state.height,W,H,content:villageContent()});
   return Number.isFinite(f?.boardTop)?f.boardTop:null},
@@ -800,7 +804,7 @@ const w=state.walker;
  const layers=defs.filter(d=>d.ready).map(d=>({
    id:d.id,depth:d.bottom,paint:()=>{const b=spriteBox(d);ctx.drawImage(d.image,b.x,b.y,b.width,b.height)}
  }));
- for(const a of actors)layers.push({id:'agent-'+a.id,depth:depth.actorWalkwayDepth(a,navigation,defs),paint:()=>{
+ for(const a of actors)if(!a.inside)layers.push({id:'agent-'+a.id,depth:depth.actorWalkwayDepth(a,navigation,defs),paint:()=>{
  if(a.id==='matt' && drawMattSprite(a,now))return;
  if(a.id==='listening-director' && drawListeningDirectorSprite(a))return;
  if(a.id==='pokemon-director' && drawPokemonDirectorSprite(a))return;
@@ -812,7 +816,7 @@ const w=state.walker;
  ctx.fillStyle='#fff9e8';ctx.font='bold 15px system-ui';ctx.textAlign='center';ctx.fillText(actorDisplayName(a),a.x,a.y+23);
  ctx.restore();
 }});
-layers.push({id:'player',depth:depth.actorWalkwayDepth(w,navigation,defs),paint:()=>{if(!drawPlayerSprite(w))drawFigure(w)}});
+if(!w.inside)layers.push({id:'player',depth:depth.actorWalkwayDepth(w,navigation,defs),paint:()=>{if(!drawPlayerSprite(w))drawFigure(w)}});
  const d=demoPositions[state.depthDemo];
  if(d)layers.push({id:'depth-demo',depth:d.y,paint:()=>drawFigure(d,true)});
  layers.push(...depth.foregroundLayers(ctx,scene.ready,scene.image,W,H));
@@ -821,7 +825,7 @@ layers.push({id:'player',depth:depth.actorWalkwayDepth(w,navigation,defs),paint:
  // ?night=1 / ?day=1 preview the evening light without waiting for dusk.
  ambience?.draw(ctx,now,previewLight);
  // Bubbles stay above buildings so a resident's work is always readable.
- for(const a of actors)if(residentStatus[a.id])drawResidentBubble(a,residentStatus[a.id]);
+ for(const a of actors)if(residentStatus[a.id]&&!a.inside)drawResidentBubble(a,residentStatus[a.id]);
  // Who is talking right now (only while the Messenger is open).
  if(conversation.with){
   const peer=actors.find(a=>a.id===conversation.with);
@@ -932,6 +936,8 @@ function tick(now){
   if(dist<=speed+0.001){player.x=next.x;player.y=next.y;state.route.shift();
    if(!state.route.length)state.destination=null}
  }
+ // Matt may have walked the whole trail (into the Town Hall): restart it at the owner.
+ if(!followTrail.length)followTrail.push({x:state.walker.x,y:state.walker.y});
  const last=followTrail[followTrail.length-1];
  if(Math.hypot(state.walker.x-last.x,state.walker.y-last.y)>11)
   followTrail.push({x:state.walker.x,y:state.walker.y});
@@ -992,7 +998,8 @@ function tick(now){
    agentJourney.reportReady=true;resolveMattReturn();
   }else if(now-agentJourney.reportSince>6000)endReportPose();
  }
- if(agentJourney.mode==='following'&&followTrail.length>4){
+ // Matt keeps a few steps behind — except into the Town Hall, where he follows you in.
+ if(agentJourney.mode==='following'&&followTrail.length>(state.walker.inside?0:4)){
   const next=followTrail[0],dx=next.x-mattActor.x,dy=next.y-mattActor.y,
         dist=Math.hypot(dx,dy),speed=125*dt;
   if(dist>0.01){
@@ -1003,6 +1010,17 @@ function tick(now){
    mattActor.moving=move>0.25;
   }
   if(dist<=speed+0.01){mattActor.x=next.x;mattActor.y=next.y;followTrail.shift()}
+ }
+ // Town Hall: you and Matt step inside at the door; the room opens once the team is in.
+ if(meeting.active){
+  const door=directorMovement.DOOR;
+  if(!state.walker.inside&&!state.route.length&&Math.hypot(state.walker.x-door.x,state.walker.y-door.y)<6)state.walker.inside=true;
+  if(state.walker.inside&&!mattActor.inside&&agentJourney.mode==='following'&&
+     Math.hypot(mattActor.x-door.x,mattActor.y-door.y)<8)mattActor.inside=true;
+  const teamIn=directorAssembly.status()==='meeting';
+  if(teamIn&&state.walker.inside&&(mattActor.inside||now-meeting.since>40000)&&!meetingRoom?.isOpen())openMeetingRoom();
+  // Never strand anyone: if the walk could not finish, open the room anyway.
+  if(teamIn&&now-meeting.since>60000&&!meetingRoom?.isOpen()){state.walker.inside=true;mattActor.inside=true;openMeetingRoom()}
  }
  followCamera(dt,now);
  draw(now);requestAnimationFrame(tick)
@@ -1084,14 +1102,49 @@ document.querySelector('#walkway-overlay')?.addEventListener('click',e=>{
 // direct one-on-one Director chat without pretending there is a multi-agent AI
 // meeting or silently spending model credits.
 let townHallBriefing=null;
+// Town Hall meeting v2: the whole team — you and Matt too — walks to the
+// Town Hall, climbs the steps and goes in; the meeting room opens inside.
+let meetingRoom=null,meetingStatuses={},meeting={active:false,since:0};
+document.addEventListener('paperworld:residents',e=>{meetingStatuses=e.detail||{};if(meetingRoom?.isOpen())meetingRoom.render()});
+function walkOwnerToTownHall(){
+ const start=navigation.snapToPath([state.walker.x,state.walker.y],20);
+ const spot=navigation.snapToPath(directorMovement.meetingPlaces['wellbeing-director'],25);
+ if(!start||!spot)return false;
+ const path=navigation.routeBetween(start,spot);
+ state.route=[...path.slice(1).map(([x,y])=>({x,y})),{...directorMovement.STEPS},{...directorMovement.DOOR}];
+ state.destination=null;return true;
+}
+function openMeetingRoom(){
+ const Interior=window.PaperworldTownHallInterior;
+ if(!Interior)return;
+ if(!meetingRoom)meetingRoom=Interior.create(document.querySelector('#view'),{
+  statuses:()=>meetingStatuses,profiles:window.PaperworldProfiles,
+  onTalk:id=>window.PaperworldWorldDialogue?.show(id),
+  onAgenda:()=>{const m=window.PaperworldTownHall;if(m?.create&&!townHallBriefing)townHallBriefing=m.create(document.querySelector('#view'),{
+    load:()=>window.PaperworldCloudUI.loadHumanWork(),chat:id=>window.PaperworldWorldDialogue?.show(id),
+    askAI:(id,prompt)=>window.PaperworldCloudUI.askDirector(id,prompt,{saveNote:false}),
+    openWork:()=>window.PaperworldWorkspace?.open?.('work')});void townHallBriefing?.show()},
+  onEnd:leaveTownHall});
+ meetingRoom.open();
+}
+function leaveTownHall(){
+ directorAssembly.end();meeting.active=false;
+ for(const who of [state.walker,mattActor]){who.inside=false;who.x=directorMovement.DOOR.x;who.y=directorMovement.DOOR.y;who.direction='down'}
+ mattActor.x+=10;
+ state.route=[{...directorMovement.STEPS},{x:655,y:417}];
+ followTrail.length=0;followTrail.push({x:mattActor.x,y:mattActor.y});
+ window.PaperworldResidentFeed?.refresh?.();
+}
 document.querySelector('#call-visual-meeting')?.addEventListener('click',()=>{
- const started=directorAssembly.call();
+ const started=directorAssembly.call()&&directorAssembly.keepMeeting();
+ if(started){meeting.active=true;meeting.since=performance.now();walkOwnerToTownHall()}
  nameEl.textContent='Town Hall · ενημέρωση ομάδας';
  descEl.textContent=started?
   'Η ομάδα συγκεντρώνεται οπτικά. Η κατάσταση εργασιών διαβάζεται από τον λογαριασμό σου, χωρίς αυτόματες AI κλήσεις.':
   'Άνοιγμα Town Hall · η οπτική συγκέντρωση δεν ξεκίνησε ξανά.';
+ // While the team walks in, the agenda waits for the room ("Ατζέντα" there).
  const module=window.PaperworldTownHall;
- if(module?.create){
+ if(module?.create&&!started){
   if(!townHallBriefing)townHallBriefing=module.create(document.querySelector('#view'),{
    load:()=>window.PaperworldCloudUI.loadHumanWork(),
    chat:id=>window.PaperworldWorldDialogue?.show(id),

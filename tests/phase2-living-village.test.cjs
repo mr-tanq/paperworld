@@ -39,7 +39,7 @@ test('work cards: merged fix says it is live and shows cause and fix',()=>{
 test('the map draws bubbles from the feed; feed is read-only and visibility-aware',()=>{
  const app=fs.readFileSync('js/app.js','utf8'),feed=fs.readFileSync('js/resident-feed.js','utf8');
  assert.match(app,/setResidentStatus:\(map\)=>/);
- assert.match(app,/for\(const a of actors\)if\(residentStatus\[a\.id\]\)drawResidentBubble\(a,residentStatus\[a\.id\]\);/);
+ assert.match(app,/for\(const a of actors\)if\(residentStatus\[a\.id\]&&!a\.inside\)drawResidentBubble\(a,residentStatus\[a\.id\]\);/);
  assert.match(feed,/listAutonomousMissions\(\)/);assert.match(feed,/document\.hidden/);
  assert.doesNotMatch(feed,/delegate|createAutonomousMission|askMatt|fetch\(/);
  const html=fs.readFileSync('index.html','utf8');
