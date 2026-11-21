@@ -163,8 +163,8 @@ test('Settings centralises account, connections, memory and advanced tools',asyn
  assert.ok(t.calls.some(c=>c[0]==='navigate'&&c[1].startsWith('https://github.com/')));
  rows.find(r=>/Suno/.test(r.textContent)).querySelector('button').click();await flush();
  assert.ok(!t.calls.some(c=>c[0]==='beginSunoLink'),'Suno link needs explicit confirmation');
- rows.find(r=>/Τι γνωρίζει ο Crow/.test(r.textContent)).querySelector('button').click();
- assert.deepEqual(t.calls.find(c=>c[0]==='memory'),['memory','studio-director']);
+ rows.find(r=>/Μνήμη της ομάδας/.test(r.textContent)).querySelector('button').click();await flush();
+ assert.match(t.text(),/Τι θυμάται κάθε μέλος/,'memory opens as a native page in Settings');
  t.ws.open('settings');await flush();
  t.shell.querySelector('.pw-switch').click();
  assert.equal(t.doc.documentElement.classList.contains('pw-reduce-motion'),true);

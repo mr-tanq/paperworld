@@ -39,10 +39,15 @@ window.__installFakeCloud=function(){
   listAutonomousMissions:async()=>missions,autonomousControllerStatus:async()=>null,
   listProposals:async()=>[{id:U(700),directorId:'listening-director',title:'Λίστα φεστιβάλ ανά μήνα',why:'Θα βλέπεις με μια ματιά τι έρχεται.',task:'Φτιάξε σελίδα με τα φεστιβάλ ανά μήνα.'}],
   decideProposal:async(id,accept)=>({state:accept?'accepted':'declined',id}),
+  listDirectorMemory:async project=>[
+   {id:U(800),project_id:project,kind:'project_bible',status:'approved',title:'Ο καλλιτέχνης που αγαπάς περισσότερο',body:'Mogwai, Godspeed You! Black Emperor και post-rock γενικά. Προτιμά ζωντανές εμφανίσεις σε μικρούς χώρους.',sensitivity:'standard',observed_at:iso(3000)},
+   {id:U(801),project_id:project,kind:'work_history',status:'approved',title:'Μάθημα: Διόρθωση «Enrich artist images»',body:'Το enrichment ξαναέγραφε το αρχείο χωρίς αλλαγές · Τι αλλάξαμε: αποθηκεύεται μόνο όταν υπάρχει νέο αποτέλεσμα.',sensitivity:'standard',observed_at:iso(120)},
+   {id:U(802),project_id:project,kind:'preference',status:'proposed',title:'Θέλει ειδοποίηση για νέες συναυλίες στην Αθήνα',body:'Από τη συζήτηση της 21/11.',sensitivity:'private',observed_at:iso(30)}],
+  reviewDirectorMemory:async()=>true,
   listDismissed:async()=>[...dismissed],dismissItem:async k=>{dismissed.add(k);return true},restoreItem:async k=>{dismissed.delete(k);return true},
   agentMessages:async()=>[],githubLinkStatus:async()=>({connected:true,login:'owner'}),
   sunoLinkStatus:async()=>({oauthAuthorized:false,canGenerate:false,ephemeral:true}),
-  listDirectorMemory:async()=>[],signout:async()=>{},beginGithubLink:async()=>'https://github.com/login/oauth/authorize?x=1',
+  signout:async()=>{},beginGithubLink:async()=>'https://github.com/login/oauth/authorize?x=1',
  };
  return new Proxy(client,{get:(t,k)=>k in t?t[k]:async()=>({})});
 };
