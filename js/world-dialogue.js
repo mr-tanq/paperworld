@@ -1353,6 +1353,7 @@
      new Promise(resolve=>setTimeout(resolve,90000))]);
     mattJourneyCaption='Ο Matt επέστρεψε από '+who;
    }
+   window.PaperworldSound?.chime?.();
    mattReplies.push({id:result.persisted===true?result.requestId:null,
     content:String(result.content||
      'Δεν μπόρεσα να προσδιορίσω με ασφάλεια τον αρμόδιο Director.'),
@@ -1895,6 +1896,7 @@
    const result=saveNote?await cloud().askDirector(id,text):
     await cloud().askDirector(id,text,{saveNote:false});
    const existing=directorReplies.get(id)||[];
+   window.PaperworldSound?.chime?.();
    directorReplies.set(id,[...existing,{id:result.persisted===true?result.requestId:null,
     content:result.content,time:new Date().toISOString()}].slice(-12));
   }catch(error){

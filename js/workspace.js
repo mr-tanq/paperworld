@@ -622,8 +622,19 @@ function renderSettings(){
   try{window.localStorage.setItem('paperworld-pref-reduce-motion',prefs()?'0':'1')}catch(_){}
   applyPrefs();sw.setAttribute('aria-checked',String(prefs()));
  });
+ // Village sounds: optional, off by default, synthesized in the browser.
+ const sound=window.PaperworldSound;
+ const snd=el('button','pw-switch');snd.type='button';snd.setAttribute('role','switch');
+ snd.setAttribute('aria-checked',String(sound?.enabled?.()===true));snd.setAttribute('aria-label','Ήχοι του χωριού');
+ snd.disabled=!sound;
+ snd.addEventListener('click',()=>{
+  const on=!(sound?.enabled?.()===true);sound?.setEnabled?.(on);
+  snd.setAttribute('aria-checked',String(sound?.enabled?.()===true));
+  if(on)sound?.chime?.();
+ });
  const keys=el('p','pw-section-hint','Συντομεύσεις: M · Matt, T · κοντινός agent, Esc · κλείσιμο.');
- body.append(section('Προτιμήσεις',null,[settingRow('Λιγότερη κίνηση','Απενεργοποιεί τις μεταβάσεις και τις κινήσεις διεπαφής',sw),keys]));
+ body.append(section('Προτιμήσεις',null,[settingRow('Λιγότερη κίνηση','Απενεργοποιεί τις μεταβάσεις και τις κινήσεις διεπαφής',sw),
+  settingRow('Ήχοι του χωριού','Ρυάκι, πουλιά τη μέρα, γρύλοι το βράδυ και ένα απαλό «ντινγκ» όταν σου απαντούν',snd),keys]));
  // Advanced (clearly separated from everyday settings)
  const adv=el('details','pw-advanced');
  adv.append(el('summary','','Για προχωρημένους'));
