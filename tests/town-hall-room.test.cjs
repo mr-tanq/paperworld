@@ -35,3 +35,11 @@ test('the owner art fills the room without stretching and never crops a seat',()
  // Seats sit on the chairs of the art: heads at the ends, two behind, two in front.
  assert.ok(R.SEATS['listening-director'][1]<R.SEATS['studio-director'][1]);
 });
+test('meeting scene: the owner\'s painted team, day and night, everyone tappable at their head',()=>{
+ const R=require('../js/town-hall-interior.js'),fs=require('node:fs');
+ for(const k of ['day','night'])assert.ok(fs.existsSync(R.SCENE[k].replace('./','')),k);
+ assert.deepEqual(Object.keys(R.PEOPLE).sort(),[...R.ORDER].sort());
+ assert.ok(R.PEOPLE.owner[0]<.25&&R.PEOPLE.matt[0]>.7,'you on the left, Matt on the right');
+ assert.ok(R.PEOPLE['studio-director'][1]>R.PEOPLE['listening-director'][1],'Crow and Dave sit in front');
+ assert.match(fs.readFileSync('town-hall.css','utf8'),/\.th-scene \.th-face\{background:transparent/);
+});

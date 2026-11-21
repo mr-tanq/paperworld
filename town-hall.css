@@ -38,3 +38,11 @@
 .ws-room:not(.th-portrait) .ws-note{display:none}
 .ws-room .th-seat[data-seat=guest]{cursor:default}
 .ws-room.th-portrait .ws-note{flex:1;padding:16px 18px;font-size:1rem;color:#f3e3c4}
+/* Painted meeting scene: the people are in the art; their faces become
+   invisible tap targets and the bubble sits above each head. */
+.th-scene .th-face{background:transparent;border-color:transparent;box-shadow:none;color:transparent;
+ width:clamp(56px,8vw,110px);height:clamp(56px,8vw,110px)}
+.th-scene .th-face img,.th-scene .th-face canvas{opacity:0}
+.th-scene .th-seat:hover .th-face,.th-scene .th-seat:focus-visible .th-face{border-color:rgba(243,210,140,.8)}
+.th-scene .th-name{top:auto;bottom:calc(100% - 4px);background:rgba(30,18,10,.72);padding:1px 8px;border-radius:9px}
+.th-scene .th-say{bottom:calc(100% + 22px)}
