@@ -156,7 +156,7 @@
     const article=e('article',undefined,'director-memory-entry');
     const head=e('div',undefined,'room-task-top');
     head.append(e('strong',row.title),
-     e('span',row.status==='proposed'?'Αναμένει έλεγχο':row.status,'director-memory-status'));
+     e('span',{proposed:'Αναμένει έλεγχο',approved:'Εγκεκριμένη',rejected:'Απορρίφθηκε',superseded:'Αντικαταστάθηκε'}[row.status]||row.status,'director-memory-status'));
     article.append(head,e('p',row.body,'director-memory-body'));
     const details=e('details');details.append(e('summary','Πηγή & στοιχεία'));
     details.append(e('p',row.sourceType+' · '+row.sourceRef,'room-footnote'),

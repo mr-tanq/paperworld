@@ -493,6 +493,7 @@ window.PaperworldCloudUI={
  openClassicDesk:async(view='town')=>{const d=document.querySelector('#world-drawer');if(d)d.hidden=false;
   // Memory review opens as one focused page, without the old desk around it.
   d?.classList.toggle('pw-classic-focus',view==='memory');
+  const label=d?.querySelector('.world-drawer-head small');if(label)label.textContent=view==='memory'?'ΜΝΗΜΗ ΤΗΣ ΟΜΑΔΑΣ':'ΟΙ ΕΡΓΑΣΙΕΣ ΜΟΥ';
   open(view==='memory'?'town':view);
   if(view==='memory'&&client.signedIn()){
    // Wait for the reload that open() started; the desk refuses while busy.
