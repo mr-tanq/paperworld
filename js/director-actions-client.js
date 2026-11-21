@@ -21,28 +21,39 @@ function valid(a){
   typeof a.goal==='string'&&a.goal.trim().length>0;
  return false;
 }
-// Same voice as the Music Studio: the owner's saved choice there, otherwise
-// their saved "The Wanderer" voice. Without a voice Suno improvises one, and
-// that is when it flagged songs as copyrighted.
+// Same owner preference as the Music Studio. Only an explicit Random choice
+// permits submission without a voice ID.
 async function pickVoice(cloud,storage){
- if(typeof cloud?.listSunoVoices!=='function')return {id:null,name:'χωρίς επιλογή'};
- let voices=[];try{voices=await cloud.listSunoVoices()}catch(_){return {id:null,name:'χωρίς επιλογή'}}
  let pref=null;try{const o=cloud.ownerId?.();if(o)pref=storage?.getItem?.('paperworld-suno-voice-choice-v1-'+o)}catch(_){}
  if(pref==='random')return {id:null,name:'τυχαία'};
- const chosen=typeof pref==='string'&&pref.startsWith('voice:')?voices.find(v=>'voice:'+v.id===pref):null;
- const v=chosen||voices.find(x=>String(x?.name||'').trim().toLowerCase()==='the wanderer');
- return v?{id:v.id,name:v.name}:{id:null,name:'χωρίς επιλογή'};
+ if(typeof cloud?.listSunoVoices!=='function')return null;
+ let voices;try{voices=await cloud.listSunoVoices()}catch(_){return null}
+ if(!Array.isArray(voices))return null;
+ const v=typeof pref==='string'&&pref.startsWith('voice:')?
+  voices.find(voice=>'voice:'+voice?.id===pref):
+  voices.find(voice=>String(voice?.name||'').trim().toLowerCase()==='the wanderer');
+ return v?{id:v.id,name:v.name}:null;
 }
-async function run(actions,{cloud,requestId,storage=(typeof localStorage!=='undefined'?localStorage:null)}={}){
+const unverified='🎵 Η υποβολή δεν επαληθεύτηκε. Έλεγξε πρώτα τη βιβλιοθήκη σου στο Suno.';
+async function run(actions,{cloud,requestId,confirmSuno,storage=(typeof localStorage!=='undefined'?localStorage:null)}={}){
  const lines=[];
  for(const a of Array.isArray(actions)?actions.slice(0,8):[]){
   if(!valid(a))continue;
   try{
    if(a.type==='suno_song'){
+    if(typeof confirmSuno!=='function')continue;
+    const ownerId=cloud.ownerId?.();
     const voice=await pickVoice(cloud,storage);
+    if(!voice){lines.push('🎵 Δεν επαληθεύτηκε η επιλεγμένη φωνή. Έλεγξε τη φωνή στο Music Studio.');continue}
+    if(cloud.ownerId?.()!==ownerId||confirmSuno({title:a.brief.title,voice:voice.name})!==true){
+     lines.push('🎵 Η υποβολή στο Suno ακυρώθηκε.');continue;
+    }
     const r=await cloud.createSunoSong(a.brief,requestId,voice.id);
-    if(r?.accepted===true)lines.push('🎵 Το «'+a.brief.title+'» στάλθηκε στο Suno με φωνή «'+voice.name+'». Θα το βρεις στη βιβλιοθήκη σου σε λίγα λεπτά.');
-    else lines.push('🎵 Δεν στάλθηκε στο Suno: '+(SUNO_REASONS[r?.reason]||'το Suno δεν το δέχτηκε αυτή τη στιγμή')+'. Δεν χρεώθηκε τίποτα.');
+    if(r?.accepted===true)lines.push('🎵 Το «'+a.brief.title+'» στάλθηκε στο Suno με φωνή «'+voice.name+
+     '». Το Suno επιβεβαίωσε τη λήψη. Έλεγξε τη βιβλιοθήκη σου για την ολοκλήρωση.');
+    else if(r?.status==='blocked_before_submission')lines.push('🎵 Η υποβολή στο Suno μπλοκαρίστηκε. '+
+     (SUNO_REASONS[r.reason]||'Έλεγξε το τραγούδι και τη σύνδεση στο Music Studio.'));
+    else lines.push(unverified);
    }else if(a.type==='add_task'){
     await cloud.addTask('wellbeing',a.title.trim(),String(a.notes||'').trim());
     lines.push('✓ Το πρόσθεσα στη λίστα σου: «'+a.title.trim()+'».');
@@ -52,7 +63,7 @@ async function run(actions,{cloud,requestId,storage=(typeof localStorage!=='unde
     lines.push('⏰ Υπενθύμιση κάθε '+DAY[a.dayOfWeek]+' στις '+two(a.hour)+':'+two(a.minute)+'. Θα σου έρχεται και στο κινητό.');
    }
   }catch(_){
-   lines.push(a.type==='suno_song'?'🎵 Δεν μπόρεσα να το στείλω στο Suno τώρα. Δοκίμασε ξανά από το Music Studio.':
+   lines.push(a.type==='suno_song'?unverified:
     a.type==='add_task'?'Δεν μπόρεσα να το προσθέσω στη λίστα: «'+a.title+'».':
     'Δεν μπόρεσα να βάλω την υπενθύμιση. Δοκίμασε ξανά σε λίγο.');
   }

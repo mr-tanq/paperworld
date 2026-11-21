@@ -11,7 +11,7 @@ test('Crow diagnostics remain available for maintenance but do not interrupt son
  assert.ok(!append.includes('sunoCheck')&&!append.includes('sunoTools'),
   'raw diagnostics should not be front-and-center');
  assert.match(dialog,/crowTechnical\.append\(make\('summary'/);
- assert.match(dialog,/sunoCheck,sunoLinkStatus,sunoTools,sunoInstructions/);
+ assert.match(dialog,/sunoCheck,sunoLinkStatus,sunoTools,sunoToolList,sunoInstructions/);
  assert.match(dialog,/musicToggle\.hidden=openId!=='studio-director'\|\|!active/);
  assert.match(dialog,/diagnoseSunoConnection/);
  const html=read('index.html');

@@ -15,11 +15,11 @@ const SONG_MARKER='CREATE_SUNO_SONG';
 const DAYS={SUN:0,MON:1,TUE:2,WED:3,THU:4,FRI:5,SAT:6};
 const MAX_TASKS=5,MAX_REMINDERS=3;
 function prompt(agentId){
- if(agentId==='studio-director')return 'You CAN create the song on Suno for the owner: when the owner asks you '+
-  '(now, or clearly in this conversation) to make, create or produce the song, write the complete song '+
+ if(agentId==='studio-director')return 'You CAN create the song on Suno for the owner: when the owner explicitly asks '+
+  'to submit a new song to Suno, write the complete song '+
   'package (TITLE, SUNO STYLE PROMPT, LYRICS ending with [End]) and end your reply with the exact line '+
-  SONG_MARKER+'. The app submits it with the owner\'s own Suno account (monthly limit applies). '+
-  'Never write that line when the owner is only discussing ideas. ';
+  SONG_MARKER+'. The app confirms Suno credit use before it can submit with the owner\'s account (monthly limit applies). '+
+  'Only use that line for a new song requested for submission. Never use it for an existing-song edit. ';
  if(agentId==='wellbeing-director')return 'You CAN save things for the owner: when the owner asks you to save a '+
   'plan, add exercises/habits to their list, or remind them, add at the very end of your reply one line per item: '+
   '"SAVE_TASK: <short title> || <short details>" (at most '+MAX_TASKS+') and/or '+

@@ -168,5 +168,23 @@
   }
   return null;
  }
- return Object.freeze({fromMatt,fromSavedHistory,extractStyle,parseSong,validLyrics});
+ function sunoSongLink(value){
+  if(typeof value!=='string'||value.length>500)return null;
+  // Accept only Suno share and song-page URLs. Drop any tracking parameters.
+  const match=value.trim().match(/^https:\/\/(?:www\.)?suno\.com\/(?:song\/([0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12})|s\/([a-zA-Z0-9_-]{6,64}))\/?(?:[?#][^\s]*)?$/);
+  if(!match)return null;
+  return 'https://suno.com'+(match[1]?'/song/'+match[1].toLowerCase():'/s/'+match[2]);
+ }
+ function revisionRequest({source,version,notes,viaMatt}={}){
+  const original=sunoSongLink(source),alternate=sunoSongLink(version);
+  if(!original||(version!=null&&(typeof version!=='string'||
+     (version.trim()&&(!alternate||alternate===original))))||
+     typeof notes!=='string'||!notes.trim()||notes.length>650)return null;
+  return (viaMatt?'Ζήτησε από τον Crow να ετοιμάσει':'Ετοίμασε')+
+   ' ένα πλάνο επεξεργασίας για το υπάρχον τραγούδι μου στο Suno.\n'+
+   'Πρωτότυπο '+original+'\n'+(alternate?'Εναλλακτική εκδοχή '+alternate+'\n':'')+
+   'Αλλαγές που θέλω\n'+notes.trim()+'\n'+
+   'Χρησιμοποίησε τους συνδέσμους ως αναφορές. Κράτησε το πρωτότυπο και δώσε μόνο πλάνο.';
+ }
+ return Object.freeze({fromMatt,fromSavedHistory,extractStyle,parseSong,validLyrics,sunoSongLink,revisionRequest});
 });

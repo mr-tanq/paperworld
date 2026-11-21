@@ -62,21 +62,22 @@ function summarize(result){
  // Never send descriptions, input schemas or provider data to the browser.
  return {toolCount:names.length,tools:names};
 }
-// Only safe structural metadata for creation-like tools is returned to the
-// authenticated Crow owner. No descriptions, prompt examples, or raw schemas.
-function creationSignatures(message){
+// Only structural metadata reaches the authenticated Crow owner.
+// Descriptions, examples, enum values and raw schemas stay server-side.
+function toolSignatures(message,{creationOnly=false}={}){
  const source=message?.result?.tools;
  if(!Array.isArray(source)||source.length>MAX_TOOLS)return [];
  const picked=[];
  for(const tool of source){
-  if(!tool||typeof tool.name!=='string'||
+  if(!tool||typeof tool.name!=='string')continue;
+  if(creationOnly&&
      !/(^|[.\/-])(audio-create|create-song|generate-song|generate-music|music-create)$/.test(tool.name))continue;
   const schema=tool.inputSchema;
   if(!schema||typeof schema!=='object'||Array.isArray(schema))continue;
-  const props=schema.properties;
-  if(!props||typeof props!=='object'||Array.isArray(props))continue;
+  const props=schema.properties??{};
+  if(typeof props!=='object'||Array.isArray(props))continue;
   const keys=Object.keys(props);
-  if(keys.length>64||picked.length>=8)continue;
+  if(keys.length>64||(creationOnly&&picked.length>=8))continue;
   const fields=[];
   for(const key of keys){
    if(!/^[a-zA-Z0-9_.-]{1,80}$/.test(key))continue;
@@ -94,6 +95,7 @@ function creationSignatures(message){
  }
  return picked;
 }
+const creationSignatures=message=>toolSignatures(message,{creationOnly:true});
 // MCP 2026-07-28 (SEP-2243): a tool's inputSchema may mark primitive
 // properties with `x-mcp-header`; the client MUST then mirror those argument
 // values as `Mcp-Param-{Name}` HTTP headers on tools/call, otherwise the
@@ -176,7 +178,7 @@ function parseRequestSse(raw){
 }
 function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
  if(typeof fetcher!=='function')throw Error('fetcher_required');
- async function inspect({accessToken,includeCreationSchema=false,contractFor=null}={}){
+ async function inspect({accessToken,includeCreationSchema=false,includeToolSignatures=false,contractFor=null}={}){
   if(typeof accessToken!=='string'||accessToken.length<12||accessToken.length>8192)
    return {available:false,reason:'not_authorized'};
   const request={jsonrpc:'2.0',id:1,method:'tools/list',params:{
@@ -239,6 +241,7 @@ function makeSunoMcpToolProbe({fetcher=globalThis.fetch}={}){
    return {available:true,reason:'read_only_tools_verified',
     toolCount:result.toolCount,tools:result.tools,
     ...(includeCreationSchema===true?{creationTools:creationSignatures(message)}:{}),
+    ...(includeToolSignatures===true?{toolSignatures:toolSignatures(message)}:{}),
     ...(typeof contractFor==='string'?{toolContract:toolContract(message,contractFor)}:{})};
   }catch(error){
    return {available:false,reason:error?.name==='TimeoutError'||
