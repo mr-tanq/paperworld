@@ -16,7 +16,9 @@ function fake({claimed=true,open=[],memory=[{title:'Μάθημα',body:'κάτι
   const json=b=>({ok:true,status:200,json:async()=>b,text:async()=>JSON.stringify(b)});
   if(url.includes('paperworld_initiative_runs_v1'))return json(claimed?[{token}]:[]);
   if(url.includes('paperworld_agent_threads'))return json([{id:'44444444-4444-4444-8444-444444444444'}]);
-  if(url.includes('paperworld_proposals_v1')&&m==='GET')return json(url.includes('listening')?open:[]);
+  if(url.includes('paperworld_proposals_v1')&&m==='GET'){
+   if(url.includes('status=eq.proposed'))return json(url.includes('listening')?open:[]);
+   return json(url.includes('pokemon')?[{title:'Παλιά ιδέα',status:'declined'}]:[]);}
   if(url.includes('paperworld_director_memory'))return json(url.includes('studio')?[]:memory);
   if(m==='POST'){posts.push([url,JSON.parse(o.body)]);
    // Like PostgREST: return=minimal answers 201 with an empty body.
@@ -40,9 +42,28 @@ test('one idea per Director with memory; open ideas are not repeated; Matt annou
  assert.deepEqual(states,{'listening-director':'waiting_for_owner','pokemon-director':'proposed','studio-director':'no_memory'});
  assert.equal(f.prompts.length,1,'one AI turn for the one Director who needed it');
  assert.match(f.prompts[0],/OWNER-APPROVED NOTES/);
+ assert.match(f.prompts[0],/do NOT repeat[\s\S]*Παλιά ιδέα \(declined\)/,'knows its earlier and declined ideas');
  const note=f.posts.find(([u])=>u.includes('paperworld_agent_messages'))[1];
  assert.match(note.content,/💡 Ο Joey προτείνει: «Ιδέα»/);
  assert.ok(f.calls.some(([,u])=>u.includes('sensitivity=eq.standard')),'private memory never used');
+});
+test('an idea with the same title as an earlier one is skipped',async()=>{
+ const f=fake();const real=f.api;
+ const {makeInitiativeProposals}=require('../server/initiative-proposals.cjs');
+ const calls=[];
+ const fetcher=async(url,o={})=>{const m=o.method||'GET';calls.push(url);const json=b=>({ok:true,status:200,json:async()=>b,text:async()=>JSON.stringify(b)});
+  if(url.includes('paperworld_initiative_runs_v1'))return json([{token}]);
+  if(url.includes('paperworld_agent_threads'))return json([{id:'44444444-4444-4444-8444-444444444444'}]);
+  if(url.includes('paperworld_proposals_v1')&&m==='GET')return json(url.includes('status=eq.proposed')?[]:[{title:'Ιδέα',status:'declined'}]);
+  if(url.includes('paperworld_director_memory'))return json([{title:'t',body:'b'}]);
+  return json([{id:'x'}]);};
+ const clientFactory=async()=>({start:async()=>{},stop:async()=>{},
+  listModels:async()=>[{id:'m',billing:{tokenPrices:{inputPrice:1,outputPrice:1,batchSize:1000}}}],
+  createSession:async()=>({sendAndWait:async()=>({data:{content:'{"title":"Ιδέα","why":"w","task":"k"}'}}),disconnect:async()=>{}})});
+ const api=makeInitiativeProposals({fetcher,clientFactory,secret:'x'.repeat(40),ownerId:owner,tokenFor:()=>'gho_TESTTOKEN123'});
+ const r=await api.run({token});
+ assert.ok(r.body.results.every(x=>x.state==='repeat_skipped'));
+ assert.ok(!calls.some(u=>u.includes('paperworld_agent_messages')),'no announcement for a repeat');
 });
 test('only the database\'s fresh single-use token can start a run',async()=>{
  const f=fake({claimed:false});
