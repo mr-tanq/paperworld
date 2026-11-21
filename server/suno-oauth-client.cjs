@@ -1,6 +1,8 @@
 /* Suno MCP owner-scoped OAuth PKCE client. No music tool invocation.
  * Supports Client ID Metadata Documents only when provider explicitly advertises
- * them; fails closed otherwise. Tokens are process-memory-only.
+ * them; fails closed otherwise. Tokens live in memory and, sealed with
+ * AES-256-GCM, in a service-role-only table so the link survives deploys;
+ * an expired access token is renewed with the refresh token when Suno issues one.
  */
 'use strict';
 const {randomBytes,createHash}=require('node:crypto');
@@ -10,6 +12,7 @@ const {makeSunoMcpToolProbe}=require('./suno-mcp-tool-probe.cjs');
 const {makeSunoAudioCreate,validRequest,buildAudioCreateCall}=require('./suno-audio-create.cjs');
 const {makeSunoClaim}=require('./suno-durable-claim.cjs');
 const {makeSunoVoicesList,VOICE_ID}=require('./suno-voices-list.cjs');
+const {makeSunoLinkStore}=require('./suno-link-store.cjs');
 const APP='https://mr-tanq.github.io';
 const HOST='https://paperworld-matt-test-6hmd.onrender.com';
 const CLIENT_ID=HOST+'/auth/suno/client-metadata';
@@ -96,7 +99,7 @@ function validServerMeta(m,origin){
  return result;
 }
 function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.fetch,
- clock=Date.now,sunoClaim}={}){
+ clock=Date.now,sunoClaim,linkStore}={}){
  if(typeof fetcher!=='function')throw Error('fetcher_required');
  const guard=identity||createSupabaseGuard({
   baseUrl:'https://jrevhzvrgenucuozjowm.supabase.co',
@@ -107,6 +110,37 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
  const durableClaim=sunoClaim||makeSunoClaim({fetcher});
  const audioCreate=makeSunoAudioCreate({fetcher});
  const voiceCatalog=makeSunoVoicesList({fetcher});
+ const store=linkStore||makeSunoLinkStore({fetcher});
+ const sunoHost=u=>{try{const x=new URL(u);return x.protocol==='https:'&&(x.hostname==='suno.com'||x.hostname.endsWith('.suno.com'))}catch(_){return false}};
+ async function refresh(saved){
+  try{
+   const response=await fetcher(saved.tokenEndpoint,{method:'POST',redirect:'manual',signal:AbortSignal.timeout(8000),
+    headers:{'Content-Type':'application/x-www-form-urlencoded',Accept:'application/json'},
+    body:new URLSearchParams({grant_type:'refresh_token',refresh_token:saved.refreshToken,
+     client_id:CLIENT_ID,resource:RESOURCE}).toString()});
+   if(response.status!==200)return null;
+   const text=await response.text();if(text.length>12000)return null;
+   const data=JSON.parse(text);
+   if(typeof data.access_token!=='string'||data.access_token.length<12||data.access_token.length>8192||
+      data.token_type?.toLowerCase()!=='bearer')return null;
+   const ttl=Number(data.expires_in);if(!Number.isSafeInteger(ttl)||ttl<1)return null;
+   return {accessToken:data.access_token,expires:clock()+Math.min(ttl*1000,MAX_TTL),
+    tokenEndpoint:saved.tokenEndpoint,
+    refreshToken:typeof data.refresh_token==='string'&&data.refresh_token.length<=8192?data.refresh_token:saved.refreshToken};
+  }catch(_){return null}
+ }
+ // The owner's live Suno link: memory first, then the sealed copy; renewed
+ // with the refresh token when the access token has expired.
+ async function linkFor(ownerId){
+  cleanup();
+  const live=linked.get(ownerId);if(live)return live;
+  const saved=await store.load(ownerId);
+  if(!saved||typeof saved.accessToken!=='string')return null;
+  if(Number(saved.expires)>clock()+60000){linked.set(ownerId,saved);return saved}
+  if(typeof saved.refreshToken!=='string'||!sunoHost(saved.tokenEndpoint))return null;
+  const next=await refresh(saved);if(!next)return null;
+  linked.set(ownerId,next);await store.save(ownerId,next);return next;
+ }
  const answer=(status,body)=>({status,body,headers});
  const denied=(status,error)=>answer(status,{error});
  function cleanup(){
@@ -187,13 +221,13 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
  async function status(req={}){
   const who=await identify(req);if(who.error)return who.error;
   cleanup();
-  const token=linked.get(who.ownerId);
-  return answer(200,{oauthAuthorized:!!token,canGenerate:false,ephemeral:true});
+  const token=await linkFor(who.ownerId);
+  return answer(200,{oauthAuthorized:!!token,canGenerate:false,ephemeral:!token?.refreshToken});
  }
  async function inspectTools(req={}){
   const who=await identify(req);if(who.error)return who.error;
   cleanup();
-  const linkedToken=linked.get(who.ownerId);
+  const linkedToken=await linkFor(who.ownerId);
   if(!linkedToken)return denied(409,'suno_oauth_required');
   // Owner initiated only; a successful OAuth link does not authorize a tools/call.
   const verdict=await tools.inspect({accessToken:linkedToken.accessToken,includeCreationSchema:true});
@@ -214,7 +248,7 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
  async function diagnose(req={}){
   const who=await identify(req);if(who.error)return who.error;
   cleanup();
-  const session=linked.get(who.ownerId);
+  const session=await linkFor(who.ownerId);
   let resourceAvailable=false,clientRegistrationSupported=false;
   try{
    const resource=await provider.inspect();
@@ -268,7 +302,7 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
  async function listVoices(req={}){
   const who=await identify(req);if(who.error)return who.error;
   cleanup();
-  const linkedToken=linked.get(who.ownerId);
+  const linkedToken=await linkFor(who.ownerId);
   if(!linkedToken)return denied(409,'suno_oauth_required');
   const verdict=await tools.inspect({accessToken:linkedToken.accessToken});
   if(verdict?.available!==true||
@@ -298,7 +332,7 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
    agentId:data.agentId,threadId:data.threadId})});
   if(who.error)return who.error;
   cleanup();
-  const linkedToken=linked.get(who.ownerId);
+  const linkedToken=await linkFor(who.ownerId);
   if(!linkedToken)return denied(409,'suno_oauth_required');
   const toolVerdict=await tools.inspect({accessToken:linkedToken.accessToken,
    contractFor:'audio-create'});
@@ -395,15 +429,18 @@ function createSunoOAuthClient({identity,discovery,toolProbe,fetcher=globalThis.
     return redirect(false,'token_response_invalid');
    const ttl=Number(data.expires_in);
    if(!Number.isSafeInteger(ttl)||ttl<1)return redirect(false,'token_response_invalid');
-   linked.set(entry.ownerId,{accessToken:data.access_token,
-    expires:clock()+Math.min(ttl*1000,MAX_TTL)});
+   const link={accessToken:data.access_token,expires:clock()+Math.min(ttl*1000,MAX_TTL),
+    tokenEndpoint:entry.tokenEndpoint,
+    ...(typeof data.refresh_token==='string'&&data.refresh_token.length<=8192?{refreshToken:data.refresh_token}:{})};
+   linked.set(entry.ownerId,link);
+   await store.save(entry.ownerId,link);
    return redirect(true);
   }catch(_){return redirect(false,'provider_unavailable')}
  }
  function clientMetadata(){
   return {client_id:CLIENT_ID,client_name:'Paperworld — Crow Music Studio',
    client_uri:APP+'/paperworld/',redirect_uris:[CALLBACK],
-   grant_types:['authorization_code'],response_types:['code'],
+   grant_types:['authorization_code','refresh_token'],response_types:['code'],
    token_endpoint_auth_method:'none'};
  }
  return Object.freeze({start,status,inspectTools,diagnose,listVoices,createSong,callback,clientMetadata});

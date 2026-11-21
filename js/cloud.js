@@ -791,7 +791,7 @@
   }
   async function sunoLinkStatus(){
    const result=await sunoOauthRequest('status');
-   if(typeof result.oauthAuthorized!=='boolean'||result.ephemeral!==true)
+   if(typeof result.oauthAuthorized!=='boolean'||typeof result.ephemeral!=='boolean')
     throw Error('Unverified Suno link status');
    return result;
   }
