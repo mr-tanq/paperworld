@@ -49,17 +49,22 @@ function createDirectorMemoryStore({fetcher,baseUrl,publicKey,authenticate,verif
    '&project_id=eq.'+encodeURIComponent(projectId||'')+
    '&order=observed_at.desc,id.asc&limit=100';
   const rows=await call({token,ownerId,projectId,query});
-  return Object.freeze(rows.map(row=>{
+  // One malformed memory is skipped (never shown, never used); it must not
+  // take the whole Director offline. Cross-project rows still fail closed.
+  return Object.freeze(rows.flatMap(row=>{
    if(row?.project_id!==projectId)deny('memory_project_response_mismatch');
-   return validateEntry({id:row.id,projectId:row.project_id,kind:row.kind,
-    status:row.status,title:row.title,body:row.body,
-    sourceType:row.source_type,sourceRef:row.source_ref,
-    observedAt:row.observed_at,version:row.version,
-    sensitivity:row.sensitivity});
+   const entry=safeEntry(row);return entry?[entry]:[];
   }));
  }
  // Bound search across older approved memories, not merely the newest 100.
  // The caller-supplied project is validated and reverified for every page.
+ function safeEntry(row){
+  try{return validateEntry({id:row.id,projectId:row.project_id,kind:row.kind,
+   status:row.status,title:row.title,body:row.body,
+   sourceType:row.source_type,sourceRef:row.source_ref,
+   observedAt:row.observed_at,version:row.version,
+   sensitivity:row.sensitivity})}catch(_){return null}
+ }
  async function listRelevant({token,ownerId,projectId}={}){
   const result=[];const ids=new Set();
   for(let offset=0;offset<400;offset+=100){
@@ -72,11 +77,7 @@ function createDirectorMemoryStore({fetcher,baseUrl,publicKey,authenticate,verif
    for(const row of page){
     if(row?.project_id!==projectId||row.status!=='approved')
      deny('memory_project_response_mismatch');
-    const entry=validateEntry({id:row.id,projectId:row.project_id,
-     kind:row.kind,status:row.status,title:row.title,body:row.body,
-     sourceType:row.source_type,sourceRef:row.source_ref,
-     observedAt:row.observed_at,version:row.version,
-     sensitivity:row.sensitivity});
+    const entry=safeEntry(row);if(!entry)continue;
     if(ids.has(entry.id))deny('memory_duplicate_page_record');
     ids.add(entry.id);result.push(entry);
    }
