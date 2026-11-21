@@ -1,6 +1,5 @@
-/* Exact owner-exported survey, Nov 17 2026. Review-only; not used by live navigation. */
-(function(root){
- 'use strict';
+/* Exact owner-provided path survey, 21 Nov 2026. Live navigation excludes unsafe branches. */
+(function(root){'use strict';
  const survey={
   "format": "paperworld-path-survey-v1",
   "scene": {
@@ -181,58 +180,6 @@
       540
     ],
     [
-      948,
-      410
-    ],
-    [
-      950,
-      355
-    ],
-    [
-      988,
-      320
-    ],
-    [
-      1040,
-      305
-    ],
-    [
-      1120,
-      300
-    ],
-    [
-      1210,
-      305
-    ],
-    [
-      1270,
-      335
-    ],
-    [
-      1310,
-      375
-    ],
-    [
-      1345,
-      440
-    ],
-    [
-      1340,
-      510
-    ],
-    [
-      1305,
-      535
-    ],
-    [
-      1240,
-      575
-    ],
-    [
-      1200,
-      600
-    ],
-    [
       582,
       485
     ],
@@ -321,32 +268,40 @@
       432
     ],
     [
-      1318,
-      324
+      1333,
+      358
     ],
     [
-      1338,
-      288
+      1329,
+      294
     ],
     [
-      1359,
-      254
+      1374,
+      251
     ],
     [
-      1442,
-      221
+      1424,
+      229
     ],
     [
-      1406,
-      161
+      1345,
+      534
     ],
     [
-      884,
-      731
+      868,
+      715
     ],
     [
-      23,
-      439
+      390,
+      544
+    ],
+    [
+      1402,
+      699
+    ],
+    [
+      1446,
+      752
     ]
   ],
   "connections": [
@@ -535,16 +490,32 @@
       28
     ],
     [
-      25,
-      43
-    ],
-    [
       43,
       44
     ],
     [
-      44,
+      43,
+      15
+    ],
+    [
+      15,
       45
+    ],
+    [
+      45,
+      46
+    ],
+    [
+      46,
+      47
+    ],
+    [
+      47,
+      48
+    ],
+    [
+      48,
+      49
     ],
     [
       49,
@@ -563,7 +534,7 @@
       53
     ],
     [
-      53,
+      21,
       54
     ],
     [
@@ -572,18 +543,14 @@
     ],
     [
       55,
-      13
+      56
     ],
     [
       56,
       57
     ],
     [
-      56,
-      15
-    ],
-    [
-      15,
+      57,
       58
     ],
     [
@@ -595,15 +562,15 @@
       60
     ],
     [
-      60,
-      61
-    ],
-    [
       61,
       62
     ],
     [
       62,
+      28
+    ],
+    [
+      28,
       63
     ],
     [
@@ -619,7 +586,7 @@
       66
     ],
     [
-      21,
+      66,
       67
     ],
     [
@@ -627,56 +594,24 @@
       68
     ],
     [
-      68,
-      69
-    ],
-    [
       69,
-      70
+      13
     ],
     [
       70,
-      71
+      7
     ],
     [
       71,
-      72
+      1
     ],
     [
       72,
       73
     ],
     [
-      74,
-      75
-    ],
-    [
-      75,
-      28
-    ],
-    [
-      28,
-      76
-    ],
-    [
-      76,
-      77
-    ],
-    [
-      78,
-      79
-    ],
-    [
-      79,
-      80
-    ],
-    [
-      80,
-      81
-    ],
-    [
-      81,
-      82
+      72,
+      11
     ]
   ],
   "hiddenConnections": [
@@ -707,49 +642,9 @@
     [
       42,
       28
-    ],
-    [
-      25,
-      43
-    ],
-    [
-      43,
-      44
-    ],
-    [
-      44,
-      45
-    ],
-    [
-      49,
-      50
-    ],
-    [
-      50,
-      51
-    ],
-    [
-      51,
-      52
-    ],
-    [
-      52,
-      53
-    ],
-    [
-      53,
-      54
-    ],
-    [
-      54,
-      55
-    ],
-    [
-      55,
-      13
     ]
   ],
-  "note": "Local visual survey only. Requires route safety and connectivity review before activating."
+  "note": "Owner survey Nov 21, 2026. Three unsafe leaf links (69–71) are excluded from live navigation; the rest forms one connected safe walking graph."
 };
  root.PaperworldOwnerPathSurvey=Object.freeze(survey);
  if(typeof module==='object'&&module.exports)module.exports=survey;
