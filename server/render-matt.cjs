@@ -234,6 +234,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
      if(size>1600)return response(res,413,{error:'request_too_large'});
      parts.push(chunk);
     }
+    try{await oauth?.hydrate?.()}catch(_){}
     const result=await getProposalApi().handle({headers:req.headers,
      body:Buffer.concat(parts).toString('utf8'),action:proposalAction});
     res.writeHead(result.status,{'Content-Type':'application/json; charset=utf-8',
@@ -263,6 +264,7 @@ function createRenderMattServer({oauth=createGithubOAuth({
      if(size>2200)return response(res,413,{error:'request_too_large'});
      parts.push(chunk);
     }
+    try{await oauth?.hydrate?.()}catch(_){}
     const result=await getPokemonProposalApi().handle({
      headers:req.headers,body:Buffer.concat(parts).toString('utf8'),
      action:pokemonAction});
@@ -403,6 +405,8 @@ function createRenderMattServer({oauth=createGithubOAuth({
       res.end(JSON.stringify({error:'request_too_large'}));return}
      parts.push(chunk);
     }
+    // Restore the owner's saved GitHub link after a restart (throttled, never throws).
+    try{await oauth?.hydrate?.()}catch(_){}
     const gateway=req.url==='/chat/director'?getDirectorChat():
       req.url==='/history/matt/jobs'?getHistory():
       req.url==='/history/matt/team'?getTeamLedger():

@@ -1,17 +1,20 @@
 /* PAPERWORLD GitHub OAuth link — real user-linked authentication, NO AI.
- * The Render Free prototype keeps user tokens in MEMORY ONLY; they disappear
- * when the free service sleeps/restarts. Never send them to GitHub Pages.
+ * The link lives in memory and, sealed with AES-256-GCM, in a service-role-only
+ * table, so it survives Render restarts/deploys. GitHub OAuth-app tokens do not
+ * expire; expiring user tokens are renewed with their refresh token. A revoked
+ * token simply fails at GitHub and the owner reconnects. Never sent to Pages.
  */
 'use strict';
 const {randomBytes}=require('node:crypto');
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
+const {makeGithubLinkStore}=require('./suno-link-store.cjs');
 const APP_ORIGIN='https://mr-tanq.github.io';
 const BASE_CALLBACK='https://paperworld-matt-test-6hmd.onrender.com/auth/github/callback';
-const STATE_TTL=10*60*1000, TOKEN_TTL=55*60*1000;
+const STATE_TTL=10*60*1000, TOKEN_TTL=30*24*3600*1000, REFRESH_MARGIN=10*60*1000;
 const validId=/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const validCode=/^[A-Za-z0-9_-]{10,300}$/;
 function createGithubOAuth({clientId,clientSecret,callbackUrl=BASE_CALLBACK,
-  supabaseUrl,supabaseKey,fetcher=globalThis.fetch,clock=Date.now}={}){
+  supabaseUrl,supabaseKey,fetcher=globalThis.fetch,clock=Date.now,linkStore}={}){
  if(!/^https:\/\/[^/?#]+\/auth\/github\/callback$/.test(callbackUrl))
   throw Error('Fixed HTTPS OAuth callback required');
  const enabled=typeof clientId==='string'&&/^[a-zA-Z0-9]{8,100}$/.test(clientId)&&
@@ -19,6 +22,38 @@ function createGithubOAuth({clientId,clientSecret,callbackUrl=BASE_CALLBACK,
  const guard=(supabaseUrl&&supabaseKey&&typeof fetcher==='function')?
   createSupabaseGuard({baseUrl:supabaseUrl,publicKey:supabaseKey,fetcher}):null;
  const states=new Map(),linked=new Map();
+ const store=linkStore||makeGithubLinkStore({fetcher});
+ const TOKEN=/^(gho_|ghu_)[A-Za-z0-9_]+$/;
+ async function refresh(link){
+  try{
+   const r=await fetcher('https://github.com/login/oauth/access_token',{method:'POST',redirect:'error',
+    signal:AbortSignal.timeout(8000),headers:{'Content-Type':'application/json',Accept:'application/json'},
+    body:JSON.stringify({client_id:clientId,client_secret:clientSecret,grant_type:'refresh_token',refresh_token:link.refreshToken})});
+   if(!r.ok)return null;
+   const p=await r.json();
+   if(typeof p?.access_token!=='string'||!TOKEN.test(p.access_token))return null;
+   const life=Number(p.expires_in);
+   return {...link,token:p.access_token,expires:clock()+(Number.isFinite(life)&&life>0?life*1000:TOKEN_TTL),
+    ...(typeof p.refresh_token==='string'&&p.refresh_token.length<=500?{refreshToken:p.refresh_token}:{})};
+  }catch(_){return null}
+ }
+ // Restore saved links after a restart, and renew expiring ones. Cheap and
+ // throttled: called before each request that may need a token.
+ let lastHydrate=0;
+ async function hydrate({force=false}={}){
+  const now=clock();
+  const soon=[...linked.values()].some(l=>l.refreshToken&&l.expires-now<REFRESH_MARGIN);
+  if(!force&&!soon&&now-lastHydrate<5*60*1000)return;
+  lastHydrate=now;
+  for(const {ownerId,link} of await store.loadAll()){
+   if(!validId.test(ownerId)||typeof link?.token!=='string'||!TOKEN.test(link.token))continue;
+   let current=linked.get(ownerId)?.expires>link.expires?linked.get(ownerId):link;
+   if(current.refreshToken&&current.expires-now<REFRESH_MARGIN&&enabled){
+    const next=await refresh(current);if(next){current=next;await store.save(ownerId,next)}
+   }
+   if(current.expires>now)linked.set(ownerId,current);
+  }
+ }
  const clean=()=>{
   const now=clock();
   for(const [k,v] of states)if(v.expires<=now)states.delete(k);
@@ -92,14 +127,17 @@ function createGithubOAuth({clientId,clientSecret,callbackUrl=BASE_CALLBACK,
    const lifetime=Number(payload.expires_in);
    const ttl=Number.isFinite(lifetime)&&lifetime>0?
      Math.min(TOKEN_TTL,Math.floor(lifetime)*1000):TOKEN_TTL;
+   const refreshToken=typeof payload.refresh_token==='string'&&payload.refresh_token.length<=500?payload.refresh_token:null;
    // The token never enters the redirect URL or browser response.
    const scopes=String(profile.headers?.get?.('x-oauth-scopes')||'')
     .split(',').map(x=>x.trim());
    const writeEnabled=user.login.toLowerCase()==='mr-tanq'&&
     (scopes.includes('public_repo')||scopes.includes('repo'));
    const privateWriteEnabled=user.login.toLowerCase()==='mr-tanq'&&scopes.includes('repo');
-   linked.set(pending.ownerId,{token,githubId:user.id,login:user.login,
-    writeEnabled,privateWriteEnabled,expires:clock()+ttl});
+   const link={token,githubId:user.id,login:user.login,
+    writeEnabled,privateWriteEnabled,expires:clock()+ttl,...(refreshToken?{refreshToken}:{})};
+   linked.set(pending.ownerId,link);
+   await store.save(pending.ownerId,link);
    return redirect(APP_ORIGIN+'/paperworld/?github_link=connected');
   }catch(_){return fail}
  }
@@ -107,12 +145,12 @@ function createGithubOAuth({clientId,clientSecret,callbackUrl=BASE_CALLBACK,
   if(headers.origin!==APP_ORIGIN)return error(403,'origin_denied');
   let ownerId;
   try{ownerId=await owner(headers)}catch(_){return error(401,'unauthorized')}
-  clean();
+  await hydrate();clean();
   const link=linked.get(ownerId);
-  return json(200,link?{connected:true,login:link.login,ephemeral:true,
+  return json(200,link?{connected:true,login:link.login,ephemeral:!store.enabled,
     ...(link.writeEnabled?{writeEnabled:true}:{}),
     ...(link.privateWriteEnabled?{privateWriteEnabled:true}:{})}:
-    {connected:false,ephemeral:true});
+    {connected:false,ephemeral:!store.enabled});
  }
  // Future AI bridge MUST still separately claim a one-time approval before
  // requesting a token. Exposes no token from HTTP endpoints.
@@ -133,6 +171,6 @@ function createGithubOAuth({clientId,clientSecret,callbackUrl=BASE_CALLBACK,
   clean();
   return linked.get(ownerId)?.token||null;
  }
- return Object.freeze({enabled:enabled&&!!guard,start,callback,status,getLinkedToken,getLinkedWriteToken,getLinkedPrivateWriteToken});
+ return Object.freeze({enabled:enabled&&!!guard,hydrate,start,callback,status,getLinkedToken,getLinkedWriteToken,getLinkedPrivateWriteToken});
 }
 module.exports=Object.freeze({createGithubOAuth,APP_ORIGIN,BASE_CALLBACK});
