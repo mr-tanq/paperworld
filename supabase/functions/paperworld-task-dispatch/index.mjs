@@ -24,7 +24,7 @@ const respond=(status,body)=>new Response(JSON.stringify(body),{
  status,headers:{'content-type':'application/json','cache-control':'no-store',
  'x-content-type-options':'nosniff'}
 });
-function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
+function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,batchMs=8000}={}){
  const env=k=>environment?.(k);
  function dbKey(){
   try{
@@ -409,6 +409,18 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
   if(claimed.length!==1)throw Error('multiple_steps_claimed');
   return runClaim(claimed[0],worker,gh,{autoMerge:row.auto_merge_verified===true});
  }
+ // Several ready steps per wake-up (at most 4, none started after 8 s: the
+ // cron call waits 12 s), so two missions no longer queue behind each other.
+ async function processBatch(){
+  const started=clock();let result=null,steps=0;
+  while(steps<Math.max(1,batch)){
+   result=await processOnce();steps++;
+   // Reconciliation counts its attempts: never spend more than one per wake-up.
+   if(!result||['idle','disabled','awaiting_external_evidence','effect_reconciled','reconciling']
+     .includes(result.state)||clock()-started>batchMs)break;
+  }
+  return steps>1?{...result,steps}:result;
+ }
  async function handle(request){
   if(request.method!=='POST')return respond(405,{error:'method_not_allowed'});
   const secret=env('PAPERWORLD_DISPATCH_TRIGGER_SECRET');
@@ -417,12 +429,12 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now}={}){
    return respond(503,{error:'credentials_unavailable'});
   if(request.headers.get('authorization')!=='Bearer '+secret)
    return respond(401,{error:'unauthorized'});
-  try{return respond(200,await processOnce())}
+  try{return respond(200,await processBatch())}
   catch(_){return respond(503,{error:'v1_dispatch_requires_reconciliation'})}
  }
  return Object.freeze({handle,processOnce});
 }
 export {createTaskDispatcher};
 if(typeof Deno!=='undefined'&&typeof Deno.serve==='function'){
- Deno.serve(createTaskDispatcher({environment:k=>Deno.env.get(k)}).handle);
+ Deno.serve(createTaskDispatcher({environment:k=>Deno.env.get(k),batch:4}).handle);
 }
