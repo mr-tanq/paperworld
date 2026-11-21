@@ -74,6 +74,8 @@ function makeAutonomousMissionApi({fetcher=globalThis.fetch,
     return {status:200,body:{missions:rows.map(r=>({
      id:r.id,projectId:r.project_id,goal:r.goal,status:r.status,
      simulation:r.policy?.executionMode==='simulation',
+     // Who started it: the owner, a Director's own initiative, or the automatic retry.
+     source:r.policy?.initiative===true?'initiative':r.policy?.retryOf?'retry':'owner',
      report:r.status==='completed'?r.report:null,
      // Stop reason code only (never free text), so the card can explain it.
      lastError:['needs_you','failed'].includes(r.status)&&/^[a-z_]{1,60}$/.test(r.last_error||'')?r.last_error:null,

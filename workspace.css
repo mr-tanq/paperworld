@@ -302,3 +302,8 @@ html.pw-workspace-open .world-talk-actions,html.pw-chat-open .world-talk-actions
 .pw-idea-head strong{font-size:1rem}
 .pw-idea-why{margin:0;opacity:.85;font-size:.92rem}
 .pw-idea-actions{display:flex;gap:8px;flex-wrap:wrap}
+/* «Απόδειξη αυτονομίας» rows. */
+.pw-proof-row{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.06);font-size:.9rem}
+.pw-proof-out{white-space:nowrap;font-weight:600}
+.pw-proof-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pw-proof-meta{grid-column:2;opacity:.65;font-size:.8rem}

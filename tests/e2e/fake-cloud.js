@@ -7,9 +7,9 @@ window.__installFakeCloud=function(){
   {id:'t2',room:'pokemon',title:'Σχέδιο για τον επόμενο χάρτη',notes:'',status:'todo',created:now-3600000},
   {id:'t3',room:'wellbeing',title:'Εβδομαδιαίο πρόγραμμα προπόνησης',notes:'',status:'done',created:now-7200000}];
  const missions=[
-  {id:U(1),projectId:'listening',status:'running',goal:'Διόρθωση εικόνων που λείπουν από τις συναυλίες'},
-  {id:U(2),projectId:'pokemon',status:'needs_you',lastError:'agent_no_changes',goal:'Ρύθμιση δυσκολίας στη μάχη του Alder'},
-  {id:U(3),projectId:'listening',status:'completed',goal:'Βελτίωση φόρτωσης λίστας συναυλιών',report:{headStillCurrent:true,requiredTests:['npm test'],prUrl:'https://github.com/mr-tanq/concerts/pull/42'}}];
+  {id:U(1),projectId:'listening',status:'running',source:'owner',createdAt:iso(30),updatedAt:iso(5),goal:'Διόρθωση εικόνων που λείπουν από τις συναυλίες'},
+  {id:U(2),projectId:'pokemon',status:'needs_you',source:'owner',createdAt:iso(300),updatedAt:iso(250),lastError:'agent_no_changes',goal:'Ρύθμιση δυσκολίας στη μάχη του Alder'},
+  {id:U(3),projectId:'listening',status:'completed',source:'initiative',createdAt:iso(600),updatedAt:iso(560),goal:'Βελτίωση φόρτωσης λίστας συναυλιών',report:{headStillCurrent:true,merged:true,title:'Βελτίωση φόρτωσης λίστας συναυλιών',requiredTests:['npm test'],prUrl:'https://github.com/mr-tanq/concerts/pull/42'}}];
  const teamJobs=[{id:U(10),requestId:U(11),project:'pokemon',directorId:'pokemon-director',workerId:'pokemon-developer',status:'awaiting_consent',summary:'Ο Joey προτείνει έλεγχο του player.gd για το κόλλημα στην κίνηση',createdAt:iso(40)}];
  // Routine fakes: the slot rule mirrors the database (Europe/Amsterdam local time).
  const routines=[];

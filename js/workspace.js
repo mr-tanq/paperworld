@@ -161,7 +161,7 @@ const VIEW_TITLE={team:'Η ομάδα σου',work:'Οι εργασίες μου
 function go(id,{project=null}={}){
  state.view=id;state.project=id==='work'?project:null;
  render();body.scrollTop=0;
- if(id==='work'||id==='team')void load();
+ if(id==='work'||id==='team'||id==='settings')void load();
  if(id==='settings')void refreshConnections();
 }
 function goBack(){
@@ -597,6 +597,23 @@ function renderSettings(){
   body.append(section('Γλώσσα',null,[interfaceChoice,conversationChoice]));
  }
 
+ // «Απόδειξη»: what the team really did on its own (last 30 days, real records).
+ const P=window.PaperworldProof;
+ if(P&&signedIn()){
+  const sum=P.summary(state.missions||[]);
+  const proof=[];
+  const stat=(n,label)=>{const b=el('div','pw-stat');b.append(el('strong','',n===null?'–':String(n)),el('span','',label));return b};
+  const grid=el('div','pw-stats');
+  grid.append(stat(sum.alone,'Μόνοι τους'),stat(sum.neededYou,'Χρειάστηκε εσένα'),stat(sum.rate===null?null:sum.rate+'%','Ποσοστό αυτονομίας'));
+  proof.push(grid);
+  proof.push(el('p','pw-section-hint',(sum.medianMinutes===null?'':'Συνήθης χρόνος μέχρι τη διόρθωση: '+sum.medianMinutes+' λεπτά. ')+
+   'Πρωτοβουλίες: '+sum.initiatives+'. Σε εξέλιξη: '+sum.running+'.'));
+  for(const r of sum.recent){const row=el('div','pw-proof-row');
+   row.append(el('span','pw-proof-out',P.LABEL[r.outcome]),el('span','pw-proof-title',r.who+' · '+r.title),
+    el('span','pw-proof-meta',r.source+(r.minutes!==null&&r.outcome!=='running'?' · '+r.minutes+'′':'')));proof.push(row)}
+  if(!sum.total)proof.push(empty('Καμία εργασία τις τελευταίες 30 μέρες.'));
+  body.append(section('Απόδειξη αυτονομίας','Μόνο από πραγματικές εργασίες των τελευταίων 30 ημερών (Luna και Joey).',proof));
+ }
  // Account
  const account=[];
  if(signedIn()){
