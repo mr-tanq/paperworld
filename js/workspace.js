@@ -70,7 +70,7 @@ const toast=el('p','pw-ws-toast');toast.setAttribute('role','status');toast.setA
 shell.append(head,nav,body,toast);view.append(shell);
 
 const state={view:'work',project:null,raw:null,missions:[],loadedAt:0,loading:false,error:'',
- dismissed:new Set(),
+ dismissed:new Set(),memory:null,memoryRows:null,memoryQuery:'',memoryBusy:false,memoryError:'',
  settings:{github:{state:'checking'},suno:{state:'checking'}}};
 let opener=null,handoff=null,suppressChatEvent=false,toastTimer=null;
 function say(text){
@@ -159,13 +159,14 @@ function stats(projectId,all=false){
 // ---------- Navigation ----------------------------------------------------
 const VIEW_TITLE={team:'Η ομάδα σου',work:'Οι εργασίες μου',settings:'Ρυθμίσεις'};
 function go(id,{project=null}={}){
- state.view=id;state.project=id==='work'?project:null;
+ state.view=id;state.project=id==='work'?project:null;state.memory=null;
  render();body.scrollTop=0;
  if(id==='work'||id==='team'||id==='settings')void load();
  if(id==='settings')void refreshConnections();
 }
 function goBack(){
  if(state.view==='work'&&state.project){state.project=null;render();return}
+ if(state.view==='settings'&&state.memory){state.memory=null;render();body.scrollTop=0;return}
  close();
 }
 // How much of the village a panel covers: a docked panel covers the right,
@@ -473,7 +474,7 @@ function renderProject(p){
   (p.owner==='matt'?'Matt, Chief of Staff':ownerName(p.owner)+', Director')));
  const actions=el('div','pw-agent-actions');
  actions.append(button('Μίλα με '+withArticle(p.owner),'pw-btn-primary',()=>talk(p.owner)),
-  button('Τι γνωρίζει','pw-btn-secondary',()=>talk(p.owner,{memory:true})),
+  button('Τι θυμάται','pw-btn-secondary',()=>openMemory(p.owner)),
   button('⌖','pw-icon-btn',()=>locate(p.owner),'Δες στο χωριό'));
  meta.append(actions);hero.append(meta);body.append(hero);
  const decisions=decisionsFor(p.id);
@@ -652,16 +653,12 @@ function renderSettings(){
   body.append(section('Συνδεδεμένες υπηρεσίες','Χρησιμοποιούνται μόνο όταν το εγκρίνεις.',[
    settingRow('GitHub · '+status.label(gh.state),ghHint,ghAction,{state:gh.state}),
    settingRow('Suno · '+status.label(sn.state),snHint,snAction,{state:sn.state})]));
-  // Memory
-  const memory=[];
-  for(const id of ['matt','listening-director','pokemon-director','studio-director','wellbeing-director']){
-   const row=settingRow('Τι γνωρίζει '+(id==='matt'?'ο Matt':(id==='listening-director'?'η ':'ο ')+ownerName(id)),null,
-    button('Άνοιγμα ›','pw-btn-ghost',()=>talk(id,{memory:true})));
-   row.prepend(portrait(id));memory.push(row);
-  }
-  memory.push(settingRow('Έλεγχος, έγκριση και εισαγωγή μνήμης','Όλες οι προτάσεις, ανά project',
-   button('Άνοιγμα','pw-btn-ghost',()=>{close({restoreFocus:false});void ui.openClassicDesk?.('memory')})));
-  body.append(section('Μνήμη','Οι agents χρησιμοποιούν μόνο ό,τι έχεις εγκρίνει.',memory));
+  // Memory: one tidy entry; the page itself shows each member.
+  const faces=el('span','pw-mem-faces');for(const [id] of MEMBERS)faces.append(portrait(id));
+  const memRow=settingRow('Μνήμη της ομάδας','Τι θυμάται ο καθένας και τι περιμένει την έγκρισή σου',
+   button('Άνοιγμα ›','pw-btn-ghost',()=>openMemory('listening-director')));
+  memRow.prepend(faces);
+  body.append(section('Μνήμη',null,[memRow]));
  }
  // Preferences
  const sw=el('button','pw-switch');sw.type='button';sw.setAttribute('role','switch');
@@ -703,10 +700,6 @@ function renderSettings(){
  // Advanced (clearly separated from everyday settings)
  const adv=el('details','pw-advanced');
  adv.append(el('summary','','Για προχωρημένους'));
- adv.append(settingRow('Κλασικός πίνακας εργασιών','Τα παλαιότερα εργαλεία, για συντήρηση',
-  button('Άνοιγμα','pw-btn-ghost',()=>{close({restoreFocus:false});void ui?.openClassicDesk?.('town')})));
- adv.append(settingRow('Τεχνικός έλεγχος Listening Mirror','Λεπτομέρειες προτεινόμενων αλλαγών κώδικα',
-  button('Άνοιγμα','pw-btn-ghost',()=>{close({restoreFocus:false});void ui?.openClassicDesk?.('workshop')})));
  // Low-cost, read-only health report (owner only, no AI).
  const healthOut=el('div','pw-health');healthOut.setAttribute('aria-live','polite');
  const healthBtn=button('Έλεγχος','pw-btn-ghost',async()=>{
@@ -722,6 +715,82 @@ function renderSettings(){
  body.append(adv);
 }
 
+// ---------- Memory (native page, replaces the old memory desk) -------------
+const MEMBERS=[['matt','town'],['listening-director','workshop'],['pokemon-director','pokemon'],
+ ['studio-director','studio'],['wellbeing-director','wellbeing']];
+const KIND={project_bible:'Βασικά',decision:'Απόφαση',preference:'Προτίμηση',current_state:'Κατάσταση',work_history:'Από εργασία'};
+const memberName=id=>id==='matt'?'Matt':ownerName(id);
+function openMemory(agentId){
+ const m=MEMBERS.find(x=>x[0]===agentId)||MEMBERS[1];
+ if(state.view!=='settings')go('settings');
+ state.memory=m[0];state.memoryRows=null;state.memoryQuery='';state.memoryError='';render();body.scrollTop=0;
+ void loadMemory();
+}
+async function loadMemory(){
+ const agent=state.memory,project=MEMBERS.find(x=>x[0]===agent)?.[1];
+ if(!project||typeof cloud()?.listDirectorMemory!=='function')return;
+ state.memoryBusy=true;render();
+ const first=state.memoryRows===null;
+ try{const rows=await cloud().listDirectorMemory(project);if(state.memory===agent){state.memoryRows=rows;state.memoryError=''}}
+ catch(_){if(state.memory===agent)state.memoryError='Δεν μπόρεσα να φορτώσω τη μνήμη. Δοκίμασε ξανά.'}
+ finally{state.memoryBusy=false;render();if(first)body.scrollTop=0}
+}
+function memoryCard(row,{review=false}={}){
+ const card=el('article','pw-mem');
+ const meta=el('div','pw-mem-meta');
+ meta.append(el('span','pw-chip',KIND[row.kind]||'Σημείωση'));
+ if(row.sensitivity==='private')meta.append(el('span','pw-chip pw-chip-private','🔒 Ιδιωτική'));
+ const when=Date.parse(row.observed_at);
+ if(Number.isFinite(when))meta.append(el('span','pw-mem-date',new Date(when).toLocaleDateString('el-GR',{day:'numeric',month:'short'})));
+ const text=el('p','pw-mem-body',String(row.body||''));
+ text.addEventListener('click',()=>text.classList.toggle('pw-open'));
+ card.append(el('strong','pw-mem-title',String(row.title||'')),text,meta);
+ if(review){
+  const project=MEMBERS.find(x=>x[0]===state.memory)?.[1];
+  const act=el('div','pw-mem-actions');
+  const decide=async decision=>{
+   act.querySelectorAll('button').forEach(b=>b.disabled=true);
+   try{await cloud().reviewDirectorMemory({projectId:project,entryId:row.id,decision});
+    say(decision==='approved'?'Εγκρίθηκε: θα το θυμάται.':'Απορρίφθηκε.');await loadMemory()}
+   catch(_){say('Δεν εφαρμόστηκε. Ανανέωσε και δοκίμασε ξανά.');act.querySelectorAll('button').forEach(b=>b.disabled=false)}
+  };
+  act.append(button('Να το θυμάται','pw-btn-primary',()=>decide('approved')),button('Όχι','pw-btn-ghost',()=>decide('rejected')));
+  card.append(act);
+ }
+ return card;
+}
+function renderMemory(){
+ // Who: one row of portraits, the selected member highlighted.
+ const who=el('div','pw-mem-who');who.setAttribute('role','tablist');
+ for(const [id] of MEMBERS){
+  const b=el('button','pw-mem-person');b.type='button';b.setAttribute('role','tab');
+  b.setAttribute('aria-selected',String(state.memory===id));
+  b.append(portrait(id,'pw-mem-face'),el('span','',memberName(id)));
+  b.addEventListener('click',()=>{if(state.memory!==id)openMemory(id)});who.append(b);
+ }
+ body.append(who);
+ if(state.memoryError){body.append(el('p','pw-error',state.memoryError));return}
+ const rows=state.memoryRows;
+ if(!rows){body.append(empty(state.memoryBusy?'Φορτώνω…':'—'));return}
+ const pending=rows.filter(r=>r.status==='proposed');
+ const approved=rows.filter(r=>r.status==='approved');
+ const older=rows.filter(r=>r.status==='rejected'||r.status==='superseded');
+ body.append(el('p','pw-section-hint',approved.length+' πράγματα θυμάται'+(pending.length?' · '+pending.length+' περιμένουν την έγκρισή σου':'')+
+  (state.memory==='wellbeing-director'?' · τα προσωπικά μένουν μόνο στον Dave':'')));
+ if(pending.length)body.append(section('Περιμένουν την έγκρισή σου','Χωρίς το «Να το θυμάται» δεν χρησιμοποιείται.',
+  pending.map(r=>memoryCard(r,{review:true})),{count:pending.length}));
+ const search=el('input','pw-mem-search');search.type='search';search.placeholder='Αναζήτηση στη μνήμη…';
+ search.value=state.memoryQuery;search.setAttribute('aria-label','Αναζήτηση στη μνήμη');
+ const list=el('div','pw-mem-list');
+ const paint=()=>{const q=state.memoryQuery.trim().toLowerCase();
+  const shown=approved.filter(r=>!q||(String(r.title)+' '+String(r.body)).toLowerCase().includes(q));
+  list.replaceChildren(...(shown.length?shown.map(r=>memoryCard(r)):[empty(q?'Δεν βρέθηκε κάτι.':'Δεν θυμάται τίποτα ακόμα.')]))};
+ search.addEventListener('input',()=>{state.memoryQuery=search.value;paint()});
+ paint();
+ body.append(section('Τι θυμάται',null,[search,list]));
+ if(older.length){const d=el('details','pw-advanced');d.append(el('summary','','Απορριφθείσες και παλιές ('+older.length+')'),...older.map(r=>memoryCard(r)));body.append(d)}
+}
+
 // ---------- Render --------------------------------------------------------
 function paintChrome(){
  for(const [id] of TABS){
@@ -730,11 +799,13 @@ function paintChrome(){
  }
  body.setAttribute('aria-labelledby','pw-ws-tab-'+state.view);
  const project=state.view==='work'&&state.project?byId(state.project):null;
- title.textContent=project?project.name:VIEW_TITLE[state.view];
+ const memoryPage=state.view==='settings'&&state.memory;
+ title.textContent=project?project.name:memoryPage?'Μνήμη της ομάδας':VIEW_TITLE[state.view];
  subtitle.textContent=project?'Project':state.view==='team'?'Ποιος βοηθά σε τι':
   state.view==='work'?(state.loading?'Ενημέρωση…':signedIn()?'Τι γίνεται και τι χρειάζεται εσένα':''):
   'Λογαριασμός, συνδέσεις και μνήμη';
- back.hidden=!project;shell.dataset.view=state.view;
+ if(memoryPage)subtitle.textContent='Τι θυμάται κάθε μέλος · μόνο ό,τι εγκρίνεις';
+ back.hidden=!project&&!memoryPage;shell.dataset.view=state.view;
  refresh.hidden=state.view==='settings'||!signedIn();
  refresh.classList.toggle('pw-spin',state.loading);
 }
@@ -745,7 +816,7 @@ function render(){
  if(state.view==='team'){
   const host=el('div','pw-team');
   window.PaperworldTeamView?.render(host,ctx);body.append(host);
- }else if(state.view==='settings')renderSettings();
+ }else if(state.view==='settings')(state.memory?renderMemory():renderSettings());
  else renderWork();
  body.scrollTop=keep;
 }
@@ -774,6 +845,6 @@ if(controls){
  wire(gear,'settings');
 }
 document.addEventListener('paperworld:language-change',()=>{shell.lang=window.PaperworldI18n?.ui?.()||'el'});
-window.PaperworldWorkspace=Object.freeze({open,close,isOpen:()=>!shell.hidden,
+window.PaperworldWorkspace=Object.freeze({open,close,openMemory:id=>{if(shell.hidden)open('settings');openMemory(id)},isOpen:()=>!shell.hidden,
  view:()=>state.view,items,stats,PROJECTS});
 })();

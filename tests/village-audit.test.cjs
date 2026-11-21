@@ -52,3 +52,11 @@ test('round 2: no empty-room flash, honest count, Greek badges, honest no-change
  const sql=fs.readFileSync('sql/paperworld_phase3_learning_memory.sql','utf8');
  assert.match(sql,/δεν χρειάστηκε να αλλάξει τίποτα/);assert.doesNotMatch(sql,/Για να το εντοπίσουμε χρειάζομαι/);
 });
+test('memory lives in one native page; no road back to the old desk',()=>{
+ const ws=fs.readFileSync('js/workspace.js','utf8');
+ assert.match(ws,/function renderMemory\(\)/);assert.match(ws,/'Περιμένουν την έγκρισή σου'/);
+ assert.match(ws,/cloud\(\)\.reviewDirectorMemory\(\{projectId:project,entryId:row\.id,decision\}\)/);
+ assert.doesNotMatch(ws,/openClassicDesk/,'Settings never opens the old desk');
+ assert.match(ws,/button\('Τι θυμάται','pw-btn-secondary',\(\)=>openMemory\(p\.owner\)\)/);
+ assert.match(fs.readFileSync('js/world-dialogue.js','utf8'),/window\.PaperworldWorkspace\.openMemory\(id\)/);
+});

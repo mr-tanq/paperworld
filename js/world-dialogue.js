@@ -1023,7 +1023,10 @@
     'Η μνήμη δεν φορτώθηκε. Δοκίμασε ξανά σε λίγο.'));
   }finally{memoryBusy=false}
  }
- memoryItem.addEventListener('click',()=>{void openMemory()});
+ // One memory place for the whole app: the Memory page in Settings.
+ memoryItem.addEventListener('click',()=>{const id=openId;
+  if(window.PaperworldWorkspace?.openMemory){setMenu(false);hide();window.PaperworldWorkspace.openMemory(id);return}
+  void openMemory()});
  const studioItem=make('button','pw-menu-item','Music Studio');
  studioItem.type='button';studioItem.setAttribute('role','menuitem');
  studioItem.addEventListener('click',()=>{if(musicPanel.hidden)musicToggle.click()});
