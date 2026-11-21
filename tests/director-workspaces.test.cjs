@@ -31,3 +31,11 @@ test('app wires workspaces: house tap opens the room, work only from resident st
  assert.match(app,/syncWork\(\);/);
  assert.match(fs.readFileSync('index.html','utf8'),/workspace-interior\.js\?v=/);
 });
+test('working Director: the owner\'s painted scene (day/night) with the bubble above their head',()=>{
+ for(const [id,r] of Object.entries(room.ROOMS)){
+  for(const t of ['day','night'])assert.ok(fs.existsSync(room.sceneUrl(id,t).replace('./','')),id+' '+t);
+  assert.ok(r.sceneDesk[0]<r.sceneGuest[0],'Director at the desk, you to the right');
+ }
+ const src=fs.readFileSync('js/workspace-interior.js','utf8');
+ assert.match(src,/if\(inside\)\{const scene=load\(sceneUrl\(current,time\)\)/);
+});
