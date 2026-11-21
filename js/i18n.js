@@ -143,7 +143,7 @@ const dict=Object.freeze({
 const reverse=Object.fromEntries(Object.entries(dict).map(([a,b])=>[b,a]));
 const remembered=new WeakMap();
 const attributes=['aria-label','title','placeholder'];
-const excluded='input,textarea,[contenteditable],.world-dialogue-messages,.world-chat-message,.pw-item-title,.pw-item-full,.pw-note-title,.pw-memory-text,.pw-memory-source,.world-chat-brief,.pw-studio-lyrics,.pw-studio-tools textarea';
+const excluded='input,textarea,[contenteditable],.pw-chat-context,.world-dialogue-messages,.world-chat-message,.pw-item-title,.pw-item-full,.pw-note-title,.pw-memory-text,.pw-memory-source,.world-chat-brief,.pw-studio-lyrics,.pw-studio-tools textarea';
 function allowed(el){return el instanceof Element&&!el.closest(excluded)}
 let busy=false;
 function apply(){

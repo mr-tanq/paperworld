@@ -12,6 +12,12 @@ const {createDirectorThreadRecall}=require('./director-thread-recall.cjs');
 const {createDirectorReplyPersistence}=require('./director-reply-persistence.cjs');
 const {buildReferenceDossier}=require('./crow-reference-dossier.cjs');
 const {forDave}=require('./dave-coaching-guide.cjs');
+const {makeMattTaskIntake}=require('./v5-matt-task-intake.cjs');
+const {buildTaskPrompt}=require('./v5-task-planner.cjs');
+// Luna and Joey can hand real code work to their Developer through the same
+// Task Engine Matt uses (same caps, verification and merge rules).
+const CODING=new Set(['listening-director','pokemon-director']);
+const TASK_MARKER='START_DEVELOPER_TASK';
 const UUID=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const ORIGIN='https://mr-tanq.github.io',CONSENT='ONE_DIRECTOR_COPILOT_TURN_INCLUDED_ALLOWANCE';
 const DIRECTORS=Object.freeze({
@@ -21,6 +27,7 @@ const DIRECTORS=Object.freeze({
  'wellbeing-director':{name:'Wellbeing Director',project:'Wellbeing'}
 });
 function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,replyPersistence,fetcher=globalThis.fetch,
+ taskIntake=null,mattThreadLookup=null,
  clock=Date.now,budgetVerified=()=>process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED==='yes',
  diagnostic=()=>{}}={}){
  if(typeof oauth?.getLinkedToken!=='function'||typeof clientFactory!=='function')
@@ -31,6 +38,17 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
  const recall=threadRecall||createDirectorThreadRecall({fetcher,identity});
  const persistence=replyPersistence||createDirectorReplyPersistence({fetcher,identity});
  const used=new Map(),busy=new Set();
+ const intake=taskIntake||makeMattTaskIntake({fetcher});
+ // Completion news is delivered by Matt, so the mission lives in the owner's Matt thread.
+ const findMattThread=mattThreadLookup||(async ownerId=>{
+  const secret=process.env.PAPERWORLD_SUPABASE_SERVICE_ROLE_KEY||'';
+  if(!(secret.startsWith('sb_secret_')||secret.startsWith('eyJ'))||!UUID.test(ownerId||''))return null;
+  const r=await fetcher('https://jrevhzvrgenucuozjowm.supabase.co/rest/v1/paperworld_agent_threads?select=id&agent_id=eq.matt&owner_id=eq.'+
+   ownerId+'&order=created_at.desc&limit=1',{method:'GET',redirect:'error',signal:AbortSignal.timeout(8000),
+   headers:{apikey:secret,...(secret.startsWith('eyJ')?{Authorization:'Bearer '+secret}:{}),Accept:'application/json'}});
+  if(!r?.ok)return null;const rows=await r.json();
+  return Array.isArray(rows)&&UUID.test(rows[0]?.id||'')?rows[0].id:null;
+ });
  const deny=(status,error)=>({status,body:{error}});
  async function handle({headers={},body}={}){
   if(headers.origin!==ORIGIN)return deny(403,'origin_denied');
@@ -95,12 +113,20 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
      b.billing.tokenPrices.batchSize);
    const previous=storedHistory.text;
    const profile=DIRECTORS[agentId];
+   let canDelegate=false;
+   if(CODING.has(agentId)){try{canDelegate=await intake.available()===true}catch(_){canDelegate=false}}
    const intro='You are '+profile.name+', the '+profile.project+
     ' Director in PAPERWORLD. Support both Greek and English naturally. Reply in the language of the latest user message (including Greeklish if the user prefers it); if the user explicitly asks for a language, follow that preference even when the interface uses another language. When a short follow-up is ambiguous, preserve the established conversation language. If the user switches languages, switch without resetting context, project memory, or persona. Do not translate quoted lyrics, song titles, code, or stored user text unless asked. '+
     'Your ONLY responsibility is '+profile.project+'. If asked about another project, '+
     'suggest speaking to Matt or its Director. You may advise and plan; '+
+    (canDelegate?
+    'You CAN hand real code work to your Developer: when the owner asks you (now, or '+
+    'clearly in this conversation) to have the developer check, investigate, fix or change '+
+    'something in the app, say in one or two plain sentences that you are handing it to the '+
+    'Developer, and end your reply with the exact line '+TASK_MARKER+'. Otherwise never write it. '+
+    'You still cannot run tools or read files yourself, and you must not claim results. ':
     'you CANNOT execute tools, access live files, delegate Workers, send messages '+
-    'to Matt, make edits, run tests, claim work was completed, or spend additional AI calls. '+
+    'to Matt, make edits, run tests, claim work was completed, or spend additional AI calls. ')+
     'Never assert project status without verified evidence. '+
     'Do not treat historical memory as live status. ';
    // Crow resolves references to the owner's own catalogue against curated
@@ -118,8 +144,31 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
    }));
    stage='model_reply';
    const reply=await session.sendAndWait({prompt});
-   const content=reply?.data?.content;
+   let content=reply?.data?.content;
    if(typeof content!=='string'||!content.trim())return deny(502,'empty_director_reply');
+   // The Director decided to hand the work to the Developer: plan and queue it.
+   let taskMission=null,aiTurns=1;
+   if(canDelegate&&content.includes(TASK_MARKER)){
+    content=content.split(TASK_MARKER).join('').trim();
+    stage='task_handoff';
+    try{
+     const mattThread=await findMattThread(ownerId);
+     if(!mattThread)throw Error('matt_thread_missing');
+     const ask=data.message.trim();
+     const goal=(ask.length>=200?ask:((previous||'').slice(-700)+'\n'+ask)).trim().slice(-1200);
+     const spec=await session.sendAndWait({prompt:buildTaskPrompt({message:goal,directorId:agentId,memory:context})});
+     aiTurns=2;
+     const task=await intake.submit({ownerId,threadId:mattThread,requestId:data.requestId,
+      directorId:agentId,message:goal,modelOutput:spec?.data?.content});
+     if(task.state!=='queued'&&task.state!=='planned')throw Error('task_not_queued');
+     taskMission={id:task.missionId,title:task.title,status:task.state};
+     content+='\n\n'+(task.state==='queued'?'Το ανέθεσα στον Developer: «'+task.title+'». '+
+      'Θα το ψάξει, θα το διορθώσει και θα ελεγχθεί. Ο Matt θα σου πει τι βρήκαμε μόλις τελειώσει.':
+      'Ετοίμασα την εργασία «'+task.title+'» για τον Developer· θα ξεκινήσει μόλις υπάρξει διαθέσιμο όριο.');
+    }catch(_){
+     content+='\n\nΔεν μπόρεσα να το αναθέσω στον Developer αυτή τη στιγμή. Πες το στον Matt και θα το αναλάβει.';
+    }
+   }
    // Persistence never authorizes actions, merges, tools or additional model turns.
    // Failure must never be reported as a successfully saved historical reply.
    let persisted=false;
@@ -131,7 +180,7 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
     executed:true,model:priced[0].id,requestId:data.requestId,
     persisted,persistedExcerpt:persisted&&content.trim().length>
      (agentId==='studio-director'?6000:2000),
-    execution:'chat_only',aiTurns:1}};
+    execution:taskMission?'task_queued':'chat_only',aiTurns,...(taskMission?{taskMission}:{})}};
   }catch(_){diagnostic(stage);return deny(503,'director_chat_unavailable')}
   finally{
    try{await session?.disconnect?.()}catch(_){}

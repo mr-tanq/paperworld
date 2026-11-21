@@ -1897,6 +1897,8 @@
     await cloud().askDirector(id,text,{saveNote:false});
    const existing=directorReplies.get(id)||[];
    window.PaperworldSound?.chime?.();
+   // A Director who handed work to the Developer: refresh the village view.
+   if(result.taskMission)window.PaperworldResidentFeed?.refresh?.();
    directorReplies.set(id,[...existing,{id:result.persisted===true?result.requestId:null,
     content:result.content,time:new Date().toISOString()}].slice(-12));
   }catch(error){
