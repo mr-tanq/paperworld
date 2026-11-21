@@ -66,6 +66,8 @@ on:
       - 'tests/director-workspaces.test.cjs'
       - 'tests/push-notifications.test.cjs'
       - 'tests/director-tools.test.cjs'
+      - 'tests/suno-durable-link.test.cjs'
+      - 'server/suno-link-store.cjs'
       - 'server/director-actions.cjs'
       - 'js/director-actions-client.js'
       - 'tests/v5-task-test-paths.test.cjs'
@@ -197,6 +199,7 @@ jobs:
             tests/director-workspaces.test.cjs \
             tests/push-notifications.test.cjs \
             tests/director-tools.test.cjs \
+            tests/suno-durable-link.test.cjs \
             tests/v5-task-test-paths.test.cjs \
             tests/v5-task-batch.test.cjs \
             tests/director-movement.test.cjs \
