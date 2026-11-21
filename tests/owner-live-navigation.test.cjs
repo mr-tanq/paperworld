@@ -58,7 +58,7 @@ test('owner route overlay and live graph use same network, with browser load ord
  assert.ok(html.indexOf('navigation.js')<html.indexOf('js/app.js'));
  assert.match(app,/nodes:window\.PaperworldNavigation\.nodes/);
  assert.match(app,/connections:window\.PaperworldNavigation\.connections/);
- assert.match(app,/paperworld-operational-paths-studio-only-v2/);
+ assert.match(app,/paperworld-operational-paths-owner-nov21-v3/);
  for(const point of ['1110,558','1238,640','822,861'])assert.ok(app.includes(point));
  assert.match(app,/navigation\.routeBetween\(start,destination\)/);
 });
