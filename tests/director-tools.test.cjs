@@ -49,7 +49,7 @@ test('chat wiring: two AI turns accepted only for Developer handoffs; actions ru
  assert.match(ui,/PaperworldDirectorActions\.run\(result\.actions,\{cloud:cloud\(\),requestId:result\.requestId\}\)/);
  const server=fs.readFileSync('server/director-direct-chat.cjs','utf8');
  assert.match(server,/directorActions\.extract\(agentId,content\)/);
- assert.match(fs.readFileSync('index.html','utf8'),/director-actions-client\.js\?v=1/);
+ assert.match(fs.readFileSync('index.html','utf8'),/director-actions-client\.js\?v=2/);
 });
 test('server: Crow\'s reply returns the Suno action, never runs it, one AI turn',async()=>{
  const {makeDirectorChat,CONSENT}=require('../server/director-direct-chat.cjs');
@@ -92,4 +92,17 @@ test('wordless / instrumental songs are complete songs too (only when they end w
  assert.equal(song.title,'Smoke Over the Breakbeat');
  const {extract}=require('../server/director-actions.cjs');
  assert.equal(extract('studio-director','TITLE: X\nSUNO STYLE PROMPT: y\nLYRICS:\n'+wordless+'\nCREATE_SUNO_SONG').actions.length,1);
+});
+test('Crow\'s direct send uses the same voice as the Music Studio',async()=>{
+ const {pickVoice,run}=require('../js/director-actions-client.js');
+ const voices=[{id:'voiceAAAA1111',name:'Other'},{id:'voiceWWWW2222',name:'The Wanderer'}];
+ const cloud={listSunoVoices:async()=>voices,ownerId:()=>'o1'};
+ const mem=v=>({getItem:k=>k==='paperworld-suno-voice-choice-v1-o1'?v:null});
+ assert.deepEqual(await pickVoice(cloud,mem(null)),{id:'voiceWWWW2222',name:'The Wanderer'},'default: The Wanderer');
+ assert.deepEqual(await pickVoice(cloud,mem('voice:voiceAAAA1111')),{id:'voiceAAAA1111',name:'Other'},'owner\'s Studio choice');
+ assert.equal((await pickVoice(cloud,mem('random'))).id,null,'owner chose random in the Studio');
+ const sent=[];
+ const lines=await run([{type:'suno_song',brief:{title:'Dub',style:'s',lyrics:'l'}}],
+  {cloud:{...cloud,createSunoSong:async(b,k,v)=>{sent.push(v);return {accepted:true}}},requestId:'r',storage:mem(null)});
+ assert.deepEqual(sent,['voiceWWWW2222']);assert.match(lines[0],/με φωνή «The Wanderer»/);
 });
