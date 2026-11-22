@@ -64,7 +64,9 @@ const GUIDE=[
  'The guide does not grant external actions, credit spending, music generation or access to Suno.'
 ].join('\n');
 function forCrow(){return '\nOWNER-ESTABLISHED CROW SONGWRITING PRACTICE (REFERENCE, NO TOOL AUTHORITY):\n'+
- GUIDE+'\nEND CROW SONGWRITING PRACTICE.\n';}
+ GUIDE+'\nSUNO FILTER: never use artist, band, song or brand names, and avoid words Suno rejects as '+
+ '"copyright" (for example "skunk" and similar drug slang) in the title, style prompt or lyrics; use an '+
+ 'original image instead.\nEND CROW SONGWRITING PRACTICE.\n';}
 function currentBriefPriority(){
  return '\\nFINAL SONG BRIEF CHECK: The CURRENT user message is the authoritative creative direction. '+
  'Historical acoustic/noir/folk preferences are only background. Any requested metal, rock, '+

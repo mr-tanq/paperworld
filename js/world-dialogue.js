@@ -244,8 +244,7 @@
  voiceSelect.setAttribute('aria-label','Επιλογή φωνής για δημιουργία στο Suno');
  const voiceRefresh=make('button','crow-music-check','Ανανέωση φωνών');
  voiceRefresh.type='button';
- const voiceHint=make('p','crow-music-help',
-  'Προεπιλογή: The Wanderer. Αν δεν επαληθευτεί, δεν θα χρησιμοποιηθεί τυχαία φωνή.');
+ const voiceHint=make('p','crow-music-help','');
  let verifiedVoices=[],voicesLoaded=false,voicesLoading=false,voicesOwner=null;
  const voiceChoiceKey=()=>validSongOwner(songOwner())?
   'paperworld-suno-voice-choice-v1-'+songOwner():null;
@@ -257,55 +256,21 @@
   try{const key=voiceChoiceKey();if(key)window.localStorage.setItem(key,voiceSelect.value)}
   catch(_){}
  }
+ // Simple voice choice shared with Crow's direct sends: "Τυχαία" (default) or
+ // the owner's saved "The Wanderer" voice, looked up in Suno only at send time.
  function drawVoiceOptions(){
-  const preferred=storedVoiceChoice();
-  const random=make('option','','Τυχαία φωνή (χωρίς επιλογή)');
-  random.value='random';
-  const choice=preferred||'wanderer';
-  voiceSelect.replaceChildren(random);
-  for(const voice of verifiedVoices){
-   const option=make('option','',voice.name);
-   option.value='voice:'+voice.id;voiceSelect.append(option);
-  }
-  const matched=verifiedVoices.find(v=>v.name.trim().toLowerCase()==='the wanderer');
-  const canRestore=preferred&&Array.from(voiceSelect.options).some(o=>o.value===preferred);
-  if(canRestore)voiceSelect.value=preferred;
-  else if(preferred?.startsWith('voice:')){
-   const missing=make('option','','Αποθηκευμένη φωνή — δεν βρέθηκε');
-   missing.value=preferred;voiceSelect.append(missing);voiceSelect.value=preferred;
-  }
-  else if(matched)voiceSelect.value='voice:'+matched.id;
-  else{
-   const missing=make('option','','The Wanderer — δεν βρέθηκε');
-   missing.value='wanderer';voiceSelect.append(missing);voiceSelect.value='wanderer';
-  }
-  voiceHint.textContent=voiceSelect.value==='random'?
-   'Θα δημιουργηθεί τραγούδι χωρίς συγκεκριμένη φωνή.':
-   voiceSelect.value==='wanderer'?
-   'Η φωνή The Wanderer δεν έχει επαληθευτεί. Η δημιουργία θα μπλοκαριστεί.':
-   verifiedVoices.some(v=>'voice:'+v.id===voiceSelect.value)?
-   'Η επιλεγμένη φωνή θα επαληθευτεί ξανά πριν χρησιμοποιηθούν credits.':
-   'Η αποθηκευμένη φωνή δεν βρέθηκε. Ανανέωσε τις φωνές ή διάλεξε άλλη.';
+  const stored=storedVoiceChoice();
+  const choice=stored==='wanderer'||(typeof stored==='string'&&stored.startsWith('voice:'))?'wanderer':'random';
+  voiceSelect.replaceChildren();
+  for(const [value,text] of [['random','Τυχαία'],['wanderer','The Wanderer']]){
+   const o=make('option','',text);o.value=value;voiceSelect.append(o)}
+  voiceSelect.value=choice;
+  voiceHint.textContent=choice==='random'?'Το Suno διαλέγει φωνή κάθε φορά.':
+   'Θα χρησιμοποιηθεί η αποθηκευμένη σου φωνή «The Wanderer».';
  }
- async function refreshSunoVoices(){
-  const ownerId=songOwner();
-  if(voicesLoading||openId!=='studio-director'||!ownerId||
-     typeof cloud()?.listSunoVoices!=='function')return;
-  voicesLoading=true;voiceRefresh.disabled=true;
-  voiceHint.textContent='Ανάκτηση αποθηκευμένων φωνών από το Suno (χωρίς credits)…';
-  try{
-   const voices=await cloud().listSunoVoices();
-   if(openId!=='studio-director'||songOwner()!==ownerId)return;
-   verifiedVoices=voices;voicesLoaded=true;voicesOwner=ownerId;drawVoiceOptions();
-  }catch(_){
-   if(openId!=='studio-director'||songOwner()!==ownerId)return;
-   voicesLoaded=false;verifiedVoices=[];voicesOwner=ownerId;
-   drawVoiceOptions();
-   voiceHint.textContent='Δεν φορτώθηκαν οι φωνές Suno. Επανέλεγξε τη σύνδεση ή πάτησε Ανανέωση.';
-  }finally{voicesLoading=false;voiceRefresh.disabled=false}
- }
+ // Kept for callers; voices are looked up automatically when sending.
+ async function refreshSunoVoices(){drawVoiceOptions()}
  voiceSelect.addEventListener('change',()=>{saveVoiceChoice();drawVoiceOptions()});
- voiceRefresh.addEventListener('click',()=>{void refreshSunoVoices()});
  voiceLabel.append(voiceSelect);
  const musicSave=make('button','crow-music-save','Ετοίμασε draft');
  musicSave.type='submit';musicSave.classList.add('pw-btn-secondary');
@@ -413,16 +378,17 @@
     'Κάνε ανανέωση της σελίδας για να φορτωθεί η νέα έκδοση.','error');
    return;
   }
-  if(voiceSelect.value!=='random'&&
-     (!voicesLoaded||voicesOwner!==songOwner()||!voiceSelect.value.startsWith('voice:')||
-      !verifiedVoices.some(v=>'voice:'+v.id===voiceSelect.value))){
-   showSunoCreateStatus('Η επιλεγμένη φωνή δεν έχει επαληθευτεί. '+
-    'Πάτησε «Ανανέωση φωνών» ή διάλεξε ρητά «Τυχαία». Δεν στάλθηκε αίτημα.','error');
-   return;
+  const blockedNow=window.PaperworldCrowStudioDraft?.sunoBlockedWords?.({title:musicTitle.value,
+   style:musicStyle.value,lyrics:musicLyrics.value})||[];
+  if(blockedNow.length){showSunoCreateStatus('Το Suno απορρίπτει τη λέξη «'+blockedNow.join('», «')+
+   '» (τη θεωρεί copyright). Άλλαξέ τη και δοκίμασε ξανά. Δεν στάλθηκε αίτημα.','error');return}
+  let selectedVoiceId=null,selectedVoiceName='Τυχαία';
+  if(voiceSelect.value==='wanderer'){
+   const v=await window.PaperworldDirectorActions?.pickVoice?.(cloud(),window.localStorage);
+   if(!v||!v.id){showSunoCreateStatus('Δεν βρέθηκε η φωνή «The Wanderer» στο Suno σου. '+
+    'Διάλεξε «Τυχαία» ή δοκίμασε ξανά. Δεν στάλθηκε αίτημα.','error');return}
+   selectedVoiceId=v.id;selectedVoiceName=v.name;
   }
-  const selectedVoiceId=voiceSelect.value==='random'?null:voiceSelect.value.slice(6);
-  const selectedVoiceName=selectedVoiceId?
-   verifiedVoices.find(v=>v.id===selectedVoiceId)?.name:'Τυχαία';
   const brief={title:musicTitle.value.trim(),style:musicStyle.value.trim(),
    lyrics:musicLyrics.value};
   if(!brief.title||brief.title.length>120||!brief.style||brief.style.length>1000||
@@ -597,14 +563,14 @@
  }
  const label=(text,input)=>{const l=make('label','pw-studio-label',text);l.htmlFor=input.id;return l};
  voiceSelect.id='pw-studio-voice';
- const voiceRow=make('div','pw-studio-voice-row');voiceRow.append(voiceLabel,voiceRefresh);
+ const voiceRow=make('div','pw-studio-voice-row');voiceRow.append(voiceLabel);
  const studioActions=make('div','pw-studio-actions');
  musicForm.append(
   studioGroup('Τραγούδι',null,label('Τίτλος',musicTitle),musicTitle),
   studioGroup('Ήχος','Το πλήρες Suno style prompt.',label('Style prompt',musicStyle),musicStyle,styleCount),
   studioGroup('Στίχοι','Πρωτότυποι στίχοι με οδηγίες σε [αγκύλες].',lyricTags,
    label('Στίχοι',musicLyrics),musicLyrics,lyricsCount),
-  studioGroup('Φωνή','Αποθηκευμένη φωνή Suno. Προεπιλογή: The Wanderer.',voiceRow,voiceHint),
+  studioGroup('Φωνή',null,voiceRow,voiceHint),
   studioActions);
  const sunoConnect=make('button','world-connection-chip','Suno · Έλεγχος…');
  sunoConnect.type='button';
@@ -1887,7 +1853,7 @@
   if(musicToggle.hidden||(sourceOwner&&sourceOwner!==songOwner()))resetMusic();
   if(sunoReportOwner&&sunoReportOwner!==songOwner())clearSunoReport();
   if(voicesOwner&&voicesOwner!==songOwner()){
-   voicesOwner=null;voicesLoaded=false;verifiedVoices=[];drawVoiceOptions();
+   voicesOwner=null;drawVoiceOptions();
   }
   if(isMatt&&active){setupDecisions();void refreshDecisions()}
   if(active&&isMatt&&(mattCachedEntries!==null||mattReplies.length))

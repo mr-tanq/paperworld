@@ -186,5 +186,13 @@
    'Αλλαγές που θέλω\n'+notes.trim()+'\n'+
    'Χρησιμοποίησε τους συνδέσμους ως αναφορές. Κράτησε το πρωτότυπο και δώσε μόνο πλάνο.';
  }
- return Object.freeze({fromMatt,fromSavedHistory,extractStyle,parseSong,validLyrics,sunoSongLink,revisionRequest});
+ // Words Suno's content filter has rejected for the owner (it reports them as
+ // "copyright"). Checked before any credits are used; extend as Suno flags more.
+ const SUNO_BLOCKED=Object.freeze(['skunk']);
+ function sunoBlockedWords(brief){
+  const text=[brief?.title,brief?.style,brief?.lyrics].map(v=>String(v||'')).join('\n').toLowerCase();
+  return SUNO_BLOCKED.filter(w=>new RegExp('(^|[^a-z])'+w+'(s|es)?([^a-z]|$)').test(text));
+ }
+ return Object.freeze({fromMatt,fromSavedHistory,extractStyle,parseSong,validLyrics,sunoSongLink,revisionRequest,
+  sunoBlockedWords,SUNO_BLOCKED});
 });
