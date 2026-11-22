@@ -52,6 +52,7 @@ on:
       - 'tests/v5-task-auto-merge.test.cjs'
       - 'tests/v5-task-agent-finish.test.cjs'
       - 'tests/v5-task-retry.test.cjs'
+      - 'tests/v5-task-one-per-repo.test.cjs'
       - 'tests/phase5-routines-do-work.test.cjs'
       - 'tests/director-consult.test.cjs'
       - 'tests/phase2-living-village.test.cjs'
@@ -198,6 +199,7 @@ jobs:
             tests/v5-task-auto-merge.test.cjs \
             tests/v5-task-agent-finish.test.cjs \
             tests/v5-task-retry.test.cjs \
+            tests/v5-task-one-per-repo.test.cjs \
             tests/phase5-routines-do-work.test.cjs \
             tests/director-consult.test.cjs \
             tests/phase2-living-village.test.cjs \

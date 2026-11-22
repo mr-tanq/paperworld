@@ -245,6 +245,8 @@ function makeTaskGithub({fetcher=fetch,token}={}){
   if(already)return already;
   if(pr?.state!=='open'||pr.head?.sha!==headSha||pr.base?.ref!=='main')
    return {state:'head_moved'};
+  // main moved on and this PR now conflicts with it: say so plainly.
+  if(pr.mergeable===false||pr.mergeable_state==='dirty')return {state:'blocked',reason:'merge_conflict'};
   if(pr.draft===true){
    if(!/^[A-Za-z0-9_=-]{4,120}$/.test(pr.node_id||''))return {state:'blocked',reason:'ready_for_review_refused'};
    try{
@@ -257,8 +259,10 @@ function makeTaskGithub({fetcher=fetch,token}={}){
     sha:headSha,merge_method:'squash',commit_title:title.trim()+' (#'+prNumber+')'}});
    if(r?.merged===true&&SHA.test(r.sha||''))return {state:'merged',mergeSha:r.sha};
   }catch(_){}
-  const after=merged(await getPull(project,prNumber));
-  return after||{state:'blocked',reason:'github_refused_merge'};
+  const latest=await getPull(project,prNumber);
+  const after=merged(latest);
+  return after||{state:'blocked',reason:latest?.mergeable===false||latest?.mergeable_state==='dirty'?
+   'merge_conflict':'github_refused_merge'};
  }
  async function trustedMain(project,pinnedBlob){
   if(!/^[a-f0-9]{40}$/i.test(pinnedBlob))throw Error('invalid_workflow_pin');

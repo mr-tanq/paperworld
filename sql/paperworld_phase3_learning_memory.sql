@@ -87,10 +87,14 @@ begin
    when notice.kind='completed' and rep->>'merged'='true' then
     'Το βρήκαμε και το φτιάξαμε: «'||title||'».'||details||
     E'\nΠέρασαν όλοι οι έλεγχοι και η διόρθωση μπήκε ήδη στην εφαρμογή.'
+   -- 2026-11-22: main moved on meanwhile; the engine already redoes it once.
+   when notice.kind='completed' and rep->>'retryQueued'='true' then
+    'Η διόρθωση για «'||title||'» πέρασε όλους τους ελέγχους, αλλά στο μεταξύ άλλαξε ο κώδικας και δεν ταίριαζε πια. '
+     ||'Ο Developer την ξαναφτιάχνει μόνος του πάνω στην τρέχουσα έκδοση. Δεν χρειάζεται να κάνεις τίποτα· θα σου πω το αποτέλεσμα.'
    when notice.kind='completed' and rep ? 'mergeState' then
     'Η διόρθωση για «'||title||'» είναι έτοιμη και πέρασε όλους τους ελέγχους.'||details||
     case when rep->>'mergeState'='blocked'
-     then E'\nΤο GitHub δεν με άφησε να τη βάλω μόνη μου στην εφαρμογή, οπότε θέλει ένα πάτημα από σένα.'
+     then E'\nΤο GitHub δεν με άφησε να τη βάλω μόνος μου στην εφαρμογή, οπότε θέλει ένα πάτημα από σένα.'
      else E'\nΓια να μπει στην εφαρμογή θέλει ένα πάτημα από σένα.' end||
     coalesce(E'\n'||pr_link,'')
    when notice.kind='completed' then speaker||' ολοκλήρωσε την εργασία που είχαμε αναλάβει. '

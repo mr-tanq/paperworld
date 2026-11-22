@@ -169,11 +169,14 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
   return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20);
  }
  async function queueRetry(mission,reason,{prNumber=null,prUrl=null,runUrl=null}={}){
-  if(mission.policy?.retryOf||!['trusted_verification_failed','copilot_pr_missing'].includes(reason))
+  if(mission.policy?.retryOf||!['trusted_verification_failed','copilot_pr_missing','merge_conflict'].includes(reason))
    return {state:'not_retried'};
   if(!UUID.test(mission.thread_id||'')||typeof mission.goal!=='string')return {state:'not_retried'};
   const id=await retryId(mission.id);
-  const previous=reason==='trusted_verification_failed'?
+  const previous=reason==='merge_conflict'?
+   '\n\nPrevious attempt'+(prNumber?' (PR #'+prNumber+')':'')+' passed its tests but could not be merged because '+
+    'main changed meanwhile. Redo the same change on top of the current main, keeping it small.':
+   reason==='trusted_verification_failed'?
    '\n\nPrevious attempt'+(prNumber?' (PR #'+prNumber+')':'')+' failed the required tests'+
     (runUrl?' ('+runUrl+')':'')+'. Start from that work if useful, find why the tests fail and fix it.':
    '\n\nPrevious attempt did not deliver a pull request. Keep the change small and deliver one.';
@@ -191,6 +194,18 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
    if(await rpc('paperworld_v5_queue_task',{p_mission:id})!==true)return {state:'retry_queue_refused'};
    return {state:'retry_queued',missionId:id};
   }catch(_){return {state:'retry_failed'}}
+ }
+ async function busyRepository(mission){
+  const others=await db('paperworld_autonomous_missions_v5?'+new URLSearchParams({select:'id',
+   project_id:'eq.'+mission.project_id,engine:'eq.v1',status:'in.(working,verifying)',id:'neq.'+mission.id,limit:'10'}));
+  if(!Array.isArray(others)||!others.length)return false;
+  const started=await db('paperworld_autonomous_steps_v5?'+new URLSearchParams({select:'mission_id',
+   capability:'eq.start_agent',state:'eq.succeeded',mission_id:'in.('+others.map(o=>o.id).join(',')+')',limit:'10'}));
+  if(!Array.isArray(started)||!started.length)return false;
+  const reported=await db('paperworld_autonomous_steps_v5?'+new URLSearchParams({select:'mission_id',
+   capability:'eq.report',state:'eq.succeeded',mission_id:'in.('+started.map(o=>o.mission_id).join(',')+')',limit:'10'}));
+  const done=new Set((Array.isArray(reported)?reported:[]).map(r=>r.mission_id));
+  return started.some(r=>!done.has(r.mission_id));
  }
  async function runClaim(step,worker,gh,settings={}){
   if(!UUID.test(step?.step_id)||!UUID.test(step?.mission_id)||
@@ -231,6 +246,13 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
   }
   if(step.capability==='start_agent'){
    if(!Number.isSafeInteger(issue)||issue<1)throw Error('issue_not_confirmed');
+   // One Developer at a time per repository: parallel PRs on the same code
+   // conflict once the first one merges. Wait while another mission of this
+   // project has a Developer working and is not yet reported.
+   if(await busyRepository(mission)){
+    await rpc('paperworld_v5_defer_task_step',{p_step:s.id,p_worker:worker,p_seconds:300,p_observation:s.output||{}});
+    return {state:'waiting_for_repository',sessionsStarted:0};
+   }
    const state=await reserve(s.id,worker,key,'start_agent');
    if(state==='budget_denied')return pauseBudget(s.id,worker);
    if(state!=='reserved')return fail(s.id,worker,'copilot_effect_reservation_denied');
@@ -376,7 +398,12 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
     if(merge.state==='head_moved')return fail(s.id,worker,'pr_head_moved_after_verification');
    }
    const merged=merge.state==='merged';
+   // A verified change that only conflicts with a newer main is redone once,
+   // automatically, on top of the current main (no click needed).
+   let retry=null;
+   if(merge.reason==='merge_conflict')retry=await queueRetry(mission,'merge_conflict',{prNumber,prUrl:awaitStep.output?.prUrl});
    const outcome={title:spec.title,projectId:project,
+    ...(retry?.state==='retry_queued'?{retryQueued:true}:{}),
     prUrl:awaitStep.output.prUrl,runUrl:v.runUrl,
     headSha:v.headSha,headStillCurrent:true,
     requiredTests:v.requiredTests,sessionsReserved:1,
