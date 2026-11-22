@@ -95,32 +95,33 @@ test('wordless / instrumental songs are complete songs too (only when they end w
  const {extract}=require('../server/director-actions.cjs');
  assert.equal(extract('studio-director','TITLE: X\nSUNO STYLE PROMPT: y\nLYRICS:\n'+wordless+'\nCREATE_SUNO_SONG').actions.length,1);
 });
-test('Crow\'s direct send uses the same voice as the Music Studio',async()=>{
+test('one voice setting: Τυχαία by default, The Wanderer only when chosen (Studio and direct)',async()=>{
  const {pickVoice,run}=require('../js/director-actions-client.js');
  const voices=[{id:'voiceAAAA1111',name:'Other'},{id:'voiceWWWW2222',name:'The Wanderer'}];
  const cloud={listSunoVoices:async()=>voices,ownerId:()=>'o1'};
  const mem=v=>({getItem:k=>k==='paperworld-suno-voice-choice-v1-o1'?v:null});
- assert.deepEqual(await pickVoice(cloud,mem(null)),{id:'voiceWWWW2222',name:'The Wanderer'},'default: The Wanderer');
- assert.deepEqual(await pickVoice(cloud,mem('voice:voiceAAAA1111')),{id:'voiceAAAA1111',name:'Other'},'owner\'s Studio choice');
- assert.equal((await pickVoice(cloud,mem('random'))).id,null,'owner chose random in the Studio');
+ assert.deepEqual(await pickVoice(cloud,mem(null)),{id:null,name:'Τυχαία'},'default: random');
+ assert.deepEqual(await pickVoice(cloud,mem('wanderer')),{id:'voiceWWWW2222',name:'The Wanderer'});
+ assert.deepEqual(await pickVoice(cloud,mem('voice:voiceAAAA1111')),{id:'voiceWWWW2222',name:'The Wanderer'},'old saved choices mean Wanderer');
+ assert.equal(await pickVoice({...cloud,listSunoVoices:async()=>[]},mem('wanderer')),null,'Wanderer chosen but missing: never silently random');
  const sent=[];
  const lines=await run([{type:'suno_song',brief:{title:'Dub',style:'s',lyrics:'l'}}],
   {cloud:{...cloud,createSunoSong:async(b,k,v)=>{sent.push(v);return {accepted:true}}},
    requestId:'r',storage:mem(null),confirmSuno:()=>true});
- assert.deepEqual(sent,['voiceWWWW2222']);assert.match(lines[0],/με φωνή «The Wanderer»/);
+ assert.deepEqual(sent,[null]);assert.match(lines[0],/με φωνή «Τυχαία»/);
 });
-test('Crow requires approval and a verified voice, and reports uncertain attempts without retrying',async()=>{
+test('Crow requires approval, blocks a missing chosen voice, and reports uncertain attempts without retrying',async()=>{
  const [action]=extract('studio-director',SONG).actions;
  let attempts=0;
  const cloud={ownerId:()=>'o1',listSunoVoices:async()=>[{id:'voiceWWWW2222',name:'The Wanderer'}],
   createSunoSong:async()=>{attempts++;throw Error('private provider details')}};
  await client.run([action],{cloud});
  await client.run([action],{cloud,confirmSuno:()=>false});
- const missing=await client.run([action],{cloud,storage:{getItem:()=>'voice:missing'},
-  confirmSuno:()=>assert.fail('missing saved voice must block approval')});
- assert.match(missing[0],/Δεν επαληθεύτηκε η επιλεγμένη φωνή/);
+ const missing=await client.run([action],{cloud:{...cloud,listSunoVoices:async()=>[]},storage:{getItem:()=>'wanderer'},
+  confirmSuno:()=>assert.fail('missing chosen voice must block approval')});
+ assert.match(missing[0],/Δεν βρέθηκε η φωνή «The Wanderer»/);
  assert.equal(attempts,0);
- const uncertain=await client.run([action],{cloud,confirmSuno:brief=>{
+ const uncertain=await client.run([action],{cloud,storage:{getItem:()=>'wanderer'},confirmSuno:brief=>{
   assert.deepEqual(brief,{title:'Ash on the Windowsill',voice:'The Wanderer'});
   return true;
  }});
@@ -131,7 +132,7 @@ test('Crow requires approval and a verified voice, and reports uncertain attempt
 test('Crow discards a submission when the owner changes during voice lookup',async()=>{
  const [action]=extract('studio-director',SONG).actions;
  let owner='original';
- const lines=await client.run([action],{
+ const lines=await client.run([action],{storage:{getItem:()=>'wanderer'},
   cloud:{ownerId:()=>owner,listSunoVoices:async()=>{
    owner='different';
    return [{id:'voiceWWWW2222',name:'The Wanderer'}];
@@ -139,4 +140,16 @@ test('Crow discards a submission when the owner changes during voice lookup',asy
   confirmSuno:()=>assert.fail('must not show the old owner’s song in a confirmation')
  });
  assert.match(lines[0],/Η υποβολή στο Suno ακυρώθηκε/);
+});
+
+test('words Suno rejects (e.g. "skunk") are caught before any credits are used',async()=>{
+ const d=require('../js/crow-studio-draft.js');
+ assert.deepEqual(d.sunoBlockedWords({title:'Skunk Smoke',style:'dub',lyrics:'[Verse]\nx\n[End]'}),['skunk']);
+ assert.deepEqual(d.sunoBlockedWords({title:'Skunkworks',style:'dub',lyrics:'x'}),[],'only the whole word');
+ const sent=[];
+ const lines=await client.run([{type:'suno_song',brief:{title:'Dub',style:'smoky skunk haze',lyrics:'[Verse]\nx\n[End]'}}],
+  {cloud:{ownerId:()=>'o1',createSunoSong:async()=>{sent.push(1)}},confirmSuno:()=>true,storage:{getItem:()=>null}});
+ assert.equal(sent.length,0);assert.match(lines[0],/απορρίπτει τη λέξη «skunk»/);
+ assert.match(require('../server/crow-songwriting-guide.cjs').forCrow(),/SUNO FILTER/);
+ assert.match(fs.readFileSync('js/world-dialogue.js','utf8'),/sunoBlockedWords\?\.\(\{title:musicTitle\.value/);
 });

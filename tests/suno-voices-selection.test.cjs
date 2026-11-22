@@ -68,26 +68,26 @@ test('A missing schema voice field blocks the call before Suno',()=>{
  assert.equal(r.ok,false);
  assert.equal(r.reason,'audio_create_voice_unsupported');
 });
-test('Crow uses Wanderer as fail-closed default and random only by explicit selection',()=>{
+test('Crow uses Τυχαία by default and The Wanderer only by explicit choice',()=>{
  const ui=fs.readFileSync('js/world-dialogue.js','utf8');
  const cloud=fs.readFileSync('js/cloud.js','utf8');
  const wrapper=fs.readFileSync('js/cloud-ui.js','utf8');
  const backend=fs.readFileSync('server/suno-oauth-client.cjs','utf8');
- assert.match(ui,/v\.name\.trim\(\)\.toLowerCase\(\)==='the wanderer'/);
- assert.match(ui,/voiceSelect\.value==='random'\?null:voiceSelect\.value\.slice\(6\)/);
- assert.match(ui,/verifiedVoices\.some/);
- assert.match(ui,/Ανανέωση φωνών/);
+ assert.match(ui,/\[\['random','Τυχαία'\],\['wanderer','The Wanderer'\]\]/);
+ assert.match(ui,/:'random';/,'default is random');
+ assert.match(ui,/pickVoice\?\.\(cloud\(\),window\.localStorage\)/);
+ assert.doesNotMatch(ui,/voiceRow\.append\(voiceLabel,voiceRefresh\)/,'no manual refresh button');
  assert.match(ui,/createSunoSong\(brief,key,selectedVoiceId\)/);
  assert.match(cloud,/listSunoVoices/);
  assert.match(wrapper,/listSunoVoices:.*client\.listSunoVoices/);
  assert.match(backend,/voices\.voices\.some\(v=>v\.id===selectedVoice\)/);
 });
 
-test('Suno voice selector and refresh are actually mounted in Crow Music Studio',()=>{
+test('Simple Suno voice selector is mounted in Crow Music Studio',()=>{
  const ui=fs.readFileSync('js/world-dialogue.js','utf8');
  // Voice is its own labelled studio group (selector + refresh + hint).
- assert.match(ui,/const voiceRow=make\('div','pw-studio-voice-row'\);voiceRow\.append\(voiceLabel,voiceRefresh\)/);
- assert.match(ui,/studioGroup\('Φωνή','Αποθηκευμένη φωνή Suno\. Προεπιλογή: The Wanderer\.',voiceRow,voiceHint\)/);
+ assert.match(ui,/const voiceRow=make\('div','pw-studio-voice-row'\);voiceRow\.append\(voiceLabel\);/);
+ assert.match(ui,/studioGroup\('Φωνή',null,voiceRow,voiceHint\)/);
  assert.match(ui,/studioActions\.append\(musicCancel,musicCopy,musicSave,sunoGenerate\)/);
  assert.match(ui,/studioCreate\.append\(studioSource,musicForm,sunoCreateStatus,studioTools\)/);
 });

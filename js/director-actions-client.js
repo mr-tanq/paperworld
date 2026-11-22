@@ -21,18 +21,24 @@ function valid(a){
   typeof a.goal==='string'&&a.goal.trim().length>0;
  return false;
 }
-// Same owner preference as the Music Studio. Only an explicit Random choice
-// permits submission without a voice ID.
+// One voice setting shared with the Music Studio: "Τυχαία" by default; the
+// owner's saved "The Wanderer" voice only when they explicitly picked it.
+const VOICE_KEY='paperworld-suno-voice-choice-v1-';
+function voiceChoice(cloud,storage){
+ let pref=null;try{const o=cloud?.ownerId?.();if(o)pref=storage?.getItem?.(VOICE_KEY+o)}catch(_){}
+ return pref==='wanderer'||(typeof pref==='string'&&pref.startsWith('voice:'))?'wanderer':'random';
+}
 async function pickVoice(cloud,storage){
- let pref=null;try{const o=cloud.ownerId?.();if(o)pref=storage?.getItem?.('paperworld-suno-voice-choice-v1-'+o)}catch(_){}
- if(pref==='random')return {id:null,name:'τυχαία'};
+ if(voiceChoice(cloud,storage)!=='wanderer')return {id:null,name:'Τυχαία'};
  if(typeof cloud?.listSunoVoices!=='function')return null;
  let voices;try{voices=await cloud.listSunoVoices()}catch(_){return null}
  if(!Array.isArray(voices))return null;
- const v=typeof pref==='string'&&pref.startsWith('voice:')?
-  voices.find(voice=>'voice:'+voice?.id===pref):
-  voices.find(voice=>String(voice?.name||'').trim().toLowerCase()==='the wanderer');
+ const v=voices.find(voice=>String(voice?.name||'').trim().toLowerCase()==='the wanderer');
  return v?{id:v.id,name:v.name}:null;
+}
+function blockedWords(brief){
+ try{const d=typeof require==='function'?require('./crow-studio-draft.js'):globalThis.PaperworldCrowStudioDraft;
+  return d?.sunoBlockedWords?.(brief)||[]}catch(_){return globalThis.PaperworldCrowStudioDraft?.sunoBlockedWords?.(brief)||[]}
 }
 const unverified='🎵 Η υποβολή δεν επαληθεύτηκε. Έλεγξε πρώτα τη βιβλιοθήκη σου στο Suno.';
 async function run(actions,{cloud,requestId,confirmSuno,storage=(typeof localStorage!=='undefined'?localStorage:null)}={}){
@@ -42,9 +48,12 @@ async function run(actions,{cloud,requestId,confirmSuno,storage=(typeof localSto
   try{
    if(a.type==='suno_song'){
     if(typeof confirmSuno!=='function')continue;
+    const blocked=blockedWords(a.brief);
+    if(blocked.length){lines.push('🎵 Δεν στάλθηκε: το Suno απορρίπτει τη λέξη «'+blocked.join('», «')+
+     '» (τη θεωρεί copyright). Ζήτα από τον Crow να την αλλάξει. Δεν χρεώθηκε τίποτα.');continue}
     const ownerId=cloud.ownerId?.();
     const voice=await pickVoice(cloud,storage);
-    if(!voice){lines.push('🎵 Δεν επαληθεύτηκε η επιλεγμένη φωνή. Έλεγξε τη φωνή στο Music Studio.');continue}
+    if(!voice){lines.push('🎵 Δεν βρέθηκε η φωνή «The Wanderer» στο Suno σου. Διάλεξε «Τυχαία» στο Music Studio ή δοκίμασε ξανά.');continue}
     if(cloud.ownerId?.()!==ownerId||confirmSuno({title:a.brief.title,voice:voice.name})!==true){
      lines.push('🎵 Η υποβολή στο Suno ακυρώθηκε.');continue;
     }
@@ -70,5 +79,5 @@ async function run(actions,{cloud,requestId,confirmSuno,storage=(typeof localSto
  }
  return lines;
 }
-return Object.freeze({run,valid,pickVoice});
+return Object.freeze({run,valid,pickVoice,voiceChoice,VOICE_KEY});
 });
