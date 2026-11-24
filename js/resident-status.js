@@ -62,7 +62,7 @@ function statuses(missions,now=Date.now(),dismissed=null){
  }
  // Details for the chat (what this is about) ride along, not shown on the map.
  for(const k of Object.keys(out)){const m=out[k].mission,v={tone:out[k].tone,text:out[k].text};
-  Object.defineProperty(v,'detail',{enumerable:false,value:Object.freeze({missionId:m.id||null,
+  Object.defineProperty(v,'detail',{enumerable:false,value:Object.freeze({missionId:m.id||null,projectId:m.projectId||null,
    title:m.projectId==='wellbeing'?'κάτι προσωπικό':short(title(m),120),status:m.status,lastError:m.lastError||null})});
   out[k]=Object.freeze(v)}
  return Object.freeze(out);

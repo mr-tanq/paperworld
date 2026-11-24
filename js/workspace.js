@@ -302,6 +302,21 @@ function itemCard(item,{showProject=true}={}){
   const a=el('a','pw-link',item.linkLabel||'Λεπτομέρειες');a.href=item.link;a.target='_blank';a.rel='noopener noreferrer';
   actions.append(a);
  }
+ // A stopped coding task: one tap hands it back to the Developer (no re-explaining).
+ const mission=String(item.key||'').startsWith('mission:')?
+  (state.missions||[]).find(m=>'mission:'+m.id===item.key):null;
+ if(mission&&['needs_you','failed'].includes(mission.status)&&mission.lastError!=='agent_no_changes'&&
+  ['listening','pokemon'].includes(mission.projectId)&&typeof cloud()?.redoMission==='function'){
+  const again=button('🔁 Ξαναδοκίμασε','pw-chip pw-chip-accent',async()=>{
+   again.disabled=true;again.textContent='Το ξαναδίνω…';
+   try{await cloud().redoMission(mission.id);
+    try{await cloud().dismissItem?.(item.key);state.dismissed.add(item.key)}catch(_){}
+    say('✓ Το ξαναδίνω στον Developer. Θα σου πω το αποτέλεσμα.');state.loadedAt=0;void load(true);
+    window.PaperworldResidentFeed?.refresh?.()}
+   catch(_){again.disabled=false;again.textContent='🔁 Ξαναδοκίμασε';say('Δεν ξεκίνησε. Δοκίμασε ξανά σε λίγο.')}
+  });
+  actions.append(again);
+ }
  // The conversation opens about THIS item, so the resident knows what you mean.
  if(project&&!item.note)actions.append(button('Μίλα με '+withArticle(project.owner),'pw-chip',
   ()=>talk(project.owner,{draft:'Για την εργασία «'+titleText.slice(0,90)+'»: ',

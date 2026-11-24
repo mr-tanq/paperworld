@@ -2,6 +2,7 @@
  * No unattended work, scheduling, AI calls, billing, or GitHub writes here.
  */
 'use strict';
+const crypto=require('node:crypto');
 const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {missionSpec}=require('./v5-autonomous-policy.cjs');
 const BASE='https://jrevhzvrgenucuozjowm.supabase.co';
@@ -29,7 +30,7 @@ function makeAutonomousMissionApi({fetcher=globalThis.fetch,
  async function handle({headers={},body,action}={}){
   const deny=(status,error)=>({status,body:{error}});
   if(headers.origin!==ORIGIN)return deny(403,'origin_denied');
-  if(!['create','list','status','simulate','pilot'].includes(action)||typeof body!=='string'||
+  if(!['create','list','status','simulate','pilot','redo'].includes(action)||typeof body!=='string'||
    Buffer.byteLength(body,'utf8')>5500)return deny(400,'invalid_request');
   const bearer=headers.authorization||'';
   if(!/^Bearer [A-Za-z0-9_.-]{12,4096}$/.test(bearer))return deny(401,'unauthorized');
@@ -110,6 +111,44 @@ function makeAutonomousMissionApi({fetcher=globalThis.fetch,
      repository:'mr-tanq/pokemon-echoes',issueNumber:1,
      execution:'real_copilot_pilot',autoMerge:false,autoDeploy:false,
      sessionBudget:1}};
+   }
+   // One tap "Ξαναδοκίμασε": the owner hands a stopped coding task back to the
+   // Developer with the SAME bounded spec (plus why it stopped). A new mission,
+   // so every budget cap, trusted test and merge rule still applies. Its id is
+   // derived from the original, so a double tap can never start it twice.
+   if(action==='redo'){
+    if(Object.keys(input).sort().join(',')!=='missionId,threadId'||!UUID.test(input.missionId||''))
+     return deny(400,'invalid_mission');
+    const qs=new URLSearchParams({select:'id,owner_id,thread_id,project_id,goal,status,engine,spec,policy,last_error',
+     id:'eq.'+input.missionId,owner_id:'eq.'+ownerId,thread_id:'eq.'+input.threadId,limit:'1'});
+    const [orig]=await query('GET','paperworld_autonomous_missions_v5?'+qs);
+    if(!orig||orig.engine!=='v1'||!['listening','pokemon'].includes(orig.project_id)||
+     !['needs_you','failed'].includes(orig.status)||!orig.spec||typeof orig.spec!=='object')
+     return deny(409,'mission_not_redoable');
+    const b=crypto.createHash('sha256').update('paperworld-owner-redo:'+orig.id).digest().subarray(0,16);
+    b[6]=(b[6]&0x0f)|0x40;b[8]=(b[8]&0x3f)|0x80;const h=b.toString('hex');
+    const id=h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20);
+    const [prior]=await query('GET','paperworld_autonomous_missions_v5?'+new URLSearchParams({select:'id,status',id:'eq.'+id,limit:'1'}));
+    if(prior&&!['draft','planned'].includes(prior.status))
+     return {status:200,body:{queued:true,missionId:id,title:orig.spec.title||null,already:true}};
+    const why=/^[a-z_]{1,60}$/.test(orig.last_error||'')?orig.last_error:'stopped';
+    const note='\n\nThe owner asked to try again (previous attempt stopped: '+why+'). '+
+     'Find the root cause, keep the change small and within the allowed paths.';
+    const spec={...orig.spec,summary:String(orig.spec.summary||'').slice(0,800-note.length)+note};
+    if(!prior){
+     const {retryOf,retryReason,initiative,initiativeKey,initiativeWorkflow,initiativeRun,...base}=orig.policy||{};
+     await query('POST','paperworld_autonomous_missions_v5',{id,owner_id:ownerId,thread_id:input.threadId,
+      project_id:orig.project_id,goal:orig.goal,status:'draft',policy:{...base,redoOf:orig.id}});
+    }
+    const rpc=async(name,args)=>{const r=await fetcher(BASE+'/rest/v1/rpc/'+name,{method:'POST',redirect:'error',
+     signal:AbortSignal.timeout(8000),headers:{apikey:secret,...(secret.startsWith('eyJ')?{Authorization:'Bearer '+secret}:{}),
+      Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(args)});
+     if(!r?.ok)throw Error('redo_rpc_unavailable');return r.json()};
+    if(!prior||prior.status==='draft'){
+     if(await rpc('paperworld_v5_plan_task',{p_mission:id,p_spec:spec})!==true)return deny(409,'redo_plan_refused');
+    }
+    if(await rpc('paperworld_v5_queue_task',{p_mission:id})!==true)return deny(409,'redo_queue_refused');
+    return {status:200,body:{queued:true,missionId:id,title:orig.spec.title||null}};
    }
    if(action==='simulate'){
     if(Object.keys(input).sort().join(',')!=='missionId,threadId'||
