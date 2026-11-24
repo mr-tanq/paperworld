@@ -33,6 +33,17 @@ function summary(missions,now=Date.now(),days=30){
   recent:rows.slice(0,8).map(m=>({who:NAME[m.projectId]||m.projectId,source:SOURCE[m.source]||SOURCE.owner,
    title:String(m.report?.title||m.goal||'').replace(/\s+/g,' ').trim().slice(0,70),outcome:outcome(m),minutes:minutes(m)}))});
 }
+// What Matt says at the Town Hall table: the last 7 days in one short line.
+function weekLine(missions,now=Date.now()){
+ const s=summary(missions,now,7);
+ if(!s.total)return 'Ήσυχη εβδομάδα: καμία εργασία τις τελευταίες 7 μέρες.';
+ const bits=[];
+ if(s.alone)bits.push(s.alone===1?'1 αλλαγή μπήκε μόνη της':s.alone+' αλλαγές μπήκαν μόνες τους');
+ if(s.neededYou)bits.push(s.neededYou===1?'1 θέλει εσένα':s.neededYou+' θέλουν εσένα');
+ if(s.running)bits.push(s.running===1?'1 τρέχει ακόμα':s.running+' τρέχουν ακόμα');
+ if(s.initiatives)bits.push(s.initiatives===1?'1 πρωτοβουλία της ομάδας':s.initiatives+' πρωτοβουλίες της ομάδας');
+ return 'Αυτή την εβδομάδα: '+(bits.length?bits.join(', '):s.total+' εργασίες')+'.';
+}
 const LABEL={alone:'✓ Μόνοι τους',ready:'✓ Έτοιμο, περίμενε εσένα',needed_you:'✋ Χρειάστηκε εσένα',running:'… Σε εξέλιξη',other:'—'};
-return Object.freeze({summary,outcome,LABEL});
+return Object.freeze({summary,outcome,weekLine,LABEL});
 });

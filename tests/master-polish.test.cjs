@@ -23,7 +23,7 @@ test('village board: real statuses only, tap to talk, hidden without room',()=>{
  assert.match(b,/show=Number\.isFinite\(top\)&&h-top>=170/);
  assert.doesNotMatch(b,/fetch\(|delegate|askMatt|localStorage/);
  const feed=fs.readFileSync('js/resident-feed.js','utf8');
- assert.match(feed,/new CustomEvent\('paperworld:residents',\{detail:map\}\)/);
+ assert.match(feed,/new CustomEvent\('paperworld:residents',\{detail:week\?\{\.\.\.map,matt:\{text:week\}\}:map\}\)/);
  assert.match(fs.readFileSync('js/app.js','utf8'),/boardTop:\(\)=>/);
 });
 test('Matt chat keeps its space: decisions collapse to one line there only',()=>{
