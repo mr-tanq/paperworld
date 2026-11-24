@@ -20,6 +20,12 @@ function plainLine(body,labels){
  }
  return null;
 }
+// Stops a second, fresh attempt can usually solve. Each gets ONE automatic
+// retry (a normal new mission: budget caps, trusted tests and merge rules apply).
+const AUTO_RETRY=Object.freeze(['trusted_verification_failed','copilot_pr_missing','merge_conflict',
+ 'agent_files_out_of_scope','agent_too_many_files','copilot_deadline_exceeded','pr_head_changed_before_verify',
+ 'pr_head_moved_after_verify','pr_head_moved_after_verification','trusted_verification_timed_out',
+ 'effect_requires_reconciliation']);
 const respond=(status,body)=>new Response(JSON.stringify(body),{
  status,headers:{'content-type':'application/json','cache-control':'no-store',
  'x-content-type-options':'nosniff'}
@@ -74,7 +80,10 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
    select:'effect_key,step_id,kind,state,external_id,external_url,confirmed_at,evidence,created_at',
    step_id:'eq.'+stepId});
  }
- async function fail(step,worker,reason){
+ async function fail(step,worker,reason,mission=null){
+  // A retryable stop is redone once before the owner is told (so Matt can
+  // say "the Developer is redoing it" instead of asking for help).
+  if(mission&&AUTO_RETRY.includes(reason)){try{await queueRetry(mission,reason)}catch(_){}}
   await rpc('paperworld_v5_fail_step',{p_step:step,p_worker:worker,
    p_reason:reason,p_retryable:false});
   return {state:'needs_you',reason,sessionsStarted:0};
@@ -169,8 +178,7 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
   return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20);
  }
  async function queueRetry(mission,reason,{prNumber=null,prUrl=null,runUrl=null}={}){
-  if(mission.policy?.retryOf||!['trusted_verification_failed','copilot_pr_missing','merge_conflict',
-   'agent_files_out_of_scope','agent_too_many_files'].includes(reason))
+  if(mission.policy?.retryOf||!AUTO_RETRY.includes(reason))
    return {state:'not_retried'};
   if(!UUID.test(mission.thread_id||'')||typeof mission.goal!=='string')return {state:'not_retried'};
   const id=await retryId(mission.id);
@@ -186,7 +194,10 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
    reason==='trusted_verification_failed'?
    '\n\nPrevious attempt'+(prNumber?' (PR #'+prNumber+')':'')+' failed the required tests'+
     (runUrl?' ('+runUrl+')':'')+'. Start from that work if useful, find why the tests fail and fix it.':
-   '\n\nPrevious attempt did not deliver a pull request. Keep the change small and deliver one.';
+   reason==='copilot_pr_missing'?
+   '\n\nPrevious attempt did not deliver a pull request. Keep the change small and deliver one.':
+   '\n\nPrevious attempt stopped before it could be verified ('+reason+'). Try again: keep the change small, '+
+    'finish it in one go and do not push more commits after you are done.';
   const spec={...mission.spec,summary:(String(mission.spec.summary||'').slice(0,800-previous.length)+previous)};
   try{
    const existing=await fetchOne('paperworld_autonomous_missions_v5',{select:'id,status',id:'eq.'+id});
@@ -201,6 +212,23 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
    if(await rpc('paperworld_v5_queue_task',{p_mission:id})!==true)return {state:'retry_queue_refused'};
    return {state:'retry_queued',missionId:id};
   }catch(_){return {state:'retry_failed'}}
+ }
+ // Stops that happened outside a direct fail() (e.g. a step that kept
+ // erroring until its attempts ran out) are picked up here: recent stopped
+ // missions with a retryable reason and no retry yet get their one retry.
+ async function sweepRetries(){
+  const ctrl=await fetchOne('paperworld_autonomous_controller_v5',{select:'engine,dispatch_enabled',singleton:'eq.true'});
+  if(ctrl?.engine!=='v1'||ctrl.dispatch_enabled!==true)return 0;
+  const rows=await db('paperworld_autonomous_missions_v5?'+new URLSearchParams({
+   select:'id,owner_id,thread_id,goal,project_id,status,spec,policy,last_error',engine:'eq.v1',
+   status:'in.(needs_you,failed)',last_error:'in.('+AUTO_RETRY.join(',')+')',
+   updated_at:'gte.'+new Date(clock()-48*3600e3).toISOString(),order:'updated_at.desc',limit:'5'}));
+  let queued=0;
+  for(const m of Array.isArray(rows)?rows:[]){
+   if(m.policy?.retryOf||!['listening','pokemon'].includes(m.project_id))continue;
+   const r=await queueRetry(m,m.last_error);if(r.state==='retry_queued')queued++;
+  }
+  return queued;
  }
  async function busyRepository(mission){
   const others=await db('paperworld_autonomous_missions_v5?'+new URLSearchParams({select:'id',
@@ -235,7 +263,7 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
   if(step.capability==='create_issue'){
    const state=await reserve(s.id,worker,key,'create_issue');
    if(state==='budget_denied')return pauseBudget(s.id,worker);
-   if(state!=='reserved')return fail(s.id,worker,'issue_effect_reservation_denied');
+   if(state!=='reserved')return fail(s.id,worker,'issue_effect_reservation_denied',mission);
    const brief=spec.summary+'\n\nAcceptance:\n'+
      spec.acceptance.map((x,i)=>'- '+(i+1)+'. '+x).join('\n')+
      '\n\nRequired tests: '+spec.requiredTests.join(', ')+
@@ -263,7 +291,7 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
     return {state:'waiting_for_repository',sessionsStarted:0};
    const state=await reserve(s.id,worker,key,'start_agent');
    if(state==='budget_denied')return pauseBudget(s.id,worker);
-   if(state!=='reserved')return fail(s.id,worker,'copilot_effect_reservation_denied');
+   if(state!=='reserved')return fail(s.id,worker,'copilot_effect_reservation_denied',mission);
    const result=await gh.assignCopilot(project,{issueNumber:issue,
     effectKey:issueStep.input.effectKey});
    if(result.state==='uncertain')return uncertainty(key,worker,'copilot_assignment_uncertain');
@@ -280,11 +308,11 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
    const age=clock()-started;
    const found=await gh.findLinkedPr(project,{issueNumber:issue,
     effectKey:issueStep.input.effectKey});
-   if(found.state==='ambiguous')return fail(s.id,worker,'ambiguous_copilot_pr');
+   if(found.state==='ambiguous')return fail(s.id,worker,'ambiguous_copilot_pr',mission);
    if(found.state!=='found'){
     if(age>30*60*1000){
      await queueRetry(mission,'copilot_pr_missing');
-     return fail(s.id,worker,'copilot_pr_missing');
+     return fail(s.id,worker,'copilot_pr_missing',mission);
     }
     await rpc('paperworld_v5_defer_task_step',{p_step:s.id,p_worker:worker,
      p_seconds:300,p_observation:s.output||{}});
@@ -297,7 +325,7 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
      Number(previous.stableSince||clock()):clock();
    const observation={prNumber:pr.number,prUrl:pr.html_url,
     headSha:sha,stableSince:stable,confirmedStart:effect.confirmed_at};
-   if(age>3*60*60*1000)return fail(s.id,worker,'copilot_deadline_exceeded');
+   if(age>3*60*60*1000)return fail(s.id,worker,'copilot_deadline_exceeded',mission);
    // Fast path: Copilot said it finished AND the head did not move since the
    // previous poll (>= one 5-minute tick). Verification still pins this sha.
    if(previous.headSha===sha&&clock()-stable>=4*60*1000){
@@ -326,7 +354,7 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
     !Number.isSafeInteger(prNumber))throw Error('unverified_pr_identity');
    const pr=await gh.getPull(project,prNumber);
    if(pr?.head?.sha!==sha||pr?.draft!==true||pr?.state!=='open')
-    return fail(s.id,worker,'pr_head_changed_before_verify');
+    return fail(s.id,worker,'pr_head_changed_before_verify',mission);
    // A Developer who investigated and changed nothing, or who touched files
    // outside the allowed scope, is a clear outcome for the owner — never an
    // error loop. Matt explains it in plain words.
@@ -334,14 +362,14 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
    catch(error){
     if(error?.message==='file_count_denied'){
      const count=await gh.changedFileCount(project,prNumber);
-     if(count===0)return fail(s.id,worker,'agent_no_changes');
+     if(count===0)return fail(s.id,worker,'agent_no_changes',mission);
      // Too big or outside the allowed paths: redone once, smaller, on its own.
      await queueRetry(mission,'agent_too_many_files',{prNumber});
-     return fail(s.id,worker,'agent_too_many_files');
+     return fail(s.id,worker,'agent_too_many_files',mission);
     }
     if(error?.message==='file_policy_denied'){
      await queueRetry(mission,'agent_files_out_of_scope',{prNumber});
-     return fail(s.id,worker,'agent_files_out_of_scope');
+     return fail(s.id,worker,'agent_files_out_of_scope',mission);
     }
     throw error;
    }
@@ -350,7 +378,7 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
    if(!effect){
     const state=await reserve(s.id,worker,key,'dispatch_verify');
     if(state==='budget_denied')return pauseBudget(s.id,worker);
-    if(state!=='reserved')return fail(s.id,worker,'verification_effect_reservation_denied');
+    if(state!=='reserved')return fail(s.id,worker,'verification_effect_reservation_denied',mission);
     const submitted=await gh.dispatchVerify(project,{missionId:mission.id,
      headSha:sha,requiredTests:spec.requiredTests});
     if(submitted.state==='uncertain')return uncertainty(key,worker,'verify_dispatch_uncertain');
@@ -374,11 +402,11 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
    if(rawRun?.status==='completed'&&rawRun.conclusion!=='success'){
     await queueRetry(mission,'trusted_verification_failed',{prNumber,
      prUrl:awaitStep.output?.prUrl,runUrl:proof.runUrl});
-    return fail(s.id,worker,'trusted_verification_failed');
+    return fail(s.id,worker,'trusted_verification_failed',mission);
    }
    const elapsed=clock()-Date.parse(effect.confirmed_at||'');
    if(Number.isFinite(elapsed)&&elapsed>2*60*60*1000)
-    return fail(s.id,worker,'trusted_verification_timed_out');
+    return fail(s.id,worker,'trusted_verification_timed_out',mission);
    if(rawRun?.status!=='completed'){
     await rpc('paperworld_v5_defer_task_step',{p_step:s.id,p_worker:worker,
      p_seconds:300,p_observation:proof});
@@ -388,7 +416,7 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
    const proofTests=await gh.readTrustedAttestation(project,{runId,headSha:sha,
     mainSha:proof.mainSha,missionId:mission.id,requiredTests:spec.requiredTests});
    const latest=await gh.getPull(project,prNumber);
-   if(latest.head?.sha!==sha)return fail(s.id,worker,'pr_head_moved_after_verify');
+   if(latest.head?.sha!==sha)return fail(s.id,worker,'pr_head_moved_after_verify',mission);
    const final={externalId:String(runId),runId,headSha:sha,
     verification:'trusted',requiredTests:proofTests.requiredTests,
     runUrl:proof.runUrl,prUrl:awaitStep.output.prUrl};
@@ -400,16 +428,16 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
    const v=verifyStep?.output||{};
    const prNumber=awaitStep?.output?.prNumber;
    if(v.verification!=='trusted'||!Number.isSafeInteger(prNumber))
-    return fail(s.id,worker,'trusted_verification_missing');
+    return fail(s.id,worker,'trusted_verification_missing',mission);
    const pr=await gh.getPull(project,prNumber);
    // A retry after a successful merge sees the merged PR at the verified head.
    const mergedEarlier=pr?.merged===true&&pr.head?.sha===v.headSha;
    if(!mergedEarlier&&(pr?.state!=='open'||pr.head?.sha!==v.headSha))
-    return fail(s.id,worker,'pr_head_moved_after_verification');
+    return fail(s.id,worker,'pr_head_moved_after_verification',mission);
    let merge={state:'not_enabled'};
    if(settings.autoMerge===true){
     merge=await gh.mergeVerified(project,{prNumber,headSha:v.headSha,title:spec.title});
-    if(merge.state==='head_moved')return fail(s.id,worker,'pr_head_moved_after_verification');
+    if(merge.state==='head_moved')return fail(s.id,worker,'pr_head_moved_after_verification',mission);
    }
    const merged=merge.state==='merged';
    // A verified change that only conflicts with a newer main is redone once,
@@ -453,14 +481,16 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
  // Several ready steps per wake-up (at most 4, none started after 8 s: the
  // cron call waits 12 s), so two missions no longer queue behind each other.
  async function processBatch(){
-  const started=clock();let result=null,steps=0;
+  const started=clock();let result=null,steps=0,swept=0;
+  try{swept=await sweepRetries()}catch(_){}
   while(steps<Math.max(1,batch)){
    result=await processOnce();steps++;
    // Reconciliation counts its attempts: never spend more than one per wake-up.
    if(!result||['idle','disabled','awaiting_external_evidence','effect_reconciled','reconciling']
      .includes(result.state)||clock()-started>batchMs)break;
   }
-  return steps>1?{...result,steps}:result;
+  const out=steps>1?{...result,steps}:result;
+  return swept?{...out,retriesQueued:swept}:out;
  }
  async function handle(request){
   if(request.method!=='POST')return respond(405,{error:'method_not_allowed'});
@@ -471,9 +501,13 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
   if(request.headers.get('authorization')!=='Bearer '+secret)
    return respond(401,{error:'unauthorized'});
   try{return respond(200,await processBatch())}
-  catch(_){return respond(503,{error:'v1_dispatch_requires_reconciliation'})}
+  catch(err){
+   // Only the error code (never data) goes to the function log, so a step
+   // that keeps failing can be diagnosed instead of stopping silently.
+   console.error(JSON.stringify({event:'dispatch_error',code:String(err?.message||'unknown').slice(0,80)}));
+   return respond(503,{error:'v1_dispatch_requires_reconciliation'})}
  }
- return Object.freeze({handle,processOnce});
+ return Object.freeze({handle,processOnce,processBatch});
 }
 export {createTaskDispatcher};
 if(typeof Deno!=='undefined'&&typeof Deno.serve==='function'){

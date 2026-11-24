@@ -6,11 +6,11 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const src=fs.readFileSync('supabase/functions/paperworld-task-dispatch/index.mjs','utf8');
 test('too many files / out of scope → one automatic smaller redo before stopping',()=>{
- assert.match(src,/'agent_files_out_of_scope','agent_too_many_files'\]\.includes\(reason\)/);
- assert.match(src,/await queueRetry\(mission,'agent_too_many_files',\{prNumber\}\);\n\s*return fail\(s\.id,worker,'agent_too_many_files'\)/);
- assert.match(src,/await queueRetry\(mission,'agent_files_out_of_scope',\{prNumber\}\);\n\s*return fail\(s\.id,worker,'agent_files_out_of_scope'\)/);
+ assert.match(src,/'agent_files_out_of_scope','agent_too_many_files',/);assert.match(src,/!AUTO_RETRY\.includes\(reason\)/);
+ assert.match(src,/await queueRetry\(mission,'agent_too_many_files',\{prNumber\}\);\n\s*return fail\(s\.id,worker,'agent_too_many_files',mission\)/);
+ assert.match(src,/await queueRetry\(mission,'agent_files_out_of_scope',\{prNumber\}\);\n\s*return fail\(s\.id,worker,'agent_files_out_of_scope',mission\)/);
  assert.match(src,/Change ONLY files under: /);
- assert.match(src,/if\(count===0\)return fail\(s\.id,worker,'agent_no_changes'\)/,'nothing changed is never retried');
+ assert.match(src,/if\(count===0\)return fail\(s\.id,worker,'agent_no_changes',mission\)/,'nothing changed is never retried');
 });
 test('the database allows the repository wait only before anything was sent',()=>{
  const sql=fs.readFileSync('sql/paperworld_defer_start_agent_v1.sql','utf8');
@@ -32,4 +32,45 @@ test('weekly meeting counts a check as a check, not as "needs you"',async()=>{
  const {weekly}=await import('../supabase/functions/paperworld-watch/index.mjs');
  const w=weekly([{id:'x',project_id:'pokemon',status:'needs_you',last_error:'agent_no_changes',policy:{}}]);
  assert.equal(w.you,0);assert.match(w.text,/Joey: 1 έλεγχος χωρίς να χρειαστεί αλλαγή/);
+});
+
+// More stops get one fresh attempt; a step that kept erroring is swept up too.
+const OWNER='11111111-1111-4111-8111-111111111111',THREAD='22222222-2222-4222-8222-222222222222',
+ MID='44444444-4444-4444-8444-444444444444';
+const SPEC={projectId:'listening',directorId:'listening-director',repository:'mr-tanq/concerts',title:'t',summary:'s',
+ acceptance:['a'],requiredTests:['festival_revisit'],allowedPaths:['js/'],maxFiles:4,noAutoMerge:true,noAutoDeploy:true};
+function sweepFake({policy={},project='listening',enabled=true}={}){
+ const calls=[];let created=null;
+ const fetcher=async(url,o={})=>{const m=o.method||'GET';calls.push([m,url,o.body&&JSON.parse(o.body)]);
+  const json=b=>({ok:true,status:200,json:async()=>b});
+  if(url.includes('controller_v5'))return json([{engine:'v1',dispatch_enabled:enabled,live_adapters:[]}]);
+  if(url.includes('/rpc/'))return json(true);
+  if(url.includes('paperworld_autonomous_missions_v5')){
+   if(m==='POST'){created={...JSON.parse(o.body)};return json([created])}
+   const q=new URL(url).searchParams;
+   if(q.get('status')==='in.(needs_you,failed)')return json([{id:MID,owner_id:OWNER,thread_id:THREAD,goal:'g',project_id:project,
+    status:'needs_you',spec:SPEC,policy,last_error:'effect_requires_reconciliation'}]);
+   if(q.get('id'))return json(created&&q.get('id')==='eq.'+created.id?[{id:created.id,status:'draft'}]:[]);
+  }
+  return json([]);};
+ return {fetcher,calls,get created(){return created}};
+}
+test('every retryable stop gets one fresh attempt, also when a step kept erroring',async()=>{
+ for(const r of ['copilot_deadline_exceeded','pr_head_changed_before_verify','trusted_verification_timed_out',
+  'pr_head_moved_after_verify','effect_requires_reconciliation'])assert.ok(src.includes("'"+r+"'"),r);
+ assert.doesNotMatch(src.slice(src.indexOf('const AUTO_RETRY'),src.indexOf('const respond')),/agent_no_changes|ambiguous_copilot_pr/);
+ assert.match(src,/if\(mission&&AUTO_RETRY\.includes\(reason\)\)\{try\{await queueRetry\(mission,reason\)\}/,'queued before the stop is recorded');
+ const {createTaskDispatcher}=await import('../supabase/functions/paperworld-task-dispatch/index.mjs');
+ const env=k=>({SUPABASE_SERVICE_ROLE_KEY:'x'.repeat(40)})[k];
+ const f=sweepFake();
+ const out=await createTaskDispatcher({environment:env,fetcher:f.fetcher}).processBatch();
+ assert.equal(out.retriesQueued,1);
+ assert.ok(f.created,'a retry mission was created');assert.equal(f.created.policy.retryOf,MID);
+ assert.ok(f.calls.some(([,u])=>u.endsWith('/rpc/paperworld_v5_queue_task')));
+ assert.ok(f.calls.some(([,u])=>u.includes('updated_at=gte.')),'only recent stops');
+ const again=sweepFake({policy:{retryOf:'x'}});await createTaskDispatcher({environment:env,fetcher:again.fetcher}).processBatch();
+ assert.equal(again.created,null,'a retry is never retried again');
+ const off=sweepFake({enabled:false});await createTaskDispatcher({environment:env,fetcher:off.fetcher}).processBatch();
+ assert.equal(off.created,null,'nothing is queued while the engine is switched off');
+ assert.match(src,/console\.error\(JSON\.stringify\(\{event:'dispatch_error',code:/);
 });
