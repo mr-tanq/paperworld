@@ -89,11 +89,13 @@ test('Panels only pan the village: beside a docked panel, above a bottom sheet',
  assert.ok(Math.abs(sheet.y+cy*scale-(56+(1280-716))/2)<1e-9);
  assert.ok(Math.abs(sheet.x+cx*scale-400)<1e-9);
 });
-test('app.js wires framing to resize, Home, pan and zoom without new gestures',()=>{
+test('app.js wires framing to resize, Home, pan, zoom, two-finger and wheel zoom',()=>{
  const app=fs.readFileSync('js/app.js','utf8');
  assert.match(app,/framing\.resize\(\{prev,next:\{width:r\.width,height:r\.height\},W,H,content:villageContent\(\)\}\)/);
  assert.match(app,/state\.x\+=p\.x-v\.x;state\.y\+=p\.y-v\.y;state\.adjusted=true/);
- assert.match(app,/function zoom\(delta\)\{state\.adjusted=true;/);
+ assert.match(app,/function zoom\(delta,cx=state\.width\/2,cy=state\.height\/2\)\{state\.adjusted=true;/);
+ assert.match(app,/if\(pinch&&touchPoints\.size===2\)/);assert.match(app,/canvas\.addEventListener\('wheel'/);
+ assert.match(app,/if\(pinch\)\{if\(!touchPoints\.size\)pinch=null;state\.pointer=null;return\}/,'lifting after a pinch is never a tap');
  assert.match(app,/#home'\)\.onclick=\(\)=>\{resetCamera\(\);/);
  const html=fs.readFileSync('index.html','utf8');
  assert.ok(html.indexOf('js/camera-framing.js')<html.indexOf('js/app.js'));
