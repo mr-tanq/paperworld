@@ -36,8 +36,9 @@ function weekly(missions,proposals=0){
  const per={},count=k=>Object.values(per).reduce((a,p)=>a+p[k],0);
  for(const m of rows){
   if(redone.has(m.id))continue;
-  const p=per[m.project_id]||(per[m.project_id]={alone:0,ready:0,you:0,running:0});
+  const p=per[m.project_id]||(per[m.project_id]={alone:0,checked:0,ready:0,you:0,running:0});
   if(m.status==='completed')p[m.report?.merged===true?'alone':'ready']++;
+  else if(m.status==='needs_you'&&m.last_error==='agent_no_changes')p.checked++;
   else if(m.status==='needs_you'||m.status==='failed')p.you++;
   else if(['queued','running','working','verifying','paused_budget','planned'].includes(m.status))p.running++;
  }
@@ -46,6 +47,7 @@ function weekly(missions,proposals=0){
  const lines=Object.entries(per).map(([id,p])=>{
   const bits=[];
   if(p.alone)bits.push(part(p.alone,'1 αλλαγή μπήκε μόνη της','αλλαγές μπήκαν μόνες τους'));
+  if(p.checked)bits.push(part(p.checked,'1 έλεγχος χωρίς να χρειαστεί αλλαγή','έλεγχοι χωρίς να χρειαστεί αλλαγή'));
   if(p.ready)bits.push(part(p.ready,'1 είναι έτοιμη για έλεγχο','είναι έτοιμες για έλεγχο'));
   if(p.you)bits.push(part(p.you,'1 σταμάτησε και θέλει εσένα','σταμάτησαν και θέλουν εσένα'));
   if(p.running)bits.push(part(p.running,'1 τρέχει ακόμα','τρέχουν ακόμα'));
@@ -144,7 +146,7 @@ function createWatcher({environment,fetcher=fetch,clock=Date.now}={}){
   const ctx=(await db('paperworld_autonomous_missions_v5?select=owner_id,thread_id&engine=eq.v1&order=created_at.desc&limit=1'))?.[0];
   if(!ctx?.owner_id||!ctx?.thread_id)return {state:'no_owner_context'};
   const since=new Date(clock()-7*864e5).toISOString();
-  const missions=await db('paperworld_autonomous_missions_v5?select=id,project_id,status,report,policy,created_at&engine=eq.v1'+
+  const missions=await db('paperworld_autonomous_missions_v5?select=id,project_id,status,report,policy,last_error,created_at&engine=eq.v1'+
    '&owner_id=eq.'+ctx.owner_id+'&created_at=gte.'+since+'&limit=200');
   let proposals=0;
   try{proposals=((await db('paperworld_proposals_v1?select=id&status=eq.proposed&owner_id=eq.'+ctx.owner_id+'&limit=50'))||[]).length}catch(_){}

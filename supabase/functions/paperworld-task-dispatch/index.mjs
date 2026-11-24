@@ -169,11 +169,18 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
   return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20);
  }
  async function queueRetry(mission,reason,{prNumber=null,prUrl=null,runUrl=null}={}){
-  if(mission.policy?.retryOf||!['trusted_verification_failed','copilot_pr_missing','merge_conflict'].includes(reason))
+  if(mission.policy?.retryOf||!['trusted_verification_failed','copilot_pr_missing','merge_conflict',
+   'agent_files_out_of_scope','agent_too_many_files'].includes(reason))
    return {state:'not_retried'};
   if(!UUID.test(mission.thread_id||'')||typeof mission.goal!=='string')return {state:'not_retried'};
   const id=await retryId(mission.id);
-  const previous=reason==='merge_conflict'?
+  const scope='Change ONLY files under: '+(mission.spec?.allowedPaths||[]).join(', ')+'; at most '+
+   (mission.spec?.maxFiles||6)+' files. If the full change needs more, do only the most important part now and say what is left in the PR.';
+  const previous=reason==='agent_files_out_of_scope'?
+   '\n\nPrevious attempt'+(prNumber?' (PR #'+prNumber+')':'')+' changed files outside the allowed paths. Redo it. '+scope:
+   reason==='agent_too_many_files'?
+   '\n\nPrevious attempt'+(prNumber?' (PR #'+prNumber+')':'')+' changed too many files. Redo it smaller. '+scope:
+   reason==='merge_conflict'?
    '\n\nPrevious attempt'+(prNumber?' (PR #'+prNumber+')':'')+' passed its tests but could not be merged because '+
     'main changed meanwhile. Redo the same change on top of the current main, keeping it small.':
    reason==='trusted_verification_failed'?
@@ -249,10 +256,11 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
    // One Developer at a time per repository: parallel PRs on the same code
    // conflict once the first one merges. Wait while another mission of this
    // project has a Developer working and is not yet reported.
-   if(await busyRepository(mission)){
-    await rpc('paperworld_v5_defer_task_step',{p_step:s.id,p_worker:worker,p_seconds:300,p_observation:s.output||{}});
+   // (Needs the database to allow deferring start_agent; until then it simply
+   // continues as before instead of stalling the task.)
+   if(await busyRepository(mission)&&await rpc('paperworld_v5_defer_task_step',
+     {p_step:s.id,p_worker:worker,p_seconds:300,p_observation:s.output||{}})===true)
     return {state:'waiting_for_repository',sessionsStarted:0};
-   }
    const state=await reserve(s.id,worker,key,'start_agent');
    if(state==='budget_denied')return pauseBudget(s.id,worker);
    if(state!=='reserved')return fail(s.id,worker,'copilot_effect_reservation_denied');
@@ -326,9 +334,15 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
    catch(error){
     if(error?.message==='file_count_denied'){
      const count=await gh.changedFileCount(project,prNumber);
-     return fail(s.id,worker,count===0?'agent_no_changes':'agent_too_many_files');
+     if(count===0)return fail(s.id,worker,'agent_no_changes');
+     // Too big or outside the allowed paths: redone once, smaller, on its own.
+     await queueRetry(mission,'agent_too_many_files',{prNumber});
+     return fail(s.id,worker,'agent_too_many_files');
     }
-    if(error?.message==='file_policy_denied')return fail(s.id,worker,'agent_files_out_of_scope');
+    if(error?.message==='file_policy_denied'){
+     await queueRetry(mission,'agent_files_out_of_scope',{prNumber});
+     return fail(s.id,worker,'agent_files_out_of_scope');
+    }
     throw error;
    }
    const pin=await gh.trustedMain(project,config.workflowBlob);
