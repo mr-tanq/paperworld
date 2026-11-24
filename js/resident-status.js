@@ -30,7 +30,7 @@ const STALL=2*3600*1000;
 function line(m,now=Date.now()){
  // A check that found nothing to change is a finished check, not a problem.
  if(m.status==='needs_you'&&m.lastError==='agent_no_changes')return {tone:'done',text:'✓ Έλεγξε· τίποτα να αλλάξει'};
- if(ATTENTION.has(m.status))return {tone:'attention',text:'Χρειάζεται εσένα'};
+ if(ATTENTION.has(m.status))return {tone:'attention',text:'Χρειάζεται εσένα: '+topic(m)};
  const at=Date.parse(m.updatedAt||m.createdAt||'');
  if(ACTIVE.has(m.status)&&Number.isFinite(at)&&now-at>STALL)return {tone:'attention',text:'Κόλλησε: δεν προχωράει'};
  if(m.status==='verifying')return {tone:'active',text:'Ελέγχει: '+topic(m)};
@@ -43,7 +43,10 @@ const RANK={attention:3,active:2,done:1};
 function statuses(missions,now=Date.now(),dismissed=null){
  const out={};
  const hidden=dismissed instanceof Set?dismissed:new Set(Array.isArray(dismissed)?dismissed:[]);
+ // A first try the team is already redoing on its own never shows as "needs you".
+ const redone=new Set((Array.isArray(missions)?missions:[]).map(m=>m?.retryOf).filter(Boolean));
  for(const m of Array.isArray(missions)?missions:[]){
+  if(m?.id&&redone.has(m.id))continue;
   if(!m||typeof m!=='object'||!Object.hasOwn(DIRECTOR,m.projectId)||m.simulation===true)continue;
   // Items the owner removed from their lists never come back as bubbles.
   if(m.id&&hidden.has('mission:'+m.id))continue;

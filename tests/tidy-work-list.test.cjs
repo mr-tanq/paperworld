@@ -25,7 +25,7 @@ test('removing items: own rows via RLS, filtered everywhere, with undo; notes ke
  assert.match(ws,/if\(!item\.note&&item\.key&&typeof cloud\(\)\?\.dismissItem==='function'\)/);
  assert.match(ws,/Η καταγραφή μένει στο ιστορικό/);assert.match(ws,/'Αναίρεση'/);
  const hub=fs.readFileSync('js/human-first-hub.js','utf8');
- assert.match(hub,/'Δεν χρειάζεται πια'/);assert.match(hub,/dismissItem\('handoff:'\+item\.id\)/);
+ assert.match(hub,/'Όχι, δεν χρειάζεται'/);assert.match(hub,/dismissItem\('handoff:'\+item\.id\)/);
  assert.match(hub,/!removed\?\.has\?\.\(item\.kind\+':'\+item\.id\)/);
  const sql=fs.readFileSync('sql/paperworld_dismissed_items_v1.sql','utf8');
  assert.match(sql,/using \(\(select auth\.uid\(\)\)=owner_id\)/);

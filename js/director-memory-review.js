@@ -13,7 +13,7 @@
   {id:'town',name:'Matt · PAPERWORLD'},
   {id:'workshop',name:'Listening Mirror'},
   {id:'studio',name:'The Lost Wanderer'},
-  {id:'pokemon',name:'Pokémon Echoes'},
+  {id:'pokemon',name:'Pokémon: Echoes'},
   {id:'wellbeing',name:'Wellbeing · Private'}
  ]);
  const STATUS=Object.freeze(['proposed','approved','rejected','superseded']);

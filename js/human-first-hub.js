@@ -16,7 +16,7 @@
  const PR=/^https:\/\/github\.com\/mr-tanq\/concerts\/pull\/[1-9][0-9]*$/;
  const POKE_PR=/^https:\/\/github\.com\/mr-tanq\/pokemon-echoes\/pull\/[1-9][0-9]*$/;
  const POKE_FILES=new Set(['player.gd','scripts/alder_route_gate_v1.gd','scripts/battle_test_trigger.gd','scripts/inventory_manager_v1.gd','scripts/npc.gd']);
- const ROOM={town:'Paperworld',workshop:'Listening Mirror',pokemon:'Pokémon Echoes',
+ const ROOM={town:'Paperworld',workshop:'Listening Mirror',pokemon:'Pokémon: Echoes',
   studio:'The Lost Wanderer',wellbeing:'Wellbeing'};
  const MAX=30;
  const human=(text,n=500)=>String(text||'').trim().slice(0,n);
@@ -63,7 +63,7 @@
    !edit.replacement.trim()||edit.replacement.length>4000||
    !human(item.plan.summary,300))return null;
   return freeze({kind:'pokemon-proposal',id:item.jobId,jobId:item.jobId,
-   status:item.status,digest:item.digest,project:'Pokémon Echoes',
+   status:item.status,digest:item.digest,project:'Pokémon: Echoes',
    summary:human(item.plan.summary,300),createdAt:human(item.createdAt,50),
    draftUrl:item.status==='draft_created'?item.draftUrl:null,
    files:freeze([freeze({path:edit.path,before:original.lines,
@@ -92,7 +92,7 @@
     human(item.created_at,50)});
  }
  function teamHandoff(item){
-  const projectNames={listening:'Listening Mirror',pokemon:'Pokémon Echoes',
+  const projectNames={listening:'Listening Mirror',pokemon:'Pokémon: Echoes',
    studio:'The Lost Wanderer',wellbeing:'Wellbeing'};
   const directors={listening:'listening-director',pokemon:'pokemon-director',
    studio:'studio-director',wellbeing:'wellbeing-director'};
@@ -110,7 +110,7 @@
    stage:item.status==='awaiting_consent'?'planned':'diagnosed'});
  }
  function workerRun(item){
-  const projects={listening:'Listening Mirror',pokemon:'Pokémon Echoes'};
+  const projects={listening:'Listening Mirror',pokemon:'Pokémon: Echoes'};
   const directors={listening:'listening-director',pokemon:'pokemon-director'};
   const workers={listening:'listening-developer',pokemon:'pokemon-developer'};
   if(!item||!UUID.test(item.id||'')||!UUID.test(item.requestId||'')||
@@ -316,27 +316,21 @@
      'δεν ξεκινά ξανά μόνη της και χρειάζεται νέο εγκεκριμένο αίτημα.'));
    }else if(item.kind==='handoff'){
     card.append(e('p','human-hub-summary',item.status==='awaiting_consent'?
-     'Προτείνεται να ελέγξει ο βοηθός ανάπτυξης τα αρχεία του project. '+
-     'Δεν έχει ξεκινήσει· ξεκινά μόνο αν το εγκρίνεις.':
+     'Ο Developer μπορεί να το ελέγξει στον κώδικα. '+
+     'Ξεκινά μόνο αν πεις «Ναι».':
      'Ο υπεύθυνος του project έδωσε τη γνώμη του στον Matt. '+
      'Είναι συμβουλή, όχι αλλαγή.'));
     if(item.status==='awaiting_consent'&&
      ['listening-developer','pokemon-developer'].includes(item.workerId)&&
      typeof runWorker==='function'){
      const actions=e('div','human-hub-item-actions');
-     const start=button('Έγκριση ελέγχου',()=>executeWorker(item),'human-hub-yes');
+     const start=button('Ναι, έλεγξέ το',()=>executeWorker(item),'human-hub-yes');
      start.disabled=opBusy||loading;
      actions.append(start);
-     if(typeof runSourceFact==='function'){
-      // Read-only file check: no AI calls, no changes (explained in the confirm).
-      const check=button('Γρήγορος έλεγχος αρχείων',()=>executeSourceFact(item),'human-hub-no');
-      check.disabled=opBusy||loading;
-      actions.append(check);
-     }
      // A decision that is no longer relevant can be put away (record kept).
      const ui=window.PaperworldCloudUI;
      if(typeof ui?.dismissItem==='function'){
-      const drop=button('Δεν χρειάζεται πια',async()=>{
+      const drop=button('Όχι, δεν χρειάζεται',async()=>{
        if(!window.confirm('Να αφαιρεθεί αυτή η απόφαση από τη λίστα; Δεν θα ξεκινήσει κανένας έλεγχος.'))return;
        drop.disabled=true;
        try{await ui.dismissItem('handoff:'+item.id);
@@ -497,6 +491,8 @@
    const shown=current.rows.filter(item=>!removed?.has?.(item.kind+':'+item.id)).filter(item=>compact?
     item.stage==='decision'||(item.kind==='handoff'&&item.status==='awaiting_consent'):
     visible(item));
+   if(compact&&typeof document.dispatchEvent==='function'&&typeof CustomEvent==='function')
+    document.dispatchEvent(new CustomEvent('paperworld:decisions',{detail:{count:shown.length}}));
    if(compact&&!shown.length&&!error){host.hidden=true;return}
    // In the chat, decisions wait as one slim line so the conversation keeps
    // its space; tapping it opens the cards right there.

@@ -278,7 +278,7 @@ test('Everyday wording avoids internal jargon; technical detail stays collapsed'
  const visible=card.querySelectorAll('button').map(b=>b.textContent).join(' | ')+' '+
   card.querySelector('.human-hub-summary').textContent+' '+card.querySelector('.human-hub-status').textContent;
  assert.doesNotMatch(visible,/Worker|Director|AI|διερεύνηση από/);
- assert.match(visible,/Έγκριση ελέγχου/);assert.match(visible,/Περιμένει την έγκρισή σου/);
+ assert.match(visible,/Ναι, έλεγξέ το/);assert.match(visible,/Περιμένει την έγκρισή σου/);
  const hub=fs.readFileSync('js/human-first-hub.js','utf8');
  assert.match(hub,/STEP\[event\.state\]\|\|'Ενημέρωση'/);
  assert.doesNotMatch(hub,/human\(event\.state,35\)/,'raw step IDs are not shown');

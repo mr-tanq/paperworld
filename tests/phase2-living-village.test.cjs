@@ -15,7 +15,7 @@ test('bubbles come only from real missions: needs you > working > just finished'
   {projectId:'wellbeing',status:'working',goal:'Πόνος στο γόνατο',updatedAt:at(0.1)}
  ],NOW);
  assert.deepEqual(s['listening-director'],{tone:'active',text:'Δουλεύει: Διόρθωση εύρεσης συναυλιών'});
- assert.deepEqual(s['pokemon-director'],{tone:'attention',text:'Χρειάζεται εσένα'});
+ assert.deepEqual(s['pokemon-director'],{tone:'attention',text:'Χρειάζεται εσένα: Μάχες'});
  assert.equal(s['studio-director'],undefined,'finished work older than a day is not shown');
  assert.equal(s['wellbeing-director'].text,'Δουλεύει: κάτι προσωπικό','private topics never on the map');
  assert.ok(!JSON.stringify(s).includes('γόνατο'));

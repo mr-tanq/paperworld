@@ -13,6 +13,14 @@
  let latestStudioHandoff=null,latestSavedStudioDraft=null;
  let mattCachedEntries=null; // Keep visible replies while owner history refreshes.
  let mattJourneyCaption='',villageActivityText='',villageActivityLastRead=0;
+ // Matt's banner shows ONE number: stopped tasks + decisions, like the Work page.
+ let mattAttention=0,mattDecisions=0;
+ document.addEventListener('paperworld:decisions',e=>{
+  mattDecisions=Number(e.detail?.count)||0;const needs=mattAttention+mattDecisions;
+  if(!needs||openId!=='matt'||busy||mattJourneyCaption)return;
+  villageActivityText=needs===1?'Ένα θέμα περιμένει εσένα.':needs+' θέματα περιμένουν εσένα.';
+  status.textContent=villageActivityText;
+ });
  const historyCodec=()=>window.PaperworldMattHistory;
   // Short-lived conversation context for multi-turn continuity; no localStorage secrets.
   let activeMattDirector=null;
@@ -1715,7 +1723,7 @@
  const STARTERS=Object.freeze({
   matt:['Τι κάνει η ομάδα αυτή τη στιγμή;','Έχουμε πρόβλημα με ','Θέλω ένα καινούργιο τραγούδι για το The Lost Wanderer','Κάθε Δευτέρα στις 09:00 έλεγχε το Listening Mirror'],
   'listening-director':['Ποιες συναυλίες αξίζουν αυτόν τον μήνα;','Τι θυμάσαι για τις προτιμήσεις μου;'],
-  'pokemon-director':['Ποιο είναι το επόμενο βήμα για το παιχνίδι;','Τι θυμάσαι για το Pokémon Echoes;'],
+  'pokemon-director':['Ποιο είναι το επόμενο βήμα για το παιχνίδι;','Τι θυμάσαι για το Pokémon: Echoes;'],
   'studio-director':['Πάμε να γράψουμε ένα καινούργιο τραγούδι','Τι θυμάσαι για τον ήχο του The Lost Wanderer;'],
   'wellbeing-director':['Φτιάξε μου ένα ήπιο πρόγραμμα για αυτή την εβδομάδα','Πώς πάει η πρόοδός μου;']
  });
@@ -1832,9 +1840,10 @@
      if(token!==revision||openId!=='matt'||busy)return;
      const summary=window.PaperworldVillageActivity?.summary(rows);
      if(!summary)return;
-     villageActivityText=summary.attention?
-      (summary.attention===1?'Έχουμε 1 θέμα που χρειάζεται την απόφασή σου.':
-       'Έχουμε '+summary.attention+' θέματα που χρειάζονται την απόφασή σου.'):
+     mattAttention=summary.attention;
+     const needs=summary.attention+mattDecisions;
+     villageActivityText=needs?
+      (needs===1?'Ένα θέμα περιμένει εσένα.':needs+' θέματα περιμένουν εσένα.'):
       summary.active?'Η ομάδα δουλεύει σε '+summary.active+' '+(summary.active===1?'εργασία.':'εργασίες.'):
       'Πες μου τι έχεις στο μυαλό σου.';
      if(!mattJourneyCaption)status.textContent=villageActivityText;

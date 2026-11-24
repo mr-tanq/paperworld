@@ -32,7 +32,7 @@ test('Matt chat keeps its space: decisions collapse to one line there only',()=>
  assert.match(hub,/'1 απόφαση περιμένει εσένα'/);
  assert.match(fs.readFileSync('js/world-dialogue.js','utf8'),/compact:true,load:\(\)=>cloud\(\)\.loadHumanWork\(\),collapsible:true,/);
  assert.doesNotMatch(fs.readFileSync('js/workspace.js','utf8'),/collapsible:true/,'Work keeps full cards');
- assert.match(fs.readFileSync('js/world-dialogue.js','utf8'),/'Έχουμε 1 θέμα που χρειάζεται την απόφασή σου\.'/);
+ assert.match(fs.readFileSync('js/world-dialogue.js','utf8'),/needs===1\?'Ένα θέμα περιμένει εσένα\.'/);
 });
 test('empty chats offer starters that only fill the composer (never send)',()=>{
  const ui=fs.readFileSync('js/world-dialogue.js','utf8');
