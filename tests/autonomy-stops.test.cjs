@@ -74,3 +74,10 @@ test('every retryable stop gets one fresh attempt, also when a step kept errorin
  assert.equal(off.created,null,'nothing is queued while the engine is switched off');
  assert.match(src,/console\.error\(JSON\.stringify\(\{event:'dispatch_error',code:/);
 });
+test('the engine also wakes for a stopped task that can be redone (same list as the engine)',()=>{
+ const sql=fs.readFileSync('sql/paperworld_wake_for_retries_v1.sql','utf8');
+ const list=src.slice(src.indexOf('const AUTO_RETRY'),src.indexOf('const respond')).match(/'[a-z_]+'/g);
+ for(const r of list)assert.ok(sql.includes(r),'wakeup knows '+r);
+ assert.match(sql,/m\.status in \('needs_you','failed'\) and m\.updated_at>now\(\)-interval '48 hours'/);
+ assert.match(sql,/not exists\(select 1 from public\.paperworld_autonomous_missions_v5 r\s+where r\.policy->>'retryOf'=m\.id::text\)/,'never wakes twice for the same stop');
+});
