@@ -85,8 +85,8 @@ test('failed tests: one follow-up mission is planned and queued, then the origin
  assert.equal(fail.args.p_reason,'trusted_verification_failed');
  assert.ok(f.rpcs.indexOf(fail)>f.rpcs.findIndex(x=>x.name==='paperworld_v5_queue_task'));
 });
-test('a follow-up mission never retries again',async()=>{
- const f=fixture({policy:{retryOf:'99999999-9999-4999-8999-999999999999'}});
+test('the last (second) automatic retry never retries again',async()=>{
+ const f=fixture({policy:{retryOf:'99999999-9999-4999-8999-999999999999',retryDepth:2}});
  assert.equal((await f.run()).state,'needs_you');
  assert.equal(f.retry(),null);
  assert.ok(!f.rpcs.some(x=>x.name==='paperworld_v5_plan_task'));
