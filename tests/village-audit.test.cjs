@@ -13,7 +13,7 @@ test('bubbles use the planned title, never the raw "Νωρίτερα:" chat goal
 test('a check that changed nothing is shown as done, not as "needs you"; details ride along',()=>{
  const s=statuses([{id:'c',projectId:'pokemon',status:'needs_you',lastError:'agent_no_changes',title:'Έλεγχος',updatedAt:ago(1)}],NOW)['pokemon-director'];
  assert.equal(s.tone,'done');assert.match(s.text,/τίποτα να αλλάξει/);
- assert.deepEqual({...s.detail},{missionId:'c',title:'Έλεγχος',status:'needs_you',lastError:'agent_no_changes'});
+ assert.deepEqual({...s.detail},{missionId:'c',projectId:'pokemon',title:'Έλεγχος',status:'needs_you',lastError:'agent_no_changes'});
 });
 test('old or removed "needs you" items never come back as bubbles',()=>{
  const m={id:'d',projectId:'listening',status:'needs_you',lastError:'agent_files_out_of_scope',title:'x'};

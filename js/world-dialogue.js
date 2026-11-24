@@ -1921,6 +1921,21 @@
   const reason=window.PaperworldVillageActivity?.STOP_REASON?.[r.lastError]||'';
   contextNote.append(make('strong','',(r.tone==='attention'?'Σε χρειάζεται για: «':'Τελευταία εργασία: «')+r.title+'»'));
   contextNote.append(make('p','',reason||r.text));
+  // One tap: the same task goes back to the Developer. No need to explain again.
+  if(r.tone==='attention'&&r.missionId&&['listening','pokemon'].includes(r.projectId)&&
+   typeof cloud()?.redoMission==='function'){
+   const again=make('button','world-chat-context-redo','🔁 Ξαναδοκίμασε');again.type='button';
+   again.addEventListener('click',async()=>{again.disabled=true;again.textContent='Το ξαναδίνω στον Developer…';
+    try{await cloud().redoMission(r.missionId);
+     try{await cloud().dismissItem?.('mission:'+r.missionId)}catch(_){}
+     delete residentDetails[id];
+     contextNote.replaceChildren(make('strong','','✓ Το ξαναδίνω στον Developer'),
+      make('p','','«'+r.title+'»: ξεκινά από την αρχή, με όσα έμαθε. Δεν χρειάζεται να κάνεις τίποτα· θα σου πω το αποτέλεσμα.'));
+     window.PaperworldResidentFeed?.refresh?.();document.dispatchEvent(new CustomEvent('paperworld:work-changed'))}
+    catch(_){again.disabled=false;again.textContent='🔁 Ξαναδοκίμασε';
+     contextNote.append(make('p','world-chat-context-error','Δεν ξεκίνησε. Δοκίμασε ξανά σε λίγο.'))}});
+   contextNote.append(again);
+  }
   if(r.missionId&&typeof cloud()?.dismissItem==='function'){
    const clear=make('button','world-chat-context-clear','Δεν χρειάζεται πια');clear.type='button';
    clear.addEventListener('click',async()=>{clear.disabled=true;

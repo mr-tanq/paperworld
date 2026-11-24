@@ -525,7 +525,7 @@
    return result;
   }
   async function autonomousMissionAction(action,details={}){
-   if(!['create','list','status','simulate','pilot'].includes(action))throw Error('Invalid mission action');
+   if(!['create','list','status','simulate','pilot','redo'].includes(action))throw Error('Invalid mission action');
    await ensureAuth();
    const thread=await getAgentThread('matt',action==='create');
    if(!thread){
@@ -551,6 +551,13 @@
     data?.mission?.spendingAllowed!==false||data?.mission?.execution!=='not_started')
     throw Error('Unverified mission draft');
    return data.mission;
+  }
+  // "Ξαναδοκίμασε": the same stopped task goes back to the Developer (owner's tap).
+  async function redoAutonomousMission(missionId){
+   if(!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(missionId||''))throw Error('Invalid mission');
+   const data=await autonomousMissionAction('redo',{missionId});
+   if(data?.queued!==true)throw Error('Redo not confirmed');
+   return data;
   }
   async function autonomousControllerStatus(){
    const result=await autonomousMissionAction('status');
@@ -1011,7 +1018,7 @@
   return {BASE,identity,ownerId,signedIn,login,signup,signout,list,add,update,remove,
    listDismissed,dismissItem,restoreItem,listProposals,decideProposal,savePushSubscription,deletePushSubscription,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
-   createAutonomousMission,listAutonomousMissions,autonomousControllerStatus,simulateAutonomousMission,launchCopilotPilot,
+   createAutonomousMission,listAutonomousMissions,redoAutonomousMission,autonomousControllerStatus,simulateAutonomousMission,launchCopilotPilot,
    previewRoutine,listRoutines,createRoutine,changeRoutine,updateRoutine,systemHealth,
    listDirectorMemory,verifiedMemoryReviewer,reviewDirectorMemory,proposeDirectorHistory,previewImportedDirectorMemory,approveImportedDirectorMemory,agentMessages,sendAgentNote,askDirector,proposeDirectorCorrection,beginGithubLink,githubLinkStatus,askMatt,delegateMatt,delegateMattWorker,delegatePokemonWorker,sourceFactWorker,mattJobHistory,teamHandoffHistory,diagnoseMattSession,
    listListeningProposals,rejectListeningProposal,publishListeningProposal,

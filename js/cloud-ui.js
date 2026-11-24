@@ -461,6 +461,7 @@ window.PaperworldCloudUI={
  loadHumanWork,runApprovedHandoff,runApprovedSourceFact,
  createAutonomousMission:(projectId,goal)=>client.createAutonomousMission(projectId,goal),
  listAutonomousMissions:()=>client.listAutonomousMissions(),
+ redoMission:id=>client.redoAutonomousMission(id),
  listDismissed:()=>client.listDismissed(),
  dismissItem:key=>client.dismissItem(key),
  restoreItem:key=>client.restoreItem(key),
