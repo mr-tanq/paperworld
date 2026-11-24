@@ -38,7 +38,7 @@ const PEOPLE=Object.freeze({
 const ORDER=['owner','matt','listening-director','pokemon-director','studio-director','wellbeing-director'];
 const IDLE='Όλα ήσυχα από μένα.';
 function seatLines(statuses){
- const out={owner:null,matt:'Καλώς ήρθες! Ας δούμε τι κάνει η ομάδα.'};
+ const out={owner:null,matt:statuses?.matt?.text||'Καλώς ήρθες! Ας δούμε τι κάνει η ομάδα.'};
  for(const id of ORDER.slice(2))out[id]=statuses?.[id]?.text||IDLE;
  return out;
 }

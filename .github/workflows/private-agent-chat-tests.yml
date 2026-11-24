@@ -71,6 +71,7 @@ on:
       - 'tests/memory-lesson-clean.test.cjs'
       - 'tests/github-durable-link.test.cjs'
       - 'tests/initiative-watch.test.cjs'
+      - 'tests/weekly-meeting.test.cjs'
       - 'tests/initiative-proposals.test.cjs'
       - 'tests/proof-and-stall.test.cjs'
       - 'tests/village-audit.test.cjs'
@@ -218,6 +219,7 @@ jobs:
             tests/memory-lesson-clean.test.cjs \
             tests/github-durable-link.test.cjs \
             tests/initiative-watch.test.cjs \
+            tests/weekly-meeting.test.cjs \
             tests/initiative-proposals.test.cjs \
             tests/proof-and-stall.test.cjs \
             tests/village-audit.test.cjs \

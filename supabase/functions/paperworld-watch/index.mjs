@@ -18,12 +18,45 @@ const IGNORE=/paperworld|copilot|generate-supabase-migration/i;
 const NAME={listening:'Η Luna',pokemon:'Ο Joey'};
 const DIRECTOR={listening:'listening-director',pokemon:'pokemon-director'};
 const respond=(status,body)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
+const isSunday=t=>new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Amsterdam',weekday:'short'}).format(new Date(t))==='Sun';
 const amsterdamDay=t=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Amsterdam'}).format(new Date(t));
 async function uuidFrom(text){
  const b=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text))).slice(0,16);
  b[6]=(b[6]&0x0f)|0x40;b[8]=(b[8]&0x3f)|0x80;
  const h=[...b].map(x=>x.toString(16).padStart(2,'0')).join('');
  return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20);
+}
+// Weekly meeting (Sunday): Matt sums up the last 7 days from real records
+// only. An original attempt that was redone automatically is not counted as
+// "needed you" (the redo is what counts). Pure, so it is easy to test.
+function weekly(missions,proposals=0){
+ const rows=(Array.isArray(missions)?missions:[]).filter(m=>NAME[m?.project_id]);
+ const redone=new Set(rows.map(m=>m.policy?.retryOf).filter(Boolean));
+ const per={},count=k=>Object.values(per).reduce((a,p)=>a+p[k],0);
+ for(const m of rows){
+  if(redone.has(m.id))continue;
+  const p=per[m.project_id]||(per[m.project_id]={alone:0,ready:0,you:0,running:0});
+  if(m.status==='completed')p[m.report?.merged===true?'alone':'ready']++;
+  else if(m.status==='needs_you'||m.status==='failed')p.you++;
+  else if(['queued','running','working','verifying','paused_budget','planned'].includes(m.status))p.running++;
+ }
+ const initiatives=rows.filter(m=>m.policy?.initiative===true).length;
+ const part=(n,one,many)=>n===1?one:n+' '+many;
+ const lines=Object.entries(per).map(([id,p])=>{
+  const bits=[];
+  if(p.alone)bits.push(part(p.alone,'1 αλλαγή μπήκε μόνη της','αλλαγές μπήκαν μόνες τους'));
+  if(p.ready)bits.push(part(p.ready,'1 είναι έτοιμη για έλεγχο','είναι έτοιμες για έλεγχο'));
+  if(p.you)bits.push(part(p.you,'1 σταμάτησε και θέλει εσένα','σταμάτησαν και θέλουν εσένα'));
+  if(p.running)bits.push(part(p.running,'1 τρέχει ακόμα','τρέχουν ακόμα'));
+  return bits.length?NAME[id].replace(/^(Η|Ο) /,'')+': '+bits.join(', '):null;
+ }).filter(Boolean);
+ const head='Εβδομαδιαία συνάντηση στο Town Hall 🏛️ ';
+ const body=lines.length?'Οι τελευταίες 7 μέρες · '+lines.join(' · ')+'.':'Ήσυχη εβδομάδα: καμία εργασία τις τελευταίες 7 μέρες.';
+ const extra=[initiatives?'Πρωτοβουλίες της ομάδας: '+initiatives+'.':'',
+  proposals?part(proposals,'1 πρόταση περιμένει την απόφασή σου (Εργασίες).',
+   'προτάσεις περιμένουν την απόφασή σου (Εργασίες).'):''].filter(Boolean).join(' ');
+ return {text:(head+body+(extra?' '+extra:'')).slice(0,900),alone:count('alone'),you:count('you'),
+  running:count('running'),ready:count('ready'),initiatives,proposals};
 }
 // The workflows whose newest completed run on main failed.
 function failingWorkflows(runs){
@@ -105,11 +138,28 @@ function createWatcher({environment,fetcher=fetch,clock=Date.now}={}){
     text:'Πρωινός έλεγχος: '+problems.slice(0,4).join('· ')+'.'})},'resolution=ignore-duplicates,return=minimal').catch(()=>null);
   return {state:'problems',count:problems.length};
  }
+ async function weeklyMeeting(){
+  if(!isSunday(clock()))return {state:'not_sunday'};
+  const ctx=(await db('paperworld_autonomous_missions_v5?select=owner_id,thread_id&engine=eq.v1&order=created_at.desc&limit=1'))?.[0];
+  if(!ctx?.owner_id||!ctx?.thread_id)return {state:'no_owner_context'};
+  const since=new Date(clock()-7*864e5).toISOString();
+  const missions=await db('paperworld_autonomous_missions_v5?select=id,project_id,status,report,policy,created_at&engine=eq.v1'+
+   '&owner_id=eq.'+ctx.owner_id+'&created_at=gte.'+since+'&limit=200');
+  let proposals=0;
+  try{proposals=((await db('paperworld_proposals_v1?select=id&status=eq.proposed&owner_id=eq.'+ctx.owner_id+'&limit=50'))||[]).length}catch(_){}
+  const sum=weekly(missions,proposals);
+  await db('paperworld_agent_messages','POST',{id:await uuidFrom('paperworld-weekly:'+amsterdamDay(clock())),thread_id:ctx.thread_id,
+   owner_id:ctx.owner_id,role:'agent',content:PREFIX+JSON.stringify({director:'matt',kind:'notification',text:sum.text})},
+   'resolution=ignore-duplicates,return=minimal');
+  return {state:'posted',alone:sum.alone,you:sum.you};
+ }
  async function runOnce(){
   // The pause switch column may not exist yet: fall back to the basic row.
   const ctrl=(await db('paperworld_autonomous_controller_v5?select=engine,dispatch_enabled,initiatives_paused&singleton=eq.true&limit=1')
    .catch(()=>db('paperworld_autonomous_controller_v5?select=engine,dispatch_enabled&singleton=eq.true&limit=1')).catch(()=>null))?.[0];
   let checked=null;try{checked=await health()}catch(_){checked={state:'health_unavailable'}}
+  let week=null;try{week=await weeklyMeeting()}catch(_){week={state:'weekly_unavailable'}}
+  if(week?.state!=='not_sunday')checked={...checked,weekly:week};
   if(!ctrl||ctrl.engine!=='v1'||ctrl.dispatch_enabled!==true)return {state:'disabled',health:checked};
   if(ctrl.initiatives_paused===true||env('PAPERWORLD_INITIATIVES_PAUSED')==='1')return {state:'paused',health:checked};
   const since=new Date(clock()-COOLDOWN_DAYS*864e5).toISOString();
@@ -167,7 +217,7 @@ function createWatcher({environment,fetcher=fetch,clock=Date.now}={}){
  }
  return Object.freeze({handle,runOnce});
 }
-export {createWatcher,failingWorkflows,brief,amsterdamDay};
+export {createWatcher,failingWorkflows,brief,amsterdamDay,weekly,isSunday};
 if(typeof Deno!=='undefined'&&typeof Deno.serve==='function'){
  Deno.serve(createWatcher({environment:k=>Deno.env.get(k)}).handle);
 }
