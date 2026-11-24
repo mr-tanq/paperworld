@@ -20,7 +20,7 @@ function button(label,cls,handler,aria){
 const PROJECTS=Object.freeze([
  {id:'workshop',mission:'listening',hub:'Listening Mirror',name:'Listening Mirror',owner:'listening-director',
   blurb:'Ανακάλυψη συναυλιών και η εφαρμογή'},
- {id:'pokemon',mission:'pokemon',hub:'Pokémon Echoes',name:'Pokémon: Echoes',owner:'pokemon-director',
+ {id:'pokemon',mission:'pokemon',hub:'Pokémon: Echoes',name:'Pokémon: Echoes',owner:'pokemon-director',
   blurb:'Το παιχνίδι σε Godot 4'},
  {id:'studio',mission:'studio',hub:'The Lost Wanderer',name:'The Lost Wanderer',owner:'studio-director',
   blurb:'Σύνθεση και παραγωγή μουσικής'},

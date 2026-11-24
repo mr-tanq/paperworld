@@ -7,7 +7,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(){'use strict';
  const PROJECTS=[
   ['workshop','Luna · Listening Mirror'],
-  ['pokemon','Joey · Pokémon Echoes'],
+  ['pokemon','Joey · Pokémon: Echoes'],
   ['studio','Crow · The Lost Wanderer'],
   ['wellbeing','Dave · Wellbeing (private)']
  ];

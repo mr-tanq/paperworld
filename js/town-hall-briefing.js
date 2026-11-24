@@ -9,7 +9,7 @@
  const ACTORS=Object.freeze([
   {id:'matt',name:'Matt',role:'Chief of Staff',project:'Όλα τα projects'},
   {id:'listening-director',name:'Luna',role:'Director',project:'Listening Mirror'},
-  {id:'pokemon-director',name:'Joey',role:'Director',project:'Pokémon Echoes'},
+  {id:'pokemon-director',name:'Joey',role:'Director',project:'Pokémon: Echoes'},
   {id:'studio-director',name:'Crow',role:'Director',project:'The Lost Wanderer'},
   {id:'wellbeing-director',name:'Dave',role:'Director',project:'Wellbeing'}
  ]);

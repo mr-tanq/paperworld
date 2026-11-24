@@ -235,7 +235,7 @@ function renderAutonomousMissions(target){
   if(info.length)card.append(el('p',info.join(' · '),'room-footnote'));
   for(const item of summary.items.slice(0,8)){
    const line=el('article',undefined,'room-task village-progress-item');
-   line.append(el('strong',item.person+' · '+({listening:'Listening Mirror',pokemon:'Pokémon Echoes',studio:'The Lost Wanderer',wellbeing:'Wellbeing'}[item.projectId])),
+   line.append(el('strong',item.person+' · '+({listening:'Listening Mirror',pokemon:'Pokémon: Echoes',studio:'The Lost Wanderer',wellbeing:'Wellbeing'}[item.projectId])),
     el('p',item.title,'room-task-notes'),el('p',item.message,'room-footnote'));
    if(item.cause)line.append(el('p','Τι έφταιγε: '+item.cause,'room-task-notes'));
    if(item.fix)line.append(el('p','Τι αλλάξαμε: '+item.fix,'room-task-notes'));
