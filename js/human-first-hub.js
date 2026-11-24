@@ -491,7 +491,7 @@
    const shown=current.rows.filter(item=>!removed?.has?.(item.kind+':'+item.id)).filter(item=>compact?
     item.stage==='decision'||(item.kind==='handoff'&&item.status==='awaiting_consent'):
     visible(item));
-   if(compact&&typeof document.dispatchEvent==='function'&&typeof CustomEvent==='function')
+   if(compact&&collapsible&&typeof document.dispatchEvent==='function'&&typeof CustomEvent==='function')
     document.dispatchEvent(new CustomEvent('paperworld:decisions',{detail:{count:shown.length}}));
    if(compact&&!shown.length&&!error){host.hidden=true;return}
    // In the chat, decisions wait as one slim line so the conversation keeps

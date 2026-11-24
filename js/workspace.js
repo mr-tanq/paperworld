@@ -844,6 +844,11 @@ if(controls){
  if(after)after.after(gear);else controls.append(gear);
  wire(gear,'settings');
 }
+// Every top button says what it does (a short word under the icon).
+const LABELS=[['#world-talk-matt','Matt'],['.controls .team-launch','Ομάδα'],['#world-work-panel','Εργασίες'],
+ ['.controls .settings-launch','Ρυθμίσεις'],['#home','Χωριό']];
+for(const [sel,label] of LABELS){const b=document.querySelector(sel);if(b)b.dataset.label=label}
+controls?.classList.add('controls-labeled');
 document.addEventListener('paperworld:language-change',()=>{shell.lang=window.PaperworldI18n?.ui?.()||'el'});
 window.PaperworldWorkspace=Object.freeze({open,close,openMemory:id=>{if(shell.hidden)open('settings');openMemory(id)},isOpen:()=>!shell.hidden,
  view:()=>state.view,items,stats,PROJECTS});

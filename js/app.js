@@ -1057,7 +1057,14 @@ function tick(now){
  followCamera(dt,now);
  draw(now);requestAnimationFrame(tick)
 }
+// Two fingers zoom the village (phone), the wheel zooms on a computer.
+const touchPoints=new Map();let pinch=null;
+const pinchSpan=()=>{const [a,b]=[...touchPoints.values()];return {d:Math.hypot(a.x-b.x,a.y-b.y),x:(a.x+b.x)/2,y:(a.y+b.y)/2}};
+canvas.addEventListener('wheel',e=>{e.preventDefault();const p=localPoint(e);zoom(e.deltaY<0?1.1:1/1.1,p.x,p.y)},{passive:false});
 canvas.addEventListener('pointerdown',e=>{
+ touchPoints.set(e.pointerId,localPoint(e));
+ if(touchPoints.size===2&&!editingPaths&&!placingBuildings){pinch=pinchSpan();state.pointer=null;return}
+ if(pinch)return;
  const p=localPoint(e),d=placingBuildings?hitBuilding(worldPoint(p)):null;
  if(editingPaths){
   const pt=worldPoint(p);
@@ -1071,6 +1078,10 @@ canvas.addEventListener('pointerdown',e=>{
  canvas.setPointerCapture(e.pointerId);
 });
 canvas.addEventListener('pointermove',e=>{
+ if(touchPoints.has(e.pointerId))touchPoints.set(e.pointerId,localPoint(e));
+ if(pinch&&touchPoints.size===2){const now=pinchSpan();
+  if(pinch.d>10&&now.d>10)zoom(now.d/pinch.d,now.x,now.y);
+  state.x+=now.x-pinch.x;state.y+=now.y-pinch.y;pinch=now;return}
  const p=localPoint(e),v=state.pointer;if(!v)return;
  if(editingPaths&&v.path){
   const pt=worldPoint(p);
@@ -1088,6 +1099,9 @@ canvas.addEventListener('pointermove',e=>{
  v.x=p.x;v.y=p.y;
 });
 canvas.addEventListener('pointerup',e=>{
+ touchPoints.delete(e.pointerId);
+ // Lifting the fingers after a pinch is never a tap.
+ if(pinch){if(!touchPoints.size)pinch=null;state.pointer=null;return}
  const p=localPoint(e),v=state.pointer;
  if(editingPaths&&v?.path){
   const pt=worldPoint(p);pathDraft.pointerUp([pt.x,pt.y],18/state.scale);
@@ -1099,12 +1113,13 @@ canvas.addEventListener('pointerup',e=>{
  }else if(v&&!v.dragged)tap(worldPoint(p));
  state.pointer=null;
 });
-canvas.addEventListener('pointercancel',()=>{
+canvas.addEventListener('pointercancel',e=>{
+ touchPoints.delete(e.pointerId);if(!touchPoints.size)pinch=null;
  if(editingPaths&&state.pointer?.path)pathDraft.cancelPointer();
  if(placingBuildings&&state.pointer?.building&&state.pointer.dragged)saveBuildingLayout();
  state.pointer=null;
 });
-function zoom(delta){state.adjusted=true;follow.pausedUntil=performance.now()+4000;follow.cinematic=null;const cx=state.width/2,cy=state.height/2,worldX=(cx-state.x)/state.scale,worldY=(cy-state.y)/state.scale;state.scale=Math.max(state.fit*.7,Math.min(state.fit*3,state.scale*delta));state.x=cx-worldX*state.scale;state.y=cy-worldY*state.scale}
+function zoom(delta,cx=state.width/2,cy=state.height/2){state.adjusted=true;follow.pausedUntil=performance.now()+4000;follow.cinematic=null;const worldX=(cx-state.x)/state.scale,worldY=(cy-state.y)/state.scale;state.scale=Math.max(state.fit*.7,Math.min(state.fit*3,state.scale*delta));state.x=cx-worldX*state.scale;state.y=cy-worldY*state.scale}
 document.querySelector('#plus').onclick=()=>zoom(1.2);document.querySelector('#minus').onclick=()=>zoom(1/1.2);document.querySelector('#home').onclick=()=>{resetCamera();
  // Home re-frames the village, still leaving room for an open panel.
  if(workspaceFrame){workspaceFrame.x=state.x;workspaceFrame.y=state.y;workspaceFrame.scale=state.scale;
