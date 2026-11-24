@@ -26,6 +26,9 @@ const AUTO_RETRY=Object.freeze(['trusted_verification_failed','copilot_pr_missin
  'agent_files_out_of_scope','agent_too_many_files','copilot_deadline_exceeded','pr_head_changed_before_verify',
  'pr_head_moved_after_verify','pr_head_moved_after_verification','trusted_verification_timed_out',
  'effect_requires_reconciliation']);
+// How many automatic attempts came before this mission (0 = the original).
+// Up to two automatic retries: the second one is the last, smallest try.
+const retryDepth=m=>Number.isInteger(m?.policy?.retryDepth)?m.policy.retryDepth:(m?.policy?.retryOf?1:0);
 const respond=(status,body)=>new Response(JSON.stringify(body),{
  status,headers:{'content-type':'application/json','cache-control':'no-store',
  'x-content-type-options':'nosniff'}
@@ -178,7 +181,8 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
   return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20);
  }
  async function queueRetry(mission,reason,{prNumber=null,prUrl=null,runUrl=null}={}){
-  if(mission.policy?.retryOf||!AUTO_RETRY.includes(reason))
+  const depth=retryDepth(mission);
+  if(depth>=2||!AUTO_RETRY.includes(reason))
    return {state:'not_retried'};
   if(!UUID.test(mission.thread_id||'')||typeof mission.goal!=='string')return {state:'not_retried'};
   const id=await retryId(mission.id);
@@ -198,13 +202,18 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
    '\n\nPrevious attempt did not deliver a pull request. Keep the change small and deliver one.':
    '\n\nPrevious attempt stopped before it could be verified ('+reason+'). Try again: keep the change small, '+
     'finish it in one go and do not push more commits after you are done.';
-  const spec={...mission.spec,summary:(String(mission.spec.summary||'').slice(0,800-previous.length)+previous)};
+  // The third attempt is the last one: the smallest part that can pass.
+  const last=depth===1?'\n\nLAST TRY: two attempts stopped (latest: '+reason+'). Do ONLY the smallest part '+
+   'that can pass the required tests, in at most 3 files, and list what is left in the PR description.':'';
+  const tail=last||previous;
+  const spec={...mission.spec,summary:(String(mission.spec.summary||'').slice(0,800-tail.length)+tail),
+   ...(last?{maxFiles:Math.min(3,Number(mission.spec.maxFiles)||3)}:{})};
   try{
    const existing=await fetchOne('paperworld_autonomous_missions_v5',{select:'id,status',id:'eq.'+id});
    if(!existing){
     await db('paperworld_autonomous_missions_v5','POST',{id,owner_id:mission.owner_id,
      thread_id:mission.thread_id,project_id:mission.project_id,goal:mission.goal,status:'draft',
-     policy:{...(mission.policy||{}),retryOf:mission.id,retryReason:reason}});
+     policy:{...(mission.policy||{}),retryOf:mission.id,retryReason:reason,retryDepth:depth+1}});
    }else if(existing.status!=='draft'&&existing.status!=='planned')return {state:'already_queued',missionId:id};
    const now=await fetchOne('paperworld_autonomous_missions_v5',{select:'id,status',id:'eq.'+id});
    if(now?.status==='draft'&&await rpc('paperworld_v5_plan_task',{p_mission:id,p_spec:spec})!==true)
@@ -225,7 +234,7 @@ function createTaskDispatcher({environment,fetcher=fetch,clock=Date.now,batch=1,
    updated_at:'gte.'+new Date(clock()-48*3600e3).toISOString(),order:'updated_at.desc',limit:'5'}));
   let queued=0;
   for(const m of Array.isArray(rows)?rows:[]){
-   if(m.policy?.retryOf||!['listening','pokemon'].includes(m.project_id))continue;
+   if(retryDepth(m)>=2||!['listening','pokemon'].includes(m.project_id))continue;
    const r=await queueRetry(m,m.last_error);if(r.state==='retry_queued')queued++;
   }
   return queued;

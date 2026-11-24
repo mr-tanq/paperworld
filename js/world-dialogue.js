@@ -1307,7 +1307,7 @@
    // Phase 5 (owner decision): coding projects run the check on their own.
    const safety=make('p','',['listening','pokemon'].includes(plan.projectId)?
     'Τη σωστή μέρα η ομάδα θα κάνει μόνη της τον έλεγχο, θα διορθώνει ό,τι βρει '+
-     'και θα σου λέει τι έγινε, μέσα στο όριο των 5 εργασιών τη μέρα.':
+     'και θα σου λέει τι έγινε, μέσα στο όριο των 8 εργασιών τη μέρα.':
     'Τη σωστή μέρα θα σου ετοιμάζω την εργασία για έλεγχο. '+
      'Δεν ξεκινά τίποτα και δεν χρεώνεται τίποτα χωρίς εσένα.');
    const controls=make('div','world-routine-actions');

@@ -68,8 +68,15 @@ test('every retryable stop gets one fresh attempt, also when a step kept errorin
  assert.ok(f.created,'a retry mission was created');assert.equal(f.created.policy.retryOf,MID);
  assert.ok(f.calls.some(([,u])=>u.endsWith('/rpc/paperworld_v5_queue_task')));
  assert.ok(f.calls.some(([,u])=>u.includes('updated_at=gte.')),'only recent stops');
- const again=sweepFake({policy:{retryOf:'x'}});await createTaskDispatcher({environment:env,fetcher:again.fetcher}).processBatch();
- assert.equal(again.created,null,'a retry is never retried again');
+ assert.equal(f.created.policy.retryDepth,1);
+ // The first retry may get ONE more, last and smallest attempt; never a fourth.
+ const third=sweepFake({policy:{retryOf:'x'}});await createTaskDispatcher({environment:env,fetcher:third.fetcher}).processBatch();
+ assert.equal(third.created.policy.retryDepth,2);
+ const plan=third.calls.find(([,u])=>u.endsWith('/rpc/paperworld_v5_plan_task'))[2];
+ assert.match(plan.p_spec.summary,/LAST TRY: two attempts stopped \(latest: effect_requires_reconciliation\)/);
+ assert.equal(plan.p_spec.maxFiles,3);
+ const fourth=sweepFake({policy:{retryOf:'x',retryDepth:2}});await createTaskDispatcher({environment:env,fetcher:fourth.fetcher}).processBatch();
+ assert.equal(fourth.created,null,'never a fourth attempt');
  const off=sweepFake({enabled:false});await createTaskDispatcher({environment:env,fetcher:off.fetcher}).processBatch();
  assert.equal(off.created,null,'nothing is queued while the engine is switched off');
  assert.match(src,/console\.error\(JSON\.stringify\(\{event:'dispatch_error',code:/);
@@ -80,4 +87,12 @@ test('the engine also wakes for a stopped task that can be redone (same list as 
  for(const r of list)assert.ok(sql.includes(r),'wakeup knows '+r);
  assert.match(sql,/m\.status in \('needs_you','failed'\) and m\.updated_at>now\(\)-interval '48 hours'/);
  assert.match(sql,/not exists\(select 1 from public\.paperworld_autonomous_missions_v5 r\s+where r\.policy->>'retryOf'=m\.id::text\)/,'never wakes twice for the same stop');
+});
+
+test('wakeup v2 allows the third attempt but never a fourth',()=>{
+ const sql=fs.readFileSync('sql/paperworld_wake_for_retries_v2.sql','utf8');
+ assert.match(sql,/coalesce\(\(m\.policy->>'retryDepth'\)::int,case when m\.policy \? 'retryOf' then 1 else 0 end\)<2/);
+ assert.doesNotMatch(sql,/m\.policy->>'retryOf' is null/);
+ assert.match(src,/if\(depth>=2\|\|!AUTO_RETRY\.includes\(reason\)\)/);
+ assert.match(fs.readFileSync('js/world-dialogue.js','utf8'),/όριο των 8 εργασιών τη μέρα/);
 });
