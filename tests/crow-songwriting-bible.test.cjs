@@ -94,3 +94,22 @@ test('Crow knows its own Aftermath album II sound without requesting the artist 
  assert.match(direct,/forCrowHistory\(\)\+forCrow\(\)/);
  assert.match(viaMatt,/forCrowHistory\(\)\+forCrow\(\)/);
 });
+
+test('Crow recognizes albums I, II and III without inventing a second tracklist',()=>{
+ const {GUIDE}=require('../server/crow-songwriting-guide.cjs');
+ const {BIBLE}=require('../server/crow-project-bible.cjs');
+ assert.match(BIBLE,/ALBUM I \/ THE CROW AND THE LOST WANDERER/);
+ assert.match(BIBLE,/The Dead Bunny/);
+ assert.match(BIBLE,/The Lord of the Trees/);
+ assert.match(BIBLE,/ALBUM III \/ REPRISE AND THE LOST WANDERER/);
+ assert.match(BIBLE,/SAME TEN SONGS/);
+ assert.match(BIBLE,/unplugged acoustic re-arrangement/);
+ assert.match(BIBLE,/upbeat and happy, trip-hop mixed/);
+ assert.match(GUIDE,/The Aftermath is Lost Wanderer album II/);
+ assert.match(GUIDE,/Album III \(Reprise and the Lost Wanderer\)/);
+ assert.match(GUIDE,/new song does NOT have to/);
+ const direct=fs.readFileSync('server/director-direct-chat.cjs','utf8');
+ const delegated=fs.readFileSync('server/matt-delegation.cjs','utf8');
+ assert.match(direct,/forCrowHistory\(\)\+forCrow\(\)/);
+ assert.match(delegated,/forCrowHistory\(\)\+forCrow\(\)/);
+});
