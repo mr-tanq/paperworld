@@ -16,11 +16,12 @@ test('a conflicting PR is reported as merge_conflict, never merged blindly',asyn
 });
 test('engine: waits while another Developer works on the same repo; conflict → one automatic redo',()=>{
  const src=fs.readFileSync('supabase/functions/paperworld-task-dispatch/index.mjs','utf8');
- assert.match(src,/if\(await busyRepository\(mission\)\)\{/);
+ assert.match(src,/if\(await busyRepository\(mission\)&&await rpc\('paperworld_v5_defer_task_step',/);
+ assert.match(src,/p_observation:s\.output\|\|\{\}\}\)===true\)\n\s*return \{state:'waiting_for_repository'/,'a refused wait never stalls the task');
  assert.match(src,/status:'in\.\(working,verifying\)',id:'neq\.'\+mission\.id/);
  assert.match(src,/capability:'eq\.report',state:'eq\.succeeded'/);
  assert.ok(src.indexOf('busyRepository(mission)')<src.indexOf("reserve(s.id,worker,key,'start_agent')"),'checked before any session is reserved');
- assert.match(src,/\['trusted_verification_failed','copilot_pr_missing','merge_conflict'\]/);
+ assert.match(src,/\['trusted_verification_failed','copilot_pr_missing','merge_conflict',/);
  assert.match(src,/if\(merge\.reason==='merge_conflict'\)retry=await queueRetry\(mission,'merge_conflict'/);
  assert.match(src,/Redo the same change on top of the current main/);
 });
