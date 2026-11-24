@@ -18,7 +18,8 @@ const IGNORE=/paperworld|copilot|generate-supabase-migration/i;
 const NAME={listening:'Η Luna',pokemon:'Ο Joey'};
 const DIRECTOR={listening:'listening-director',pokemon:'pokemon-director'};
 const respond=(status,body)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
-const isSunday=t=>new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Amsterdam',weekday:'short'}).format(new Date(t))==='Sun';
+const weekday=t=>new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Amsterdam',weekday:'short'}).format(new Date(t));
+const isSunday=t=>weekday(t)==='Sun';
 const amsterdamDay=t=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Amsterdam'}).format(new Date(t));
 async function uuidFrom(text){
  const b=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text))).slice(0,16);
@@ -153,6 +154,24 @@ function createWatcher({environment,fetcher=fetch,clock=Date.now}={}){
    'resolution=ignore-duplicates,return=minimal');
   return {state:'posted',alone:sum.alone,you:sum.you};
  }
+ // Dave's initiative (Wednesday): a calm check-in ONLY when things the owner
+ // saved in the Wellbeing list have waited 3+ days. The phone text never names
+ // them (privacy); no AI, once per Wednesday, stopped by the pause switch.
+ async function daveCheckIn(){
+  if(weekday(clock())!=='Wed')return {state:'not_today'};
+  const ctx=(await db('paperworld_autonomous_missions_v5?select=owner_id,thread_id&engine=eq.v1&order=created_at.desc&limit=1'))?.[0];
+  if(!ctx?.owner_id||!ctx?.thread_id)return {state:'no_owner_context'};
+  const rows=await db('paperworld_tasks?select=id&owner_id=eq.'+ctx.owner_id+'&room=eq.wellbeing&status=eq.todo'+
+   '&created_at=lt.'+new Date(clock()-3*864e5).toISOString()+'&limit=50');
+  const n=Array.isArray(rows)?rows.length:0;
+  if(!n)return {state:'nothing_waiting'};
+  const text='Ο Dave ρωτάει πώς πας 🌿 '+(n===1?'Ένα πράγμα στη λίστα σου στο Wellbeing περιμένει':
+   n+' πράγματα στη λίστα σου στο Wellbeing περιμένουν')+' λίγες μέρες. Αν θες, πες του τι να κρατήσετε, τι να αλλάξετε ή τι να αφήσετε. Χωρίς πίεση.';
+  await db('paperworld_agent_messages','POST',{id:await uuidFrom('paperworld-dave-checkin:'+amsterdamDay(clock())),thread_id:ctx.thread_id,
+   owner_id:ctx.owner_id,role:'agent',content:PREFIX+JSON.stringify({director:'wellbeing-director',kind:'notification',text})},
+   'resolution=ignore-duplicates,return=minimal');
+  return {state:'posted',waiting:n};
+ }
  async function runOnce(){
   // The pause switch column may not exist yet: fall back to the basic row.
   const ctrl=(await db('paperworld_autonomous_controller_v5?select=engine,dispatch_enabled,initiatives_paused&singleton=eq.true&limit=1')
@@ -160,6 +179,10 @@ function createWatcher({environment,fetcher=fetch,clock=Date.now}={}){
   let checked=null;try{checked=await health()}catch(_){checked={state:'health_unavailable'}}
   let week=null;try{week=await weeklyMeeting()}catch(_){week={state:'weekly_unavailable'}}
   if(week?.state!=='not_sunday')checked={...checked,weekly:week};
+  if(ctrl&&ctrl.initiatives_paused!==true&&env('PAPERWORLD_INITIATIVES_PAUSED')!=='1'){
+   let dave=null;try{dave=await daveCheckIn()}catch(_){dave={state:'dave_unavailable'}}
+   if(dave?.state!=='not_today')checked={...checked,dave};
+  }
   if(!ctrl||ctrl.engine!=='v1'||ctrl.dispatch_enabled!==true)return {state:'disabled',health:checked};
   if(ctrl.initiatives_paused===true||env('PAPERWORLD_INITIATIVES_PAUSED')==='1')return {state:'paused',health:checked};
   const since=new Date(clock()-COOLDOWN_DAYS*864e5).toISOString();
@@ -217,7 +240,7 @@ function createWatcher({environment,fetcher=fetch,clock=Date.now}={}){
  }
  return Object.freeze({handle,runOnce});
 }
-export {createWatcher,failingWorkflows,brief,amsterdamDay,weekly,isSunday};
+export {createWatcher,failingWorkflows,brief,amsterdamDay,weekly,isSunday,weekday};
 if(typeof Deno!=='undefined'&&typeof Deno.serve==='function'){
  Deno.serve(createWatcher({environment:k=>Deno.env.get(k)}).handle);
 }
