@@ -31,7 +31,7 @@ function fake({claimed=true,open=[],memory=[{title:'Μάθημα',body:'κάτι
   listModels:async()=>[{id:'m',billing:{tokenPrices:{inputPrice:1,outputPrice:1,batchSize:1000}}}],
   createSession:async()=>({sendAndWait:async({prompt})=>{prompts.push(prompt);
    return {data:{content:'{"title":"Ιδέα","why":"Γιατί αξίζει.","task":"Κάνε αυτό."}'}}},disconnect:async()=>{}})});
- const api=makeInitiativeProposals({fetcher,clientFactory,secret:'x'.repeat(40),ownerId:owner,tokenFor:()=>'gho_TESTTOKEN123'});
+ const api=makeInitiativeProposals({fetcher,clientFactory,secret:'x'.repeat(40),ownerId:owner,tokenFor:()=>'gho_TESTTOKEN123',clock:()=>Date.parse('2026-11-24T08:23:00Z')});
  return {api,posts,calls,prompts};
 }
 test('one idea per Director with memory; open ideas are not repeated; Matt announces each',async()=>{
@@ -60,7 +60,7 @@ test('an idea with the same title as an earlier one is skipped',async()=>{
  const clientFactory=async()=>({start:async()=>{},stop:async()=>{},
   listModels:async()=>[{id:'m',billing:{tokenPrices:{inputPrice:1,outputPrice:1,batchSize:1000}}}],
   createSession:async()=>({sendAndWait:async()=>({data:{content:'{"title":"Ιδέα","why":"w","task":"k"}'}}),disconnect:async()=>{}})});
- const api=makeInitiativeProposals({fetcher,clientFactory,secret:'x'.repeat(40),ownerId:owner,tokenFor:()=>'gho_TESTTOKEN123'});
+ const api=makeInitiativeProposals({fetcher,clientFactory,secret:'x'.repeat(40),ownerId:owner,tokenFor:()=>'gho_TESTTOKEN123',clock:()=>Date.parse('2026-11-24T08:23:00Z')});
  const r=await api.run({token});
  assert.ok(r.body.results.every(x=>x.state==='repeat_skipped'));
  assert.ok(!calls.some(u=>u.includes('paperworld_agent_messages')),'no announcement for a repeat');
