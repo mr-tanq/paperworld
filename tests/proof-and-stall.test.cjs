@@ -19,5 +19,5 @@ test('proof: alone vs needed you, rate and median time from real records only',(
 test('wiring: settings shows the proof; the server says who started each task',()=>{
  assert.match(fs.readFileSync('js/workspace.js','utf8'),/el\('summary','','Απόδειξη αυτονομίας'/);
  assert.match(fs.readFileSync('server/v5-autonomous-mission-api.cjs','utf8'),/source:r\.policy\?\.initiative===true\?'initiative'/);
- assert.match(fs.readFileSync('index.html','utf8'),/proof\.js\?v=3-checks/);
+ assert.match(fs.readFileSync('index.html','utf8'),/proof\.js\?v=4-redone/);
 });

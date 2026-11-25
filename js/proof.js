@@ -26,7 +26,7 @@ function summary(missions,now=Date.now(),days=30){
  let rows=(Array.isArray(missions)?missions:[]).filter(m=>m&&m.simulation!==true&&
   ['listening','pokemon'].includes(m.projectId)&&Date.parse(m.createdAt)>=since);
  // A first attempt the team redid on its own is not "needed you": the redo counts.
- const redone=new Set(rows.map(m=>m.retryOf).filter(Boolean));
+ const redone=new Set(rows.flatMap(m=>[m.retryOf,m.redoOf]).filter(Boolean));
  rows=rows.filter(m=>!redone.has(m.id));
  const count=k=>rows.filter(m=>outcome(m)===k).length;
  const finished=rows.filter(m=>['alone','checked','ready','needed_you'].includes(outcome(m)));

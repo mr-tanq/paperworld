@@ -44,7 +44,7 @@ function statuses(missions,now=Date.now(),dismissed=null){
  const out={};
  const hidden=dismissed instanceof Set?dismissed:new Set(Array.isArray(dismissed)?dismissed:[]);
  // A first try the team is already redoing on its own never shows as "needs you".
- const redone=new Set((Array.isArray(missions)?missions:[]).map(m=>m?.retryOf).filter(Boolean));
+ const redone=new Set((Array.isArray(missions)?missions:[]).flatMap(m=>[m?.retryOf,m?.redoOf]).filter(Boolean));
  for(const m of Array.isArray(missions)?missions:[]){
   if(m?.id&&redone.has(m.id))continue;
   if(!m||typeof m!=='object'||!Object.hasOwn(DIRECTOR,m.projectId)||m.simulation===true)continue;

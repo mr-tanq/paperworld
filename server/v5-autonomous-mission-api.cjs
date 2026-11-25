@@ -80,6 +80,7 @@ function makeAutonomousMissionApi({fetcher=globalThis.fetch,
      source:r.policy?.initiative===true?'initiative':r.policy?.retryOf?'retry':'owner',
      // Which attempt this one redoes (id only), so the first try is not counted twice.
      retryOf:UUID.test(r.policy?.retryOf||'')?r.policy.retryOf:null,
+     redoOf:UUID.test(r.policy?.redoOf||'')?r.policy.redoOf:null,
      report:r.status==='completed'?r.report:null,
      // Stop reason code only (never free text), so the card can explain it.
      lastError:['needs_you','failed'].includes(r.status)&&/^[a-z_]{1,60}$/.test(r.last_error||'')?r.last_error:null,
