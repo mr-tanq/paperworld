@@ -16,6 +16,7 @@ function crowFake({reply=SONG,paused=false,existing=[]}={}){
   if(url.includes('paperworld_initiative_runs_v1'))return json([{token}]);
   if(url.includes('controller_v5'))return json([{initiatives_paused:paused}]);
   if(url.includes('paperworld_agent_threads'))return json([{id:url.includes('studio-director')?CROW:MATT}]);
+  if(url.includes('director_id=eq.shop-director'))return json([{id:'j1',title:'Παλιά',status:'proposed'},{id:'j2',title:'Άλλη',status:'proposed'}]);
   if(url.includes('paperworld_proposals_v1')&&m==='GET')return json(url.includes('status=eq.proposed')?[{id:'open'}]:[]);
   if(url.includes('paperworld_director_memory'))return json([{title:'Ήχος',body:'σκοτεινό folk'}]);
   if(url.includes('paperworld_agent_messages')&&m==='GET')

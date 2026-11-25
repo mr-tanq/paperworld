@@ -28,7 +28,7 @@
  const make=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e};
  const format=()=>window.PaperworldMessengerFormat;
  const AGENT_PROJECT={matt:'town','listening-director':'workshop','pokemon-director':'pokemon',
-  'studio-director':'studio','wellbeing-director':'wellbeing'};
+  'studio-director':'studio','wellbeing-director':'wellbeing','shop-director':'shop'};
  const reducedMotion=()=>window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true;
  const actions=make('div','world-talk-actions');
  const mattBtn=make('button','','M · Matt'),nearBtn=make('button','','T · Κοντινός');
@@ -1403,7 +1403,7 @@
   };
   let journeyStarted=false,journeyDirector=null;
   const directorNames={'studio-director':'τον Crow','pokemon-director':'τον Joey',
-   'listening-director':'τη Luna','wellbeing-director':'τον Dave'};
+   'listening-director':'τη Luna','wellbeing-director':'τον Dave','shop-director':'τον James'};
   const bare=id=>({'studio-director':'Crow','pokemon-director':'Joey','listening-director':'Luna'})[id];
   try{
    const result=await cloud().delegateMatt(text,{targetDirector:'auto',
@@ -1554,7 +1554,7 @@
  }
  function rememberAction(item,message){
   if(openId==='matt'||![
-    'listening-director','pokemon-director','studio-director','wellbeing-director'
+    'listening-director','pokemon-director','studio-director','wellbeing-director','shop-director'
    ].includes(openId)||typeof cloud()?.proposeDirectorCorrection!=='function'||
    !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(message?.id||''))
    return;
@@ -1725,7 +1725,8 @@
   'listening-director':['Ποιες συναυλίες αξίζουν αυτόν τον μήνα;','Τι θυμάσαι για τις προτιμήσεις μου;'],
   'pokemon-director':['Ποιο είναι το επόμενο βήμα για το παιχνίδι;','Τι θυμάσαι για το Pokémon: Echoes;'],
   'studio-director':['Πάμε να γράψουμε ένα καινούργιο τραγούδι','Τι θυμάσαι για τον ήχο του The Lost Wanderer;'],
-  'wellbeing-director':['Φτιάξε μου ένα ήπιο πρόγραμμα για αυτή την εβδομάδα','Πώς πάει η πρόοδός μου;']
+  'wellbeing-director':['Φτιάξε μου ένα ήπιο πρόγραμμα για αυτή την εβδομάδα','Πώς πάει η πρόοδός μου;'],
+  'shop-director':['Τι προϊόν θα έφτιαχνες πρώτο και γιατί;','Πώς σκοπεύεις να βγάλουμε τα πρώτα έσοδα;']
  });
  function starters(id){
   const wrap=make('div','pw-starters');wrap.setAttribute('aria-label','Ιδέες για να ξεκινήσεις');
@@ -2016,7 +2017,7 @@
    return;
   }
   const isDirector=['listening-director','pokemon-director',
-   'studio-director','wellbeing-director'].includes(id);
+   'studio-director','wellbeing-director','shop-director'].includes(id);
   if(isDirector){await submitDirector(id,text);return}
   busy=true;field.disabled=true;send.disabled=true;
   try{

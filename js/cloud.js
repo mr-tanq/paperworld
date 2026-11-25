@@ -8,7 +8,7 @@
  const BASE='https://jrevhzvrgenucuozjowm.supabase.co';
  const KEY='sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL';
  const TOKEN_STORAGE='paperworld-cloud-session-v1';
- const ROOMS=new Set(['town','workshop','pokemon','wellbeing','studio']);
+ const ROOMS=new Set(['town','workshop','pokemon','wellbeing','studio','shop']);
  function createClient({fetcher=typeof fetch==='function'?fetch.bind(globalThis):null,storage=typeof localStorage!=='undefined'?localStorage:null}={}){
   if(!fetcher)throw Error('Network API unavailable');
   let session=null;
@@ -102,7 +102,7 @@
   async function listProposals(){
    const rows=await withAuth('/rest/v1/paperworld_proposals_v1?select=id,director_id,title,why,task,created_at&status=eq.proposed&order=created_at.desc&limit=10');
    return (Array.isArray(rows)?rows:[]).filter(r=>/^[0-9a-f-]{36}$/i.test(r.id)&&
-    ['listening-director','pokemon-director','studio-director','wellbeing-director'].includes(r.director_id))
+    ['listening-director','pokemon-director','studio-director','wellbeing-director','shop-director'].includes(r.director_id))
     .map(r=>({id:r.id,directorId:r.director_id,title:String(r.title).slice(0,80),why:String(r.why).slice(0,200),task:String(r.task).slice(0,400)}));
   }
   async function decideProposal(id,accept){
@@ -317,7 +317,7 @@
    return agentStore().say(thread.id,text);
   }
   const DIRECTOR_CHATS=new Set(['listening-director','pokemon-director',
-   'studio-director','wellbeing-director']);
+   'studio-director','wellbeing-director','shop-director']);
   async function askDirector(agentId,message,{saveNote=true}={}){
    if(!DIRECTOR_CHATS.has(agentId))throw Error('Unsupported Director');
    const text=String(message||'').trim();

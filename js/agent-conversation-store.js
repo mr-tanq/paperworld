@@ -7,7 +7,7 @@
  else root.PaperworldAgentStore=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
  'use strict';
- const ALLOWED=new Set(['matt','listening-director','listening-developer','pokemon-director','wellbeing-director','studio-director']);
+ const ALLOWED=new Set(['matt','listening-director','listening-developer','pokemon-director','wellbeing-director','studio-director','shop-director']);
  const UUID=/^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i;
  function create({transport}){
   if(typeof transport!=='function')throw Error('Authenticated transport required');

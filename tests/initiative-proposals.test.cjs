@@ -16,6 +16,7 @@ function fake({claimed=true,open=[],memory=[{title:'Μάθημα',body:'κάτι
   const json=b=>({ok:true,status:200,json:async()=>b,text:async()=>JSON.stringify(b)});
   if(url.includes('paperworld_initiative_runs_v1'))return json(claimed?[{token}]:[]);
   if(url.includes('paperworld_agent_threads'))return json([{id:'44444444-4444-4444-8444-444444444444'}]);
+  if(url.includes('director_id=eq.shop-director'))return json([{id:'j1',title:'Παλιά',status:'proposed'},{id:'j2',title:'Άλλη',status:'proposed'}]);
   if(url.includes('paperworld_proposals_v1')&&m==='GET'){
    if(url.includes('status=eq.proposed'))return json(url.includes('listening')?open:[]);
    return json(url.includes('pokemon')?[{title:'Παλιά ιδέα',status:'declined'}]:[]);}

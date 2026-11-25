@@ -4,10 +4,10 @@
  * resident to talk. Read-only: never starts work, never calls AI.
  */
 (()=>{'use strict';
-const ORDER=['matt','listening-director','pokemon-director','studio-director','wellbeing-director'];
+const ORDER=['matt','listening-director','pokemon-director','studio-director','wellbeing-director','shop-director'];
 const IDLE={matt:'Είναι δίπλα σου. Πες του τι χρειάζεσαι.',
  'listening-director':'Κάνει βόλτα στο χωριό.','pokemon-director':'Κάνει βόλτα στο χωριό.',
- 'studio-director':'Κάνει βόλτα στο χωριό.','wellbeing-director':'Κάνει βόλτα στο χωριό.'};
+ 'studio-director':'Κάνει βόλτα στο χωριό.','wellbeing-director':'Κάνει βόλτα στο χωριό.','shop-director':'Ψάχνει την επόμενη καλή ιδέα για το μαγαζί.'};
 const view=document.querySelector('#view');
 if(!view)return;
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n};

@@ -12,7 +12,8 @@
     workshop:{name:'Listening Mirror',director:'listening-director'},
     pokemon:{name:'Pokémon: Echoes',director:'pokemon-director'},
     wellbeing:{name:'Wellbeing & Training',director:'wellbeing-director'},
-    studio:{name:'The Lost Wanderer',director:'studio-director'}
+    studio:{name:'The Lost Wanderer',director:'studio-director'},
+    shop:{name:'Digital Shop',director:'shop-director'}
   });
   const AGENTS=Object.freeze({
     matt:{name:'Matt',role:'chief',project:'town',reportsTo:'human',canDelegateTo:['listening-director','pokemon-director','wellbeing-director','studio-director']},
@@ -21,7 +22,8 @@
     'pokemon-director':{name:'Pokémon Director',role:'director',project:'pokemon',reportsTo:'matt',canDelegateTo:['pokemon-developer']},
     'pokemon-developer':{name:'Pokémon Developer Worker',role:'worker',project:'pokemon',reportsTo:'pokemon-director',canDelegateTo:[]},
     'wellbeing-director':{name:'Wellbeing Director',role:'director',project:'wellbeing',reportsTo:'matt',canDelegateTo:[]},
-    'studio-director':{name:'The Lost Wanderer Director',role:'director',project:'studio',reportsTo:'matt',canDelegateTo:[]}
+    'studio-director':{name:'The Lost Wanderer Director',role:'director',project:'studio',reportsTo:'matt',canDelegateTo:[]},
+    'shop-director':{name:'Digital Shop Director',role:'director',project:'shop',reportsTo:'matt',canDelegateTo:[]}
   });
   const OPERATIONS=Object.freeze(['investigate','summarize','plan','review']);
   const ID=/^[a-z0-9][a-z0-9_-]{0,63}$/;
