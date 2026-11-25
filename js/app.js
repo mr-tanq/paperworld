@@ -13,7 +13,7 @@ const defs=[
 {id:'wellbeing',name:'Wellbeing & Training Center',file:'./assets/wellbeing-training-center.png',x:1361,bottom:577,width:366,entrance:[1366,506],approach:[1240,690],desc:'Future training, nutrition, habits and progress workspace.'},
 {id:'studio',name:'The Lost Wanderer Studio',file:'./assets/lost-wanderer-studio.png',x:835,bottom:757,width:438,entrance:[872,635],approach:[835,854],desc:'Future music writing and production studio.'},
 // James's shop on the empty left plot; its door faces the path at node 48.
-{id:'shop',name:'Digital Business Studio',file:'./assets/digital-business-studio.png',x:222,bottom:362,width:226,entrance:[232,340],approach:[364,346],desc:'James: research, digital products and sales.'}
+{id:'shop',name:'Digital Business Studio',file:'./assets/digital-business-studio.png?v=2',x:215,bottom:364,width:240,entrance:[222,338],approach:[364,346],desc:'James: research, digital products and sales.'}
 ];
 // Preview-only marker offsets are local to the user's browser; no GitHub writes.
 const markerKey='paperworld-preview-010-marker-calibration-v1';
