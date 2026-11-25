@@ -26,6 +26,8 @@ const PROJECTS=Object.freeze([
   blurb:'Σύνθεση και παραγωγή μουσικής'},
  {id:'wellbeing',mission:'wellbeing',hub:'Wellbeing',name:'Wellbeing & Training',owner:'wellbeing-director',
   blurb:'Προπόνηση, διατροφή και συνήθειες'},
+ {id:'shop',mission:'shop',hub:'Digital Shop',name:'Digital Shop',owner:'shop-director',
+  blurb:'Ο James: ψηφιακά προϊόντα και έσοδα'},
  {id:'town',mission:null,hub:'Paperworld',name:'Paperworld',owner:'matt',
   blurb:'Συντονισμός και αποφάσεις για όλο το χωριό'}
 ]);
@@ -390,7 +392,7 @@ function greeting(){
 // "Ναι" hands the idea to its Director in the normal chat (they decide how:
 // Developer task, a song, a plan); "Όχι" just closes it.
 const IDEA_ASK={'listening-director':'Ναι, προχώρα: ανάθεσέ το στον Developer.','pokemon-director':'Ναι, προχώρα: ανάθεσέ το στον Developer.',
- 'studio-director':'Ναι, προχώρα: φτιάξ\' το.','wellbeing-director':'Ναι, προχώρα.'};
+ 'studio-director':'Ναι, προχώρα: φτιάξ\' το.','wellbeing-director':'Ναι, προχώρα.','shop-director':'Ναι, προχώρα.'};
 function proposalCard(p){
  const card=el('article','pw-item pw-idea');
  const head=el('div','pw-idea-head');head.append(portrait(p.directorId),el('strong','',p.title));
@@ -732,7 +734,7 @@ function renderSettings(){
 
 // ---------- Memory (native page, replaces the old memory desk) -------------
 const MEMBERS=[['matt','town'],['listening-director','workshop'],['pokemon-director','pokemon'],
- ['studio-director','studio'],['wellbeing-director','wellbeing']];
+ ['studio-director','studio'],['wellbeing-director','wellbeing'],['shop-director','shop']];
 const KIND={project_bible:'Βασικά',decision:'Απόφαση',preference:'Προτίμηση',current_state:'Κατάσταση',work_history:'Από εργασία'};
 const memberName=id=>id==='matt'?'Matt':ownerName(id);
 function openMemory(agentId){

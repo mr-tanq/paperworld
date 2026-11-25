@@ -14,11 +14,12 @@ const ABOUT=Object.freeze({
  'pokemon-director':'Το παιχνίδι Pokémon: Echoes σε Godot 4: χάρτες, μάχες και διάλογοι.',
  'studio-director':'Η μουσική του The Lost Wanderer: τραγούδια, στίχοι και Music Studio.',
  'wellbeing-director':'Προπόνηση, διατροφή και καθημερινές συνήθειες. Ιδιωτικό project.',
+ 'shop-director':'Το δικό του μαγαζί: έρευνα, ψηφιακά προϊόντα και πωλήσεις. Εσύ εγκρίνεις μία φορά την εβδομάδα.',
  'listening-developer':'Διαβάζει τον κώδικα του Listening Mirror όταν το εγκρίνεις.',
  'pokemon-developer':'Διαβάζει τα αρχεία του Pokémon: Echoes όταν το εγκρίνεις.'
 });
 const PROJECT_OF=Object.freeze({matt:'town','listening-director':'workshop',
- 'pokemon-director':'pokemon','studio-director':'studio','wellbeing-director':'wellbeing'});
+ 'pokemon-director':'pokemon','studio-director':'studio','wellbeing-director':'wellbeing','shop-director':'shop'});
 // "Ο Matt" / "η Luna": Greek articles for natural action labels.
 const article=id=>id==='listening-director'?'τη':'τον';
 function activityLine(stats){

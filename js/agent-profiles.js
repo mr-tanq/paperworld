@@ -6,6 +6,8 @@ const roster=Object.freeze({
  'pokemon-director':{name:'Joey',role:'Director',project:'Pokémon: Echoes',kind:'director',portrait:'./assets/portraits/joey.webp',sheet:'pokemon-director-walk-hq-v2.png',rect:[64,0,64,88]},
  'studio-director':{name:'Crow',role:'Director',project:'The Lost Wanderer',kind:'director',portrait:'./assets/portraits/crow.webp',sheet:'studio-director-hooded-v2.png',rect:[96,0,96,132]},
  'wellbeing-director':{name:'Dave',role:'Director',project:'Wellbeing & Training',kind:'director',portrait:'./assets/portraits/dave.webp',sheet:'wellbeing-director-walk-hq-v2.png',rect:[64,0,64,88]},
+ // James: the village trader. His own project: researching, making and selling digital products.
+ 'shop-director':{name:'James',role:'Director',project:'Digital Shop',kind:'director'},
  'listening-developer':{name:'Listening Mirror Developer',role:'Worker',project:'Listening Mirror',kind:'worker'},
  'pokemon-developer':{name:'Pokémon Developer',role:'Worker',project:'Pokémon: Echoes',kind:'worker'}
 });
