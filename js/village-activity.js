@@ -83,7 +83,10 @@ function summary(rows,{dismissed=null,now=Date.now()}={}){
   (typeof window!=='undefined'&&window.PaperworldDismissedKeys instanceof Set?window.PaperworldDismissedKeys:[]));
  const keep=r=>r&&!hidden.has('mission:'+r.id)&&!(r.status==='needs_you'&&r.lastError==='agent_no_changes')&&
   !((r.status==='needs_you'||r.status==='failed')&&Date.parse(r.updatedAt||'')<now-3*864e5);
- const visible=(Array.isArray(rows)?rows:[]).filter(keep).map(view).filter(Boolean);
+ // A first try the team already redid on its own (automatically or by the
+ // owner's "Ξαναδοκίμασε") is not something waiting for the owner.
+ const redone=new Set((Array.isArray(rows)?rows:[]).flatMap(r=>[r?.retryOf,r?.redoOf]).filter(Boolean));
+ const visible=(Array.isArray(rows)?rows:[]).filter(r=>keep(r)&&!redone.has(r.id)).map(view).filter(Boolean);
  return Object.freeze({items:visible,
   active:visible.filter(x=>x.stage==='active').length,
   attention:visible.filter(x=>x.stage==='attention').length,

@@ -75,6 +75,7 @@ on:
       - 'tests/crow-dave-initiatives.test.cjs'
       - 'tests/autonomy-stops.test.cjs'
       - 'tests/one-tap-redo.test.cjs'
+      - 'tests/redone-firsts.test.cjs'
       - 'sql/paperworld_wake_for_retries_v2.sql'
       - 'tests/initiative-proposals.test.cjs'
       - 'tests/proof-and-stall.test.cjs'
@@ -227,6 +228,7 @@ jobs:
             tests/crow-dave-initiatives.test.cjs \
             tests/autonomy-stops.test.cjs \
             tests/one-tap-redo.test.cjs \
+            tests/redone-firsts.test.cjs \
             tests/initiative-proposals.test.cjs \
             tests/proof-and-stall.test.cjs \
             tests/village-audit.test.cjs \
