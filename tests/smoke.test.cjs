@@ -399,3 +399,15 @@ test('Chief is immediately discoverable and cache-busted on tablet',()=>{
  assert.match(css,/\.chief-launch/);
 });
 
+test('installable app: icons (any + maskable), shortcuts, service worker on load',()=>{
+ const fs=require('node:fs');const m=JSON.parse(read('manifest.webmanifest'));
+ const sizes=m.icons.map(i=>i.sizes+':'+i.purpose);
+ assert.ok(sizes.includes('192x192:any')&&sizes.includes('512x512:any')&&sizes.includes('512x512:maskable'));
+ for(const i of m.icons)assert.ok(fs.existsSync(i.src.replace('./','')),i.src);
+ assert.equal(m.display,'standalone');assert.equal(m.id,'./');
+ assert.deepEqual(m.shortcuts.map(s=>s.url),['./?open=matt','./?open=work']);
+ const html=read('index.html');assert.match(html,/rel="apple-touch-icon" href="\.\/assets\/icons\/apple-touch-icon\.png"/);
+ const push=read('js/push-notify.js');assert.match(push,/serviceWorker\.register\('\.\/sw\.js',\{scope:'\.\/'\}\)\.catch/);
+ assert.match(push,/open==='work'\)root\.addEventListener\('load',\(\)=>setTimeout\(\(\)=>root\.PaperworldWorkspace\?\.open\?\.\('work'\)/);
+ assert.doesNotMatch(read('sw.js'),/addEventListener\('fetch'/,'the worker never intercepts the network');
+});

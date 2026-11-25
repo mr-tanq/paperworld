@@ -50,7 +50,13 @@ const REASONS={ios_home_screen:'Στο iPhone: πρώτα «Κοινοποίησ
 if(root.navigator?.serviceWorker?.addEventListener)root.navigator.serviceWorker.addEventListener('message',e=>{
  if(e.data?.type==='open-matt')root.PaperworldWorldDialogue?.show?.('matt')});
 // Opened from a notification (?open=matt): go straight to Matt's chat.
-try{if(root.location&&new URLSearchParams(root.location.search).get('open')==='matt')
- root.addEventListener('load',()=>setTimeout(()=>root.PaperworldWorldDialogue?.show?.('matt'),900))}catch(_){}
+// App shortcuts (long-press the PAPERWORLD icon): ?open=matt or ?open=work.
+try{const open=root.location?new URLSearchParams(root.location.search).get('open'):null;
+ if(open==='matt')root.addEventListener('load',()=>setTimeout(()=>root.PaperworldWorldDialogue?.show?.('matt'),900));
+ else if(open==='work')root.addEventListener('load',()=>setTimeout(()=>root.PaperworldWorkspace?.open?.('work'),900))}catch(_){}
+// Installable app: the (notification-only) service worker is registered on load,
+// so the phone can install PAPERWORLD like an app. It never caches or intercepts.
+try{if(root.navigator?.serviceWorker?.register&&root.addEventListener)
+ root.addEventListener('load',()=>{root.navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(()=>{})})}catch(_){}
 return Object.freeze({support,enabled,enable,disable,REASONS,PUBLIC_KEY});
 });

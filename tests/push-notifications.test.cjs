@@ -87,5 +87,5 @@ test('browser side: off by default, saved to the owner\'s own row, SQL is owner-
  assert.match(sql,/into vapid using 'paperworld_vapid_private_jwk'/);
  assert.match(sql,/if waiting=0 then return '\{"state":"idle"\}'/);
  assert.match(fs.readFileSync('js/workspace.js','utf8'),/settingRow\('Ειδοποιήσεις στο κινητό'/);
- assert.match(fs.readFileSync('index.html','utf8'),/push-notify\.js\?v=1/);
+ assert.match(fs.readFileSync('index.html','utf8'),/push-notify\.js\?v=2-app/);
 });
