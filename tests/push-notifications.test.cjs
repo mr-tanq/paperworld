@@ -80,7 +80,10 @@ test('sender claims each message once before sending and removes dead devices',a
 test('browser side: off by default, saved to the owner\'s own row, SQL is owner-only',()=>{
  const push=fs.readFileSync('js/push-notify.js','utf8'),sw=fs.readFileSync('sw.js','utf8');
  assert.match(push,/const PUBLIC_KEY='B[A-Za-z0-9_-]{86}'/);assert.doesNotMatch(push,/"d"|privateJwk/);
- assert.match(sw,/showNotification/);assert.doesNotMatch(sw,/addEventListener\('fetch'/);
+ assert.match(sw,/showNotification/);
+ // The only network interception: same-origin GET images under ./assets/ (never pages, scripts or the cloud).
+ assert.match(sw,/url\.origin===scope\.origin&&url\.pathname\.startsWith\(scope\.pathname\+'assets\/'\)&&\/\\\.\(webp\|png\|jpe\?g\)\$\/i/);
+ assert.match(sw,/if\(!isArt\(event\.request\)\)return;/);assert.doesNotMatch(sw,/supabase|onrender/);
  const sql=fs.readFileSync('sql/paperworld_push_notifications_v1.sql','utf8');
  assert.match(sql,/for insert to authenticated with check \(\(select auth\.uid\(\)\)=owner_id\)/);
  assert.match(sql,/revoke all on public\.paperworld_push_sent_v1 from public,anon,authenticated/);

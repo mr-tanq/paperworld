@@ -25,8 +25,8 @@ test('previous main entrypoint stays available under archive',()=>{
 test('promoted app uses correct root-relative assets and shares local task state with preview',()=>{
  const main=read('js/app.js'),preview=read('preview-010/app.js');
  const cloud=read('js/cloud.js'),projects=read('js/projects.js');
- assert.ok(main.includes("file:'./assets/town-hall.png'"));
- assert.ok(main.includes("file:'./assets/lost-wanderer-studio.png'"));
+ assert.ok(main.includes("file:'./assets/town-hall.webp'"));
+ assert.ok(main.includes("file:'./assets/lost-wanderer-studio.webp'"));
  assert.ok(!main.includes("../assets/"));
  assert.ok(preview.includes("../assets/"));
  assert.match(cloud,/const TOKEN_STORAGE='paperworld-cloud-session-v1'/);
@@ -409,5 +409,6 @@ test('installable app: icons (any + maskable), shortcuts, service worker on load
  const html=read('index.html');assert.match(html,/rel="apple-touch-icon" href="\.\/assets\/icons\/apple-touch-icon\.png"/);
  const push=read('js/push-notify.js');assert.match(push,/serviceWorker\.register\('\.\/sw\.js',\{scope:'\.\/'\}\)\.catch/);
  assert.match(push,/open==='work'\)root\.addEventListener\('load',\(\)=>setTimeout\(\(\)=>root\.PaperworldWorkspace\?\.open\?\.\('work'\)/);
- assert.doesNotMatch(read('sw.js'),/addEventListener\('fetch'/,'the worker never intercepts the network');
+ // The worker only keeps a local copy of the village art (fast start); everything else goes to the network.
+ assert.match(read('sw.js'),/if\(!isArt\(event\.request\)\)return;/,'only art is intercepted');
 });

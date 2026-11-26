@@ -83,7 +83,9 @@ function paintRoom(ctx,w,h){
 }
 // Warm the browser cache with the painted scene as soon as the app loads, so
 // the first meeting opens straight on it.
-try{if(root.Image&&root.document)for(const k of ['day','night']){const i=new root.Image();i.decoding='async';i.src=SCENE[k]}}catch(_){}
+// Warm only the scene for the current time, well after the village has loaded.
+try{if(root.Image&&root.document&&root.setTimeout)root.setTimeout(()=>{const k=(root.PaperworldVillageAmbience?.darkness?.()??0)>=.5?'night':'day';
+ const i=new root.Image();i.decoding='async';i.src=SCENE[k]},20000)}catch(_){}
 function create(host,{statuses=()=>({}),onTalk=null,onEnd=null,onAgenda=null,profiles=null}={}){
  if(!host)throw Error('host required');
  const doc=host.ownerDocument||root.document;

@@ -7,15 +7,15 @@ const pathEditor=window.PaperworldPathEditor;
 if(!pathEditor)throw new Error('PAPERWORLD path editor module not loaded');
 const state={width:0,height:0,dpr:1,scale:1,fit:1,x:0,y:0,pointer:null,chosen:null,walker:{x:822,y:861,direction:'down',moving:false,walkDistance:14},route:[],destination:null,depthDemo:0};
 const defs=[
-{id:'town',name:'Town Hall',file:'./assets/town-hall.png',x:594,bottom:381,width:356,entrance:[419,523],approach:[535,520],desc:'The future approval and budget hub. All operations remain disabled.'},
-{id:'workshop',name:'Listening Mirror Workshop',file:'./assets/listening-mirror-workshop.png',x:1107,bottom:399,width:358,entrance:[1165,342],approach:[1125,515],desc:'The music discovery project workspace. No real tasks are connected.'},
-{id:'pokemon',name:'Pokémon Hub',file:'./assets/pokemon-hub.png',x:338,bottom:586,width:370,entrance:[351,501],approach:[385,665],desc:'Future home of Pokémon: Echoes development.'},
-{id:'wellbeing',name:'Wellbeing & Training Center',file:'./assets/wellbeing-training-center.png',x:1361,bottom:577,width:366,entrance:[1366,506],approach:[1240,690],desc:'Future training, nutrition, habits and progress workspace.'},
-{id:'studio',name:'The Lost Wanderer Studio',file:'./assets/lost-wanderer-studio.png',x:835,bottom:757,width:438,entrance:[872,635],approach:[835,854],desc:'Future music writing and production studio.'},
+{id:'town',name:'Town Hall',file:'./assets/town-hall.webp',x:594,bottom:381,width:356,entrance:[419,523],approach:[535,520],desc:'The future approval and budget hub. All operations remain disabled.'},
+{id:'workshop',name:'Listening Mirror Workshop',file:'./assets/listening-mirror-workshop.webp',x:1107,bottom:399,width:358,entrance:[1165,342],approach:[1125,515],desc:'The music discovery project workspace. No real tasks are connected.'},
+{id:'pokemon',name:'Pokémon Hub',file:'./assets/pokemon-hub.webp',x:338,bottom:586,width:370,entrance:[351,501],approach:[385,665],desc:'Future home of Pokémon: Echoes development.'},
+{id:'wellbeing',name:'Wellbeing & Training Center',file:'./assets/wellbeing-training-center.webp',x:1361,bottom:577,width:366,entrance:[1366,506],approach:[1240,690],desc:'Future training, nutrition, habits and progress workspace.'},
+{id:'studio',name:'The Lost Wanderer Studio',file:'./assets/lost-wanderer-studio.webp',x:835,bottom:757,width:438,entrance:[872,635],approach:[835,854],desc:'Future music writing and production studio.'},
 // James's shop on the empty left plot; its door faces the path at node 48.
-{id:'shop',name:'Digital Business Studio',file:'./assets/digital-business-studio.png?v=2',x:215,bottom:364,width:240,entrance:[222,338],approach:[364,346],desc:'James: research, digital products and sales.'},
+{id:'shop',name:'Digital Business Studio',file:'./assets/digital-business-studio.webp',x:215,bottom:364,width:240,entrance:[222,338],approach:[364,346],desc:'James: research, digital products and sales.'},
 // Mike's studio on the round plot on the right; its door faces the path coming up from Wellbeing.
-{id:'markets',name:'Investment & Portfolio Studio',file:'./assets/investment-portfolio-studio.png',x:1505,bottom:345,width:220,entrance:[1454,318],approach:[1333,358],desc:'Mike: your stocks and ETFs, every day. Private, read-only.'}
+{id:'markets',name:'Investment & Portfolio Studio',file:'./assets/investment-portfolio-studio.webp',x:1505,bottom:345,width:220,entrance:[1454,318],approach:[1333,358],desc:'Mike: your stocks and ETFs, every day. Private, read-only.'}
 ];
 // Preview-only marker offsets are local to the user's browser; no GitHub writes.
 const markerKey='paperworld-preview-010-marker-calibration-v1';
@@ -616,7 +616,7 @@ window.PaperworldWorld=Object.freeze({
    .map(a=>({...a,distance:Math.hypot(a.x-state.walker.x,a.y-state.walker.y)}))
    .filter(a=>a.distance<=radius).sort((a,b)=>a.distance-b.distance)[0]||null
 });
-const scene={name:'Papercraft environment',file:'./assets/environment-010.png'};
+const scene={name:'Papercraft environment',file:'./assets/environment-010.webp'};
 function load(item){item.image=new Image();item.ready=false;item.image.onload=()=>{item.ready=true;if(item!==scene){const c=document.createElement('canvas');c.width=128;c.height=Math.max(1,Math.round(128*item.image.naturalHeight/item.image.naturalWidth));const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(item.image,0,0,c.width,c.height);item.hitMask={data:g.getImageData(0,0,c.width,c.height).data,w:c.width,h:c.height}}renderStatus()};item.image.onerror=()=>{item.ready=false;renderStatus()};item.image.src=item.file}
 [scene,...defs].forEach(load);
 function renderStatus(){assetEl.innerHTML=[scene,...defs].map(d=>'<div class="'+(d.ready?'good':'bad')+'">'+(d.ready?'✓ ':'○ ')+d.name+'</div>').join('')}
