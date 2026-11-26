@@ -106,7 +106,7 @@ test('Unavailable data fails closed: no decisions, no guessed counts or activity
 test('Team shows every Director with grounded activity and routes Workers to their Director',async()=>{
  const t=boot();t.ws.open('team');await flush();
  const names=t.shell.querySelectorAll('.pw-agent-name').map(n=>n.textContent);
- assert.deepEqual(names,['Matt','Luna','Joey','Crow','Dave','James']);
+ assert.deepEqual(names,['Matt','Luna','Joey','Crow','Dave','James','Mike']);
  const joey=t.shell.querySelector('.pw-agent-card[data-agent="pokemon-director"]');
  assert.match(joey.querySelector('.pw-agent-activity').textContent,/2 χρειάζονται εσένα/);
  const crow=t.shell.querySelector('.pw-agent-card[data-agent="studio-director"]');

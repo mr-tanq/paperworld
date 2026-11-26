@@ -8,6 +8,8 @@ const roster=Object.freeze({
  'wellbeing-director':{name:'Dave',role:'Director',project:'Wellbeing & Training',kind:'director',portrait:'./assets/portraits/dave.webp',sheet:'wellbeing-director-walk-hq-v2.png',rect:[64,0,64,88]},
  // James: the village trader. His own project: researching, making and selling digital products.
  'shop-director':{name:'James',role:'Director',project:'Digital Shop',kind:'director',portrait:'./assets/portraits/james.webp',sheet:'shop-director-walk-v1.png',rect:[0,0,64,88]},
+ // Mike: watches the owner's stocks and ETFs. Read-only, private, never advises.
+ 'markets-director':{name:'Mike',role:'Director',project:'Markets',kind:'director'},
  'listening-developer':{name:'Listening Mirror Developer',role:'Worker',project:'Listening Mirror',kind:'worker'},
  'pokemon-developer':{name:'Pokémon Developer',role:'Worker',project:'Pokémon: Echoes',kind:'worker'}
 });

@@ -3,7 +3,7 @@
  */
 'use strict';
 const UUID=/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
-const AGENTS=new Set(['listening-director','pokemon-director','studio-director','wellbeing-director','shop-director']);
+const AGENTS=new Set(['listening-director','pokemon-director','studio-director','wellbeing-director','shop-director','markets-director']);
 const BASE='https://jrevhzvrgenucuozjowm.supabase.co';
 function createDirectorReplyPersistence({fetcher=globalThis.fetch,
  secret=process.env.PAPERWORLD_SUPABASE_SERVICE_ROLE_KEY,

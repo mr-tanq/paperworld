@@ -8,7 +8,7 @@
  const BASE='https://jrevhzvrgenucuozjowm.supabase.co';
  const KEY='sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL';
  const TOKEN_STORAGE='paperworld-cloud-session-v1';
- const ROOMS=new Set(['town','workshop','pokemon','wellbeing','studio','shop']);
+ const ROOMS=new Set(['town','workshop','pokemon','wellbeing','studio','shop','markets']);
  function createClient({fetcher=typeof fetch==='function'?fetch.bind(globalThis):null,storage=typeof localStorage!=='undefined'?localStorage:null}={}){
   if(!fetcher)throw Error('Network API unavailable');
   let session=null;
@@ -118,6 +118,20 @@
    return (Array.isArray(rows)?rows:[]).filter(r=>/^[a-z0-9-]{3,60}$/.test(r.slug||'')).map(r=>({slug:r.slug,
     status:['spec','listing','listed','live','failed'].includes(r.status)?r.status:'spec',title:String(r.spec?.title||r.slug).slice(0,60),
     price:Number(r.spec?.price_eur)||null,template:String(r.spec?.template||'')}));
+  }
+  // Mike: the owner's holdings and his daily notes (owner's own rows, private).
+  async function listMikeHoldings(){
+   const rows=await withAuth('/rest/v1/paperworld_mike_holdings_v1?select=symbol,name,quantity,avg_price,currency&order=name.asc&limit=40');
+   return (Array.isArray(rows)?rows:[]).filter(r=>/^[A-Z0-9][A-Z0-9.=^-]{0,19}$/.test(r.symbol||'')).map(r=>({symbol:r.symbol,
+    name:String(r.name||r.symbol).slice(0,60),quantity:Number(r.quantity)||0,avgPrice:Number(r.avg_price)||null,
+    currency:['EUR','USD','GBP'].includes(r.currency)?r.currency:'EUR'}));
+  }
+  async function listMikeDays(){
+   const rows=await withAuth('/rest/v1/paperworld_mike_daily_v1?select=day,total_eur,change_eur,change_pct,lines&order=day.desc&limit=7');
+   return (Array.isArray(rows)?rows:[]).filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r.day)).map(r=>({day:r.day,total:Number(r.total_eur)||0,
+    change:Number(r.change_eur)||0,pct:Number(r.change_pct)||0,lines:(Array.isArray(r.lines)?r.lines:[]).slice(0,40).map(l=>({
+     symbol:String(l?.symbol||'').slice(0,20),name:String(l?.name||'').slice(0,60),pct:Number(l?.pct)||0,value:Number(l?.value)||0,
+     sinceBuy:Number.isFinite(Number(l?.sinceBuy))&&l?.sinceBuy!==null?Number(l.sinceBuy):null}))}));
   }
   // James's shop: turn an approved idea into a product (server checks it all).
   async function shopBuild(proposalId){
@@ -341,7 +355,7 @@
    return agentStore().say(thread.id,text);
   }
   const DIRECTOR_CHATS=new Set(['listening-director','pokemon-director',
-   'studio-director','wellbeing-director','shop-director']);
+   'studio-director','wellbeing-director','shop-director','markets-director']);
   async function askDirector(agentId,message,{saveNote=true}={}){
    if(!DIRECTOR_CHATS.has(agentId))throw Error('Unsupported Director');
    const text=String(message||'').trim();
@@ -1040,7 +1054,7 @@
    }
   }
   return {BASE,identity,ownerId,signedIn,login,signup,signout,list,add,update,remove,
-   listDismissed,dismissItem,restoreItem,listProposals,decideProposal,shopBuild,listShopResearch,listShopProducts,savePushSubscription,deletePushSubscription,prepareImport,importTasks,
+   listDismissed,dismissItem,restoreItem,listProposals,decideProposal,shopBuild,listShopResearch,listShopProducts,listMikeHoldings,listMikeDays,savePushSubscription,deletePushSubscription,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
    createAutonomousMission,listAutonomousMissions,redoAutonomousMission,autonomousControllerStatus,simulateAutonomousMission,launchCopilotPilot,
    previewRoutine,listRoutines,createRoutine,changeRoutine,updateRoutine,systemHealth,

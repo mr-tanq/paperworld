@@ -7,6 +7,7 @@ const {createSupabaseGuard}=require('./supabase-identity-guard.cjs');
 const {createSafeSessionConfig}=require('./matt-session-config.cjs');
 const {createApprovedDirectorMemory,formatDirectorMemory}=require('./approved-director-memory.cjs');
 const {forJames}=require('./james-shop-guide.cjs');
+const {forMike,loadPortfolio}=require('./mike-markets-guide.cjs');
 const {forCrow,currentBriefPriority}=require('./crow-songwriting-guide.cjs');
 const {forCrow:forCrowHistory}=require('./crow-project-bible.cjs');
 const {createDirectorThreadRecall}=require('./director-thread-recall.cjs');
@@ -40,7 +41,8 @@ const DIRECTORS=Object.freeze({
  'pokemon-director':{name:'Joey',project:'Pokémon Echoes'},
  'studio-director':{name:'Crow',project:'The Lost Wanderer'},
  'wellbeing-director':{name:'Wellbeing Director',project:'Wellbeing'},
- 'shop-director':{name:'James',project:'Digital Shop'}
+ 'shop-director':{name:'James',project:'Digital Shop'},
+ 'markets-director':{name:'Mike',project:'Markets'}
 });
 function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,replyPersistence,fetcher=globalThis.fetch,
  taskIntake=null,mattThreadLookup=null,
@@ -100,7 +102,7 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
    if(!approved||approved.actor!==agentId||approved.projectId!==
      (agentId==='listening-director'?'workshop':
       agentId==='pokemon-director'?'pokemon':
-      agentId==='studio-director'?'studio':agentId==='shop-director'?'shop':'wellbeing'))
+      agentId==='studio-director'?'studio':agentId==='shop-director'?'shop':agentId==='markets-director'?'markets':'wellbeing'))
     throw Error('cross_project_memory_denied');
    const context=formatDirectorMemory(approved);
    const storedHistory=await recall.load({token,ownerId,agentId,threadId:data.threadId});
@@ -150,8 +152,9 @@ function makeDirectorChat({oauth,clientFactory,guard, memoryLoader,threadRecall,
    // context + APPROVED memory only, separating known facts from inference.
    const dossier=agentId==='studio-director'?buildReferenceDossier(data.message,
     {memoryText:approved.text}).text:'';
+   const portfolio=agentId==='markets-director'?await loadPortfolio({fetcher,token}):null;
    const prompt=intro+((data.replyLanguage==='en')?'Respond in English throughout this answer, regardless of input language. ':(data.replyLanguage==='el')?'Respond in Greek throughout this answer, regardless of input language. ':'')+(agentId==='studio-director'?forCrowHistory()+forCrow():'')+
-    (agentId==='wellbeing-director'?forDave():'')+(agentId==='shop-director'?forJames():'')+
+    (agentId==='wellbeing-director'?forDave():'')+(agentId==='shop-director'?forJames():'')+(portfolio?forMike(portfolio):'')+
     context+dossier+(previous?'\nEarlier conversation (lower-trust context):\n'+
     previous:'')+'\nCurrent user message: '+data.message.trim()+
     (agentId==='studio-director'?currentBriefPriority():'');

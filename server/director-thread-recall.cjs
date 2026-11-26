@@ -3,7 +3,7 @@
  */
 'use strict';
 const ID=/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
-const AGENTS=new Set(['listening-director','pokemon-director','studio-director','wellbeing-director','shop-director']);
+const AGENTS=new Set(['listening-director','pokemon-director','studio-director','wellbeing-director','shop-director','markets-director']);
 const BASE='https://jrevhzvrgenucuozjowm.supabase.co';
 const PUBLIC_KEY='sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL';
 function createDirectorThreadRecall({fetcher,identity,baseUrl=BASE,publicKey=PUBLIC_KEY}={}){

@@ -3,9 +3,9 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const read=p=>fs.readFileSync(path.join(__dirname,'..',p),'utf8');
 const profiles=require('../js/agent-profiles.js');
 test('visual roster retains original agent IDs and approved display names',()=>{
- const expected={matt:'Matt','listening-director':'Luna','pokemon-director':'Joey','studio-director':'Crow','wellbeing-director':'Dave','shop-director':'James'};
+ const expected={matt:'Matt','listening-director':'Luna','pokemon-director':'Joey','studio-director':'Crow','wellbeing-director':'Dave','shop-director':'James','markets-director':'Mike'};
  for(const [id,name] of Object.entries(expected))assert.equal(profiles.get(id)?.name,name);
- assert.equal(profiles.entries('director').length,6);
+ assert.equal(profiles.entries('director').length,7);
  assert.equal(profiles.entries('worker').length,2);
  assert.equal(profiles.get('unknown'),null);
 });

@@ -25,7 +25,7 @@ test('Neither conversation nor execution is falsely implied',()=>{
   const h=agents.proposeHandoff({from:'listening-director',to:'listening-developer',operation:'review',request:'Review the report'});
   assert.equal(h.execution,'none');
   assert.equal(agents.agent('matt').role,'chief');
-  assert.equal(agents.roster().length,8);
+  assert.equal(agents.roster().length,9);
   assert.equal(agents.route('pokemon-director','pokemon-developer'),true);
   assert.equal(agents.route('matt','pokemon-developer'),false);
   assert.ok(Object.isFrozen(h));
