@@ -106,3 +106,12 @@ test('Work → Markets page and private tables (owner-only rows, server-only dai
  assert.match(sql,/revoke insert,update,delete on public\.paperworld_mike_daily_v1 from anon,authenticated/);
  assert.match(sql,/cron\.schedule\('paperworld-mike','37 22 \* \* 1-5'/);
 });
+test('Matt\'s chat shows James\'s, Mike\'s and Dave\'s notifications as text, never raw envelopes; their replies stay out',()=>{
+ const {decode,recover}=require('../js/matt-history.js');
+ const env=d=>'@paperworld-matt:v1:'+JSON.stringify(d);
+ for(const director of ['shop-director','markets-director','wellbeing-director'])
+  assert.deepEqual(decode(env({director,kind:'notification',text:'Γεια'})),{director,text:'Γεια',kind:'notification'});
+ assert.equal(decode(env({director:'markets-director',text:'reply'})),null,'not a notification: not accepted as Matt context');
+ const r=recover([{role:'human',content:'x'},{role:'agent',content:env({director:'shop-director',kind:'notification',text:'🛍️ Νέο προϊόν'})}]);
+ assert.equal(r.display[1].text,'🛍️ Νέο προϊόν');assert.equal(r.activeDirector,null);
+});
