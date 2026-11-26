@@ -17,10 +17,11 @@ const ROOMS=Object.freeze({
  'listening-director':Object.freeze({key:'listening',sceneDesk:[.463,.35],sceneGuest:[.733,.425],title:'Listening Mirror Workshop',desk:[.47,.41],guest:[.69,.58]}),
  'pokemon-director':Object.freeze({key:'pokemon',sceneDesk:[.446,.457],sceneGuest:[.733,.51],title:'Pokémon Hub',desk:[.425,.49],guest:[.645,.68]}),
  'studio-director':Object.freeze({key:'studio',sceneDesk:[.463,.37],sceneGuest:[.727,.48],title:'The Lost Wanderer Studio',desk:[.478,.41],guest:[.69,.58]}),
- 'wellbeing-director':Object.freeze({key:'wellbeing',sceneDesk:[.487,.38],sceneGuest:[.733,.48],title:'Wellbeing & Training Center',desk:[.487,.41],guest:[.69,.56]})
+ 'wellbeing-director':Object.freeze({key:'wellbeing',sceneDesk:[.487,.38],sceneGuest:[.733,.48],title:'Wellbeing & Training Center',desk:[.487,.41],guest:[.69,.56]}),
+ 'shop-director':Object.freeze({key:'shop',sceneDesk:[.338,.4],sceneGuest:[.83,.41],title:'Digital Business Studio',desk:[.42,.45],guest:[.88,.62]})
 });
-const PORTRAIT={'listening-director':'luna','pokemon-director':'joey','studio-director':'crow','wellbeing-director':'dave'};
-const WHO={'listening-director':'Η Luna','pokemon-director':'Ο Joey','studio-director':'Ο Crow','wellbeing-director':'Ο Dave'};
+const PORTRAIT={'listening-director':'luna','pokemon-director':'joey','studio-director':'crow','wellbeing-director':'dave','shop-director':'james'};
+const WHO={'listening-director':'Η Luna','pokemon-director':'Ο Joey','studio-director':'Ο Crow','wellbeing-director':'Ο Dave','shop-director':'Ο James'};
 const artUrl=(id,time)=>ROOMS[id]?'./assets/interiors/'+ROOMS[id].key+'-'+time+'.webp':null;
 const sceneUrl=(id,time)=>ROOMS[id]?'./assets/interiors/'+ROOMS[id].key+'-meeting-'+time+'.webp':null;
 // Same "cover" fit as the Town Hall: fill the stage but keep both chairs visible.
