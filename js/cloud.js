@@ -105,6 +105,20 @@
     ['listening-director','pokemon-director','studio-director','wellbeing-director','shop-director'].includes(r.director_id))
     .map(r=>({id:r.id,directorId:r.director_id,title:String(r.title).slice(0,80),why:String(r.why).slice(0,200),task:String(r.task).slice(0,400)}));
   }
+  // James's shop: his research journal and products (owner's own rows, read-only).
+  async function listShopResearch(){
+   const rows=await withAuth('/rest/v1/paperworld_shop_research_v1?select=day,note,confidence&order=day.desc&limit=7');
+   return (Array.isArray(rows)?rows:[]).filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r.day)&&r.note&&typeof r.note==='object').map(r=>({day:r.day,
+    confidence:Math.max(1,Math.min(5,Number(r.confidence)||1)),niche:String(r.note.niche||'').slice(0,80),product:String(r.note.product||'').slice(0,120),
+    channel:['etsy','own_shop','other'].includes(r.note.channel)?r.note.channel:'etsy',why:String(r.note.why||'').slice(0,300),
+    evidence:(Array.isArray(r.note.evidence)?r.note.evidence:[]).map(e=>String(e).slice(0,160)).slice(0,4)}));
+  }
+  async function listShopProducts(){
+   const rows=await withAuth('/rest/v1/paperworld_shop_products_v1?select=slug,status,spec,created_at&order=created_at.desc&limit=12');
+   return (Array.isArray(rows)?rows:[]).filter(r=>/^[a-z0-9-]{3,60}$/.test(r.slug||'')).map(r=>({slug:r.slug,
+    status:['spec','listing','listed','live','failed'].includes(r.status)?r.status:'spec',title:String(r.spec?.title||r.slug).slice(0,60),
+    price:Number(r.spec?.price_eur)||null,template:String(r.spec?.template||'')}));
+  }
   // James's shop: turn an approved idea into a product (server checks it all).
   async function shopBuild(proposalId){
    if(!/^[0-9a-f-]{36}$/i.test(proposalId||''))throw Error('Invalid proposal');
@@ -1026,7 +1040,7 @@
    }
   }
   return {BASE,identity,ownerId,signedIn,login,signup,signout,list,add,update,remove,
-   listDismissed,dismissItem,restoreItem,listProposals,decideProposal,shopBuild,savePushSubscription,deletePushSubscription,prepareImport,importTasks,
+   listDismissed,dismissItem,restoreItem,listProposals,decideProposal,shopBuild,listShopResearch,listShopProducts,savePushSubscription,deletePushSubscription,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
    createAutonomousMission,listAutonomousMissions,redoAutonomousMission,autonomousControllerStatus,simulateAutonomousMission,launchCopilotPilot,
    previewRoutine,listRoutines,createRoutine,changeRoutine,updateRoutine,systemHealth,

@@ -514,7 +514,35 @@ function renderProject(p){
   reviewed.map(i=>itemCard(i,{showProject:false}))));
  const done=list.filter(i=>i.bucket==='done'&&!i.note);
  if(done.length)body.append(section('Ολοκληρώθηκαν',null,done.map(i=>itemCard(i,{showProject:false}))));
+ if(p.id==='shop')body.append(...shopSections());
  body.append(notesSection(p));
+}
+// James's page: what he researched each day and where each product is.
+const SHOP_STATUS={spec:'Σχεδιάζεται',listing:'Μπαίνει στη βιτρίνα',listed:'Στη βιτρίνα · Coming soon',live:'Πωλείται',failed:'Σταμάτησε'};
+const CHANNEL={etsy:'Etsy',own_shop:'Δικό μας site',other:'Άλλη αγορά'};
+function shopSections(){
+ const ui=cloud();
+ if(typeof ui?.listShopResearch==='function'&&Date.now()-(state.shopAt||0)>60000){
+  state.shopAt=Date.now();
+  Promise.all([ui.listShopResearch().catch(()=>null),ui.listShopProducts().catch(()=>null)]).then(([r,p])=>{
+   state.shopResearch=r;state.shopProducts=p;if(state.view==='work'&&state.project==='shop')render()});
+ }
+ // Without the cloud functions (older app/server) the sections are simply empty.
+ const can=typeof ui?.listShopResearch==='function';
+ const prods=can?state.shopProducts:[],notes=can?state.shopResearch:[];
+ const shelf=prods?.length?prods.map(p=>{const row=el('article','pw-item');row.dataset.bucket=p.status==='failed'?'attention':'done';
+   row.append(el('h3','pw-item-title',p.title+(p.price?' · '+String(p.price).replace('.',',')+' €':'')),el('p','pw-item-state',SHOP_STATUS[p.status]));
+   if(['listed','live'].includes(p.status)){const a=el('a','pw-link','Δες το στη βιτρίνα');a.href='https://mr-tanq.github.io/paperworld-shop/';
+    a.target='_blank';a.rel='noopener noreferrer';const act=el('div','pw-item-actions');act.append(a);row.append(act)}
+   return row}):[empty(prods?'Κανένα προϊόν ακόμα. Ο James φτιάχνει ό,τι εγκρίνεις στις Προτάσεις.':'Φόρτωση…')];
+ const journal=notes?.length?notes.map(n=>{const c=el('article','pw-item pw-research');
+   c.append(el('p','pw-item-state',n.day+' · '+'●'.repeat(n.confidence)+'○'.repeat(5-n.confidence)+' · '+CHANNEL[n.channel]),
+    el('h3','pw-item-title',n.niche+' → '+n.product),el('p','pw-section-hint',n.why));
+   if(n.evidence.length){const d=el('details','pw-item-details');d.append(el('summary','pw-item-preview','Στοιχεία'),
+    ...n.evidence.map(e=>el('p','pw-item-full','“'+e+'”')));c.append(d)}
+   return c}):[empty(notes?'Η πρώτη έρευνα γίνεται το πρωί.':'Φόρτωση…')];
+ return [section('Τα προϊόντα του James',null,shelf,{count:prods?.length}),
+  section('Ημερολόγιο έρευνας','Τι βρίσκει κάθε μέρα και πόσο σίγουρος είναι (●○ = βεβαιότητα 1–5).',journal,{count:notes?.length})];
 }
 // Personal notes for a project (the owner's own cloud tasks).
 function notesSection(p){
