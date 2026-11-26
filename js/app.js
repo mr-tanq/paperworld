@@ -15,7 +15,7 @@ const defs=[
 // James's shop on the empty left plot; its door faces the path at node 48.
 {id:'shop',name:'Digital Business Studio',file:'./assets/digital-business-studio.webp',x:215,bottom:364,width:240,entrance:[222,338],approach:[364,346],desc:'James: research, digital products and sales.'},
 // Mike's studio on the round plot on the right; its door faces the path coming up from Wellbeing.
-{id:'markets',name:'Investment & Portfolio Studio',file:'./assets/investment-portfolio-studio.webp',x:1505,bottom:345,width:220,entrance:[1454,318],approach:[1333,358],desc:'Mike: your stocks and ETFs, every day. Private, read-only.'}
+{id:'markets',name:'Investment & Portfolio Studio',file:'./assets/investment-portfolio-studio.webp?v=style2',x:1505,bottom:345,width:220,entrance:[1454,318],approach:[1333,358],desc:'Mike: your stocks and ETFs, every day. Private, read-only.'}
 ];
 // Preview-only marker offsets are local to the user's browser; no GitHub writes.
 const markerKey='paperworld-preview-010-marker-calibration-v1';
@@ -303,11 +303,11 @@ function drawWellbeingDirectorSprite(a){
 // James (shop): the owner's walk sheet, 4 directions x 4 frames of 64x88.
 const shopDirectorVisual=new Image();
 shopDirectorVisual.decoding='async';
-shopDirectorVisual.src='./assets/shop-director-walk-v1.png';
+shopDirectorVisual.src='./assets/shop-director-walk-v1.png?v=style2';
 // Mike (markets): the owner's walk sheet, same layout as James's.
 const marketsDirectorVisual=new Image();
 marketsDirectorVisual.decoding='async';
-marketsDirectorVisual.src='./assets/markets-director-walk-v1.png';
+marketsDirectorVisual.src='./assets/markets-director-walk-v1.png?v=style2';
 function drawMarketsDirectorSprite(a){return drawSheetSprite(a,marketsDirectorVisual)}
 function drawShopDirectorSprite(a){return drawSheetSprite(a,shopDirectorVisual)}
 function drawSheetSprite(a,sheet){
