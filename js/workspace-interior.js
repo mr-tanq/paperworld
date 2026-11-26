@@ -18,10 +18,12 @@ const ROOMS=Object.freeze({
  'pokemon-director':Object.freeze({key:'pokemon',sceneDesk:[.446,.457],sceneGuest:[.733,.51],title:'Pokémon Hub',desk:[.425,.49],guest:[.645,.68]}),
  'studio-director':Object.freeze({key:'studio',sceneDesk:[.463,.37],sceneGuest:[.727,.48],title:'The Lost Wanderer Studio',desk:[.478,.41],guest:[.69,.58]}),
  'wellbeing-director':Object.freeze({key:'wellbeing',sceneDesk:[.487,.38],sceneGuest:[.733,.48],title:'Wellbeing & Training Center',desk:[.487,.41],guest:[.69,.56]}),
+ // Mike's night scene has him on the right, so night seats override the day ones.
+ 'markets-director':Object.freeze({key:'markets',sceneDesk:[.257,.31],sceneGuest:[.855,.31],sceneNight:Object.freeze({desk:[.667,.31],guest:[.144,.34]}),title:'Investment & Portfolio Studio',desk:[.55,.5],guest:[.78,.6]}),
  'shop-director':Object.freeze({key:'shop',sceneDesk:[.338,.4],sceneGuest:[.83,.41],title:'Digital Business Studio',desk:[.42,.45],guest:[.88,.62]})
 });
-const PORTRAIT={'listening-director':'luna','pokemon-director':'joey','studio-director':'crow','wellbeing-director':'dave','shop-director':'james'};
-const WHO={'listening-director':'Η Luna','pokemon-director':'Ο Joey','studio-director':'Ο Crow','wellbeing-director':'Ο Dave','shop-director':'Ο James'};
+const PORTRAIT={'listening-director':'luna','pokemon-director':'joey','studio-director':'crow','wellbeing-director':'dave','shop-director':'james','markets-director':'mike'};
+const WHO={'listening-director':'Η Luna','pokemon-director':'Ο Joey','studio-director':'Ο Crow','wellbeing-director':'Ο Dave','shop-director':'Ο James','markets-director':'Ο Mike'};
 const artUrl=(id,time)=>ROOMS[id]?'./assets/interiors/'+ROOMS[id].key+'-'+time+'.webp':null;
 const sceneUrl=(id,time)=>ROOMS[id]?'./assets/interiors/'+ROOMS[id].key+'-meeting-'+time+'.webp':null;
 // Same "cover" fit as the Town Hall: fill the stage but keep both chairs visible.
@@ -77,7 +79,8 @@ function create(host,{statuses=()=>({}),isInside=()=>false,onTalk=null,onLeave=n
  }
  function place(){
   for(const seat of seats.children){const room=ROOMS[current]||{};
-   const [fx,fy]=(painted?room[seat.dataset.seat==='desk'?'sceneDesk':'sceneGuest']:room[seat.dataset.seat])||[.5,.5];
+   const night=painted&&room.sceneNight&&isNight()?room.sceneNight[seat.dataset.seat]:null;
+   const [fx,fy]=night||(painted?room[seat.dataset.seat==='desk'?'sceneDesk':'sceneGuest']:room[seat.dataset.seat])||[.5,.5];
    seat.style.left=(rect.x+fx*rect.w)+'px';seat.style.top=(rect.y+fy*rect.h)+'px'}
  }
  function render(){

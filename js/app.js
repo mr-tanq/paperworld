@@ -13,7 +13,9 @@ const defs=[
 {id:'wellbeing',name:'Wellbeing & Training Center',file:'./assets/wellbeing-training-center.png',x:1361,bottom:577,width:366,entrance:[1366,506],approach:[1240,690],desc:'Future training, nutrition, habits and progress workspace.'},
 {id:'studio',name:'The Lost Wanderer Studio',file:'./assets/lost-wanderer-studio.png',x:835,bottom:757,width:438,entrance:[872,635],approach:[835,854],desc:'Future music writing and production studio.'},
 // James's shop on the empty left plot; its door faces the path at node 48.
-{id:'shop',name:'Digital Business Studio',file:'./assets/digital-business-studio.png?v=2',x:215,bottom:364,width:240,entrance:[222,338],approach:[364,346],desc:'James: research, digital products and sales.'}
+{id:'shop',name:'Digital Business Studio',file:'./assets/digital-business-studio.png?v=2',x:215,bottom:364,width:240,entrance:[222,338],approach:[364,346],desc:'James: research, digital products and sales.'},
+// Mike's studio on the round plot on the right; its door faces the path coming up from Wellbeing.
+{id:'markets',name:'Investment & Portfolio Studio',file:'./assets/investment-portfolio-studio.png',x:1505,bottom:345,width:220,entrance:[1454,318],approach:[1333,358],desc:'Mike: your stocks and ETFs, every day. Private, read-only.'}
 ];
 // Preview-only marker offsets are local to the user's browser; no GitHub writes.
 const markerKey='paperworld-preview-010-marker-calibration-v1';
@@ -197,7 +199,8 @@ const directorDisplayNames=Object.freeze({
  'pokemon-director':'Joey',
  'wellbeing-director':'Dave',
  'studio-director':'Crow',
- 'shop-director':'James'
+ 'shop-director':'James',
+ 'markets-director':'Mike'
 });
 function actorDisplayName(actor){
  return actor.id==='matt'?'Matt':(directorDisplayNames[actor.id]||'Director');
@@ -209,10 +212,11 @@ const homeOnPaths=Object.freeze({
  'pokemon-director':[385,665],
  'wellbeing-director':[1238,640],
  'studio-director':[822,861],
- 'shop-director':[364,346]
+ 'shop-director':[364,346],
+ 'markets-director':[1333,358]
 });
 const actors=defs.map(d=>{
- const id=({town:'matt',workshop:'listening-director',pokemon:'pokemon-director',wellbeing:'wellbeing-director',studio:'studio-director',shop:'shop-director'})[d.id];
+ const id=({town:'matt',workshop:'listening-director',pokemon:'pokemon-director',wellbeing:'wellbeing-director',studio:'studio-director',shop:'shop-director',markets:'markets-director'})[d.id];
  const [x,y]=homeOnPaths[id];
  return {id,name:d.id==='town'?'Matt':d.name+' Director',x,y};
 });
@@ -300,15 +304,21 @@ function drawWellbeingDirectorSprite(a){
 const shopDirectorVisual=new Image();
 shopDirectorVisual.decoding='async';
 shopDirectorVisual.src='./assets/shop-director-walk-v1.png';
-function drawShopDirectorSprite(a){
- if(!shopDirectorVisual.complete||shopDirectorVisual.naturalWidth!==256||shopDirectorVisual.naturalHeight!==352)return false;
+// Mike (markets): the owner's walk sheet, same layout as James's.
+const marketsDirectorVisual=new Image();
+marketsDirectorVisual.decoding='async';
+marketsDirectorVisual.src='./assets/markets-director-walk-v1.png';
+function drawMarketsDirectorSprite(a){return drawSheetSprite(a,marketsDirectorVisual)}
+function drawShopDirectorSprite(a){return drawSheetSprite(a,shopDirectorVisual)}
+function drawSheetSprite(a,sheet){
+ if(!sheet.complete||sheet.naturalWidth!==256||sheet.naturalHeight!==352)return false;
  const row={down:0,right:1,up:2,left:3}[a.direction]??0;
  const frame=a.moving?Math.floor((a.walkDistance||0)/14)%4:0;
  ctx.save();
  ctx.fillStyle='rgba(31,24,18,.28)';
  ctx.beginPath();ctx.ellipse(a.x,a.y-2,14,5,0,0,Math.PI*2);ctx.fill();
  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
- ctx.drawImage(shopDirectorVisual,frame*64,row*88,64,88,a.x-30,a.y-88+idleBob(a),60,88);
+ ctx.drawImage(sheet,frame*64,row*88,64,88,a.x-30,a.y-88+idleBob(a),60,88);
  ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
  ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=5;
  ctx.fillStyle='#fff4db';ctx.fillText(actorDisplayName(a),a.x,a.y+14);
@@ -426,6 +436,9 @@ if(wellbeingDirectorActor){
  wellbeingDirectorActor.lastVisualX=wellbeingDirectorActor.x;
  wellbeingDirectorActor.lastVisualY=wellbeingDirectorActor.y;
 }
+for(const a of actors.filter(a=>a.id==='markets-director')){
+ a.direction='down';a.moving=false;a.walkDistance=14;a.lastVisualX=a.x;a.lastVisualY=a.y;
+}
 const shopDirectorActor=actors.find(a=>a.id==='shop-director');
 if(shopDirectorActor){
  shopDirectorActor.direction='down';shopDirectorActor.moving=false;shopDirectorActor.walkDistance=14;
@@ -501,7 +514,7 @@ function followCamera(dt,now){
 const ambience=window.PaperworldVillageAmbience?.create({defs,W,H,
  reducedMotion:window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true})||null;
 const consultFx=[];
-const CHAT_PEERS=['matt','listening-director','pokemon-director','studio-director','wellbeing-director','shop-director'];
+const CHAT_PEERS=['matt','listening-director','pokemon-director','studio-director','wellbeing-director','shop-director','markets-director'];
 function drawSpeech(a,{dots=true}={},now){
  if(!a)return;
  const x=a.x,y=a.y-104,w=40,h=24;
@@ -697,7 +710,7 @@ function endFaceToFace(){
  // claim that a model is physically walking between agents.
 function startMattDirectorJourney(directorId){
  const target=actors.find(a=>a.id===directorId&&
-  ['listening-director','pokemon-director','studio-director','wellbeing-director','shop-director'].includes(a.id));
+  ['listening-director','pokemon-director','studio-director','wellbeing-director','shop-director','markets-director'].includes(a.id));
  // A chat pose gives way to a real handoff: Matt leaves the owner to go there.
  if(target&&(agentJourney.mode==='chatting'||agentJourney.mode==='approach-chat')){
   agentJourney.mode='following';agentJourney.route=[];villageLife.resume();
@@ -791,7 +804,7 @@ function inspect(d){
  // The world is the primary UI: tapping a house talks to its Director.
  // Open the work desk only on explicit user action; do not show task tabs.
  const agentIds={town:'matt',workshop:'listening-director',pokemon:'pokemon-director',
-                 wellbeing:'wellbeing-director',studio:'studio-director',shop:'shop-director'};
+                 wellbeing:'wellbeing-director',studio:'studio-director',shop:'shop-director',markets:'markets-director'};
  const id=agentIds[d.id]||'matt';
  // A Director's house opens their workspace: at the desk while they have real
  // work, an empty desk while they are out strolling.
@@ -821,7 +834,7 @@ function syncWork(){
  }
  if(workspaceRoom?.isOpen())workspaceRoom.render();
 }
-const actorHouse={'listening-director':'workshop','pokemon-director':'pokemon','wellbeing-director':'wellbeing','studio-director':'studio','shop-director':'shop'};
+const actorHouse={'listening-director':'workshop','pokemon-director':'pokemon','wellbeing-director':'wellbeing','studio-director':'studio','shop-director':'shop','markets-director':'markets'};
 function tap(p){
  if(calibrating&&state.chosen){
   state.chosen.entrance=[Math.round(Math.max(0,Math.min(W,p.x))),Math.round(Math.max(0,Math.min(H,p.y)))];
@@ -870,6 +883,7 @@ const w=state.walker;
  if(a.id==='wellbeing-director' && drawWellbeingDirectorSprite(a))return;
  if(a.id==='studio-director' && drawStudioDirectorSprite(a))return;
  if(a.id==='shop-director' && drawShopDirectorSprite(a))return;
+ if(a.id==='markets-director' && drawMarketsDirectorSprite(a))return;
  ctx.save();ctx.fillStyle='#42362999';ctx.beginPath();ctx.ellipse(a.x,a.y,13,5,0,0,Math.PI*2);ctx.fill();
  ctx.fillStyle=a.id==='matt'?'#c9a56e':'#8ca7af';ctx.beginPath();ctx.arc(a.x,a.y-24,10,0,Math.PI*2);ctx.fill();
  ctx.fillStyle='#3c4d58';ctx.fillRect(a.x-10,a.y-14,20,20);
