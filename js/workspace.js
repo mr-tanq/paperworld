@@ -560,6 +560,21 @@ function marketSections(){
    state.mikeDays=d;state.mikeHoldings=h;if(state.view==='work'&&state.project==='markets')render()});
  }
  const days=can?state.mikeDays:[],holdings=can?state.mikeHoldings:[];
+ // Live: refreshed when the page opens (at most once a minute) or on tap.
+ const getLive=()=>{state.mikeLiveAt=Date.now();state.mikeLiveBusy=true;
+  ui.mikeLive().catch(()=>null).then(l=>{state.mikeLive=l;state.mikeLiveBusy=false;if(state.view==='work'&&state.project==='markets')render()})};
+ if(typeof ui?.mikeLive==='function'&&!state.mikeLiveBusy&&Date.now()-(state.mikeLiveAt||0)>60000)getLive();
+ const lv=state.mikeLive,cur=c=>c==='EUR'?'€':c==='USD'?'$':'£';
+ const liveCard=el('article','pw-item pw-market-live');
+ if(lv?.lines){liveCard.dataset.bucket=lv.change>=0?'done':'attention';
+  const when=lv.at?new Date(lv.at).toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'}):'';
+  liveCard.append(el('p','pw-item-state',(lv.open?'Τώρα · ':'Αγορές κλειστές · ')+when),
+   el('h3','pw-item-title','€'+fmt(lv.total,0)+' · '+signed(lv.changePct)+' σήμερα ('+(lv.change>=0?'+':'−')+'€'+fmt(lv.change,0)+')'));
+  for(const l of [...lv.lines].sort((a,b)=>b.pct-a.pct))liveCard.append(el('p','pw-section-hint',l.name+': '+cur(l.currency)+fmt(l.price)+' · '+signed(l.pct)+
+   ' · €'+fmt(l.value,0)+(l.sinceBuy!==null?' · από την αγορά '+signed(l.sinceBuy):'')));
+ }else liveCard.append(el('p','pw-section-hint',state.mikeLiveBusy?'Φέρνω τις τιμές…':lv?.state==='no_holdings'?'Δεν υπάρχουν ακόμα μετοχές.':'Οι τιμές δεν ήρθαν τώρα. Πάτα «Ανανέωση».'));
+ const again=button('Ανανέωση','pw-btn-secondary',()=>{if(!state.mikeLiveBusy){getLive();render()}},'Φέρε τις τελευταίες τιμές');
+ const act=el('div','pw-item-actions');act.append(again);liveCard.append(act);
  const last=days?.[0];
  const today=last?(()=>{const c=el('article','pw-item pw-market-today');c.dataset.bucket=last.pct>=0?'done':'attention';
    c.append(el('p','pw-item-state',last.day+' · η μέρα'),el('h3','pw-item-title','€'+fmt(last.total,0)+' · '+signed(last.pct)+
@@ -573,7 +588,8 @@ function marketSections(){
    r.append(el('h3','pw-item-title',h.name),el('p','pw-item-state',fmt(h.quantity,h.quantity%1?2:0)+' τεμ.'+
     (h.avgPrice?' · αγορά '+(h.currency==='EUR'?'€':h.currency==='USD'?'$':'£')+fmt(h.avgPrice):'')+' · '+h.symbol));return r}):
   [empty(holdings?'Δεν υπάρχουν ακόμα μετοχές. Στείλε στον Mike τι έχεις.':'Φόρτωση…')];
- return [section('Πώς πήγε','Κάθε βράδυ μετά το κλείσιμο. Μόνο ενημέρωση, όχι συμβουλή.',[...today,...history],{count:days?.length}),
+ return [section('Τώρα','Τελευταίες τιμές: αμερικανικές σχεδόν άμεσα, ευρωπαϊκές με ~15 λεπτά καθυστέρηση. Μόνο ενημέρωση, όχι συμβουλή.',[liveCard]),
+  section('Πώς πήγε','Κάθε βράδυ μετά το κλείσιμο.',[...today,...history],{count:days?.length}),
   section('Τι έχεις','Ιδιωτικό: το βλέπεις μόνο εσύ (και ο Mike όταν του μιλάς).',list,{count:holdings?.length})];
 }
 // Personal notes for a project (the owner's own cloud tasks).

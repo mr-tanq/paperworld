@@ -472,6 +472,7 @@ window.PaperworldCloudUI={
  listShopProducts:()=>client.listShopProducts(),
  listMikeHoldings:()=>client.listMikeHoldings(),
  listMikeDays:()=>client.listMikeDays(),
+ mikeLive:()=>client.mikeLive(),
  savePushSubscription:sub=>client.savePushSubscription(sub),
  deletePushSubscription:endpoint=>client.deletePushSubscription(endpoint),
  preparePokemonSolution,discardPokemonSolution,
