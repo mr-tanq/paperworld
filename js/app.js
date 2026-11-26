@@ -15,7 +15,7 @@ const defs=[
 // James's shop on the empty left plot; its door faces the path at node 48.
 {id:'shop',name:'Digital Business Studio',file:'./assets/digital-business-studio.webp',x:215,bottom:364,width:240,entrance:[222,338],approach:[364,346],desc:'James: research, digital products and sales.'},
 // Mike's studio on the round plot on the right; its door faces the path coming up from Wellbeing.
-{id:'markets',name:'Investment & Portfolio Studio',file:'./assets/investment-portfolio-studio.webp?v=style2',x:1505,bottom:345,width:220,entrance:[1454,318],approach:[1333,358],desc:'Mike: your stocks and ETFs, every day. Private, read-only.'}
+{id:'markets',name:'Investment & Portfolio Studio',file:'./assets/investment-portfolio-studio.webp?v=3',x:1505,bottom:345,width:220,entrance:[1454,318],approach:[1333,358],desc:'Mike: your stocks and ETFs, every day. Private, read-only.'}
 ];
 // Preview-only marker offsets are local to the user's browser; no GitHub writes.
 const markerKey='paperworld-preview-010-marker-calibration-v1';
