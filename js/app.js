@@ -303,7 +303,7 @@ function drawWellbeingDirectorSprite(a){
 // James (shop): the owner's walk sheet, 4 directions x 4 frames of 64x88.
 const shopDirectorVisual=new Image();
 shopDirectorVisual.decoding='async';
-shopDirectorVisual.src='./assets/shop-director-walk-v1.png?v=style2';
+shopDirectorVisual.src='./assets/shop-director-walk-v2.png';
 // Mike (markets): the owner's walk sheet, same layout as James's.
 const marketsDirectorVisual=new Image();
 marketsDirectorVisual.decoding='async';
