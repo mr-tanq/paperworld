@@ -28,6 +28,7 @@ const {createDurableApprovalStore}=require('./listening-approval-store.cjs');
 const {createListeningProposalApi}=require('./listening-proposal-api.cjs');
 const {createCopilotClient}=require('./copilot-client-loader.cjs');
 const {makeInitiativeProposals}=require('./initiative-proposals.cjs');
+const {makeJamesShopBuilder}=require('./james-shop-builder.cjs');
 function response(res,status,body){
  res.writeHead(status,{'Content-Type':'application/json; charset=utf-8',
   'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
@@ -334,6 +335,25 @@ function createRenderMattServer({oauth=createGithubOAuth({
      'Vary':'Origin','X-Content-Type-Options':'nosniff'});
     res.end(JSON.stringify(result.body));return;
    }catch(_){return response(res,503,{error:'routine_api_unavailable'})}
+  }
+  // James's shop: the owner's "Ναι" on a shop idea becomes a product spec.
+  if(req.url==='/shop/build'){
+   if(req.method==='OPTIONS'&&req.headers.origin===APP_ORIGIN){
+    res.writeHead(204,{'Access-Control-Allow-Origin':APP_ORIGIN,'Access-Control-Allow-Methods':'POST, OPTIONS',
+     'Access-Control-Allow-Headers':'authorization,content-type','Vary':'Origin','Access-Control-Max-Age':'600'});res.end();return;
+   }
+   if(req.method!=='POST')return response(res,405,{error:'method_not_allowed'});
+   if(req.headers.origin!==APP_ORIGIN)return response(res,403,{error:'origin_denied'});
+   try{
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>400)return response(res,413,{error:'request_too_large'})}
+    try{await oauth?.hydrate?.()}catch(_){}
+    const credential=getChatCredential();
+    const result=await makeJamesShopBuilder({clientFactory:createCopilotClient,
+     tokenFor:({ownerId})=>credential.getLinkedToken({ownerId})}).handle({headers:req.headers,body:raw});
+    res.writeHead(result.status,{'Content-Type':'application/json; charset=utf-8','Access-Control-Allow-Origin':APP_ORIGIN,
+     'Cache-Control':'no-store','Vary':'Origin','X-Content-Type-Options':'nosniff'});
+    res.end(JSON.stringify(result.body));return;
+   }catch(_){return response(res,503,{error:'shop_builder_unavailable'})}
   }
   const missionAction={'/autonomous/missions/create':'create',
    '/autonomous/missions/list':'list',

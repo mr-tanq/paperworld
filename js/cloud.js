@@ -105,6 +105,16 @@
     ['listening-director','pokemon-director','studio-director','wellbeing-director','shop-director'].includes(r.director_id))
     .map(r=>({id:r.id,directorId:r.director_id,title:String(r.title).slice(0,80),why:String(r.why).slice(0,200),task:String(r.task).slice(0,400)}));
   }
+  // James's shop: turn an approved idea into a product (server checks it all).
+  async function shopBuild(proposalId){
+   if(!/^[0-9a-f-]{36}$/i.test(proposalId||''))throw Error('Invalid proposal');
+   await ensureAuth();
+   const r=await fetcher(MATT_ORIGIN+'/shop/build',{method:'POST',redirect:'error',
+    headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify({proposalId})});
+   let data={};try{data=await r.json()}catch(_){}
+   if(!r.ok)throw Error(data.error||'shop_build_failed');
+   return data;
+  }
   async function decideProposal(id,accept){
    if(!/^[0-9a-f-]{36}$/i.test(id||''))throw Error('Invalid proposal');
    return withAuth('/rest/v1/rpc/paperworld_decide_proposal',{method:'POST',data:{p_id:id,p_accept:accept===true}});
@@ -1016,7 +1026,7 @@
    }
   }
   return {BASE,identity,ownerId,signedIn,login,signup,signout,list,add,update,remove,
-   listDismissed,dismissItem,restoreItem,listProposals,decideProposal,savePushSubscription,deletePushSubscription,prepareImport,importTasks,
+   listDismissed,dismissItem,restoreItem,listProposals,decideProposal,shopBuild,savePushSubscription,deletePushSubscription,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
    createAutonomousMission,listAutonomousMissions,redoAutonomousMission,autonomousControllerStatus,simulateAutonomousMission,launchCopilotPilot,
    previewRoutine,listRoutines,createRoutine,changeRoutine,updateRoutine,systemHealth,
