@@ -9,7 +9,7 @@ const roster=Object.freeze({
  // James: the village trader. His own project: researching, making and selling digital products.
  'shop-director':{name:'James',role:'Director',project:'Digital Shop',kind:'director',portrait:'./assets/portraits/james.webp?v=v2',sheet:'shop-director-walk-v2.png',rect:[0,0,64,88]},
  // Mike: watches the owner's stocks and ETFs. Read-only, private, never advises.
- 'markets-director':{name:'Mike',role:'Director',project:'Markets',kind:'director',portrait:'./assets/portraits/mike.webp?v=style2',sheet:'markets-director-walk-v1.png',rect:[0,0,64,88]},
+ 'markets-director':{name:'Mike',role:'Director',project:'Markets',kind:'director',portrait:'./assets/portraits/mike.webp?v=v2',sheet:'markets-director-walk-v2.png',rect:[0,0,64,88]},
  'listening-developer':{name:'Listening Mirror Developer',role:'Worker',project:'Listening Mirror',kind:'worker'},
  'pokemon-developer':{name:'Pokémon Developer',role:'Worker',project:'Pokémon: Echoes',kind:'worker'}
 });

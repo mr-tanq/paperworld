@@ -307,7 +307,7 @@ shopDirectorVisual.src='./assets/shop-director-walk-v2.png';
 // Mike (markets): the owner's walk sheet, same layout as James's.
 const marketsDirectorVisual=new Image();
 marketsDirectorVisual.decoding='async';
-marketsDirectorVisual.src='./assets/markets-director-walk-v1.png?v=style2';
+marketsDirectorVisual.src='./assets/markets-director-walk-v2.png';
 function drawMarketsDirectorSprite(a){return drawSheetSprite(a,marketsDirectorVisual)}
 function drawShopDirectorSprite(a){return drawSheetSprite(a,shopDirectorVisual)}
 function drawSheetSprite(a,sheet){
