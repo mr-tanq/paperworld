@@ -18,13 +18,12 @@ const ROOMS=Object.freeze({
  'pokemon-director':Object.freeze({key:'pokemon',sceneDesk:[.446,.457],sceneGuest:[.733,.51],title:'Pokémon Hub',desk:[.425,.49],guest:[.645,.68]}),
  'studio-director':Object.freeze({key:'studio',sceneDesk:[.463,.37],sceneGuest:[.727,.48],title:'The Lost Wanderer Studio',desk:[.478,.41],guest:[.69,.58]}),
  'wellbeing-director':Object.freeze({key:'wellbeing',sceneDesk:[.487,.38],sceneGuest:[.733,.48],title:'Wellbeing & Training Center',desk:[.487,.41],guest:[.69,.56]}),
- // Mike's night scene has him on the right, so night seats override the day ones.
- 'markets-director':Object.freeze({key:'markets',sceneDesk:[.257,.31],sceneGuest:[.855,.31],sceneNight:Object.freeze({desk:[.667,.31],guest:[.144,.34]}),title:'Investment & Portfolio Studio',desk:[.55,.5],guest:[.78,.6]}),
+ 'markets-director':Object.freeze({key:'markets',v:'2',sceneDesk:[.2,.22],sceneGuest:[.84,.27],title:'Investment & Portfolio Studio',desk:[.17,.4],guest:[.87,.55]}),
  'shop-director':Object.freeze({key:'shop',v:'2',sceneDesk:[.23,.25],sceneGuest:[.835,.29],title:'Digital Business Studio',desk:[.42,.45],guest:[.88,.62]})
 });
 const PORTRAIT={'listening-director':'luna','pokemon-director':'joey','studio-director':'crow','wellbeing-director':'dave','shop-director':'james','markets-director':'mike'};
 const WHO={'listening-director':'Η Luna','pokemon-director':'Ο Joey','studio-director':'Ο Crow','wellbeing-director':'Ο Dave','shop-director':'Ο James','markets-director':'Ο Mike'};
-const artUrl=(id,time)=>ROOMS[id]?'./assets/interiors/'+ROOMS[id].key+'-'+time+'.webp':null;
+const artUrl=(id,time)=>ROOMS[id]?'./assets/interiors/'+ROOMS[id].key+'-'+time+'.webp'+(ROOMS[id].v?'?v='+ROOMS[id].v:''):null;
 // v: bumped when the owner sends new art, so phones that keep art locally refresh it.
 const sceneUrl=(id,time)=>ROOMS[id]?'./assets/interiors/'+ROOMS[id].key+'-meeting-'+time+'.webp'+(ROOMS[id].v?'?v='+ROOMS[id].v:''):null;
 // Same "cover" fit as the Town Hall: fill the stage but keep both chairs visible.
