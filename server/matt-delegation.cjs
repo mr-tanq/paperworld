@@ -71,6 +71,19 @@ const CAPABILITIES=Object.freeze({
   reportsTo:'matt'
  })
 });
+// When Matt cannot hand a request over (private projects are never routed
+// automatically), he says plainly who to talk to. Keyword hint only: no AI,
+// nothing from the private projects is read.
+function whoToAsk(message){
+ const t=String(message||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+ if(/μετοχ|μαικ|mike|etf|χαρτοφυλακ|degiro|επενδυ|crypto|κρυπτο|stock|portfolio|invest|μερισμ|nasdaq/.test(t))
+  return 'Για τις μετοχές και τα ETF σου μίλα κατευθείαν με τον Mike: πάτα «Ομάδα» → Mike. Είναι ιδιωτικά, γι\' αυτό δεν τα αναλαμβάνω εγώ. Τις τιμές τις βλέπεις και στις Εργασίες → Markets.';
+ if(/james|τζειμς|μαγαζ|etsy|προιον|βιτριν|shop/.test(t))
+  return 'Για το μαγαζί μίλα κατευθείαν με τον James: πάτα «Ομάδα» → James. Τα προϊόντα του είναι στις Εργασίες → Digital Shop.';
+ if(/dave|ντειβ|προπονη|γυμναστ|διατροφ|υγει|wellbeing|ασκηση/.test(t))
+  return 'Για προπόνηση και διατροφή μίλα κατευθείαν με τον Dave: πάτα «Ομάδα» → Dave. Είναι ιδιωτικά, γι\' αυτό δεν τα αναλαμβάνω εγώ.';
+ return 'Δεν κατάλαβα σε ποιον να το δώσω. Πες μου για ποιο project είναι (Luna, Joey, Crow, James, Dave ή Mike) ή μίλα κατευθείαν μαζί τους από την «Ομάδα».';
+}
 function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence=null,fetcher=globalThis.fetch,
  handoffLedger=null,taskIntake=null,teamSnapshot=null,
  budgetVerified=()=>process.env.PAPERWORLD_COPILOT_BUDGET_VERIFIED==='yes',
@@ -219,10 +232,7 @@ function makeDelegation({oauth,clientFactory,guard,memoryLoader=null,persistence
     return {status:200,body:{
      executed:true,delegated:false,directorId:null,aiTurns,
      routeMethod,routeStatus:'unresolved',
-     content:'Ο Matt δεν μπόρεσε να επιλέξει με ασφάλεια κατάλληλο Director '+
-      'για αυτό το αίτημα. Μπορείς να διαλέξεις συγκεκριμένο Project Director '+
-      'και να δοκιμάσεις ξανά, με νέα έγκριση AI χρήσης. Για το Wellbeing '+
-      'απαιτείται πάντοτε ρητή επιλογή και ειδική συναίνεση.',
+     content:whoToAsk(data.message),
      requestId:data.requestId
     }};
    // Route is model-confirmed and owner-authorized. Stream only safe stage metadata.

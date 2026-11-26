@@ -9,7 +9,12 @@ const PREFIX='@paperworld-matt:v1:';
 const QUOTES='https://query1.finance.yahoo.com/v8/finance/chart/';
 const UA={'User-Agent':'Mozilla/5.0 (compatible; paperworld-mike/1.0)',Accept:'application/json'};
 const SYMBOL=/^[A-Z0-9][A-Z0-9.=^-]{0,19}$/;
-const respond=(status,body)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
+const PUBLIC_KEY='sb_publishable_I6J83nHsrxP_URkHATH7zw_t0UEcySL';
+// The owner's app may ask for live prices from these origins only.
+const ORIGINS=new Set(['https://mr-tanq.github.io']);
+const cors=origin=>ORIGINS.has(origin)?{'access-control-allow-origin':origin,'vary':'origin',
+ 'access-control-allow-headers':'authorization, content-type, apikey','access-control-allow-methods':'POST, OPTIONS'}:{};
+const respond=(status,body,origin='')=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store',...cors(origin)}});
 const TZ='Europe/Amsterdam';
 const dayOf=t=>new Intl.DateTimeFormat('en-CA',{timeZone:TZ}).format(new Date(t));
 const weekdayOf=t=>new Intl.DateTimeFormat('en-US',{timeZone:TZ,weekday:'short'}).format(new Date(t));
@@ -117,8 +122,13 @@ function createMike({environment,fetcher=fetch,clock=Date.now}={}){
   if(!r?.ok)throw Error('database_request_failed');
   return r.status===204?null:r.json();
  }
- async function chart(symbol){
+ const recent=new Map();// symbol -> {at,chart}: live views reuse a price for 60 s
+ async function chart(symbol,{fresh=60000}={}){
   if(!SYMBOL.test(symbol))return null;
+  const hit=recent.get(symbol);if(hit&&clock()-hit.at<fresh)return hit.chart;
+  const c=await fetchChart(symbol);if(c)recent.set(symbol,{at:clock(),chart:c});return c;
+ }
+ async function fetchChart(symbol){
   try{const r=await fetcher(QUOTES+encodeURIComponent(symbol)+'?range=1mo&interval=1d',{headers:UA,redirect:'follow',signal:AbortSignal.timeout(8000)});
    return r?.ok?parseChart(await r.json()):null}catch(_){return null}
  }
@@ -155,13 +165,44 @@ function createMike({environment,fetcher=fetch,clock=Date.now}={}){
   }catch(_){results.push({state:'error'})}
   return {state:'done',results};
  }
+ // Live view for the signed-in owner: their own holdings at the latest public
+ // prices (US quotes are near real time, European exchanges about 15 min
+ // behind). Read-only, no AI, nothing saved, nothing posted.
+ async function ownerOf(token){
+  if(typeof token!=='string'||token.length<20)return null;
+  const r=await fetcher(BASE+'/auth/v1/user',{redirect:'error',signal:AbortSignal.timeout(8000),
+   headers:{apikey:PUBLIC_KEY,Authorization:'Bearer '+token}}).catch(()=>null);
+  if(!r?.ok)return null;const u=await r.json().catch(()=>null);
+  return /^[0-9a-f-]{36}$/i.test(u?.id||'')?u.id:null;
+ }
+ async function live(owner){
+  const rows=(await db('paperworld_mike_holdings_v1?select=symbol,name,quantity,avg_price,currency&owner_id=eq.'+owner+'&limit=40'))||[];
+  if(!rows.length)return {state:'no_holdings'};
+  const mine=rows.map(r=>({...r,quantity:Number(r.quantity),avg_price:r.avg_price==null?null:Number(r.avg_price)}));
+  const quotes={};for(const s of [...new Set(mine.map(r=>r.symbol))]){const c=await chart(s);if(c)quotes[s]=c}
+  const fx={};for(const [cur,sym] of [['USD','EURUSD=X'],['GBP','EURGBP=X']])
+   if(Object.values(quotes).some(q=>q.currency===cur)){const c=await chart(sym);if(c)fx[cur]=c}
+  const sum=summarize(mine,quotes,fx,new Date(clock()).toISOString().slice(0,10));
+  const r2=v=>Math.round(v*100)/100;
+  return {state:'live',at:new Date(clock()).toISOString(),total:r2(sum.total),change:r2(sum.change),changePct:r2(sum.changePct*100),
+   open:sum.traded>0,missing:sum.missing,lines:sum.lines.map(l=>({symbol:l.symbol,name:l.name,price:r2(quotes[l.symbol].bars.at(-1).close),
+    currency:quotes[l.symbol].currency,pct:r2(l.pct*100),value:r2(l.value),eur:r2(l.eur),sinceBuy:l.sinceBuy==null?null:r2(l.sinceBuy*100)}))};
+ }
  async function handle(request){
-  if(request.method!=='POST')return respond(405,{error:'method_not_allowed'});
+  const origin=request.headers.get('origin')||'';
+  if(request.method==='OPTIONS')return new Response(null,{status:204,headers:cors(origin)});
+  if(request.method!=='POST')return respond(405,{error:'method_not_allowed'},origin);
   const secret=env('PAPERWORLD_DISPATCH_TRIGGER_SECRET');
-  if(!secret||secret.length<32||!dbKey())return respond(503,{error:'credentials_unavailable'});
-  if(request.headers.get('authorization')!=='Bearer '+secret)return respond(401,{error:'unauthorized'});
+  if(!secret||secret.length<32||!dbKey())return respond(503,{error:'credentials_unavailable'},origin);
+  const auth=request.headers.get('authorization')||'';
   const body=await request.json().catch(()=>({}));
-  try{return respond(200,await runOnce({force:body?.force===true}))}catch(_){return respond(503,{error:'mike_unavailable'})}
+  if(auth==='Bearer '+secret){
+   try{return respond(200,await runOnce({force:body?.force===true}))}catch(_){return respond(503,{error:'mike_unavailable'})}
+  }
+  if(body?.live!==true)return respond(401,{error:'unauthorized'},origin);
+  const owner=await ownerOf(auth.replace(/^Bearer /,''));
+  if(!owner)return respond(401,{error:'unauthorized'},origin);
+  try{return respond(200,await live(owner),origin)}catch(_){return respond(503,{error:'prices_unavailable'},origin)}
  }
  return Object.freeze({handle,runOnce});
 }

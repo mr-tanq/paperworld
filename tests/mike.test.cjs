@@ -115,3 +115,34 @@ test('Matt\'s chat shows James\'s, Mike\'s and Dave\'s notifications as text, ne
  const r=recover([{role:'human',content:'x'},{role:'agent',content:env({director:'shop-director',kind:'notification',text:'🛍️ Νέο προϊόν'})}]);
  assert.equal(r.display[1].text,'🛍️ Νέο προϊόν');assert.equal(r.activeDirector,null);
 });
+test('Live prices: only for the signed-in owner (their own holdings), CORS for the app, no secret needed, nothing saved',async()=>{
+ const {createMike}=await load();
+ const calls=[];const t=d=>Date.parse(d+'T14:30:00Z')/1000;
+ const fetcher=async(url,opts={})=>{calls.push([url,opts.method||'GET']);
+  const ok=b=>({ok:true,status:200,json:async()=>b});
+  if(url.endsWith('/auth/v1/user'))return opts.headers.Authorization==='Bearer '+'u'.repeat(40)?ok({id:'11111111-1111-4111-8111-111111111111'}):{ok:false,status:401};
+  if(url.includes('paperworld_mike_holdings_v1'))return ok([{symbol:'VWCE.DE',name:'All-World',quantity:'10',avg_price:'140',currency:'EUR'}]);
+  if(url.includes('finance.yahoo.com'))return ok({chart:{result:[{meta:{currency:'EUR',regularMarketPrice:165,regularMarketTime:t('2026-11-26')},
+   timestamp:[t('2026-11-25'),t('2026-11-26')],indicators:{quote:[{close:[160,163]}]}}]}});
+  return {ok:false,status:500};
+ };
+ const env={PAPERWORLD_DISPATCH_TRIGGER_SECRET:'s'.repeat(40),SUPABASE_SERVICE_ROLE_KEY:'k'.repeat(40)};
+ const mike=createMike({environment:k=>env[k],fetcher,clock:()=>Date.parse('2026-11-26T20:00:00Z')});
+ const req=(tok,body={live:true})=>new Request('https://x',{method:'POST',headers:{authorization:'Bearer '+tok,origin:'https://mr-tanq.github.io'},body:JSON.stringify(body)});
+ const res=await mike.handle(req('u'.repeat(40)));const d=await res.json();
+ assert.equal(res.status,200);assert.equal(res.headers.get('access-control-allow-origin'),'https://mr-tanq.github.io');
+ assert.equal(d.state,'live');assert.equal(d.total,1650);assert.equal(d.change,50);assert.equal(d.lines[0].price,165);
+ assert.ok(calls.some(c=>c[0].includes('owner_id=eq.11111111-1111-4111-8111-111111111111')),'only that owner\'s holdings');
+ assert.ok(!calls.some(c=>c[1]==='POST'),'nothing written or posted');
+ assert.equal((await mike.handle(req('bad'))).status,401);
+ assert.equal((await mike.handle(req('u'.repeat(40),{}))).status,401,'without live:true only the cron secret works');
+ const pre=await mike.handle(new Request('https://x',{method:'OPTIONS',headers:{origin:'https://evil.example'}}));
+ assert.equal(pre.headers.get('access-control-allow-origin'),null);
+ const ws=fs.readFileSync('js/workspace.js','utf8');assert.match(ws,/section\('Τώρα'/);assert.match(ws,/button\('Ανανέωση'/);
+});
+test('Matt points the owner to Mike, James or Dave when he cannot route (private projects are never auto-routed)',()=>{
+ const src=fs.readFileSync('server/matt-delegation.cjs','utf8');
+ assert.match(src,/content:whoToAsk\(data\.message\),/);
+ assert.match(src,/Για τις μετοχές και τα ETF σου μίλα κατευθείαν με τον Mike: πάτα «Ομάδα» → Mike/);
+ assert.doesNotMatch(src,/δεν μπόρεσε να επιλέξει με ασφάλεια/);
+});

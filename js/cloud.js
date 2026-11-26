@@ -133,6 +133,18 @@
      symbol:String(l?.symbol||'').slice(0,20),name:String(l?.name||'').slice(0,60),pct:Number(l?.pct)||0,value:Number(l?.value)||0,
      sinceBuy:Number.isFinite(Number(l?.sinceBuy))&&l?.sinceBuy!==null?Number(l.sinceBuy):null}))}));
   }
+  // Mike live: the owner's holdings at the latest public prices (read-only).
+  async function mikeLive(){
+   await ensureAuth();
+   const r=await fetcher(BASE+'/functions/v1/mike-watch',{method:'POST',redirect:'error',
+    headers:{apikey:KEY,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:'{"live":true}'});
+   const d=await r.json().catch(()=>null);
+   if(!r.ok||!d||d.state!=='live')return d?.state==='no_holdings'?{state:'no_holdings'}:null;
+   return {at:String(d.at||''),total:Number(d.total)||0,change:Number(d.change)||0,changePct:Number(d.changePct)||0,open:d.open===true,
+    lines:(Array.isArray(d.lines)?d.lines:[]).slice(0,40).map(l=>({name:String(l?.name||'').slice(0,60),symbol:String(l?.symbol||'').slice(0,20),
+     price:Number(l?.price)||0,currency:['EUR','USD','GBP'].includes(l?.currency)?l.currency:'EUR',pct:Number(l?.pct)||0,value:Number(l?.value)||0,
+     sinceBuy:l?.sinceBuy==null?null:Number(l.sinceBuy)}))};
+  }
   // James's shop: turn an approved idea into a product (server checks it all).
   async function shopBuild(proposalId){
    if(!/^[0-9a-f-]{36}$/i.test(proposalId||''))throw Error('Invalid proposal');
@@ -1054,7 +1066,7 @@
    }
   }
   return {BASE,identity,ownerId,signedIn,login,signup,signout,list,add,update,remove,
-   listDismissed,dismissItem,restoreItem,listProposals,decideProposal,shopBuild,listShopResearch,listShopProducts,listMikeHoldings,listMikeDays,savePushSubscription,deletePushSubscription,prepareImport,importTasks,
+   listDismissed,dismissItem,restoreItem,listProposals,decideProposal,shopBuild,listShopResearch,listShopProducts,listMikeHoldings,listMikeDays,mikeLive,savePushSubscription,deletePushSubscription,prepareImport,importTasks,
    listMissions,createMission,setMissionStatus,deleteMission,
    createAutonomousMission,listAutonomousMissions,redoAutonomousMission,autonomousControllerStatus,simulateAutonomousMission,launchCopilotPilot,
    previewRoutine,listRoutines,createRoutine,changeRoutine,updateRoutine,systemHealth,
