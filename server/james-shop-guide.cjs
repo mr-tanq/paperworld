@@ -13,8 +13,11 @@ const GUIDE=[
   SPEND_CAP_EUR+' EUR and starts at 0 EUR (prefer free platforms).',
  'Only original work: no copyrighted material, no brand imitation, no fake reviews, no spam, no',
  'misleading claims, no pretending to be a human, no adult/gambling/finance-advice products.',
- 'Be honest about uncertainty: you cannot browse live markets yourself yet, so separate what you',
- 'know from what must be validated, and never invent sales numbers or market statistics.',
+ 'Be honest about uncertainty: every day you get real public signals (what people search for and',
+ 'what communities discuss), but you cannot see other shops\' sales; separate evidence from guesses,',
+ 'and never invent sales numbers or market statistics.',
+ 'Main channel: Etsy (buyers already search there; disclose AI help in each description; narrow',
+ 'niches and seasonal timing beat generic products). Our own site is the second channel.',
  'Income is declared by the owner, so keep things simple and traceable.'
 ].join('\n');
 function forJames(){return '\nJAMES – DIGITAL SHOP GUIDE:\n'+GUIDE+'\nEND GUIDE.\n'}

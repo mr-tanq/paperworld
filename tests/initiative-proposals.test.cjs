@@ -16,6 +16,7 @@ function fake({claimed=true,open=[],memory=[{title:'Μάθημα',body:'κάτι
   const json=b=>({ok:true,status:200,json:async()=>b,text:async()=>JSON.stringify(b)});
   if(url.includes('paperworld_initiative_runs_v1'))return json(claimed?[{token}]:[]);
   if(url.includes('paperworld_agent_threads'))return json([{id:'44444444-4444-4444-8444-444444444444'}]);
+  if(url.includes('paperworld_shop_research_v1'))return json([{day:'2026-11-26',note:{niche:'n',product:'p',why:'w'},confidence:2}]);
   if(url.includes('director_id=eq.shop-director'))return json([{id:'j1',title:'Παλιά',status:'proposed'},{id:'j2',title:'Άλλη',status:'proposed'}]);
   if(url.includes('paperworld_proposals_v1')&&m==='GET'){
    if(url.includes('status=eq.proposed'))return json(url.includes('listening')?open:[]);
@@ -39,7 +40,7 @@ test('one idea per Director with memory; open ideas are not repeated; Matt annou
  const f=fake({open:[{id:'old'}]});
  const r=await f.api.run({token});
  assert.equal(r.status,200);
- const states=Object.fromEntries(r.body.results.map(x=>[x.director,x.state]));
+ const states=Object.fromEntries(r.body.results.filter(x=>x.director!=='shop-director').map(x=>[x.director,x.state]));
  assert.deepEqual(states,{'listening-director':'waiting_for_owner','pokemon-director':'proposed','studio-director':'no_memory'});
  assert.equal(f.prompts.length,1,'one AI turn for the one Director who needed it');
  assert.match(f.prompts[0],/OWNER-APPROVED NOTES/);
@@ -63,7 +64,7 @@ test('an idea with the same title as an earlier one is skipped',async()=>{
   createSession:async()=>({sendAndWait:async()=>({data:{content:'{"title":"Ιδέα","why":"w","task":"k"}'}}),disconnect:async()=>{}})});
  const api=makeInitiativeProposals({fetcher,clientFactory,secret:'x'.repeat(40),ownerId:owner,tokenFor:()=>'gho_TESTTOKEN123',clock:()=>Date.parse('2026-11-24T08:23:00Z')});
  const r=await api.run({token});
- assert.ok(r.body.results.every(x=>x.state==='repeat_skipped'));
+ assert.ok(r.body.results.filter(x=>x.director!=='shop-director').every(x=>x.state==='repeat_skipped'));
  assert.ok(!calls.some(u=>u.includes('paperworld_agent_messages')),'no announcement for a repeat');
 });
 test('only the database\'s fresh single-use token can start a run',async()=>{

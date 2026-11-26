@@ -12,6 +12,7 @@ const {parseSong,sunoBlockedWords}=require('../js/crow-studio-draft.js');
 const {forCrow:forCrowBible}=require('./crow-project-bible.cjs');
 const {forCrow:forCrowGuide}=require('./crow-songwriting-guide.cjs');
 const {forJames,SPEND_CAP_EUR}=require('./james-shop-guide.cjs');
+const research=require('./james-research.cjs');
 const {createSafeSessionConfig}=require('./matt-session-config.cjs');
 const BASE='https://jrevhzvrgenucuozjowm.supabase.co';
 const UUID=/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
@@ -52,9 +53,11 @@ function songPrompt(notes,pastTitles=''){
 }
 // James (shop): his weekly research. Up to two product ideas the owner answers
 // once a week with Ναι/Όχι. No memory needed: it is his own project.
-function jamesPrompt(past=''){
+function jamesPrompt(past='',journal=''){
  return 'You are James, the Digital Shop Director in PAPERWORLD.'+forJames()+
-  'Do your weekly research: propose up to TWO original digital products that real people actively look for '+
+  (journal?'YOUR RESEARCH JOURNAL (your own daily notes, strongest first; base the ideas on it):\n'+journal.slice(0,3000)+'\n':'')+
+  'Main sales channel: Etsy (buyers already search there; narrow niches beat generic planners; season matters). '+
+  'Propose up to TWO original digital products that real people actively look for '+
   'and would pay a small price for, that can be made and delivered as files or a small web tool, and that '+
   'need no paid tools (spending starts at 0 EUR; at most '+SPEND_CAP_EUR+' EUR in total, only if clearly worth it and asked). '+
   'For each, explain the demand you expect and how to validate it; never invent statistics. Write in Greek. '+
@@ -134,6 +137,23 @@ function makeInitiativeProposals({fetcher=globalThis.fetch,clientFactory,secret=
    'resolution=ignore-duplicates,return=minimal');
   return {state:'song_written',title:clean(song.title,80)};
  }
+ // Every day: gather public signals, write today's research note.
+ async function jamesResearch({githubToken}){
+  const day=new Date(clock()).toISOString().slice(0,10);
+  const done=(await db('paperworld_shop_research_v1?select=note,confidence&owner_id=eq.'+ownerId+'&day=eq.'+day+'&limit=1'))?.[0];
+  if(done)return {state:'already_researched',confidence:done.confidence};
+  const signals=await research.gatherSignals({fetcher,clock});
+  const recent=(await db('paperworld_shop_research_v1?select=day,note,confidence&owner_id=eq.'+ownerId+'&order=day.desc&limit=10'))||[];
+  const journal=recent.map(r=>'- '+r.day+' ['+r.confidence+'/5] '+clean(r.note?.niche,60)+': '+clean(r.note?.product,80)+' — '+clean(r.note?.why,140)).join('\n');
+  const past=((await db('paperworld_proposals_v1?select=title,status&owner_id=eq.'+ownerId+'&director_id=eq.shop-director&order=created_at.desc&limit=20'))||[])
+   .map(r=>'- '+clean(r.title,80)+' ('+r.status+')').join('\n');
+  const note=research.parseNote(await ask('You are James, the Digital Shop Director in PAPERWORLD.'+forJames()+
+   research.researchPrompt({signals,journal,past}),githubToken));
+  if(!note)return {state:'no_note'};
+  note.sources={searches:signals.searches.length,communities:signals.talk.length};
+  await db('paperworld_shop_research_v1','POST',{owner_id:ownerId,day,note,confidence:note.confidence},'return=minimal');
+  return {state:'researched',confidence:note.confidence};
+ }
  async function jamesIdeas({githubToken,matt}){
   const ctrl=(await db('paperworld_autonomous_controller_v5?select=initiatives_paused&singleton=eq.true&limit=1').catch(()=>null))?.[0];
   if(ctrl?.initiatives_paused===true)return {state:'paused'};
@@ -141,7 +161,10 @@ function makeInitiativeProposals({fetcher=globalThis.fetch,clientFactory,secret=
    '&order=created_at.desc&limit=20'))||[];
   const open=earlier.filter(r=>r.status==='proposed').length;
   if(open>=2)return {state:'waiting_for_owner'};
-  const ideas=parseIdeas(await ask(jamesPrompt(earlier.map(r=>'- '+clean(r.title,80)+' ('+r.status+')').join('\n')),githubToken))
+  const notes=((await db('paperworld_shop_research_v1?select=day,note,confidence&owner_id=eq.'+ownerId+'&order=confidence.desc,day.desc&limit=8'))||[])
+   .map(r=>'- ['+r.confidence+'/5] '+clean(r.note?.niche,60)+': '+clean(r.note?.product,80)+' ('+(r.note?.channel||'etsy')+') — '+clean(r.note?.why,160)+
+    (Array.isArray(r.note?.evidence)&&r.note.evidence.length?' Evidence: '+r.note.evidence.slice(0,3).map(e=>clean(e,80)).join(' | '):'')).join('\n');
+  const ideas=parseIdeas(await ask(jamesPrompt(earlier.map(r=>'- '+clean(r.title,80)+' ('+r.status+')').join('\n'),notes),githubToken))
    .filter(i=>!earlier.some(r=>clean(r.title,80).toLowerCase()===i.title.toLowerCase())).slice(0,2-open);
   if(!ideas.length)return {state:'no_idea'};
   const week=new Date(clock()).toISOString().slice(0,10);
@@ -150,7 +173,7 @@ function makeInitiativeProposals({fetcher=globalThis.fetch,clientFactory,secret=
   }
   await db('paperworld_agent_messages','POST',{thread_id:matt.id,owner_id:ownerId,role:'agent',
    content:PREFIX+JSON.stringify({director:'shop-director',kind:'notification',
-    text:'🛍️ Ο James έκανε την έρευνα της εβδομάδας για το μαγαζί και προτείνει: «'+ideas.map(i=>i.title).join('» και «')+
+    text:'🛍️ Ο James βρήκε από την έρευνά του και προτείνει για το μαγαζί: «'+ideas.map(i=>i.title).join('» και «')+
      '». Πες Ναι ή Όχι από τις «Προτάσεις».'})},'return=minimal');
   return {state:'proposed',count:ideas.length};
  }
@@ -186,10 +209,14 @@ function makeInitiativeProposals({fetcher=globalThis.fetch,clientFactory,secret=
     results.push({director:d.id,state:'proposed',id:row?.id});
    }catch(_){results.push({director:d.id,state:'error'})}
   }
-  // Monday (and his very first day): James's weekly research for the shop.
+  // James: research EVERY day; propose on Mondays, on his very first day, or
+  // as soon as today's research is strong (confidence 4-5).
+  let found=null;
+  try{found=await jamesResearch({githubToken});results.push({director:'shop-director',step:'research',...found})}
+  catch(_){results.push({director:'shop-director',step:'research',state:'error'})}
   try{
    const first=!((await db('paperworld_proposals_v1?select=id&owner_id=eq.'+ownerId+'&director_id=eq.shop-director&limit=1'))||[]).length;
-   if(amsterdam(clock(),{weekday:'short'}).startsWith('Mon')||first||forceJames===true)
+   if(amsterdam(clock(),{weekday:'short'}).startsWith('Mon')||first||forceJames===true||(found?.state==='researched'&&found.confidence>=4))
     results.push({director:'shop-director',...await jamesIdeas({githubToken,matt})});
   }catch(_){results.push({director:'shop-director',state:'error'})}
   // Thursday: Crow writes a song on his own (paused with the initiatives switch).

@@ -56,8 +56,10 @@ test('studio: file stored privately; preview + catalogue go to the storefront th
  assert.ok(f.calls.some(([m,u])=>m==='POST'&&u.endsWith('/storage/v1/object/shop-files/calm-habit-tracker.pdf')),'private bucket');
  const putCat=f.calls.find(([m,u])=>m==='PUT'&&u.endsWith('/contents/products.json'));
  const cat=JSON.parse(Buffer.from(JSON.parse(putCat[2]).content,'base64').toString());
- assert.deepEqual(cat.products[0],{slug:SPEC.slug,title:SPEC.title,summary:SPEC.summary,price_eur:4,status:'soon',
+ const {description,...rest}=cat.products[0];
+ assert.deepEqual(rest,{slug:SPEC.slug,title:SPEC.title,summary:SPEC.summary,price_eur:4,status:'soon',
   preview:'./assets/previews/calm-habit-tracker.svg',file_key:'calm-habit-tracker.pdf'});
+ assert.match(description,/with the help of AI tools/,'honest AI note in the public description too');
  assert.ok(f.calls.some(([m,u])=>m==='PUT'&&u.endsWith('/contents/assets/previews/calm-habit-tracker.svg')));
  assert.ok(!f.calls.some(([m,u])=>m==='PUT'&&/\.pdf$/.test(u)&&u.includes('api.github.com')),'the PDF never goes to the public repo');
  const patch=JSON.parse(f.calls.find(([m,u])=>m==='PATCH')[2]);assert.equal(patch.status,'listing');assert.equal(patch.pr_number,7);
