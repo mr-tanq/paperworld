@@ -30,7 +30,18 @@ async function uuidFrom(text){
 // Weekly meeting (Sunday): Matt sums up the last 7 days from real records
 // only. An original attempt that was redone automatically is not counted as
 // "needed you" (the redo is what counts). Pure, so it is easy to test.
-function weekly(missions,proposals=0){
+// James's week, from his own journal and shop (no AI): how many days he
+// researched, his strongest finding and what went into the storefront.
+function jamesWeek(notes=[],products=[]){
+ const days=(Array.isArray(notes)?notes:[]).length;
+ const listed=(Array.isArray(products)?products:[]).filter(p=>['listed','live'].includes(p?.status)).length;
+ if(!days&&!listed)return '';
+ const best=[...(notes||[])].sort((a,b)=>(b.confidence||0)-(a.confidence||0))[0];
+ const niche=String(best?.note?.niche||'').replace(/\s+/g,' ').trim().slice(0,60);
+ return 'James: '+days+(days===1?' μέρα':' μέρες')+' έρευνας'+(niche?', καλύτερο εύρημα «'+niche+'» ('+best.confidence+'/5)':'')+
+  (listed?', '+listed+(listed===1?' νέο προϊόν':' νέα προϊόντα')+' στη βιτρίνα':'')+'.';
+}
+function weekly(missions,proposals=0,james=''){
  const rows=(Array.isArray(missions)?missions:[]).filter(m=>NAME[m?.project_id]);
  const redone=new Set(rows.map(m=>m.policy?.retryOf).filter(Boolean));
  const per={},count=k=>Object.values(per).reduce((a,p)=>a+p[k],0);
@@ -56,6 +67,7 @@ function weekly(missions,proposals=0){
  const head='Εβδομαδιαία συνάντηση στο Town Hall 🏛️ ';
  const body=lines.length?'Οι τελευταίες 7 μέρες · '+lines.join(' · ')+'.':'Ήσυχη εβδομάδα: καμία εργασία τις τελευταίες 7 μέρες.';
  const extra=[initiatives?'Πρωτοβουλίες της ομάδας: '+initiatives+'.':'',
+  james,
   proposals?part(proposals,'1 πρόταση περιμένει την απόφασή σου (Εργασίες).',
    'προτάσεις περιμένουν την απόφασή σου (Εργασίες).'):''].filter(Boolean).join(' ');
  return {text:(head+body+(extra?' '+extra:'')).slice(0,900),alone:count('alone'),you:count('you'),
@@ -150,7 +162,12 @@ function createWatcher({environment,fetcher=fetch,clock=Date.now}={}){
    '&owner_id=eq.'+ctx.owner_id+'&created_at=gte.'+since+'&limit=200');
   let proposals=0;
   try{proposals=((await db('paperworld_proposals_v1?select=id&status=eq.proposed&owner_id=eq.'+ctx.owner_id+'&limit=50'))||[]).length}catch(_){}
-  const sum=weekly(missions,proposals);
+  let james='';
+  try{const [notes,products]=await Promise.all([
+    db('paperworld_shop_research_v1?select=note,confidence&owner_id=eq.'+ctx.owner_id+'&created_at=gte.'+since+'&limit=7'),
+    db('paperworld_shop_products_v1?select=status&owner_id=eq.'+ctx.owner_id+'&updated_at=gte.'+since+'&limit=50')]);
+   james=jamesWeek(notes,products)}catch(_){}
+  const sum=weekly(missions,proposals,james);
   await db('paperworld_agent_messages','POST',{id:await uuidFrom('paperworld-weekly:'+amsterdamDay(clock())),thread_id:ctx.thread_id,
    owner_id:ctx.owner_id,role:'agent',content:PREFIX+JSON.stringify({director:'matt',kind:'notification',text:sum.text})},
    'resolution=ignore-duplicates,return=minimal');
@@ -242,7 +259,7 @@ function createWatcher({environment,fetcher=fetch,clock=Date.now}={}){
  }
  return Object.freeze({handle,runOnce});
 }
-export {createWatcher,failingWorkflows,brief,amsterdamDay,weekly,isSunday,weekday};
+export {createWatcher,failingWorkflows,brief,amsterdamDay,weekly,jamesWeek,isSunday,weekday};
 if(typeof Deno!=='undefined'&&typeof Deno.serve==='function'){
  Deno.serve(createWatcher({environment:k=>Deno.env.get(k)}).handle);
 }

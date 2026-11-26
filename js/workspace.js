@@ -527,7 +527,9 @@ function shopSections(){
   Promise.all([ui.listShopResearch().catch(()=>null),ui.listShopProducts().catch(()=>null)]).then(([r,p])=>{
    state.shopResearch=r;state.shopProducts=p;if(state.view==='work'&&state.project==='shop')render()});
  }
- const prods=state.shopProducts,notes=state.shopResearch;
+ // Without the cloud functions (older app/server) the sections are simply empty.
+ const can=typeof ui?.listShopResearch==='function';
+ const prods=can?state.shopProducts:[],notes=can?state.shopResearch:[];
  const shelf=prods?.length?prods.map(p=>{const row=el('article','pw-item');row.dataset.bucket=p.status==='failed'?'attention':'done';
    row.append(el('h3','pw-item-title',p.title+(p.price?' · '+String(p.price).replace('.',',')+' €':'')),el('p','pw-item-state',SHOP_STATUS[p.status]));
    if(['listed','live'].includes(p.status)){const a=el('a','pw-link','Δες το στη βιτρίνα');a.href='https://mr-tanq.github.io/paperworld-shop/';
