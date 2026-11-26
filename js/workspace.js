@@ -28,6 +28,8 @@ const PROJECTS=Object.freeze([
   blurb:'Προπόνηση, διατροφή και συνήθειες'},
  {id:'shop',mission:'shop',hub:'Digital Shop',name:'Digital Shop',owner:'shop-director',
   blurb:'Ο James: ψηφιακά προϊόντα και έσοδα'},
+ {id:'markets',mission:null,hub:'Markets',name:'Markets',owner:'markets-director',
+  blurb:'Ο Mike: οι μετοχές και τα ETF σου, κάθε μέρα'},
  {id:'town',mission:null,hub:'Paperworld',name:'Paperworld',owner:'matt',
   blurb:'Συντονισμός και αποφάσεις για όλο το χωριό'}
 ]);
@@ -515,6 +517,7 @@ function renderProject(p){
  const done=list.filter(i=>i.bucket==='done'&&!i.note);
  if(done.length)body.append(section('Ολοκληρώθηκαν',null,done.map(i=>itemCard(i,{showProject:false}))));
  if(p.id==='shop')body.append(...shopSections());
+ if(p.id==='markets')body.append(...marketSections());
  body.append(notesSection(p));
 }
 // James's page: what he researched each day and where each product is.
@@ -543,6 +546,35 @@ function shopSections(){
    return c}):[empty(notes?'Η πρώτη έρευνα γίνεται το πρωί.':'Φόρτωση…')];
  return [section('Τα προϊόντα του James',null,shelf,{count:prods?.length}),
   section('Ημερολόγιο έρευνας','Τι βρίσκει κάθε μέρα και πόσο σίγουρος είναι (●○ = βεβαιότητα 1–5).',journal,{count:notes?.length})];
+}
+// Mike's page: how the portfolio did each day and what the owner holds.
+// Private: only the owner's own rows. Numbers only, never advice.
+const fmt=(v,d=2)=>new Intl.NumberFormat('el-GR',{minimumFractionDigits:d,maximumFractionDigits:d}).format(Math.abs(v));
+const signed=(v,d=1)=>(v>=0?'+':'−')+fmt(v,d)+'%';
+function marketSections(){
+ const ui=cloud();
+ const can=typeof ui?.listMikeHoldings==='function';
+ if(can&&Date.now()-(state.mikeAt||0)>60000){
+  state.mikeAt=Date.now();
+  Promise.all([ui.listMikeDays().catch(()=>null),ui.listMikeHoldings().catch(()=>null)]).then(([d,h])=>{
+   state.mikeDays=d;state.mikeHoldings=h;if(state.view==='work'&&state.project==='markets')render()});
+ }
+ const days=can?state.mikeDays:[],holdings=can?state.mikeHoldings:[];
+ const last=days?.[0];
+ const today=last?(()=>{const c=el('article','pw-item pw-market-today');c.dataset.bucket=last.pct>=0?'done':'attention';
+   c.append(el('p','pw-item-state',last.day+' · η μέρα'),el('h3','pw-item-title','€'+fmt(last.total,0)+' · '+signed(last.pct)+
+    ' ('+(last.change>=0?'+':'−')+'€'+fmt(last.change,0)+')'));
+   const top=[...last.lines].sort((a,b)=>b.pct-a.pct);
+   for(const l of top)c.append(el('p','pw-section-hint',l.name+': '+signed(l.pct)+' · €'+fmt(l.value,0)+
+    (l.sinceBuy!==null?' · από την αγορά '+signed(l.sinceBuy):'')));
+   return [c]})():[empty(days?'Η πρώτη ενημέρωση έρχεται το βράδυ μιας εργάσιμης, μετά το κλείσιμο των αγορών.':'Φόρτωση…')];
+ const history=days?.length>1?days.slice(1).map(d=>el('p','pw-section-hint',d.day+': €'+fmt(d.total,0)+' · '+signed(d.pct))):[];
+ const list=holdings?.length?holdings.map(h=>{const r=el('article','pw-item');
+   r.append(el('h3','pw-item-title',h.name),el('p','pw-item-state',fmt(h.quantity,h.quantity%1?2:0)+' τεμ.'+
+    (h.avgPrice?' · αγορά '+(h.currency==='EUR'?'€':h.currency==='USD'?'$':'£')+fmt(h.avgPrice):'')+' · '+h.symbol));return r}):
+  [empty(holdings?'Δεν υπάρχουν ακόμα μετοχές. Στείλε στον Mike τι έχεις.':'Φόρτωση…')];
+ return [section('Πώς πήγε','Κάθε βράδυ μετά το κλείσιμο. Μόνο ενημέρωση, όχι συμβουλή.',[...today,...history],{count:days?.length}),
+  section('Τι έχεις','Ιδιωτικό: το βλέπεις μόνο εσύ (και ο Mike όταν του μιλάς).',list,{count:holdings?.length})];
 }
 // Personal notes for a project (the owner's own cloud tasks).
 function notesSection(p){
@@ -768,7 +800,7 @@ function renderSettings(){
 
 // ---------- Memory (native page, replaces the old memory desk) -------------
 const MEMBERS=[['matt','town'],['listening-director','workshop'],['pokemon-director','pokemon'],
- ['studio-director','studio'],['wellbeing-director','wellbeing'],['shop-director','shop']];
+ ['studio-director','studio'],['wellbeing-director','wellbeing'],['shop-director','shop'],['markets-director','markets']];
 const KIND={project_bible:'Βασικά',decision:'Απόφαση',preference:'Προτίμηση',current_state:'Κατάσταση',work_history:'Από εργασία'};
 const memberName=id=>id==='matt'?'Matt':ownerName(id);
 function openMemory(agentId){

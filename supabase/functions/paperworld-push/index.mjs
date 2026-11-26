@@ -7,7 +7,7 @@ import {sendPush} from './webpush.mjs';
 const URL_BASE='https://jrevhzvrgenucuozjowm.supabase.co';
 const PREFIX='@paperworld-matt:v1:';
 const VAPID_PUBLIC='BLcC5py3RbGWyTtPIzE2lVRJrKuBKzsW8umfVhay_k0a1OADCwwbSvuLeXVrxl57JoI23DF9X365ySBpDg5z5gk';
-const NAMES={matt:'Matt','listening-director':'Luna','pokemon-director':'Joey','studio-director':'Crow','wellbeing-director':'Dave'};
+const NAMES={matt:'Matt','listening-director':'Luna','pokemon-director':'Joey','studio-director':'Crow','wellbeing-director':'Dave','shop-director':'James','markets-director':'Mike'};
 const respond=(status,body)=>new Response(JSON.stringify(body),{status,
  headers:{'content-type':'application/json','cache-control':'no-store'}});
 // What the phone shows: who speaks and the first lines of the update.
@@ -16,7 +16,9 @@ function notificationFor(row){
  let data;try{data=JSON.parse(row.content.slice(PREFIX.length))}catch(_){return null}
  if(data?.kind!=='notification'||typeof data.text!=='string'||!data.text.trim())return null;
  const who=NAMES[data.director]||'Matt';
- const text=data.text.replace(/https?:\/\/\S+/g,'').replace(/\s+/g,' ').trim();
+ // Mike's money notes show only percentages on the lock screen (privacy).
+ const source=data.director==='markets-director'?(typeof data.phone==='string'&&data.phone.trim()?data.phone:'Νέα ενημέρωση για το χαρτοφυλάκιο.'):data.text;
+ const text=source.replace(/https?:\/\/\S+/g,'').replace(/\s+/g,' ').trim();
  return {title:who==='Matt'?'Matt · PAPERWORLD':who+' μέσω Matt',
   body:text.length>180?text.slice(0,177)+'…':text,tag:'pw-'+row.id,url:'./?open=matt'};
 }

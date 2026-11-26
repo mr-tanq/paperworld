@@ -11,10 +11,11 @@ function record(projectId='workshop',extra={}){
   observedAt:stamp,version:1,sensitivity:'standard',...extra};
 }
 test('Every Director from registered roster has its own project namespace',()=>{
- assert.deepEqual(PROJECT_IDS,['town','workshop','pokemon','wellbeing','studio','shop']);
+ assert.deepEqual(PROJECT_IDS,['town','workshop','pokemon','wellbeing','studio','shop','markets']);
  assert.deepEqual(DIRECTORS,{
   'listening-director':'workshop','pokemon-director':'pokemon',
-  'wellbeing-director':'wellbeing','studio-director':'studio','shop-director':'shop'
+  'wellbeing-director':'wellbeing','studio-director':'studio','shop-director':'shop',
+  'markets-director':'markets'
  });
  for(const [director,project] of Object.entries(DIRECTORS)){
   assert.equal(authorizedProject(director,project),true);
