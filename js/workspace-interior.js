@@ -19,7 +19,7 @@ const ROOMS=Object.freeze({
  'studio-director':Object.freeze({key:'studio',sceneDesk:[.463,.37],sceneGuest:[.727,.48],title:'The Lost Wanderer Studio',desk:[.478,.41],guest:[.69,.58]}),
  'wellbeing-director':Object.freeze({key:'wellbeing',sceneDesk:[.487,.38],sceneGuest:[.733,.48],title:'Wellbeing & Training Center',desk:[.487,.41],guest:[.69,.56]}),
  'markets-director':Object.freeze({key:'markets',v:'2',sceneDesk:[.2,.22],sceneGuest:[.84,.27],title:'Investment & Portfolio Studio',desk:[.17,.4],guest:[.87,.55]}),
- 'shop-director':Object.freeze({key:'shop',v:'2',sceneDesk:[.23,.25],sceneGuest:[.835,.29],title:'Digital Business Studio',desk:[.42,.45],guest:[.88,.62]})
+ 'shop-director':Object.freeze({key:'shop',v:'3',sceneDesk:[.23,.25],sceneGuest:[.835,.29],title:'Digital Business Studio',desk:[.15,.42],guest:[.86,.5]})
 });
 const PORTRAIT={'listening-director':'luna','pokemon-director':'joey','studio-director':'crow','wellbeing-director':'dave','shop-director':'james','markets-director':'mike'};
 const WHO={'listening-director':'Η Luna','pokemon-director':'Ο Joey','studio-director':'Ο Crow','wellbeing-director':'Ο Dave','shop-director':'Ο James','markets-director':'Ο Mike'};
