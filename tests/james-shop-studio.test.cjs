@@ -127,3 +127,20 @@ test('wiring: "Ναι" on a James idea builds it; SQL keeps files private and wa
  assert.match(sql,/cron\.schedule\('paperworld-shop-studio','\*\/15 \* \* \* \*'/);
  assert.match(sql,/status in \('spec','listing'\)\)\n then return '\{"state":"idle"\}'/);
 });
+test('teacher planner: cover, roster, a gradebook per term, 10 months of attendance, Mon-Fri lesson plans; long titles never overflow',async()=>{
+ const {pagesFor}=await L();
+ const T={...SPEC,template:'teacher_planner',accent:'navy',title:'Teacher Weekly Planner with Grades and Attendance',params:{weeks:36,students:30,periods:6,start_month:'September'}};
+ const {pages,spec}=pagesFor(T);
+ assert.equal(pages.length,1+1+4+10+36);assert.deepEqual(spec.params,{weeks:36,students:30,periods:6,start:8,months:10,terms:4});
+ const texts=p=>pages[p].filter(o=>o.t==='text').map(o=>o.text);
+ assert.ok(texts(1).includes('Class Roster'));assert.ok(texts(2).includes('Gradebook - Term 1'));
+ assert.ok(texts(6).includes('Attendance - September'));assert.ok(texts(15).includes('Attendance - June'));
+ assert.ok(texts(16).includes('Lesson Plan - Week 1'));assert.ok(!texts(16).includes('Saturday'));
+ for(const ops of pages)for(const o of ops.filter(o=>o.t==='text'&&o.maxWidth))assert.ok(o.text.length*o.size*0.6<=o.maxWidth+1,'title fits');
+ assert.equal(pagesFor({...T,params:{students:99,periods:1,weeks:0}}).spec.params.students,40);
+});
+test('a product made again reuses its own studio branch, reset to main',()=>{
+ const src=fs.readFileSync('supabase/functions/shop-studio/studio.mjs','utf8');
+ assert.match(src,/if\(made\?\.exists\)await gh\('\/git\/refs\/heads\/'\+branch,\{method:'PATCH',body:\{sha:main\.object\.sha,force:true\}\}\)/);
+ assert.match(fs.readFileSync('server/james-shop-builder.cjs','utf8'),/"teacher_planner" \(for teachers: cover, class roster/);
+});

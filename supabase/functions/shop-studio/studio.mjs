@@ -59,7 +59,9 @@ function createStudio({environment,fetcher=fetch,PDFLib,clock=Date.now}={}){
   const fileKey=s.slug+'.pdf';
   await store(fileKey,pdf);
   const main=await gh('/git/ref/heads/main');const branch='james/'+s.slug;
-  await gh('/git/refs',{method:'POST',body:{ref:'refs/heads/'+branch,sha:main.object.sha}});
+  const made=await gh('/git/refs',{method:'POST',body:{ref:'refs/heads/'+branch,sha:main.object.sha}});
+  // A product made again (improved) reuses its own studio branch: start it from main.
+  if(made?.exists)await gh('/git/refs/heads/'+branch,{method:'PATCH',body:{sha:main.object.sha,force:true}});
   await putFile(branch,'assets/previews/'+s.slug+'.svg',previewSvg(s),'Preview: '+s.title);
   const cat=await gh('/contents/products.json?ref='+encodeURIComponent(branch));
   const data=JSON.parse(unb64(cat.content));

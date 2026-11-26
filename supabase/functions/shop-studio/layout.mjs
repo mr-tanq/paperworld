@@ -5,7 +5,7 @@
 const A4={w:595.28,h:841.89};
 const PALETTE=Object.freeze({terracotta:'#c96f2d',sage:'#6f8f6a',navy:'#2f4a6b',plum:'#7a4a6e',ochre:'#c9962d',slate:'#55606b'});
 const INK='#2b2118',SOFT='#8a7a68',LINE='#d9cbb6',TINT='#f6efe3';
-const TEMPLATES=Object.freeze(['weekly_planner','habit_tracker','budget_planner']);
+const TEMPLATES=Object.freeze(['weekly_planner','habit_tracker','budget_planner','teacher_planner']);
 const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const ASCII=/^[\x20-\x7E]*$/;
@@ -41,14 +41,24 @@ function validateSpec(spec){
   out.params={weeks:Math.max(1,Math.min(52,Math.round(Number(p.weeks)||12))),focus:list(p.focus||['Top priorities','To do','Notes'],3,3,28)};
  if(spec.template==='habit_tracker')
   out.params={habits:list(p.habits,3,12,26),months:Math.max(1,Math.min(12,Math.round(Number(p.months)||12)))};
+ if(spec.template==='teacher_planner'){
+  const start=MONTHS.findIndex(m=>m.toLowerCase()===String(p.start_month||'September').toLowerCase());
+  out.params={weeks:Math.max(1,Math.min(52,Math.round(Number(p.weeks)||40))),students:Math.max(10,Math.min(40,Math.round(Number(p.students)||30))),
+   periods:Math.max(3,Math.min(9,Math.round(Number(p.periods)||6))),start:start<0?8:start,months:10,terms:4};
+ }
  if(spec.template==='budget_planner')
   out.params={income:list(p.income||['Salary','Side income','Other'],1,6,24),expenses:list(p.expenses,4,14,24),months:Math.max(1,Math.min(12,Math.round(Number(p.months)||12)))};
  return out;
 }
+// Long titles shrink to fit the page (estimate here, exact metrics in the PDF).
+function fit(text,size,maxW,min=11,bold=true){
+ const est=String(text).length*size*(bold?0.6:0.54);
+ return est<=maxW?size:Math.max(min,Math.floor(size*maxW/est*10)/10);
+}
 function header(ops,s,title,sub){
- const c=PALETTE[s.accent];
+ const c=PALETTE[s.accent],maxW=A4.w-80;
  ops.push({t:'rect',x:0,y:0,w:A4.w,h:84,fill:c});
- ops.push({t:'text',x:40,y:44,size:22,text:title,color:'#ffffff',bold:true});
+ ops.push({t:'text',x:40,y:44,size:fit(title,22,maxW),text:title,color:'#ffffff',bold:true,maxWidth:maxW});
  ops.push({t:'text',x:40,y:66,size:11,text:sub,color:'#ffffff'});
 }
 function footer(ops,s,n){
@@ -122,9 +132,63 @@ function budget(s){
  }
  return pages;
 }
+// Teachers: everything the title promises, each part on its own pages.
+// Cover, class roster, gradebook (one page per term), monthly attendance for
+// the school year, then a Monday-Friday lesson plan by period for each week.
+function grid(ops,{x,y,w,rowH,rows,cols,c,head='',numbered=true}){
+ // cols: [{label,w}] widths in points; the header row is tinted.
+ ops.push({t:'rect',x,y,w,h:rowH,fill:TINT});
+ let cx=x;for(const col of cols){if(col.label)ops.push({t:'text',x:cx+(col.center?col.w/2:5),y:y+rowH/2+3,size:col.size||8,text:col.label,color:c,bold:true,...(col.center?{align:'center'}:{})});cx+=col.w}
+ for(let r=0;r<=rows;r++){const ly=y+(r+1)*rowH;ops.push({t:'line',x1:x,y1:ly,x2:x+w,y2:ly,color:LINE,width:r===0?1:0.5});
+  if(numbered&&r<rows)ops.push({t:'text',x:x+cols[0].w/2,y:ly+rowH/2+3,size:7.5,text:String(r+1),color:SOFT,align:'center'})}
+ cx=x;for(let i=0;i<=cols.length;i++){ops.push({t:'line',x1:cx,y1:y,x2:cx,y2:y+(rows+1)*rowH,color:LINE,width:i===0||i===cols.length?0.8:0.5});if(i<cols.length)cx+=cols[i].w}
+ ops.push({t:'rect',x,y,w,h:(rows+1)*rowH,stroke:LINE,width:0.8});
+}
+function teacher(s){
+ const c=PALETTE[s.accent],P=s.params,pages=[],W=A4.w-80,x0=40;let n=0;
+ const page=(title,sub)=>{const ops=[];header(ops,s,title,sub);return ops};
+ const done=ops=>{footer(ops,s,++n);pages.push(ops)};
+ // 1. Cover
+ {const ops=[];ops.push({t:'rect',x:0,y:0,w:A4.w,h:330,fill:c});
+  ops.push({t:'text',x:A4.w/2,y:170,size:fit(s.title,30,W),text:s.title,color:'#ffffff',bold:true,align:'center',maxWidth:W});
+  ops.push({t:'text',x:A4.w/2,y:205,size:13,text:s.subtitle,color:'#ffffff',align:'center'});
+  ['Teacher','School','Class / grade','School year'].forEach((l,i)=>{const y=420+i*70;
+   ops.push({t:'text',x:x0+40,y,size:12,text:l,color:SOFT});ops.push({t:'line',x1:x0+150,y1:y+2,x2:x0+W-40,y2:y+2,color:LINE,width:0.8})});
+  done(ops)}
+ const rowH=Math.min(22,(A4.h-104-60-24)/(P.students+1));
+ // 2. Class roster
+ {const ops=page('Class Roster',s.title);
+  grid(ops,{x:x0,y:104,w:W,rowH,rows:P.students,c,cols:[{label:'#',w:24,center:true},{label:'Student name',w:200},{label:'Parent / guardian contact',w:180},{label:'Notes',w:W-404}]});
+  done(ops)}
+ // 3. Gradebook: one page per term, 12 assignments and a final column
+ for(let t=1;t<=P.terms;t++){const ops=page('Gradebook - Term '+t,'Write the task and date at the top of each column');
+  const nameW=120,finW=40,aw=(W-24-nameW-finW)/12;
+  const cols=[{label:'#',w:24,center:true},{label:'Student',w:nameW},...Array.from({length:12},(_,i)=>({label:String(i+1),w:aw,center:true,size:7})),{label:'Final',w:finW,center:true}];
+  grid(ops,{x:x0,y:104,w:W,rowH,rows:P.students,c,cols});done(ops)}
+ // 4. Attendance: one page per month of the school year
+ for(let m=0;m<P.months;m++){const month=MONTHS[(P.start+m)%12];
+  const ops=page('Attendance - '+month,'Year ______     Mark: / present   A absent   L late   E excused');
+  const nameW=110,totW=22,dw=(W-24-nameW-2*totW)/31;
+  const cols=[{label:'#',w:24,center:true},{label:'Student',w:nameW},...Array.from({length:31},(_,d)=>({label:String(d+1),w:dw,center:true,size:6})),{label:'P',w:totW,center:true},{label:'A',w:totW,center:true}];
+  grid(ops,{x:x0,y:104,w:W,rowH,rows:P.students,c,cols});done(ops)}
+ // 5. Weekly lesson plans: Monday-Friday by period, plus to-do and notes
+ for(let wk=1;wk<=P.weeks;wk++){const ops=page('Lesson Plan - Week '+wk,'______ to ______');
+  const pw=46,dw=(W-pw)/5,top=104,hh=22,bodyH=A4.h-top-54-150,ph=(bodyH-hh)/P.periods;
+  ops.push({t:'rect',x:x0,y:top,w:W,h:hh,fill:TINT});
+  ops.push({t:'text',x:x0+pw/2,y:top+15,size:8,text:'Period',color:c,bold:true,align:'center'});
+  DAYS.slice(0,5).forEach((d,i)=>ops.push({t:'text',x:x0+pw+i*dw+dw/2,y:top+15,size:9,text:d,color:c,bold:true,align:'center'}));
+  for(let p=0;p<P.periods;p++){const y=top+hh+p*ph;ops.push({t:'text',x:x0+pw/2,y:y+ph/2+4,size:11,text:String(p+1),color:SOFT,align:'center',bold:true});
+   ops.push({t:'line',x1:x0,y1:y+ph,x2:x0+W,y2:y+ph,color:LINE,width:0.6})}
+  for(let i=0;i<=5;i++){const x=x0+pw+i*dw;ops.push({t:'line',x1:x,y1:top,x2:x,y2:top+hh+P.periods*ph,color:LINE,width:0.6})}
+  ops.push({t:'rect',x:x0,y:top,w:W,h:hh+P.periods*ph,stroke:LINE,width:0.8});
+  const by=top+bodyH+14;box(ops,x0,by,W/2-6,122,'To do',c,4);box(ops,x0+W/2+6,by,W/2-6,122,'Notes',c,4);
+  done(ops)}
+ return pages;
+}
 function pagesFor(spec){
  const s=validateSpec(spec);
- return {spec:s,pages:s.template==='weekly_planner'?weekly(s):s.template==='habit_tracker'?habits(s):budget(s),size:A4};
+ const make={weekly_planner:weekly,habit_tracker:habits,budget_planner:budget,teacher_planner:teacher}[s.template];
+ return {spec:s,pages:make(s),size:A4};
 }
 const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 // Public preview: page 1 only, with a diagonal PREVIEW mark.
@@ -151,9 +215,10 @@ async function renderPdf(spec,PDFLib){
    if(o.t==='rect')pg.drawRectangle({x:o.x,y:size.h-o.y-o.h,width:o.w,height:o.h,...(o.fill?{color:col(o.fill)}:{}),
     ...(o.stroke?{borderColor:col(o.stroke),borderWidth:o.width}:{})});
    else if(o.t==='line')pg.drawLine({start:{x:o.x1,y:size.h-o.y1},end:{x:o.x2,y:size.h-o.y2},thickness:o.width,color:col(o.color)});
-   else{const f=o.bold?bold:font,w=f.widthOfTextAtSize(o.text,o.size);
+   else{const f=o.bold?bold:font;let sz=o.size,w=f.widthOfTextAtSize(o.text,sz);
+    if(o.maxWidth&&w>o.maxWidth){sz=sz*o.maxWidth/w;w=o.maxWidth}// never wider than the page
     const x=o.align==='right'?o.x-w:o.align==='center'?o.x-w/2:o.x;
-    pg.drawText(o.text,{x,y:size.h-o.y,size:o.size,font:f,color:col(o.color)})}
+    pg.drawText(o.text,{x,y:size.h-o.y,size:sz,font:f,color:col(o.color)})}
   }
  }
  return doc.save();
