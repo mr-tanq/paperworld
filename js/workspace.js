@@ -403,6 +403,12 @@ function proposalCard(p){
   try{
    const r=await cloud().decideProposal(p.id,accept);
    state.proposals=state.proposals.filter(x=>x.id!==p.id);render();
+   // James's shop ideas go straight to his production line (no chat needed).
+   if(accept&&r?.state==='accepted'&&p.directorId==='shop-director'&&typeof cloud().shopBuild==='function'){
+    say('🛍️ Ο James ξεκινά: φτιάχνει το προϊόν και θα το βάλει στη βιτρίνα. Θα σου πει ο Matt.');
+    cloud().shopBuild(p.id).then(b=>say(b?.title?'🛍️ Ο James σχεδίασε: «'+b.title+'» ('+String(b.price_eur).replace('.',',')+' €). Το φτιάχνει τώρα.':
+     '🛍️ Ο James το έχει ήδη σε εξέλιξη.')).catch(()=>say('Ο James δεν μπόρεσε να ξεκινήσει τώρα. Θα το ξαναδοκιμάσει.'));
+    return}
    if(accept&&r?.state==='accepted'){close({restoreFocus:false});
     window.PaperworldWorldDialogue?.open?.(p.directorId,{context:{title:p.title,state:'Πρόταση που δέχτηκες'},
      draft:'Για την πρότασή σου «'+p.title+'»: '+p.task+' '+(IDEA_ASK[p.directorId]||'Ναι, προχώρα.'),send:true})}
