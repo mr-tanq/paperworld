@@ -9,6 +9,8 @@ const TEMPLATES=Object.freeze(['weekly_planner','habit_tracker','budget_planner'
 const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const ASCII=/^[\x20-\x7E]*$/;
+// Etsy asks sellers to say in the description when AI helped make an item.
+const AI_NOTE='Made by Digital Business Studio with the help of AI tools; every product is approved by the shop owner before release.';
 function txt(s,max){
  const t=String(s??'').replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,'-').replace(/\s+/g,' ').trim();
  if(!t||t.length>max||!ASCII.test(t))throw Error('invalid_text');
@@ -29,7 +31,11 @@ function validateSpec(spec){
  const p=spec.params||{};
  const out={template:spec.template,accent:spec.accent,slug,price_eur:price,
   title:txt(spec.title,60),subtitle:txt(spec.subtitle||'Printable - A4',80),
-  summary:String(spec.summary||'').trim().slice(0,200),description:String(spec.description||'').trim().slice(0,800)};
+  summary:String(spec.summary||'').trim().slice(0,200),
+  description:(String(spec.description||'').trim().slice(0,800-AI_NOTE.length-2)+'\n\n'+AI_NOTE).trim(),
+  // Etsy listing: a searchable title (<=140) and up to 13 tags (<=20 chars each).
+  etsy_title:spec.etsy_title?txt(spec.etsy_title,140):txt(spec.title,60),
+  tags:Array.isArray(spec.tags)?[...new Set(spec.tags.map(t=>txt(String(t).toLowerCase(),20)))].slice(0,13):[]};
  if(!out.summary)throw Error('invalid_summary');
  if(spec.template==='weekly_planner')
   out.params={weeks:Math.max(1,Math.min(52,Math.round(Number(p.weeks)||12))),focus:list(p.focus||['Top priorities','To do','Notes'],3,3,28)};
@@ -152,4 +158,4 @@ async function renderPdf(spec,PDFLib){
  }
  return doc.save();
 }
-export {validateSpec,pagesFor,previewSvg,renderPdf,TEMPLATES,PALETTE};
+export {validateSpec,pagesFor,previewSvg,renderPdf,TEMPLATES,PALETTE,AI_NOTE};

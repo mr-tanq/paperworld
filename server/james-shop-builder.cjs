@@ -24,8 +24,11 @@ function specPrompt(idea){
   'Accent colour: one of terracotta, sage, navy, plum, ochre, slate. Price in EUR between 1 and 29 (realistic for a printable).\n'+
   'All product text in ENGLISH, plain ASCII only (no emoji, no curly quotes), title max 60 chars, honest summary max 200 chars, '+
   'description max 800 chars (what is inside, who it is for, A4 printable PDF). Pick the template that best serves the idea.\n'+
+  'It will be sold on Etsy first: also write "etsy_title" (max 140 chars, the words buyers search, e.g. "2027 Budget Planner '+
+  'for Students | Printable A4 PDF") and "tags": exactly 13 search phrases, lowercase, each max 20 characters. '+
+  'Do not mention AI in the description; the shop adds its own honest note.\n'+
   'Return ONLY one JSON object: {"template":"…","accent":"…","slug":"lowercase-words-with-dashes","title":"…","subtitle":"…",'+
-  '"summary":"…","description":"…","price_eur":4,"params":{…}}.';
+  '"summary":"…","description":"…","etsy_title":"…","tags":["…"],"price_eur":4,"params":{…}}.';
 }
 function parseSpec(text){const m=String(text||'').match(/\{[\s\S]*\}/);if(!m)return null;try{return JSON.parse(m[0])}catch(_){return null}}
 function makeJamesShopBuilder({fetcher=globalThis.fetch,clientFactory,tokenFor,secret=process.env.PAPERWORLD_SUPABASE_SERVICE_ROLE_KEY,

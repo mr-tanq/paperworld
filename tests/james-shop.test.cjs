@@ -23,22 +23,22 @@ function fake({james=[],reply='[{"title":"Εκτυπώσιμο εβδομαδι�
 }
 test('first day: James researches and proposes up to two ideas; Matt tells the owner',async()=>{
  const f=fake();const r=await f.make('2026-11-25T08:23:00Z').run({token});
- assert.equal(r.body.results.find(x=>x.director==='shop-director').state,'proposed');
+ assert.equal(r.body.results.find(x=>x.director==='shop-director'&&!x.step).state,'proposed');
  const rows=f.posts.filter(([u])=>u.includes('paperworld_proposals_v1')).map(([,b])=>b);
  assert.equal(rows.length,2);assert.ok(rows.every(b=>b.director_id==='shop-director'&&b.owner_id===owner));
  const note=JSON.parse(f.posts.find(([u,b])=>u.includes('agent_messages')&&b.content.includes('shop-director'))[1].content.slice(20));
- assert.match(note.text,/^🛍️ Ο James έκανε την έρευνα της εβδομάδας[\s\S]*Πες Ναι ή Όχι/);
- assert.match(f.prompts.find(p=>p.includes('Digital Shop Director')),/never invent statistics/);
+ assert.match(note.text,/^🛍️ Ο James βρήκε από την έρευνά του και προτείνει[\s\S]*Πες Ναι ή Όχι/);
+ assert.match(f.prompts.find(p=>p.includes('Propose up to TWO')),/never invent statistics/);
 });
 test('weekly: only on Mondays after the first time; never more than two open ideas',async()=>{
  const wed=fake({james:[{title:'Παλιά',status:'declined'}]});
- assert.equal((await wed.make('2026-11-25T08:23:00Z').run({token})).body.results.find(x=>x.director==='shop-director'),undefined);
+ assert.equal((await wed.make('2026-11-25T08:23:00Z').run({token})).body.results.find(x=>x.director==='shop-director'&&!x.step),undefined);
  const mon=fake({james:[{title:'Παλιά',status:'declined'},{title:'Ανοιχτή',status:'proposed'}]});
  await mon.make('2026-11-30T08:23:00Z').run({token});
  assert.equal(mon.posts.filter(([u])=>u.includes('paperworld_proposals_v1')).length,1,'one slot left');
  assert.match(mon.prompts.find(p=>p.includes('Digital Shop'))||'',/Παλιά \(declined\)/);
  const full=fake({james:[{title:'a',status:'proposed'},{title:'b',status:'proposed'}]});
- assert.equal((await full.make('2026-11-30T08:23:00Z').run({token})).body.results.find(x=>x.director==='shop-director').state,'waiting_for_owner');
+ assert.equal((await full.make('2026-11-30T08:23:00Z').run({token})).body.results.find(x=>x.director==='shop-director'&&!x.step).state,'waiting_for_owner');
  assert.equal(parseIdeas('nope').length,0);assert.equal(parseIdeas('[{"title":"x"}]').length,0);
 });
 test('hard rules are always in his prompt; spending cap 50 €',()=>{
