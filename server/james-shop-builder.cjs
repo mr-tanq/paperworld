@@ -20,7 +20,10 @@ function specPrompt(idea){
   'IDEA: '+JSON.stringify({title:idea.title,why:idea.why,task:idea.task})+'\n'+
   'Templates: "weekly_planner" (params: weeks 1-52, focus: exactly 3 short section names), '+
   '"habit_tracker" (params: habits: 3-12 short habit names, months 1-12), '+
-  '"budget_planner" (params: income: 1-6 names, expenses: 4-14 names, months 1-12).\n'+
+  '"budget_planner" (params: income: 1-6 names, expenses: 4-14 names, months 1-12), '+
+  '"teacher_planner" (for teachers: cover, class roster, a gradebook page per term, monthly attendance for 10 months, '+
+  'then a Monday-Friday lesson plan by period for each week; params: weeks 1-52, students 10-40, periods 3-9, start_month e.g. "September").\n'+
+  'Only promise what the chosen template really contains: the description must match the pages exactly.\n'+
   'Accent colour: one of terracotta, sage, navy, plum, ochre, slate. Price in EUR between 1 and 29 (realistic for a printable).\n'+
   'All product text in ENGLISH, plain ASCII only (no emoji, no curly quotes), title max 60 chars, honest summary max 200 chars, '+
   'description max 800 chars (what is inside, who it is for, A4 printable PDF). Pick the template that best serves the idea.\n'+
