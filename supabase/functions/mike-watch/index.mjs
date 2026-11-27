@@ -120,7 +120,9 @@ function createMike({environment,fetcher=fetch,clock=Date.now}={}){
    headers:{apikey:key,...(key.startsWith('eyJ')?{Authorization:'Bearer '+key}:{}),Accept:'application/json',
     'Content-Type':'application/json',...(prefer?{Prefer:prefer}:{})},...(body===undefined?{}:{body:JSON.stringify(body)})});
   if(!r?.ok)throw Error('database_request_failed');
-  return r.status===204?null:r.json();
+  // Writes with return=minimal answer 201 with an empty body: that is success.
+  const text=r.status===204?'':await r.text();
+  return text?JSON.parse(text):null;
  }
  const recent=new Map();// symbol -> {at,chart}: live views reuse a price for 60 s
  async function chart(symbol,{fresh=60000}={}){
