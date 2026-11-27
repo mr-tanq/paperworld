@@ -56,11 +56,11 @@ test('mike-watch: secret-protected, weekdays only, writes the day and posts thro
  const calls=[];const t=d=>Date.parse(d+'T14:30:00Z')/1000;
  const chart=(cur,c)=>({chart:{result:[{meta:{currency:cur},timestamp:[t('2026-11-25'),t('2026-11-26')],indicators:{quote:[{close:c}]}}]}});
  const fetcher=async(url,opts={})=>{calls.push([url,opts.method||'GET',opts.body]);
-  const ok=b=>({ok:true,status:200,json:async()=>b});
+  const ok=b=>({ok:true,status:200,json:async()=>b,text:async()=>JSON.stringify(b)});
   if(url.includes('paperworld_mike_holdings_v1'))return ok([{owner_id:'o1',symbol:'VWCE.DE',name:'All-World',quantity:'10',avg_price:'140',currency:'EUR'}]);
   if(url.includes('finance.yahoo.com'))return ok(chart('EUR',[160,163.2]));
   if(url.includes('paperworld_autonomous_missions_v5'))return ok([{thread_id:'t1'}]);
-  return {ok:true,status:201,json:async()=>null};
+  return {ok:true,status:201,text:async()=>'',json:async()=>{throw Error('empty body')}};
  };
  const env={PAPERWORLD_DISPATCH_TRIGGER_SECRET:'s'.repeat(40),SUPABASE_SERVICE_ROLE_KEY:'k'.repeat(40)};
  const mike=createMike({environment:k=>env[k],fetcher,clock:()=>Date.parse('2026-11-26T22:37:00Z')});
@@ -119,7 +119,7 @@ test('Live prices: only for the signed-in owner (their own holdings), CORS for t
  const {createMike}=await load();
  const calls=[];const t=d=>Date.parse(d+'T14:30:00Z')/1000;
  const fetcher=async(url,opts={})=>{calls.push([url,opts.method||'GET']);
-  const ok=b=>({ok:true,status:200,json:async()=>b});
+  const ok=b=>({ok:true,status:200,json:async()=>b,text:async()=>JSON.stringify(b)});
   if(url.endsWith('/auth/v1/user'))return opts.headers.Authorization==='Bearer '+'u'.repeat(40)?ok({id:'11111111-1111-4111-8111-111111111111'}):{ok:false,status:401};
   if(url.includes('paperworld_mike_holdings_v1'))return ok([{symbol:'VWCE.DE',name:'All-World',quantity:'10',avg_price:'140',currency:'EUR'}]);
   if(url.includes('finance.yahoo.com'))return ok({chart:{result:[{meta:{currency:'EUR',regularMarketPrice:165,regularMarketTime:t('2026-11-26')},
